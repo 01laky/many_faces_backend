@@ -5,7 +5,7 @@ ASP.NET Core WebAPI projekt s Identity frameworkom.
 ## Funkcie
 
 - ASP.NET Core Identity pre autentifikáciu a autorizáciu
-- Entity Framework Core s SQL Server
+- Entity Framework Core s SQLite
 - Swagger/OpenAPI dokumentácia
 - RESTful API endpoints pre registráciu, prihlásenie a odhlásenie
 
@@ -15,12 +15,11 @@ ASP.NET Core WebAPI projekt s Identity frameworkom.
 - ASP.NET Core WebAPI
 - Entity Framework Core 10.0
 - ASP.NET Core Identity
-- SQL Server
+- SQLite
 
 ## Spustenie
 
-1. Nastavte connection string v `appsettings.json`
-2. Vytvorte databázu pomocou migrations:
+1. Vytvorte databázu pomocou migrations (SQLite súbor sa vytvorí automaticky):
    ```bash
    dotnet ef migrations add InitialCreate
    dotnet ef database update
