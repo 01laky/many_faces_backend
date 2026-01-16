@@ -19,16 +19,41 @@ ASP.NET Core WebAPI projekt s Identity frameworkom.
 
 ## Spustenie
 
+### Spustenie v Docker kontajneri (odporúčané pre vývoj)
+
+Najjednoduchší spôsob spustenia pomocou Docker:
+
+```bash
+./start-dev.sh
+```
+
+Alebo manuálne:
+
+```bash
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+Aplikácia bude dostupná na: `http://localhost:8080`
+Swagger UI: `http://localhost:8080/swagger`
+
+**Užitočné príkazy:**
+- Zobraziť logy: `docker-compose -f docker-compose.dev.yml logs -f`
+- Zastaviť: `docker-compose -f docker-compose.dev.yml down`
+- Reštartovať: `docker-compose -f docker-compose.dev.yml restart`
+
+### Lokálne spustenie (bez Docker)
+
 1. Vytvorte databázu pomocou migrations (SQLite súbor sa vytvorí automaticky):
    ```bash
+   cd AdminDemo.Api
    dotnet ef migrations add InitialCreate
    dotnet ef database update
    ```
-3. Spustite aplikáciu:
+2. Spustite aplikáciu:
    ```bash
-   dotnet run
+   dotnet run --launch-profile http
    ```
-4. Otvorte Swagger UI na: `https://localhost:5001/swagger`
+3. Otvorte Swagger UI na: `http://localhost:8080/swagger`
 
 ## API Endpoints
 

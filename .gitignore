@@ -45,6 +45,10 @@ artifacts/
 *.db
 *.mdf
 *.ldf
+AdminDemo.Api/data/
+
+# Docker
+.docker/
 
 # User secrets
 secrets.json
