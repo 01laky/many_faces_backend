@@ -58,9 +58,25 @@ public static class DatabaseInitializer
 
                 if (result.Succeeded)
                 {
+                    // Ensure user is saved before creating UserProfile
+                    await context.SaveChangesAsync();
+                    
+                    // Create UserProfile for admin user (one-to-one relationship)
+                    var adminProfile = new UserProfile
+                    {
+                        UserId = adminUser.Id,
+                        Nickname = "Admin",
+                        Age = 30,
+                        Rod = "M",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    context.UserProfiles.Add(adminProfile);
+                    await context.SaveChangesAsync();
+                    
                     Console.WriteLine("✅ Admin user created successfully!");
                     Console.WriteLine("   Email: admin@admin.com");
                     Console.WriteLine("   Password: admin");
+                    Console.WriteLine("   Profile ID: {0}", adminProfile.Id);
                 }
                 else
                 {
