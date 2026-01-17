@@ -247,14 +247,23 @@ if (!app.Environment.IsEnvironment("Testing"))
         Log.Warning(ex, "Database seeding failed, continuing anyway");
     }
 
+    // ============================================================================
+    // AI SERVICE HEALTH CHECK
+    // ============================================================================
     // Check AI service health via gRPC
     // This verifies that the AI Demo gRPC service is running and ready
+    // The health check is performed after database initialization to ensure
+    // all dependencies are available before the application starts serving requests
     try
     {
+        // Get AI service gRPC address from environment variable, configuration, or use default
+        // Priority: Environment variable > Configuration > Default Docker service name
         var aiServiceAddress = Environment.GetEnvironmentVariable("AI_SERVICE_GRPC_ADDRESS") 
             ?? builder.Configuration["AiService:GrpcAddress"] 
-            ?? "http://ai-demo-dev:50051";
+            ?? "http://ai-demo-dev:50051"; // Default Docker service name for development
         
+        // Perform health check with 10 second timeout
+        // This attempts to connect to the gRPC server and verify it's listening
         var isHealthy = await CheckAiServiceHealth.CheckHealthAsync(aiServiceAddress, timeoutSeconds: 10);
         
         if (isHealthy)
@@ -263,11 +272,15 @@ if (!app.Environment.IsEnvironment("Testing"))
         }
         else
         {
+            // Log warning but don't fail application startup
+            // AI service may be starting up or temporarily unavailable
             Log.Warning("AI service health check failed at {GrpcAddress}. Service may not be ready yet.", aiServiceAddress);
         }
     }
     catch (Exception ex)
     {
+        // Log warning but continue application startup
+        // Application can still function without AI service, though some features may be unavailable
         Log.Warning(ex, "AI service health check failed, continuing anyway");
     }
 }
