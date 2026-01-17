@@ -22,6 +22,7 @@ using BeDemo.Api.Services;
 using BeDemo.Api.Hubs;
 using BeDemo.Api.Scripts;
 using Serilog;
+using Grpc.Net.Client;
 
 // Creates WebApplicationBuilder, which is used to configure the application
 var builder = WebApplication.CreateBuilder(args);
@@ -244,6 +245,30 @@ if (!app.Environment.IsEnvironment("Testing"))
     catch (Exception ex)
     {
         Log.Warning(ex, "Database seeding failed, continuing anyway");
+    }
+
+    // Check AI service health via gRPC
+    // This verifies that the AI Demo gRPC service is running and ready
+    try
+    {
+        var aiServiceAddress = Environment.GetEnvironmentVariable("AI_SERVICE_GRPC_ADDRESS") 
+            ?? builder.Configuration["AiService:GrpcAddress"] 
+            ?? "http://ai-demo-dev:50051";
+        
+        var isHealthy = await CheckAiServiceHealth.CheckHealthAsync(aiServiceAddress, timeoutSeconds: 10);
+        
+        if (isHealthy)
+        {
+            Log.Information("AI service health check passed at {GrpcAddress}", aiServiceAddress);
+        }
+        else
+        {
+            Log.Warning("AI service health check failed at {GrpcAddress}. Service may not be ready yet.", aiServiceAddress);
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "AI service health check failed, continuing anyway");
     }
 }
 
