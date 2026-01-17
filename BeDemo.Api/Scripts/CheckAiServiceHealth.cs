@@ -40,24 +40,24 @@ public static class CheckAiServiceHealth
             using var channel = GrpcChannel.ForAddress(grpcAddress, new GrpcChannelOptions
             {
                 // Use insecure channel for development (use TLS in production)
-                HttpHandler = new HttpClientHandler
-                {
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
-                }
+                // For HTTP endpoints, we need to allow insecure connections
+                Credentials = Grpc.Core.ChannelCredentials.Insecure
             });
-            
-            // For now, we perform a basic connectivity check
-            // TODO: Generate C# gRPC client code from health.proto using:
-            //   protoc --csharp_out=. --grpc_out=. --plugin=protoc-gen-grpc=grpc_csharp_plugin health.proto
-            // Then use: var client = new HealthService.HealthServiceClient(channel);
-            // var response = await client.HealthCheckAsync(new HealthCheckRequest());
-            // return response.Status == "success";
             
             var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
             
             // Basic connectivity check - try to connect to the gRPC server
             // gRPC uses HTTP/2, so we can verify the channel is ready
+            // This checks if the server is listening on the specified port
             await channel.ConnectAsync(cancellationTokenSource.Token);
+            
+            // Note: For a full implementation, we would generate C# gRPC client code from health.proto:
+            //   1. Install protoc compiler and grpc_csharp_plugin
+            //   2. Run: protoc --csharp_out=. --grpc_out=. --plugin=protoc-gen-grpc=grpc_csharp_plugin proto/health.proto
+            //   3. Then use: var client = new HealthService.HealthServiceClient(channel);
+            //   4. var response = await client.HealthCheckAsync(new HealthCheckRequest(), cancellationToken: cancellationTokenSource.Token);
+            //   5. return response.Status == "success";
+            // For now, we just verify connectivity
             
             Log.Information("AI service health check passed at {GrpcAddress}", grpcAddress);
             return true;
