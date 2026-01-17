@@ -22,10 +22,18 @@ public static class DatabaseInitializer
         {
             var context = services.GetRequiredService<ApplicationDbContext>();
             var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+            var configuration = services.GetRequiredService<Microsoft.Extensions.Configuration.IConfiguration>();
 
             // Run migrations (this will create database if it doesn't exist)
             // MigrateAsync is safer than EnsureCreatedAsync when using migrations
             await context.Database.MigrateAsync();
+
+            // Generate Mermaid ERD diagram after migrations
+            var connectionString = configuration.GetConnectionString("DefaultConnection");
+            if (!string.IsNullOrEmpty(connectionString))
+            {
+                await DatabaseDiagramGenerator.GenerateDiagramAsync(context, connectionString);
+            }
 
             // Check if admin user exists (by email)
             var adminUser = await userManager.FindByEmailAsync("admin@admin.com");
