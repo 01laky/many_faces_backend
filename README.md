@@ -32,6 +32,14 @@ The Backend API (be_demo) provides a RESTful API for user authentication, author
   - Real-time communication via SignalR hubs
   - Chat hub implementation
 
+- **Multi-Tenant Face-Based Routing**
+  - URL-based tenant identification via face prefix (e.g., `/acme-corp/dashboard`)
+  - Automatic URL rewriting from `/{face-prefix}/{path}` to `/api/{face-id}/{path}?requestFaceID={id}`
+  - Face prefix matching using kebab-case conversion (e.g., "AcmeCorp" → "acme-corp")
+  - In-memory caching for face data (5-minute TTL)
+  - Public paths bypass face routing (`/api/`, `/swagger`, `/hubs`, etc.)
+  - Face validation and 403 Forbidden response for invalid face prefixes
+
 ## Technologies
 
 - **.NET 10.0** - Latest .NET runtime
@@ -49,10 +57,11 @@ The Backend API (be_demo) provides a RESTful API for user authentication, author
 be_demo/
 ├── BeDemo.Api/              # Main API project
 │   ├── Controllers/         # API controllers (Auth, OAuth2, Users, Faces, Pages)
-│   ├── Services/            # Business logic services
+│   ├── Services/            # Business logic services (IFaceService, FaceService)
 │   ├── Models/              # Data models and DTOs
 │   ├── Data/                # DbContext and data access
-│   ├── Middlewares/         # Custom middleware (OAuth2)
+│   ├── Middlewares/         # Custom middleware (OAuth2, RoutingMiddleware)
+│   ├── Utils/               # Utility classes (Routing helpers)
 │   ├── Hubs/                # SignalR hubs
 │   ├── Scripts/             # Initialization and health check scripts
 │   └── Migrations/          # Database migrations
@@ -210,6 +219,82 @@ To perform a clean rebuild of Docker images:
 - `DELETE /api/pagetypes/{id}` - Delete page type
 
 For detailed API documentation, visit the Swagger UI at `http://localhost:8000/swagger` when the API is running.
+
+## Multi-Tenant Face-Based Routing
+
+The API implements multi-tenant routing using **face-based URL prefixes**. This allows each tenant (organization) to be identified by a unique face prefix in the URL, automatically scoping requests to that tenant.
+
+### How It Works
+
+When a request comes in with a face prefix (e.g., `/acme-corp/api/users`), the `RoutingMiddleware`:
+
+1. **Extracts the face prefix** from the URL path (e.g., `acme-corp`)
+2. **Converts to kebab-case** if needed (e.g., `AcmeCorp` → `acme-corp`)
+3. **Looks up the face** in the database by matching the prefix against the `Face.Index` field
+4. **Rewrites the URL** from `/{face-prefix}/{path}` to `/api/{face-id}/{path}?requestFaceID={id}`
+5. **Returns 403 Forbidden** if no matching face is found for a route that requires it
+
+### URL Transformation Examples
+
+```
+# Input URL (from frontend)
+/acme-corp/dashboard
+
+# Transformed to internal API call
+/api/acme-corp/dashboard?requestFaceID=123
+
+# Or for API endpoints
+/acme-corp/api/users
+
+# Transformed to
+/api/acme-corp/users?requestFaceID=123
+```
+
+### Public Paths (Bypass Face Routing)
+
+Certain paths bypass face routing and are accessible without a face prefix:
+
+- `/api/` - Direct API access (when not prefixed with face)
+- `/swagger` - Swagger UI documentation
+- `/swagger-ui` - Swagger UI alternative
+- `/openapi` - OpenAPI specification
+- `/hubs` - SignalR hubs
+
+### Face Matching Logic
+
+1. Face prefix is extracted from the first URL segment
+2. The prefix is converted to kebab-case (e.g., "AcmeCorp" → "acme-corp")
+3. Database lookup finds a `Face` entity where `Face.Index` matches the prefix
+4. If found, the `Face.Id` is added as `requestFaceID` query parameter
+5. URL is rewritten to include the face ID in the path
+
+### Configuration
+
+The middleware is registered in `Program.cs`:
+
+```csharp
+// Register services
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<IFaceService, FaceService>();
+
+// Add middleware (before OAuth2Middleware)
+app.UseMiddleware<RoutingMiddleware>();
+```
+
+### Implementation Details
+
+- **Caching**: Face data is cached in memory for 5 minutes to reduce database queries
+- **Service**: `IFaceService` provides face lookup functionality
+- **Utilities**: `Routing.cs` contains helper methods for path checking and kebab-case conversion
+- **Performance**: Face cache reduces database load for frequently accessed faces
+
+### Testing
+
+Face routing is tested in the test suite. The middleware:
+- Correctly identifies face prefixes in URLs
+- Rewrites URLs with face ID
+- Returns 403 for invalid face prefixes
+- Bypasses public paths correctly
 
 ## Configuration
 
