@@ -74,6 +74,15 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // ============================================================================
+// MEMORY CACHE CONFIGURATION
+// ============================================================================
+
+// Adds in-memory caching - used for caching faces in routing middleware
+// Cache improves performance by avoiding database queries on every request
+// Faces are cached for 5 minutes and automatically refreshed
+builder.Services.AddMemoryCache();
+
+// ============================================================================
 // CORS CONFIGURATION
 // ============================================================================
 
@@ -325,8 +334,13 @@ if (app.Environment.IsDevelopment())
 //     app.UseHttpsRedirection();
 // }
 
+// Adds custom routing middleware - implements face-based multi-tenant routing
+// This middleware executes before OAuth2Middleware and authentication
+// Rewrites URLs like /acme-corp/api/users to /api/users?requestFaceID=123
+app.UseMiddleware<RoutingMiddleware>();
+
 // Adds custom OAuth2 middleware - validates client credentials and request signatures
-// This middleware executes before authentication
+// This middleware executes after routing, before authentication
 app.UseMiddleware<OAuth2Middleware>();
 
 // Adds authentication middleware - extracts and validates JWT tokens from requests

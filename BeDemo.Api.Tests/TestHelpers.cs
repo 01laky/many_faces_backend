@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Tests;
 
@@ -51,6 +52,20 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 // Enable sensitive data logging only in test environment
                 options.EnableSensitiveDataLogging();
             }, ServiceLifetime.Scoped);
+            
+            // Ensure MemoryCache is registered for RoutingMiddleware
+            // MemoryCache is needed for caching faces in routing middleware
+            if (!services.Any(s => s.ServiceType == typeof(Microsoft.Extensions.Caching.Memory.IMemoryCache)))
+            {
+                services.AddMemoryCache();
+            }
+            
+            // Ensure FaceService is registered for RoutingMiddleware
+            // FaceService is needed by RoutingMiddleware to get faces from database
+            if (!services.Any(s => s.ServiceType == typeof(IFaceService)))
+            {
+                services.AddScoped<IFaceService, FaceService>();
+            }
             
             // Ensure fresh test database for each test run
             // Initialize database only once using static flag (thread-safe for parallel test execution)
