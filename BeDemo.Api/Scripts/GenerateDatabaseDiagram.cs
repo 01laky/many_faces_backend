@@ -2,13 +2,14 @@
  * GenerateDatabaseDiagram.cs - Script to generate Mermaid ERD diagram from PostgreSQL database
  * 
  * This script extracts the database schema from PostgreSQL and generates a Mermaid ERD diagram
- * that is automatically saved to db_demo/README.md or a separate documentation file.
+ * that is automatically saved to be_demo/README.md.
  */
 
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using BeDemo.Api.Data;
+using BeDemo.Api.Models;
 
 namespace BeDemo.Api.Scripts;
 
@@ -297,56 +298,73 @@ public static class DatabaseDiagramGenerator
     }
 
     /// <summary>
-    /// Saves diagram to documentation file in db_demo directory
+    /// Saves diagram to documentation file in be_demo/README.md
     /// </summary>
     private static async Task SaveDiagramToFileAsync(string diagram)
     {
-        // Try multiple paths to find db_demo directory
+        // Try multiple paths to find be_demo/README.md
         var possiblePaths = new List<string>();
         
-        // 1. Try relative to current execution directory (for local development)
+        // 1. Try relative to current execution directory (from BeDemo.Api)
         var currentDir = Directory.GetCurrentDirectory();
-        var currentDirDbDemo = Path.GetFullPath(Path.Combine(currentDir, "..", "db_demo"));
-        possiblePaths.Add(currentDirDbDemo);
+        var currentDirReadme = Path.GetFullPath(Path.Combine(currentDir, "..", "README.md"));
+        possiblePaths.Add(currentDirReadme);
         
-        // 2. Try from be_demo/BeDemo.Api structure (from be_demo root)
-        var beDemoDbDemo = Path.GetFullPath(Path.Combine(currentDir, "..", "..", "db_demo"));
-        possiblePaths.Add(beDemoDbDemo);
-        
-        // 3. Try from assembly location (for compiled builds)
+        // 2. Try from assembly location (for compiled builds)
         var assemblyDir = Path.GetDirectoryName(typeof(DatabaseDiagramGenerator).Assembly.Location);
         if (!string.IsNullOrEmpty(assemblyDir))
         {
-            // From bin/Debug/net10.0 -> BeDemo.Api -> be_demo -> _mfai_demo -> db_demo
-            var assemblyDbDemo = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", "..", "..", "db_demo"));
-            possiblePaths.Add(assemblyDbDemo);
-            // Alternative: from bin -> be_demo -> _mfai_demo -> db_demo
-            var assemblyDbDemo2 = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", "..", "..", "..", "db_demo"));
-            possiblePaths.Add(assemblyDbDemo2);
+            // From bin/Debug/net10.0 -> BeDemo.Api -> be_demo -> README.md
+            var assemblyReadme = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", "README.md"));
+            possiblePaths.Add(assemblyReadme);
         }
         
-        // 4. Try from project root (_mfai_demo)
-        var projectRoot = Path.GetFullPath(Path.Combine(currentDir, "..", "..", ".."));
-        if (File.Exists(Path.Combine(projectRoot, "README.md")) || File.Exists(Path.Combine(projectRoot, "start-all-dev.sh")))
+        // 3. Try from BeDemo.Api directory structure
+        var apiDir = Path.Combine(currentDir, "BeDemo.Api");
+        if (Directory.Exists(apiDir) || currentDir.Contains("BeDemo.Api"))
         {
-            var projectRootDbDemo = Path.Combine(projectRoot, "db_demo");
-            possiblePaths.Add(projectRootDbDemo);
+            var apiReadme = Path.GetFullPath(Path.Combine(currentDir, "..", "README.md"));
+            possiblePaths.Add(apiReadme);
         }
 
-        // Find the first existing db_demo directory
-        string? dbDemoDir = null;
+        // Find the first existing README.md in be_demo directory
+        string? readmePath = null;
         foreach (var path in possiblePaths.Distinct())
         {
-            if (Directory.Exists(path) && File.Exists(Path.Combine(path, "README.md")))
+            if (File.Exists(path))
             {
-                dbDemoDir = path;
-                break;
+                // Verify it's in be_demo directory by checking parent directory name
+                var parentDir = Path.GetDirectoryName(path);
+                if (parentDir != null && (Path.GetFileName(parentDir) == "be_demo" || parentDir.Contains("be_demo")))
+                {
+                    readmePath = path;
+                    break;
+                }
             }
         }
 
-        if (dbDemoDir == null)
+        // Fallback: try to find be_demo/README.md from common structures
+        if (readmePath == null)
         {
-            Console.WriteLine($"⚠️  db_demo directory not found. Tried paths:");
+            // From current directory, go up to find be_demo
+            var checkDir = currentDir;
+            for (int i = 0; i < 5; i++)
+            {
+                var checkReadme = Path.Combine(checkDir, "README.md");
+                var checkParent = Path.GetDirectoryName(checkDir);
+                if (checkParent != null && Path.GetFileName(checkDir) == "be_demo" && File.Exists(checkReadme))
+                {
+                    readmePath = checkReadme;
+                    break;
+                }
+                if (checkParent == null || checkParent == checkDir) break;
+                checkDir = checkParent;
+            }
+        }
+
+        if (readmePath == null || !File.Exists(readmePath))
+        {
+            Console.WriteLine($"⚠️  be_demo/README.md not found. Tried paths:");
             foreach (var path in possiblePaths)
             {
                 Console.WriteLine($"   - {path}");
@@ -354,8 +372,6 @@ public static class DatabaseDiagramGenerator
             Console.WriteLine("   Skipping diagram save");
             return;
         }
-
-        var readmePath = Path.Combine(dbDemoDir, "README.md");
 
         string existingContent = "";
         if (File.Exists(readmePath))
