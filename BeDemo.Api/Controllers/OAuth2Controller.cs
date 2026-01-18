@@ -159,13 +159,22 @@ public class OAuth2Controller : ControllerBase
             return BadRequest(new { error = "Password cannot contain null bytes" });
         }
 
+        // Get USER role (default role for new users)
+        var userRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.RoleNames.User);
+        if (userRole == null)
+        {
+            _logger.LogError("USER role not found. Please ensure UserRoles are seeded.");
+            return BadRequest(new { error = "System configuration error: USER role not found" });
+        }
+
         // Creates new ApplicationUser instance
         var user = new ApplicationUser
         {
             UserName = model.Email,      // Email is used as username
             Email = model.Email,          // Email address
             FirstName = model.FirstName, // Optional first name
-            LastName = model.LastName     // Optional last name
+            LastName = model.LastName,   // Optional last name
+            UserRoleId = userRole.Id     // Assign default USER role
         };
 
         // Creates user in database using ASP.NET Core Identity

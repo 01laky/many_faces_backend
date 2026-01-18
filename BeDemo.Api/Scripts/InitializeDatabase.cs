@@ -35,6 +35,16 @@ public static class DatabaseInitializer
                 await DatabaseDiagramGenerator.GenerateDiagramAsync(context, connectionString);
             }
 
+            // Ensure UserRoles are seeded before creating users
+            await DatabaseSeeder.SeedUserRolesAsync(context);
+
+            // Get SUPER_ADMIN role for admin user
+            var superAdminRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.RoleNames.SuperAdmin);
+            if (superAdminRole == null)
+            {
+                throw new InvalidOperationException("SUPER_ADMIN role not found. Please seed UserRoles first.");
+            }
+
             // Check if admin user exists (by email)
             var adminUser = await userManager.FindByEmailAsync("admin@admin.com");
             if (adminUser == null)
@@ -48,7 +58,8 @@ public static class DatabaseInitializer
                     EmailConfirmed = true,
                     FirstName = "Admin",
                     LastName = "User",
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    UserRoleId = superAdminRole.Id // Assign SUPER_ADMIN role
                 };
 
                 // Temporarily remove password validators to allow simple "admin" password

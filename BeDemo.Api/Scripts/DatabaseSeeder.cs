@@ -32,11 +32,43 @@ public static class DatabaseSeeder
             }
         }
 
+        // Seed UserRoles (must be before PageTypes to ensure roles exist for users)
+        await SeedUserRolesAsync(context);
+
         // Seed PageTypes
         await SeedPageTypesAsync(context);
 
         // Seed Faces and Pages
         await SeedFacesAndPagesAsync(context);
+
+        await context.SaveChangesAsync();
+    }
+
+    public static async Task SeedUserRolesAsync(ApplicationDbContext context)
+    {
+        var roles = new[]
+        {
+            new { Name = UserRole.RoleNames.SuperAdmin, Description = "Super Administrator - Full system access" },
+            new { Name = UserRole.RoleNames.Admin, Description = "Administrator - Administrative access" },
+            new { Name = UserRole.RoleNames.FaceAdmin, Description = "Face Administrator - Manages faces and pages" },
+            new { Name = UserRole.RoleNames.Inzerent, Description = "Inzerent - Advertisement manager" },
+            new { Name = UserRole.RoleNames.Subscriber, Description = "Subscriber - Premium user access" },
+            new { Name = UserRole.RoleNames.User, Description = "User - Standard user access" }
+        };
+
+        foreach (var roleData in roles)
+        {
+            var existingRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == roleData.Name);
+            if (existingRole == null)
+            {
+                context.UserRoles.Add(new UserRole
+                {
+                    Name = roleData.Name,
+                    Description = roleData.Description,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
 
         await context.SaveChangesAsync();
     }

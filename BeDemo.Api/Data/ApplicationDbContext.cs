@@ -15,6 +15,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Page> Pages { get; set; } = null!;
     public DbSet<PageType> PageTypes { get; set; } = null!;
     public DbSet<UserProfile> UserProfiles { get; set; } = null!;
+    public DbSet<UserRole> UserRoles { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -90,6 +91,35 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
             // Ensure one UserProfile per User
             entity.HasIndex(e => e.UserId).IsUnique();
+        });
+
+        // Configure UserRole entity
+        builder.Entity<UserRole>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Name).IsUnique();
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            // One-to-many relationship: UserRole -> ApplicationUsers
+            entity.HasMany(e => e.Users)
+                  .WithOne(u => u.UserRole)
+                  .HasForeignKey(u => u.UserRoleId)
+                  .OnDelete(DeleteBehavior.Restrict); // Prevent deletion if users have this role
+        });
+
+        // Configure ApplicationUser entity - UserRole relationship
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            // Many-to-one relationship: ApplicationUser -> UserRole
+            entity.HasOne(e => e.UserRole)
+                  .WithMany(r => r.Users)
+                  .HasForeignKey(e => e.UserRoleId)
+                  .OnDelete(DeleteBehavior.Restrict); // Prevent deletion if users exist
+
+            // Ensure UserRoleId is required
+            entity.Property(e => e.UserRoleId).IsRequired();
         });
     }
 }
