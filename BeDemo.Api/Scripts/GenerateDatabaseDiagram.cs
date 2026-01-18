@@ -18,7 +18,7 @@ namespace BeDemo.Api.Scripts;
 public static class DatabaseDiagramGenerator
 {
     /// <summary>
-    /// Generates Mermaid ERD diagram and saves it to documentation file
+    /// Generates Mermaid ERD diagram and saves it to be_demo/README.md
     /// </summary>
     public static async Task GenerateDiagramAsync(ApplicationDbContext context, string connectionString)
     {
@@ -31,6 +31,7 @@ public static class DatabaseDiagramGenerator
         catch (Exception ex)
         {
             Console.WriteLine($"⚠️  Failed to generate database diagram: {ex.Message}");
+            Console.WriteLine($"   Stack trace: {ex.StackTrace}");
             // Don't throw - diagram generation is optional
         }
     }

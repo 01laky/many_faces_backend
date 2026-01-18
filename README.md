@@ -361,6 +361,14 @@ lsof -ti:8000,8001 | xargs kill -9
 - Check connection string configuration
 - Try removing and recreating migrations if needed
 
+## Database Schema Diagram
+
+The database schema diagram is automatically generated after each migration and displayed below:
+
+<!-- AUTO-GENERATED DATABASE DIAGRAM - DO NOT EDIT -->
+<!-- This section is automatically updated when migrations run -->
+<!-- END AUTO-GENERATED DATABASE DIAGRAM -->
+
 ## Additional Documentation
 
 - **Seq Logging**: See `SEQ_LOGGING.md` for detailed logging setup
