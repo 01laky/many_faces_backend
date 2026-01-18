@@ -305,30 +305,31 @@ public static class DatabaseDiagramGenerator
         
         // 1. Try relative to current execution directory (for local development)
         var currentDir = Directory.GetCurrentDirectory();
-        var currentDirDbDemo = Path.Combine(currentDir, "..", "db_demo");
-        if (Path.IsPathRooted(currentDirDbDemo))
-        {
-            possiblePaths.Add(Path.GetFullPath(currentDirDbDemo));
-        }
+        var currentDirDbDemo = Path.GetFullPath(Path.Combine(currentDir, "..", "db_demo"));
+        possiblePaths.Add(currentDirDbDemo);
         
-        // 2. Try from assembly location (for compiled builds)
+        // 2. Try from be_demo/BeDemo.Api structure (from be_demo root)
+        var beDemoDbDemo = Path.GetFullPath(Path.Combine(currentDir, "..", "..", "db_demo"));
+        possiblePaths.Add(beDemoDbDemo);
+        
+        // 3. Try from assembly location (for compiled builds)
         var assemblyDir = Path.GetDirectoryName(typeof(DatabaseDiagramGenerator).Assembly.Location);
         if (!string.IsNullOrEmpty(assemblyDir))
         {
+            // From bin/Debug/net10.0 -> BeDemo.Api -> be_demo -> _mfai_demo -> db_demo
             var assemblyDbDemo = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", "..", "..", "db_demo"));
             possiblePaths.Add(assemblyDbDemo);
+            // Alternative: from bin -> be_demo -> _mfai_demo -> db_demo
+            var assemblyDbDemo2 = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", "..", "..", "..", "db_demo"));
+            possiblePaths.Add(assemblyDbDemo2);
         }
         
-        // 3. Try from BeDemo.Api directory (common structure)
-        var apiDir = Path.Combine(currentDir, "BeDemo.Api");
-        if (!Directory.Exists(apiDir))
+        // 4. Try from project root (_mfai_demo)
+        var projectRoot = Path.GetFullPath(Path.Combine(currentDir, "..", "..", ".."));
+        if (File.Exists(Path.Combine(projectRoot, "README.md")) || File.Exists(Path.Combine(projectRoot, "start-all-dev.sh")))
         {
-            apiDir = Path.Combine(currentDir, "be_demo", "BeDemo.Api");
-        }
-        if (Directory.Exists(apiDir))
-        {
-            var apiDbDemo = Path.GetFullPath(Path.Combine(apiDir, "..", "..", "db_demo"));
-            possiblePaths.Add(apiDbDemo);
+            var projectRootDbDemo = Path.Combine(projectRoot, "db_demo");
+            possiblePaths.Add(projectRootDbDemo);
         }
 
         // Find the first existing db_demo directory
