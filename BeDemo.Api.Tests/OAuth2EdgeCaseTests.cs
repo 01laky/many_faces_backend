@@ -96,10 +96,10 @@ public class OAuth2EdgeCaseTests : IClassFixture<CustomWebApplicationFactory<Pro
         var email = $"test_{Guid.NewGuid()}@test.com";
         var firstResponse = await _client.PostAsJsonAsync("/api/oauth2/register", new { email, password = "Test123!@#", firstName = "Test", lastName = "User" });
         firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Wait a bit to ensure first user is fully created in Identity
         await Task.Delay(1000);
-        
+
         var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email, password = "Test123!@#", firstName = "Test", lastName = "User" });
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
@@ -427,7 +427,7 @@ public class OAuth2EdgeCaseTests : IClassFixture<CustomWebApplicationFactory<Pro
     [Fact]
     public async Task Register_ShouldHandleConcurrentRegistrations()
     {
-        var tasks = Enumerable.Range(0, 10).Select(i => 
+        var tasks = Enumerable.Range(0, 10).Select(i =>
             _client.PostAsJsonAsync("/api/oauth2/register", new { email = $"test_{Guid.NewGuid()}@test.com", password = "Test123!@#" }));
         var responses = await Task.WhenAll(tasks);
         responses.Should().AllSatisfy(r => r.StatusCode.Should().Be(HttpStatusCode.OK));

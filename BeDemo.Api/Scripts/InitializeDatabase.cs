@@ -68,7 +68,7 @@ public static class DatabaseInitializer
                 userManager.PasswordValidators.Clear();
 
                 var result = await userManager.CreateAsync(adminUser, "admin");
-                
+
                 // Restore password validators
                 foreach (var validator in validators)
                 {
@@ -79,7 +79,7 @@ public static class DatabaseInitializer
                 {
                     // Ensure user is saved before creating UserProfile
                     await context.SaveChangesAsync();
-                    
+
                     // Create UserProfile for admin user (one-to-one relationship)
                     var adminProfile = new UserProfile
                     {
@@ -91,7 +91,7 @@ public static class DatabaseInitializer
                     };
                     context.UserProfiles.Add(adminProfile);
                     await context.SaveChangesAsync();
-                    
+
                     Console.WriteLine("✅ Admin user created successfully!");
                     Console.WriteLine("   Email: admin@admin.com");
                     Console.WriteLine("   Password: admin");
@@ -109,7 +109,7 @@ public static class DatabaseInitializer
             else
             {
                 Console.WriteLine("ℹ️  Admin user already exists");
-                
+
                 // Ensure admin user has a UserProfile (in case it was created before UserProfile was added)
                 var existingProfile = await context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == adminUser.Id);
                 if (existingProfile == null)

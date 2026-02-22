@@ -36,7 +36,7 @@ public class UserService : IUserService
         try
         {
             var users = _userManager.Users.ToList();
-            
+
             var userDtos = users.Select(u => new UserDto
             {
                 Id = u.Id,
@@ -64,7 +64,7 @@ public class UserService : IUserService
         try
         {
             var user = await _userManager.FindByIdAsync(id);
-            
+
             if (user == null)
             {
                 _logger.LogWarning("User not found: {UserId}", id);
@@ -169,7 +169,7 @@ public class UserService : IUserService
             {
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
                 result = await _userManager.ResetPasswordAsync(user, token, dto.Password);
-                
+
                 if (!result.Succeeded)
                 {
                     var errors = result.Errors.Select(e => e.Description);

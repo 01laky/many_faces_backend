@@ -23,13 +23,13 @@ public class GenerateDiagramManually
         Console.WriteLine("📊 Generating database diagram...");
 
         var connectionString = "Host=localhost;Port=5432;Database=bedemo;Username=bedemo_user;Password=bedemo_password";
-        
+
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(connectionString)
             .Options;
 
         using var context = new ApplicationDbContext(options);
-        
+
         try
         {
             await DatabaseDiagramGenerator.GenerateDiagramAsync(context, connectionString);

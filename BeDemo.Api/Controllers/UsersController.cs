@@ -37,7 +37,7 @@ public class UsersController : ControllerBase
         try
         {
             var users = _userManager.Users.ToList().AsEnumerable();
-            
+
             var userDtos = users.Select(u => new
             {
                 id = u.Id,
@@ -67,7 +67,7 @@ public class UsersController : ControllerBase
         try
         {
             var user = await _userManager.FindByIdAsync(id);
-            
+
             if (user == null)
             {
                 _logger.LogWarning("User not found: {UserId}", id);
@@ -194,7 +194,7 @@ public class UsersController : ControllerBase
             {
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
                 result = await _userManager.ResetPasswordAsync(user, token, model.Password);
-                
+
                 if (!result.Succeeded)
                 {
                     _logger.LogWarning("Password update failed for user: {UserId}, Errors: {Errors}", id, string.Join(", ", result.Errors.Select(e => e.Description)));

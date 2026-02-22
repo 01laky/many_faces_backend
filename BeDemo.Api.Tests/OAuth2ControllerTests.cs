@@ -55,7 +55,7 @@ public class OAuth2ControllerTests : IClassFixture<CustomWebApplicationFactory<P
             lastName = "User"
         });
         registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var tokenRequest = new OAuth2TokenRequest
         {
             GrantType = "password",

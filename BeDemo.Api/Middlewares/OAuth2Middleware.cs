@@ -50,11 +50,11 @@ public class OAuth2Middleware
             // Enables buffering request body - allows reading body multiple times
             // This is necessary because body must be read here and then again in controller
             context.Request.EnableBuffering();
-            
+
             // Reads request body into string
             var bodyStream = new StreamReader(context.Request.Body, Encoding.UTF8, leaveOpen: true);
             var body = await bodyStream.ReadToEndAsync();
-            
+
             // Resets stream position to beginning so controller can read body again
             context.Request.Body.Position = 0;
 

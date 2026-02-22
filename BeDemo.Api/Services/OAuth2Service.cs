@@ -39,12 +39,12 @@ public interface IOAuth2Service
     /// Generates JWT access token and refresh token for user
     /// </summary>
     Task<OAuth2TokenResponse?> GenerateTokenAsync(OAuth2TokenRequest request, UserManager<ApplicationUser> userManager);
-    
+
     /// <summary>
     /// Validates ECDSA request signature
     /// </summary>
     bool ValidateRequestSignature(OAuth2TokenRequest request);
-    
+
     /// <summary>
     /// Validates client credentials (client_id and client_secret)
     /// </summary>
@@ -86,7 +86,7 @@ public class OAuth2Service : IOAuth2Service
             case "password":
                 // Password grant type - user provides username and password
                 // This is Resource Owner Password Credentials flow
-                
+
                 // Validates that username and password are provided
                 if (string.IsNullOrEmpty(request.Username) || string.IsNullOrEmpty(request.Password))
                 {
@@ -96,13 +96,13 @@ public class OAuth2Service : IOAuth2Service
 
                 // Try to find user by email first (most common case)
                 user = await userManager.FindByEmailAsync(request.Username);
-                
+
                 // If not found by email, try to find by username (for admin account, etc.)
                 if (user == null)
                 {
                     user = await userManager.FindByNameAsync(request.Username);
                 }
-                
+
                 // Verifies password - if user doesn't exist or password is incorrect, returns null
                 if (user == null || !await userManager.CheckPasswordAsync(user, request.Password))
                 {
@@ -114,7 +114,7 @@ public class OAuth2Service : IOAuth2Service
             case "refresh_token":
                 // Refresh token grant type - user provides refresh token to get new access token
                 // Refresh token is a long-term token used to refresh access token without needing to enter credentials again
-                
+
                 // Validates that refresh token is provided
                 if (string.IsNullOrEmpty(request.RefreshToken))
                 {
@@ -127,7 +127,7 @@ public class OAuth2Service : IOAuth2Service
                 // For this demo implementation, we use Base64 encoded random string as refresh token
                 // Access tokens are JWT tokens, so if someone tries to use access token as refresh token, it will fail
                 var handler = new JwtSecurityTokenHandler();
-                
+
                 // First check if refresh token is a valid JWT (access tokens are JWT)
                 // If it's a valid JWT, it's likely an access token, not a refresh token
                 if (handler.CanReadToken(request.RefreshToken))
@@ -149,7 +149,7 @@ public class OAuth2Service : IOAuth2Service
                         return null;
                     }
                 }
-                
+
                 // Refresh tokens in this implementation are Base64 encoded random strings
                 // They are not JWT tokens, so we need to validate them differently
                 // For this demo, we cannot validate refresh tokens without storing them in database
@@ -157,7 +157,6 @@ public class OAuth2Service : IOAuth2Service
                 // In production, refresh tokens should be stored in database and validated there
                 _logger.LogWarning("Refresh token validation not implemented - tokens must be stored in database");
                 return null;
-                break;
 
             default:
                 // Unknown or unsupported grant type
@@ -262,7 +261,7 @@ public class OAuth2Service : IOAuth2Service
             // This message must be the same as the one that was signed by client
             var message = CreateSignatureMessage(request);
             var messageBytes = Encoding.UTF8.GetBytes(message);
-            
+
             // Decodes Base64 signature
             var signatureBytes = Convert.FromBase64String(request.Signature);
 
@@ -294,7 +293,7 @@ public class OAuth2Service : IOAuth2Service
         var validClientSecret = _configuration["OAuth2:ClientSecret"] ?? "be-demo-secret-very-strong-key";
 
         // Validates that client_id and client_secret are provided and match valid credentials
-        var isValid = !string.IsNullOrEmpty(clientId) && 
+        var isValid = !string.IsNullOrEmpty(clientId) &&
                      !string.IsNullOrEmpty(clientSecret) &&
                      clientId == validClientId &&
                      clientSecret == validClientSecret;
@@ -333,7 +332,7 @@ public class OAuth2Service : IOAuth2Service
         var randomBytes = new byte[64];
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomBytes);
-        
+
         // Converts to Base64 string for easy transmission
         return Convert.ToBase64String(randomBytes);
     }

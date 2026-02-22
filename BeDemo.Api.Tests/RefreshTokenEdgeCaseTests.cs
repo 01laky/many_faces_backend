@@ -99,7 +99,7 @@ public class RefreshTokenEdgeCaseTests : IClassFixture<CustomWebApplicationFacto
         var tokenRequest = new OAuth2TokenRequest { GrantType = "password", ClientId = "be-demo-client", ClientSecret = "be-demo-secret-very-strong-key", Username = email, Password = "Test123!@#" };
         var tokenResponse = await _client.PostAsJsonAsync("/api/oauth2/token", tokenRequest);
         var tokenData = await tokenResponse.Content.ReadFromJsonAsync<OAuth2TokenResponse>();
-        
+
         var refreshRequest = new OAuth2TokenRequest { GrantType = "refresh_token", ClientId = "be-demo-client", ClientSecret = "be-demo-secret-very-strong-key", RefreshToken = tokenData!.AccessToken };
         var refreshResponse = await _client.PostAsJsonAsync("/api/oauth2/token", refreshRequest);
         refreshResponse.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -113,7 +113,7 @@ public class RefreshTokenEdgeCaseTests : IClassFixture<CustomWebApplicationFacto
         var tokenRequest = new OAuth2TokenRequest { GrantType = "password", ClientId = "be-demo-client", ClientSecret = "be-demo-secret-very-strong-key", Username = email, Password = "Test123!@#" };
         var tokenResponse = await _client.PostAsJsonAsync("/api/oauth2/token", tokenRequest);
         var tokenData = await tokenResponse.Content.ReadFromJsonAsync<OAuth2TokenResponse>();
-        
+
         var refreshRequest = new OAuth2TokenRequest { GrantType = "refresh_token", ClientId = "be-demo-client", ClientSecret = "be-demo-secret-very-strong-key", RefreshToken = tokenData!.RefreshToken };
         await _client.PostAsJsonAsync("/api/oauth2/token", refreshRequest);
         var secondRefresh = await _client.PostAsJsonAsync("/api/oauth2/token", refreshRequest);

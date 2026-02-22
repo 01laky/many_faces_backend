@@ -90,16 +90,16 @@ public class BoundaryValueTests : IClassFixture<CustomWebApplicationFactory<Prog
         var email = $"test_{Guid.NewGuid()}@test.com";
         var registerResponse = await _client.PostAsJsonAsync("/api/oauth2/register", new { email, password = "Test123!@#", firstName = "Test", lastName = "User" });
         registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        
-        var request = new OAuth2TokenRequest 
-        { 
-            GrantType = "password", 
-            ClientId = "be-demo-client", 
-            ClientSecret = "be-demo-secret-very-strong-key", 
-            Username = email, 
-            Password = "Test123!@#" 
+
+        var request = new OAuth2TokenRequest
+        {
+            GrantType = "password",
+            ClientId = "be-demo-client",
+            ClientSecret = "be-demo-secret-very-strong-key",
+            Username = email,
+            Password = "Test123!@#"
         };
-        
+
         // Retry logic with exponential backoff for in-memory database timing issues
         HttpResponseMessage? response = null;
         for (int i = 0; i < 15; i++)
@@ -109,7 +109,7 @@ public class BoundaryValueTests : IClassFixture<CustomWebApplicationFactory<Prog
             if (response.StatusCode == HttpStatusCode.OK)
                 break;
         }
-        
+
         response.Should().NotBeNull();
         response!.StatusCode.Should().Be(HttpStatusCode.OK);
     }

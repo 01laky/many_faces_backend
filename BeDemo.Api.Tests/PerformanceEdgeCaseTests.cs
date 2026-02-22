@@ -25,7 +25,7 @@ public class PerformanceEdgeCaseTests : IClassFixture<CustomWebApplicationFactor
     [Fact]
     public async Task Register_ShouldHandle100ConcurrentRegistrations()
     {
-        var tasks = Enumerable.Range(0, 100).Select(i => 
+        var tasks = Enumerable.Range(0, 100).Select(i =>
             _client.PostAsJsonAsync("/api/oauth2/register", new { email = $"test_{Guid.NewGuid()}@test.com", password = "Test123!@#" }));
         var responses = await Task.WhenAll(tasks);
         var successCount = responses.Count(r => r.StatusCode == HttpStatusCode.OK);
@@ -66,7 +66,7 @@ public class PerformanceEdgeCaseTests : IClassFixture<CustomWebApplicationFactor
         var stopwatch = Stopwatch.StartNew();
         var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = $"test_{Guid.NewGuid()}@test.com", password = "Test123!@#" });
         stopwatch.Stop();
-        
+
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         stopwatch.ElapsedMilliseconds.Should().BeLessThan(5000);
     }

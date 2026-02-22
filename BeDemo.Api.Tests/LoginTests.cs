@@ -37,7 +37,7 @@ public class LoginTests : IClassFixture<CustomWebApplicationFactory<Program>>, I
             lastName = "User"
         });
         registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var loginRequest = new OAuth2TokenRequest
         {
             GrantType = "password",
@@ -244,7 +244,7 @@ public class LoginTests : IClassFixture<CustomWebApplicationFactory<Program>>, I
             lastName = "User"
         });
         registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         // Try to login with lowercase email (Identity normalizes emails, so case doesn't matter)
         var loginRequest = new OAuth2TokenRequest
         {
@@ -329,7 +329,7 @@ public class LoginTests : IClassFixture<CustomWebApplicationFactory<Program>>, I
             lastName = "User"
         });
         registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        
+
         var loginRequest = new OAuth2TokenRequest
         {
             GrantType = "password",

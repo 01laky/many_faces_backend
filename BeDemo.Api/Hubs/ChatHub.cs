@@ -9,6 +9,7 @@
  * Methods:
  * - SendMessage: Sends message to all connected clients
  * - SendPrivateMessage: Sends private message to specific user
+ * - SendToAi: Sends user message to AI service via gRPC, returns AI response to caller (ReceiveAiMessage)
  * 
  * Events:
  * - OnConnectedAsync: Invoked when client connects
@@ -17,10 +18,13 @@
  * Callbacks (client can listen):
  * - ReceiveMessage: Receives message from all clients
  * - ReceivePrivateMessage: Receives private message
+ * - ReceiveAiMessage: Receives AI response (userMessage, aiResponse) after SendToAi
  */
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Hubs;
 
@@ -32,10 +36,12 @@ namespace BeDemo.Api.Hubs;
 public class ChatHub : Hub
 {
     private readonly ILogger<ChatHub> _logger;
+    private readonly IAiGrpcService _aiGrpcService;
 
-    public ChatHub(ILogger<ChatHub> logger)
+    public ChatHub(ILogger<ChatHub> logger, IAiGrpcService aiGrpcService)
     {
         _logger = logger;
+        _aiGrpcService = aiGrpcService;
     }
 
     /// <summary>
@@ -47,16 +53,16 @@ public class ChatHub : Hub
         // Context.UserIdentifier contains value from ClaimTypes.NameIdentifier claim in JWT token
         // If UserIdentifier is not available, tries to get it directly from claims
         var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        
+
         _logger.LogInformation("User {UserId} connected to SignalR hub", userId);
-        
+
         // Adds user to group "user_{userId}"
         // Groups allow sending messages to specific users or groups of users
         if (!string.IsNullOrEmpty(userId))
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
         }
-        
+
         // Calls base implementation
         await base.OnConnectedAsync();
     }
@@ -69,7 +75,7 @@ public class ChatHub : Hub
     {
         // Gets User ID
         var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        
+
         // Logs disconnection (with error information if exists)
         if (exception != null)
         {
@@ -79,13 +85,13 @@ public class ChatHub : Hub
         {
             _logger.LogInformation("User {UserId} disconnected from SignalR hub", userId);
         }
-        
+
         // Removes user from group
         if (!string.IsNullOrEmpty(userId))
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{userId}");
         }
-        
+
         // Calls base implementation
         await base.OnDisconnectedAsync(exception);
     }
@@ -102,9 +108,9 @@ public class ChatHub : Hub
     {
         // Gets sender User ID
         var userId = Context.User?.Identity?.Name ?? Context.UserIdentifier;
-        
+
         _logger.LogInformation("User {UserId} sent message: {Message}", userId, message);
-        
+
         // Sends message to all connected clients
         // Clients can listen on "ReceiveMessage" callback:
         // connection.On("ReceiveMessage", (string user, string message) => { ... });
@@ -123,13 +129,59 @@ public class ChatHub : Hub
     {
         // Gets sender User ID
         var userId = Context.User?.Identity?.Name ?? Context.UserIdentifier;
-        
+
         _logger.LogInformation("User {UserId} sent private message to {TargetUserId}", userId, targetUserId);
-        
+
         // Sends message only to specific user
         // Clients.User() finds all connections of given user and sends message to all of them
         // Client can listen on "ReceivePrivateMessage" callback:
         // connection.On("ReceivePrivateMessage", (string sender, string message) => { ... });
         await Clients.User(targetUserId).SendAsync("ReceivePrivateMessage", userId, message);
+    }
+
+    /// <summary>
+    /// Sends user message to AI service (Python) via gRPC Generate RPC and returns AI response to caller.
+    /// Optional history builds conversation context so the model can "remember" previous messages in this session.
+    /// Client can call: await connection.InvokeAsync("SendToAi", "user message", historyArray);
+    /// Client listens: connection.On("ReceiveAiMessage", (string userMessage, string aiResponse) => { ... });
+    /// </summary>
+    /// <param name="message">User message (prompt) to send to the AI.</param>
+    /// <param name="history">Optional list of previous user/AI message pairs for conversation context.</param>
+    public async Task SendToAi(string message, ChatHistoryEntry[]? history = null)
+    {
+        var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        _logger.LogInformation("User {UserId} sent message to AI: {Message}", userId, message);
+
+        // Build prompt with conversation context: "User: ...\nAI: ...\nUser: ...\nAI:" + new message + "\nAI:"
+        var prompt = BuildPromptWithHistory(message ?? string.Empty, history);
+        var fullResponse = await _aiGrpcService.GenerateAsync(prompt, maxNewTokens: 50);
+
+        // Python returns prompt + generated continuation; strip prompt to get only the new AI part
+        var aiResponse = fullResponse.StartsWith(prompt, StringComparison.Ordinal)
+            ? fullResponse[prompt.Length..].Trim()
+            : fullResponse;
+
+        await Clients.Caller.SendAsync("ReceiveAiMessage", message ?? string.Empty, aiResponse);
+    }
+
+    /// <summary>
+    /// Builds prompt string from optional history and current user message so the model sees conversation context.
+    /// </summary>
+    private static string BuildPromptWithHistory(string message, ChatHistoryEntry[]? history)
+    {
+        var sb = new System.Text.StringBuilder();
+        if (history != null && history.Length > 0)
+        {
+            foreach (var entry in history)
+            {
+                var u = entry.UserMessage ?? string.Empty;
+                var a = entry.AiResponse ?? string.Empty;
+                sb.Append("User: ").AppendLine(u);
+                sb.Append("AI: ").AppendLine(a);
+            }
+        }
+        sb.Append("User: ").AppendLine(message);
+        sb.Append("AI:");
+        return sb.ToString();
     }
 }

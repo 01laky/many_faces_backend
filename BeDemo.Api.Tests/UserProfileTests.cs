@@ -93,7 +93,7 @@ public class UserProfileTests : IClassFixture<CustomWebApplicationFactory<Progra
         using (var scope = _factory.Services.CreateScope())
         {
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            
+
             // Load user with profile
             var user = await context.Users
                 .Include(u => u.UserProfile)
@@ -102,7 +102,7 @@ public class UserProfileTests : IClassFixture<CustomWebApplicationFactory<Progra
             user.Should().NotBeNull();
             user!.UserProfile.Should().NotBeNull();
             user.UserProfile!.UserId.Should().Be(userId);
-            
+
             // Verify UserProfile.User navigation property works
             var profile = await context.UserProfiles
                 .Include(up => up.User)

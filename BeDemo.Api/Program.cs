@@ -32,7 +32,7 @@ if (args.Length > 0 && args[0] == "generate-diagram")
     var diagramOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
         .UseNpgsql(diagramConnStr)
         .Options;
-    
+
     using var diagramContext = new ApplicationDbContext(diagramOptions);
     await BeDemo.Api.Scripts.DatabaseDiagramGenerator.GenerateDiagramAsync(diagramContext, diagramConnStr);
     return; // Exit after generating diagram
@@ -52,8 +52,8 @@ Log.Logger = new LoggerConfiguration()
     .Enrich.WithEnvironmentName()                   // Adds environment name (Development, Production, etc.)
     .WriteTo.Console()                              // Writes logs to console (stdout)
     .WriteTo.Seq(                                    // Writes logs to Seq server (structured logging server with web UI)
-        serverUrl: Environment.GetEnvironmentVariable("Serilog__WriteTo__1__Args__serverUrl") 
-            ?? builder.Configuration["Serilog:WriteTo:1:Args:serverUrl"] 
+        serverUrl: Environment.GetEnvironmentVariable("Serilog__WriteTo__1__Args__serverUrl")
+            ?? builder.Configuration["Serilog:WriteTo:1:Args:serverUrl"]
             ?? "http://seq:5341",                    // Default Seq URL (works in Docker network)
         apiKey: null)                                // No API key needed for local development
     .CreateLogger();
@@ -113,12 +113,12 @@ builder.Services.AddCors(options =>
 
 // Loads connection string from appsettings.json or environment variables
 // Throws exception if connection string doesn't exist
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 // Log connection string for debugging (without password)
-var connectionStringForLogging = connectionString.Contains("Password=") 
-    ? connectionString.Substring(0, connectionString.IndexOf("Password=")) + "Password=***" 
+var connectionStringForLogging = connectionString.Contains("Password=")
+    ? connectionString.Substring(0, connectionString.IndexOf("Password=")) + "Password=***"
     : connectionString;
 Log.Information("Using connection string: {ConnectionString}", connectionStringForLogging);
 
@@ -141,10 +141,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     options.Password.RequireUppercase = true;           // Password must contain at least one uppercase letter
     options.Password.RequireNonAlphanumeric = true;    // Password must contain at least one special character
     options.Password.RequiredLength = 4;                // Minimum password length is 4 characters
-    
+
     // User settings
     options.User.RequireUniqueEmail = true;             // Email must be unique
-    
+
     // Lockout settings (account blocking after failed attempts)
     options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);  // Account is locked for 5 minutes
     options.Lockout.MaxFailedAccessAttempts = 5;        // Account is locked after 5 failed attempts
@@ -166,6 +166,9 @@ builder.Services.AddSingleton<IECDSAKeyService>(ecdsaKeyService);
 // Adds OAuth2Service as scoped service - new instance for each HTTP request
 // Scoped means the service lives during the HTTP request lifetime
 builder.Services.AddScoped<IOAuth2Service, OAuth2Service>();
+
+// AI gRPC client - calls Python AI service (ai_demo) Generate RPC
+builder.Services.AddScoped<IAiGrpcService, AiGrpcService>();
 
 // Gets signing key from ECDSAKeyService - this key is used to sign JWT tokens
 var signingKey = ecdsaKeyService.GetSigningKey();
@@ -201,13 +204,13 @@ builder.Services.AddAuthentication(options =>
             // Gets access_token from query string (e.g., /hubs/chat?access_token=xxx)
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-            
+
             // If request is to SignalR hub endpoint and contains access_token, use it for authentication
             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
             {
                 context.Token = accessToken;
             }
-            
+
             return Task.CompletedTask;
         }
     };
@@ -270,6 +273,22 @@ if (!app.Environment.IsEnvironment("Testing"))
         Log.Warning(ex, "Database seeding failed, continuing anyway");
     }
 
+    // Seed users (2 admins + 30 regular users)
+    try
+    {
+        using (var scope = app.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            await DatabaseSeeder.SeedUsersAsync(context, userManager);
+            Log.Information("Users seeded successfully");
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "User seeding failed, continuing anyway");
+    }
+
     // ============================================================================
     // AI SERVICE HEALTH CHECK
     // ============================================================================
@@ -281,14 +300,14 @@ if (!app.Environment.IsEnvironment("Testing"))
     {
         // Get AI service gRPC address from environment variable, configuration, or use default
         // Priority: Environment variable > Configuration > Default Docker service name
-        var aiServiceAddress = Environment.GetEnvironmentVariable("AI_SERVICE_GRPC_ADDRESS") 
-            ?? builder.Configuration["AiService:GrpcAddress"] 
+        var aiServiceAddress = Environment.GetEnvironmentVariable("AI_SERVICE_GRPC_ADDRESS")
+            ?? builder.Configuration["AiService:GrpcAddress"]
             ?? "http://ai-demo-dev:50051"; // Default Docker service name for development
-        
+
         // Perform health check with 10 second timeout
         // This attempts to connect to the gRPC server and verify it's listening
         var isHealthy = await CheckAiServiceHealth.CheckHealthAsync(aiServiceAddress, timeoutSeconds: 10);
-        
+
         if (isHealthy)
         {
             Log.Information("AI service health check passed at {GrpcAddress}", aiServiceAddress);

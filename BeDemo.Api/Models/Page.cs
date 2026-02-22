@@ -36,7 +36,15 @@ public class Page
 
     public int Index { get; set; } = 0;
 
+    /// <summary>
+    /// JSON schema for the responsive grid layout (react-grid-layout format)
+    /// </summary>
+    public string? GridSchema { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }
+
+    // Navigation property - one Page has many RouteTranslations
+    public ICollection<PageRouteTranslation> RouteTranslations { get; set; } = new List<PageRouteTranslation>();
 }

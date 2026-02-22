@@ -44,7 +44,7 @@ public static class DatabaseDiagramGenerator
     {
         var builder = new NpgsqlConnectionStringBuilder(connectionString);
         var database = builder.Database ?? "bedemo";
-        
+
         // Build connection string to 'postgres' database to query information schema
         var infoSchemaConnectionString = new NpgsqlConnectionStringBuilder(connectionString)
         {
@@ -53,12 +53,12 @@ public static class DatabaseDiagramGenerator
 
         var tables = new List<TableInfo>();
         var tableNames = new List<string>();
-        
+
         // First, get all table names (excluding system tables)
         await using (var conn = new NpgsqlConnection(connectionString))
         {
             await conn.OpenAsync();
-            
+
             var tablesQuery = @"
                 SELECT 
                     table_name
@@ -87,7 +87,7 @@ public static class DatabaseDiagramGenerator
                 await conn.OpenAsync();
                 var columns = await GetTableColumnsAsync(conn, tableName);
                 var foreignKeys = await GetForeignKeysAsync(conn, tableName);
-                
+
                 tables.Add(new TableInfo
                 {
                     Name = tableName,
@@ -106,7 +106,7 @@ public static class DatabaseDiagramGenerator
     private static async Task<List<ColumnInfo>> GetTableColumnsAsync(NpgsqlConnection conn, string tableName)
     {
         var columns = new List<ColumnInfo>();
-        
+
         var query = @"
             SELECT 
                 c.column_name,
@@ -168,7 +168,7 @@ public static class DatabaseDiagramGenerator
     private static async Task<List<ForeignKeyInfo>> GetForeignKeysAsync(NpgsqlConnection conn, string tableName)
     {
         var foreignKeys = new List<ForeignKeyInfo>();
-        
+
         var query = @"
             SELECT
                 kcu.column_name,
@@ -242,23 +242,23 @@ public static class DatabaseDiagramGenerator
         {
             var tableName = SanitizeTableName(table.Name);
             sb.AppendLine($"    {tableName} {{");
-            
+
             foreach (var column in table.Columns)
             {
                 var type = column.Type;
                 var nullable = column.IsNullable ? "" : " NOT NULL";
                 var pk = column.IsPrimaryKey ? " PK" : "";
                 var displayName = column.Name;
-                
+
                 // Truncate long type names
                 if (type.Length > 20)
                 {
                     type = type.Substring(0, 17) + "...";
                 }
-                
+
                 sb.AppendLine($"        {type} {displayName}{pk}{nullable}");
             }
-            
+
             sb.AppendLine("    }");
             sb.AppendLine();
         }
@@ -267,19 +267,19 @@ public static class DatabaseDiagramGenerator
         foreach (var table in tables)
         {
             var tableName = SanitizeTableName(table.Name);
-            
+
             foreach (var fk in table.ForeignKeys)
             {
                 var referencedTable = SanitizeTableName(fk.ReferencedTable);
                 var relationshipType = GetRelationshipType(fk.DeleteRule);
-                
+
                 // Determine cardinality (simplified - assumes many-to-one)
                 sb.AppendLine($"    {referencedTable} ||--o{{ {tableName} : \"has\"");
             }
         }
 
         sb.AppendLine("```");
-        
+
         return sb.ToString();
     }
 
@@ -313,12 +313,12 @@ public static class DatabaseDiagramGenerator
     {
         // Try multiple paths to find be_demo/README.md
         var possiblePaths = new List<string>();
-        
+
         // 1. Try relative to current execution directory (from BeDemo.Api)
         var currentDir = Directory.GetCurrentDirectory();
         var currentDirReadme = Path.GetFullPath(Path.Combine(currentDir, "..", "README.md"));
         possiblePaths.Add(currentDirReadme);
-        
+
         // 2. Try from assembly location (for compiled builds)
         var assemblyDir = Path.GetDirectoryName(typeof(DatabaseDiagramGenerator).Assembly.Location);
         if (!string.IsNullOrEmpty(assemblyDir))
@@ -327,7 +327,7 @@ public static class DatabaseDiagramGenerator
             var assemblyReadme = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", "README.md"));
             possiblePaths.Add(assemblyReadme);
         }
-        
+
         // 3. Try from BeDemo.Api directory structure
         var apiDir = Path.Combine(currentDir, "BeDemo.Api");
         if (Directory.Exists(apiDir) || currentDir.Contains("BeDemo.Api"))
@@ -399,7 +399,7 @@ public static class DatabaseDiagramGenerator
             // Replace existing diagram section
             var startIndex = existingContent.IndexOf(diagramStartMarker);
             var endIndex = existingContent.IndexOf(diagramEndMarker);
-            
+
             if (endIndex > startIndex)
             {
                 var beforeDiagram = existingContent.Substring(0, startIndex);

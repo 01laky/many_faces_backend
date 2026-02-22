@@ -54,7 +54,7 @@ public class RoutingMiddleware
         {
             // Split path into segments: /acme-corp/api/users -> ["acme-corp", "api", "users"]
             var segments = path.Split(Separator, StringSplitOptions.RemoveEmptyEntries);
-            
+
             // Get faces from cache or database
             var faces = GetFaces(serviceProvider);
 
@@ -66,12 +66,25 @@ public class RoutingMiddleware
 
                 // Find matching face by comparing prefix with Face.Index converted to kebab-case
                 // Example: "acme-corp" matches Face with Index="AcmeCorp"
-                var matchingFace = faces.FirstOrDefault(f => 
+                var matchingFace = faces.FirstOrDefault(f =>
                     Routing.ConvertToKebabCase(f.Index) == prefix);
 
-                // If face is found, rewrite path and add requestFaceID query parameter
+                // If face is found, check if it's public or requires authentication
                 if (matchingFace != null)
                 {
+                    // Check if face is private (requires authentication)
+                    if (!matchingFace.IsPublic)
+                    {
+                        // Private face requires authentication - check if user is authenticated
+                        if (context.User?.Identity?.IsAuthenticated != true)
+                        {
+                            // User is not authenticated and face is private - return 401 Unauthorized
+                            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                            await context.Response.WriteAsync("Authentication required for private face");
+                            return;
+                        }
+                    }
+
                     // Reconstruct path without face prefix: /api/users
                     // segments[0] is face prefix, rest is the actual path
                     var newPath = "/" + string.Join("/", segments, 1, segments.Length - 1);

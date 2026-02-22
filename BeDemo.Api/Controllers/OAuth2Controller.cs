@@ -187,7 +187,7 @@ public class OAuth2Controller : ControllerBase
             // Ensure user is fully persisted before creating UserProfile
             // This helps with test timing issues in in-memory databases
             await _context.SaveChangesAsync();
-            
+
             // Create UserProfile automatically for new user (one-to-one relationship)
             var userProfile = new UserProfile
             {
@@ -196,7 +196,24 @@ public class OAuth2Controller : ControllerBase
             };
             _context.UserProfiles.Add(userProfile);
             await _context.SaveChangesAsync();
-            
+
+            // Create UserFaceProfile for each Face automatically (many-to-one relationship)
+            var faces = await _context.Faces.ToListAsync();
+            var userFaceProfiles = faces.Select(face => new UserFaceProfile
+            {
+                UserProfileId = userProfile.Id,
+                FaceId = face.Id,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            }).ToList();
+
+            if (userFaceProfiles.Any())
+            {
+                _context.UserFaceProfiles.AddRange(userFaceProfiles);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Created {Count} UserFaceProfile(s) for user: {Email}", userFaceProfiles.Count, model.Email);
+            }
+
             // Verify user can be found immediately (for test reliability)
             var verifyUser = await _userManager.FindByEmailAsync(model.Email);
             if (verifyUser == null)
@@ -205,9 +222,10 @@ public class OAuth2Controller : ControllerBase
                 await Task.Delay(100);
                 verifyUser = await _userManager.FindByEmailAsync(model.Email);
             }
-            
-            _logger.LogInformation("User registered successfully: {Email} with UserProfile ID: {ProfileId}", model.Email, userProfile.Id);
-            return Ok(new { message = "User registered successfully", userId = user.Id, profileId = userProfile.Id });
+
+            _logger.LogInformation("User registered successfully: {Email} with UserProfile ID: {ProfileId} and {FaceProfileCount} face profile(s)",
+                model.Email, userProfile.Id, userFaceProfiles.Count);
+            return Ok(new { message = "User registered successfully", userId = user.Id, profileId = userProfile.Id, faceProfileCount = userFaceProfiles.Count });
         }
 
         // If registration failed (e.g., email already exists, password doesn't meet requirements), returns errors

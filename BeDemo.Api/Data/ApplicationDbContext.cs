@@ -14,8 +14,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Face> Faces { get; set; } = null!;
     public DbSet<Page> Pages { get; set; } = null!;
     public DbSet<PageType> PageTypes { get; set; } = null!;
+    public DbSet<PageRouteTranslation> PageRouteTranslations { get; set; } = null!;
     public DbSet<UserProfile> UserProfiles { get; set; } = null!;
-    public DbSet<UserRole> UserRoles { get; set; } = null!;
+    public DbSet<UserFaceProfile> UserFaceProfiles { get; set; } = null!;
+    public new DbSet<UserRole> UserRoles { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -30,8 +32,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.Color).HasMaxLength(50);
+            entity.Property(e => e.GradientSettings).HasColumnType("text");
             entity.Property(e => e.CreatedAt).IsRequired();
-            
+
             // One-to-many relationship: Face -> Pages
             entity.HasMany(e => e.Pages)
                   .WithOne(p => p.Face)
@@ -47,11 +50,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.Path).IsRequired().HasMaxLength(500);
             entity.Property(e => e.Index).IsRequired();
+            entity.Property(e => e.GridSchema).HasColumnType("text");
             entity.Property(e => e.CreatedAt).IsRequired();
-            
+
             // Foreign key relationship to Face
             entity.HasIndex(e => e.FaceId);
-            
+
             // Many-to-one relationship: Page -> PageType
             entity.HasOne(e => e.PageType)
                   .WithMany(pt => pt.Pages)
@@ -66,12 +70,30 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => e.Index).IsUnique();
             entity.Property(e => e.Index).IsRequired().HasMaxLength(100);
             entity.Property(e => e.CreatedAt).IsRequired();
-            
+
             // One-to-many relationship: PageType -> Pages
             entity.HasMany(e => e.Pages)
                   .WithOne(p => p.PageType)
                   .HasForeignKey(p => p.PageTypeId)
                   .OnDelete(DeleteBehavior.Restrict); // Prevent deletion if pages exist
+        });
+
+        // Configure PageRouteTranslation entity
+        builder.Entity<PageRouteTranslation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.LanguageCode).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.TranslatedRoute).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            // Many-to-one relationship: PageRouteTranslation -> Page
+            entity.HasOne(e => e.Page)
+                  .WithMany(p => p.RouteTranslations)
+                  .HasForeignKey(e => e.PageId)
+                  .OnDelete(DeleteBehavior.Cascade); // If Page is deleted, delete all translations
+
+            // Unique constraint: one translation per language per page
+            entity.HasIndex(e => new { e.PageId, e.LanguageCode }).IsUnique();
         });
 
         // Configure UserProfile entity
@@ -91,6 +113,43 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
             // Ensure one UserProfile per User
             entity.HasIndex(e => e.UserId).IsUnique();
+
+            // One-to-many relationship: UserProfile -> UserFaceProfiles
+            entity.HasMany(e => e.UserFaceProfiles)
+                  .WithOne(ufp => ufp.UserProfile)
+                  .HasForeignKey(ufp => ufp.UserProfileId)
+                  .OnDelete(DeleteBehavior.Cascade); // If UserProfile is deleted, delete all UserFaceProfiles
+        });
+
+        // Configure UserFaceProfile entity
+        builder.Entity<UserFaceProfile>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserProfileId).IsRequired();
+            entity.Property(e => e.FaceId).IsRequired();
+            entity.Property(e => e.DisplayName).HasMaxLength(200);
+            entity.Property(e => e.AvatarUrl).HasMaxLength(500);
+            entity.Property(e => e.Settings).HasColumnType("text"); // JSON string
+            entity.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            // Many-to-one relationship: UserFaceProfile -> UserProfile
+            entity.HasOne(e => e.UserProfile)
+                  .WithMany(up => up.UserFaceProfiles)
+                  .HasForeignKey(e => e.UserProfileId)
+                  .OnDelete(DeleteBehavior.Cascade); // If UserProfile is deleted, delete UserFaceProfile
+
+            // Many-to-one relationship: UserFaceProfile -> Face
+            entity.HasOne(e => e.Face)
+                  .WithMany(f => f.UserFaceProfiles)
+                  .HasForeignKey(e => e.FaceId)
+                  .OnDelete(DeleteBehavior.Cascade); // If Face is deleted, delete all UserFaceProfiles
+
+            // Ensure unique combination: one UserFaceProfile per UserProfile+Face pair
+            entity.HasIndex(e => new { e.UserProfileId, e.FaceId }).IsUnique();
+
+            // Index on FaceId for faster queries
+            entity.HasIndex(e => e.FaceId);
         });
 
         // Configure UserRole entity

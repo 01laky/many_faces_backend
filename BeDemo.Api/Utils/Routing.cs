@@ -70,17 +70,17 @@ public static class Routing
         // Split by uppercase letters (except first)
         // This handles PascalCase and camelCase
         var result = new System.Text.StringBuilder();
-        
+
         for (int i = 0; i < input.Length; i++)
         {
             var c = input[i];
-            
+
             // If current character is uppercase and not first character, add hyphen before it
             if (char.IsUpper(c) && i > 0)
             {
                 result.Append('-');
             }
-            
+
             // Convert to lowercase and add to result
             result.Append(char.ToLowerInvariant(c));
         }

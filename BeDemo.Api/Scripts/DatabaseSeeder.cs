@@ -1,11 +1,12 @@
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace BeDemo.Api.Scripts;
 
 /// <summary>
-/// Database seeder - seeds initial data for PageTypes, Faces, and Pages
+/// Database seeder - seeds initial data for PageTypes, Faces, Pages, and Users
 /// </summary>
 public static class DatabaseSeeder
 {
@@ -17,7 +18,7 @@ public static class DatabaseSeeder
         {
             await context.Database.MigrateAsync();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             // If migrations fail and database doesn't exist, ensure it's created
             // This is a fallback for first-time setup
@@ -116,6 +117,7 @@ public static class DatabaseSeeder
                 Title = "Public",
                 Description = "Public face",
                 Color = "#007bff",
+                IsPublic = true,
                 CreatedAt = DateTime.UtcNow,
             };
             context.Faces.Add(publicFace);
@@ -142,6 +144,7 @@ public static class DatabaseSeeder
                 Title = "Basic",
                 Description = "Basic face",
                 Color = "#28a745",
+                IsPublic = false,
                 CreatedAt = DateTime.UtcNow,
             };
             context.Faces.Add(basicFace);
@@ -168,6 +171,7 @@ public static class DatabaseSeeder
                 Title = "Koncept",
                 Description = "Koncept face",
                 Color = "#ffc107",
+                IsPublic = false,
                 CreatedAt = DateTime.UtcNow,
             };
             context.Faces.Add(konceptFace);
@@ -185,5 +189,166 @@ public static class DatabaseSeeder
         }
 
         await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Seeds 2 admin users and 30 regular users with UserProfile and UserFaceProfile for each face
+    /// </summary>
+    public static async Task SeedUsersAsync(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+    {
+        // Get roles
+        var adminRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.RoleNames.Admin);
+        var userRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.RoleNames.User);
+
+        if (adminRole == null || userRole == null)
+        {
+            Console.WriteLine("⚠️  Roles not found. Skipping user seeding.");
+            return;
+        }
+
+        // Get all faces for creating UserFaceProfiles
+        var faces = await context.Faces.ToListAsync();
+
+        // Temporarily remove password validators for simple seed passwords
+        var validators = userManager.PasswordValidators.ToList();
+        userManager.PasswordValidators.Clear();
+
+        try
+        {
+            // --- 2 Admin users ---
+            var adminUsers = new[]
+            {
+                new { Email = "admin1@demo.com", FirstName = "Adam", LastName = "Novák", Nickname = "adam.novak" },
+                new { Email = "admin2@demo.com", FirstName = "Eva", LastName = "Kováčová", Nickname = "eva.kovacova" },
+            };
+
+            foreach (var adminData in adminUsers)
+            {
+                var existingUser = await userManager.FindByEmailAsync(adminData.Email);
+                if (existingUser != null) continue;
+
+                var user = new ApplicationUser
+                {
+                    UserName = adminData.Email,
+                    Email = adminData.Email,
+                    EmailConfirmed = true,
+                    FirstName = adminData.FirstName,
+                    LastName = adminData.LastName,
+                    CreatedAt = DateTime.UtcNow,
+                    UserRoleId = adminRole.Id
+                };
+
+                var result = await userManager.CreateAsync(user, "admin");
+                if (!result.Succeeded)
+                {
+                    Console.WriteLine($"❌ Failed to create admin {adminData.Email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                    continue;
+                }
+
+                await context.SaveChangesAsync();
+
+                // Create UserProfile
+                var profile = new UserProfile
+                {
+                    UserId = user.Id,
+                    Nickname = adminData.Nickname,
+                    Age = 35,
+                    Rod = "M",
+                    CreatedAt = DateTime.UtcNow
+                };
+                context.UserProfiles.Add(profile);
+                await context.SaveChangesAsync();
+
+                // Create UserFaceProfile for each face
+                foreach (var face in faces)
+                {
+                    context.UserFaceProfiles.Add(new UserFaceProfile
+                    {
+                        UserProfileId = profile.Id,
+                        FaceId = face.Id,
+                        DisplayName = $"{adminData.FirstName} {adminData.LastName}",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                await context.SaveChangesAsync();
+
+                Console.WriteLine($"✅ Admin seeded: {adminData.Email}");
+            }
+
+            // --- 30 Regular users ---
+            var firstNames = new[] { "Ján", "Peter", "Martin", "Tomáš", "Lukáš", "Marek", "Michal", "Ondrej", "Dávid", "Jakub",
+                                     "Mária", "Anna", "Katarína", "Jana", "Zuzana", "Monika", "Lucia", "Petra", "Simona", "Lenka",
+                                     "Róbert", "Štefan", "Pavol", "Daniel", "Matúš", "Filip", "Andrej", "Samuel", "Richard", "Patrik" };
+            var lastNames = new[] { "Horváth", "Kováč", "Varga", "Tóth", "Nagy", "Baláž", "Molnár", "Szabó", "Novák", "Fekete",
+                                    "Bílik", "Krajčír", "Kučera", "Polák", "Valent", "Hudák", "Šimko", "Jurčo", "Hruška", "Majer",
+                                    "Lacko", "Gajdoš", "Rusnák", "Sedlák", "Vrábel", "Haluška", "Mišík", "Bartoš", "Čierny", "Zelený" };
+
+            for (int i = 0; i < 30; i++)
+            {
+                var email = $"user{i + 1:D2}@demo.com";
+                var existingUser = await userManager.FindByEmailAsync(email);
+                if (existingUser != null) continue;
+
+                var firstName = firstNames[i];
+                var lastName = lastNames[i];
+
+                var user = new ApplicationUser
+                {
+                    UserName = email,
+                    Email = email,
+                    EmailConfirmed = true,
+                    FirstName = firstName,
+                    LastName = lastName,
+                    CreatedAt = DateTime.UtcNow,
+                    UserRoleId = userRole.Id
+                };
+
+                var result = await userManager.CreateAsync(user, "user123");
+                if (!result.Succeeded)
+                {
+                    Console.WriteLine($"❌ Failed to create user {email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                    continue;
+                }
+
+                await context.SaveChangesAsync();
+
+                // Create UserProfile
+                var profile = new UserProfile
+                {
+                    UserId = user.Id,
+                    Nickname = $"{firstName.ToLower()}.{lastName.ToLower()}",
+                    Age = 20 + (i % 30),
+                    Rod = i < 10 ? "M" : (i < 20 ? "F" : "M"),
+                    CreatedAt = DateTime.UtcNow
+                };
+                context.UserProfiles.Add(profile);
+                await context.SaveChangesAsync();
+
+                // Create UserFaceProfile for each face
+                foreach (var face in faces)
+                {
+                    context.UserFaceProfiles.Add(new UserFaceProfile
+                    {
+                        UserProfileId = profile.Id,
+                        FaceId = face.Id,
+                        DisplayName = $"{firstName} {lastName}",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                await context.SaveChangesAsync();
+            }
+
+            Console.WriteLine($"✅ Seeded 2 admins and 30 users successfully");
+        }
+        finally
+        {
+            // Restore password validators
+            foreach (var validator in validators)
+            {
+                userManager.PasswordValidators.Add(validator);
+            }
+        }
     }
 }

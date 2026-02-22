@@ -53,6 +53,7 @@ public class PagesController : ControllerBase
                 description = p.Description,
                 path = p.Path,
                 index = p.Index,
+                gridSchema = p.GridSchema,
                 createdAt = p.CreatedAt,
                 updatedAt = p.UpdatedAt,
             }).ToList();
@@ -93,6 +94,7 @@ public class PagesController : ControllerBase
                 description = page.Description,
                 path = page.Path,
                 index = page.Index,
+                gridSchema = page.GridSchema,
                 createdAt = page.CreatedAt,
                 updatedAt = page.UpdatedAt,
             };
@@ -213,6 +215,10 @@ public class PagesController : ControllerBase
             {
                 page.Index = model.Index.Value;
             }
+            if (model.GridSchema != null)
+            {
+                page.GridSchema = model.GridSchema;
+            }
             if (model.FaceId.HasValue)
             {
                 // Verify that new Face exists
@@ -248,6 +254,7 @@ public class PagesController : ControllerBase
                 description = page.Description,
                 path = page.Path,
                 index = page.Index,
+                gridSchema = page.GridSchema,
                 createdAt = page.CreatedAt,
                 updatedAt = page.UpdatedAt,
             };
@@ -289,6 +296,117 @@ public class PagesController : ControllerBase
         {
             _logger.LogError(ex, "Error deleting page: {PageId}", id);
             return StatusCode(500, new { error = "An error occurred while deleting page" });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/pages/{pageId}/translations
+    /// Get all route translations for a page
+    /// </summary>
+    [HttpGet("{pageId}/translations")]
+    public async Task<IActionResult> GetPageRouteTranslations(int pageId)
+    {
+        try
+        {
+            var pageExists = await _context.Pages.AnyAsync(p => p.Id == pageId);
+            if (!pageExists)
+            {
+                return NotFound(new { error = "Page not found" });
+            }
+
+            var translations = await _context.PageRouteTranslations
+                .Where(t => t.PageId == pageId)
+                .OrderBy(t => t.LanguageCode)
+                .Select(t => new
+                {
+                    id = t.Id,
+                    pageId = t.PageId,
+                    languageCode = t.LanguageCode,
+                    translatedRoute = t.TranslatedRoute,
+                    createdAt = t.CreatedAt,
+                    updatedAt = t.UpdatedAt,
+                })
+                .ToListAsync();
+
+            return Ok(translations);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving translations for page: {PageId}", pageId);
+            return StatusCode(500, new { error = "An error occurred while retrieving page translations" });
+        }
+    }
+
+    /// <summary>
+    /// PUT /api/pages/{pageId}/translations
+    /// Upsert route translations for a page (replaces all translations)
+    /// </summary>
+    [HttpPut("{pageId}/translations")]
+    public async Task<IActionResult> UpdatePageRouteTranslations(int pageId, [FromBody] List<PageRouteTranslationModel> models)
+    {
+        try
+        {
+            var pageExists = await _context.Pages.AnyAsync(p => p.Id == pageId);
+            if (!pageExists)
+            {
+                return NotFound(new { error = "Page not found" });
+            }
+
+            // Get existing translations
+            var existing = await _context.PageRouteTranslations
+                .Where(t => t.PageId == pageId)
+                .ToListAsync();
+
+            // Remove translations not in the new set
+            var newLanguageCodes = models.Select(m => m.LanguageCode).ToHashSet();
+            var toRemove = existing.Where(e => !newLanguageCodes.Contains(e.LanguageCode)).ToList();
+            _context.PageRouteTranslations.RemoveRange(toRemove);
+
+            // Upsert translations
+            foreach (var model in models)
+            {
+                var existingTranslation = existing.FirstOrDefault(e => e.LanguageCode == model.LanguageCode);
+                if (existingTranslation != null)
+                {
+                    existingTranslation.TranslatedRoute = model.TranslatedRoute;
+                    existingTranslation.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    _context.PageRouteTranslations.Add(new PageRouteTranslation
+                    {
+                        PageId = pageId,
+                        LanguageCode = model.LanguageCode,
+                        TranslatedRoute = model.TranslatedRoute,
+                        CreatedAt = DateTime.UtcNow,
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Return updated translations
+            var translations = await _context.PageRouteTranslations
+                .Where(t => t.PageId == pageId)
+                .OrderBy(t => t.LanguageCode)
+                .Select(t => new
+                {
+                    id = t.Id,
+                    pageId = t.PageId,
+                    languageCode = t.LanguageCode,
+                    translatedRoute = t.TranslatedRoute,
+                    createdAt = t.CreatedAt,
+                    updatedAt = t.UpdatedAt,
+                })
+                .ToListAsync();
+
+            _logger.LogInformation("Updated {Count} translations for page: {PageId}", translations.Count, pageId);
+            return Ok(translations);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating translations for page: {PageId}", pageId);
+            return StatusCode(500, new { error = "An error occurred while updating page translations" });
         }
     }
 }
@@ -337,4 +455,20 @@ public class UpdatePageModel
     public string? Path { get; set; }
 
     public int? Index { get; set; }
+
+    public string? GridSchema { get; set; }
+}
+
+/// <summary>
+/// Model for page route translation
+/// </summary>
+public class PageRouteTranslationModel
+{
+    [Required(ErrorMessage = "LanguageCode is required")]
+    [StringLength(10, ErrorMessage = "LanguageCode must be at most 10 characters")]
+    public string LanguageCode { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "TranslatedRoute is required")]
+    [StringLength(200, ErrorMessage = "TranslatedRoute must be at most 200 characters")]
+    public string TranslatedRoute { get; set; } = string.Empty;
 }

@@ -3,6 +3,7 @@ using System;
 using BeDemo.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BeDemo.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260118221421_AddFaceIsPublic")]
+    partial class AddFaceIsPublic
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -119,9 +122,6 @@ namespace BeDemo.Api.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<string>("GradientSettings")
-                        .HasColumnType("text");
-
                     b.Property<string>("Index")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -164,9 +164,6 @@ namespace BeDemo.Api.Migrations
                     b.Property<int>("FaceId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("GridSchema")
-                        .HasColumnType("text");
-
                     b.Property<int>("Index")
                         .HasColumnType("integer");
 
@@ -193,41 +190,6 @@ namespace BeDemo.Api.Migrations
                     b.HasIndex("PageTypeId");
 
                     b.ToTable("Pages");
-                });
-
-            modelBuilder.Entity("BeDemo.Api.Models.PageRouteTranslation", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("LanguageCode")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)");
-
-                    b.Property<int>("PageId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("TranslatedRoute")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PageId", "LanguageCode")
-                        .IsUnique();
-
-                    b.ToTable("PageRouteTranslations");
                 });
 
             modelBuilder.Entity("BeDemo.Api.Models.PageType", b =>
@@ -531,17 +493,6 @@ namespace BeDemo.Api.Migrations
                     b.Navigation("PageType");
                 });
 
-            modelBuilder.Entity("BeDemo.Api.Models.PageRouteTranslation", b =>
-                {
-                    b.HasOne("BeDemo.Api.Models.Page", "Page")
-                        .WithMany("RouteTranslations")
-                        .HasForeignKey("PageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Page");
-                });
-
             modelBuilder.Entity("BeDemo.Api.Models.UserFaceProfile", b =>
                 {
                     b.HasOne("BeDemo.Api.Models.Face", "Face")
@@ -633,11 +584,6 @@ namespace BeDemo.Api.Migrations
                     b.Navigation("Pages");
 
                     b.Navigation("UserFaceProfiles");
-                });
-
-            modelBuilder.Entity("BeDemo.Api.Models.Page", b =>
-                {
-                    b.Navigation("RouteTranslations");
                 });
 
             modelBuilder.Entity("BeDemo.Api.Models.PageType", b =>

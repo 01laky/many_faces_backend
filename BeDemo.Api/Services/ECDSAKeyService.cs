@@ -25,12 +25,12 @@ public interface IECDSAKeyService
     /// Gets signing key - used for signing JWT tokens
     /// </summary>
     ECDsaSecurityKey GetSigningKey();
-    
+
     /// <summary>
     /// Gets validation key - used for validating JWT token signatures
     /// </summary>
     ECDsaSecurityKey GetValidationKey();
-    
+
     /// <summary>
     /// Gets unique key identifier (for key rotation)
     /// </summary>
@@ -54,7 +54,7 @@ public class ECDSAKeyService : IECDSAKeyService
         // P-521 (NIST P-521) is one of the strongest curves available
         // 521 bits = very high security
         var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP521);
-        
+
         // Creates ECDsaSecurityKey from ECDSA object
         // This key is used in Microsoft.IdentityModel.Tokens for JWT tokens
         _signingKey = new ECDsaSecurityKey(ecdsa)
@@ -63,7 +63,7 @@ public class ECDSAKeyService : IECDSAKeyService
             // This is useful for key rotation - you can have multiple keys and know which one was used
             KeyId = Guid.NewGuid().ToString()
         };
-        
+
         // Saves KeyId for easy access
         _keyId = _signingKey.KeyId;
     }
@@ -72,7 +72,7 @@ public class ECDSAKeyService : IECDSAKeyService
     /// Returns signing key - used for signing JWT tokens
     /// </summary>
     public ECDsaSecurityKey GetSigningKey() => _signingKey;
-    
+
     /// <summary>
     /// Returns validation key - used for validating JWT token signatures
     /// 
@@ -80,7 +80,7 @@ public class ECDSAKeyService : IECDSAKeyService
     /// In production, different keys could be used (e.g., for key rotation).
     /// </summary>
     public ECDsaSecurityKey GetValidationKey() => _signingKey;
-    
+
     /// <summary>
     /// Returns unique key identifier
     /// </summary>

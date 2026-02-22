@@ -3,6 +3,7 @@ using System;
 using BeDemo.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BeDemo.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260222111255_AddPageRouteTranslations")]
+    partial class AddPageRouteTranslations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -119,9 +122,6 @@ namespace BeDemo.Api.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<string>("GradientSettings")
-                        .HasColumnType("text");
-
                     b.Property<string>("Index")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -163,9 +163,6 @@ namespace BeDemo.Api.Migrations
 
                     b.Property<int>("FaceId")
                         .HasColumnType("integer");
-
-                    b.Property<string>("GridSchema")
-                        .HasColumnType("text");
 
                     b.Property<int>("Index")
                         .HasColumnType("integer");

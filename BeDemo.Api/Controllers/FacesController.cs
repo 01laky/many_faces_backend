@@ -43,6 +43,8 @@ public class FacesController : ControllerBase
                 title = f.Title,
                 description = f.Description,
                 color = f.Color,
+                gradientSettings = f.GradientSettings,
+                isPublic = f.IsPublic,
                 createdAt = f.CreatedAt,
                 updatedAt = f.UpdatedAt,
             }).ToList();
@@ -54,6 +56,75 @@ public class FacesController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving faces");
             return StatusCode(500, new { error = "An error occurred while retrieving faces" });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/faces-config
+    /// Get all faces with their pages configuration
+    /// - For authenticated users: returns only private faces (IsPublic = false)
+    /// - For anonymous users: returns only public faces (IsPublic = true)
+    /// Used by frontend to generate routes before router initialization
+    /// </summary>
+    [HttpGet("config")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetFacesConfig()
+    {
+        try
+        {
+            // Return ALL faces with pages, route translations and isPublic flag.
+            // The frontend decides which faces to show based on auth state.
+            var faces = await _context.Faces
+                .Include(f => f.Pages)
+                    .ThenInclude(p => p.PageType)
+                .Include(f => f.Pages)
+                    .ThenInclude(p => p.RouteTranslations)
+                .OrderBy(f => f.Index)
+                .ToListAsync();
+
+            var facesConfig = faces.Select(f => new
+            {
+                index = f.Index,
+                id = f.Id,
+                title = f.Title,
+                description = f.Description,
+                color = f.Color,
+                gradientSettings = f.GradientSettings,
+                isPublic = f.IsPublic,
+                pages = f.Pages
+                    .OrderBy(p => p.Index)
+                    .Select(p => new
+                    {
+                        index = p.Index,
+                        id = p.Id,
+                        name = p.Name,
+                        description = p.Description,
+                        path = p.Path,
+                        gridSchema = p.GridSchema,
+                        pageType = new
+                        {
+                            index = p.PageType.Index,
+                            id = p.PageType.Id
+                        },
+                        routeTranslations = p.RouteTranslations
+                            .OrderBy(rt => rt.LanguageCode)
+                            .Select(rt => new
+                            {
+                                languageCode = rt.LanguageCode,
+                                translatedRoute = rt.TranslatedRoute,
+                            }).ToList(),
+                        createdAt = p.CreatedAt,
+                        updatedAt = p.UpdatedAt
+                    }).ToList()
+            }).ToList();
+
+            _logger.LogInformation("Retrieved faces config with {FaceCount} faces", facesConfig.Count);
+            return Ok(facesConfig);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving faces config");
+            return StatusCode(500, new { error = "An error occurred while retrieving faces config" });
         }
     }
 
@@ -81,6 +152,8 @@ public class FacesController : ControllerBase
                 title = face.Title,
                 description = face.Description,
                 color = face.Color,
+                gradientSettings = face.GradientSettings,
+                isPublic = face.IsPublic,
                 createdAt = face.CreatedAt,
                 updatedAt = face.UpdatedAt,
             };
@@ -123,6 +196,8 @@ public class FacesController : ControllerBase
                 Title = model.Title,
                 Description = model.Description,
                 Color = model.Color,
+                GradientSettings = model.GradientSettings,
+                IsPublic = model.IsPublic,
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -136,6 +211,8 @@ public class FacesController : ControllerBase
                 title = face.Title,
                 description = face.Description,
                 color = face.Color,
+                gradientSettings = face.GradientSettings,
+                isPublic = face.IsPublic,
                 createdAt = face.CreatedAt,
                 updatedAt = face.UpdatedAt,
             };
@@ -200,6 +277,14 @@ public class FacesController : ControllerBase
             {
                 face.Color = model.Color;
             }
+            if (model.GradientSettings != null)
+            {
+                face.GradientSettings = model.GradientSettings;
+            }
+            if (model.IsPublic.HasValue)
+            {
+                face.IsPublic = model.IsPublic.Value;
+            }
             face.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -211,6 +296,8 @@ public class FacesController : ControllerBase
                 title = face.Title,
                 description = face.Description,
                 color = face.Color,
+                gradientSettings = face.GradientSettings,
+                isPublic = face.IsPublic,
                 createdAt = face.CreatedAt,
                 updatedAt = face.UpdatedAt,
             };
@@ -274,6 +361,10 @@ public class CreateFaceModel
 
     [StringLength(50, ErrorMessage = "Color must be at most 50 characters")]
     public string? Color { get; set; }
+
+    public string? GradientSettings { get; set; }
+
+    public bool IsPublic { get; set; } = true;
 }
 
 /// <summary>
@@ -292,4 +383,8 @@ public class UpdateFaceModel
 
     [StringLength(50, ErrorMessage = "Color must be at most 50 characters")]
     public string? Color { get; set; }
+
+    public string? GradientSettings { get; set; }
+
+    public bool? IsPublic { get; set; }
 }

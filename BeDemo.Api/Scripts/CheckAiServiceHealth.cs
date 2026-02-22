@@ -33,7 +33,7 @@ public static class CheckAiServiceHealth
         try
         {
             Log.Information("Checking AI service health at {GrpcAddress}", grpcAddress);
-            
+
             // Create gRPC channel with timeout
             // Note: For development, we use HTTP (insecure) channel (no TLS)
             // In production, use HTTPS with proper TLS credentials
@@ -43,15 +43,15 @@ public static class CheckAiServiceHealth
                 // For HTTP endpoints, Grpc.Net.Client automatically uses insecure channel
                 // No need to explicitly set credentials for HTTP
             });
-            
+
             var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
-            
+
             // Basic connectivity check - try to connect to the gRPC server
             // gRPC uses HTTP/2, so we can verify the channel is ready
             // This checks if the server is listening on the specified port
             // ConnectAsync() will throw if the server is not reachable
             await channel.ConnectAsync(cancellationTokenSource.Token);
-            
+
             // Note: For a full implementation, we would generate C# gRPC client code from health.proto:
             //   1. Install protoc compiler and grpc_csharp_plugin
             //   2. Run: protoc --csharp_out=. --grpc_out=. --plugin=protoc-gen-grpc=grpc_csharp_plugin proto/health.proto
@@ -59,7 +59,7 @@ public static class CheckAiServiceHealth
             //   4. var response = await client.HealthCheckAsync(new HealthCheckRequest(), cancellationToken: cancellationTokenSource.Token);
             //   5. return response.Status == "success";
             // For now, we just verify connectivity
-            
+
             Log.Information("AI service health check passed at {GrpcAddress}", grpcAddress);
             return true;
         }

@@ -52,4 +52,9 @@ public class UserProfile
     /// Timestamp when the profile was last updated
     /// </summary>
     public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Navigation property - one UserProfile has many UserFaceProfiles
+    /// </summary>
+    public ICollection<UserFaceProfile> UserFaceProfiles { get; set; } = new List<UserFaceProfile>();
 }

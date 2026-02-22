@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Backend API for Be Demo",
   "scripts": {
+    "lint": "dotnet format BeDemo.sln --verify-no-changes",
     "test": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj --verbosity minimal",
     "test:verbose": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj --verbosity normal",
     "test:detailed": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj --verbosity detailed",
