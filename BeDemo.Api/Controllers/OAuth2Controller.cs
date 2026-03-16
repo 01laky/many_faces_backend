@@ -159,8 +159,8 @@ public class OAuth2Controller : ControllerBase
             return BadRequest(new { error = "Password cannot contain null bytes" });
         }
 
-        // Get USER role (default role for new users)
-        var userRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.RoleNames.User);
+        // Get USER (global) role - default for new users
+        var userRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.GlobalRoleNames.User);
         if (userRole == null)
         {
             _logger.LogError("USER role not found. Please ensure UserRoles are seeded.");
@@ -197,7 +197,7 @@ public class OAuth2Controller : ControllerBase
             _context.UserProfiles.Add(userProfile);
             await _context.SaveChangesAsync();
 
-            // Create UserFaceProfile for each Face automatically (many-to-one relationship)
+            // Create UserFaceProfile and UserFaceRole (FACE_HOST) for each Face
             var faces = await _context.Faces.ToListAsync();
             var userFaceProfiles = faces.Select(face => new UserFaceProfile
             {
@@ -210,6 +210,18 @@ public class OAuth2Controller : ControllerBase
             if (userFaceProfiles.Any())
             {
                 _context.UserFaceProfiles.AddRange(userFaceProfiles);
+                var faceHostRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.FaceRoleNames.FaceHost);
+                if (faceHostRole != null)
+                {
+                    var userFaceRoles = faces.Select(face => new UserFaceRole
+                    {
+                        UserId = user.Id,
+                        FaceId = face.Id,
+                        UserRoleId = faceHostRole.Id,
+                        CreatedAt = DateTime.UtcNow
+                    }).ToList();
+                    _context.UserFaceRoles.AddRange(userFaceRoles);
+                }
                 await _context.SaveChangesAsync();
                 _logger.LogInformation("Created {Count} UserFaceProfile(s) for user: {Email}", userFaceProfiles.Count, model.Email);
             }

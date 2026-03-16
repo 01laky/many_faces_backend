@@ -204,6 +204,45 @@ public class FacesController : ControllerBase
             _context.Faces.Add(face);
             await _context.SaveChangesAsync();
 
+            // Add default pages (Home, List, Detail; Wall for non-public faces) when PageTypes exist
+            var homePageType = await _context.PageTypes.FirstOrDefaultAsync(pt => pt.Index == "home");
+            var listPageType = await _context.PageTypes.FirstOrDefaultAsync(pt => pt.Index == "list");
+            var detailPageType = await _context.PageTypes.FirstOrDefaultAsync(pt => pt.Index == "detail");
+            var wallPageType = await _context.PageTypes.FirstOrDefaultAsync(pt => pt.Index == "wall");
+
+            var defaultPages = new List<Page>();
+            var pageIndex = 0;
+            if (homePageType != null)
+            {
+                defaultPages.Add(new Page { FaceId = face.Id, PageTypeId = homePageType.Id, Name = "Home", Path = "/home", Index = pageIndex++, CreatedAt = DateTime.UtcNow });
+            }
+
+            if (listPageType != null)
+            {
+                defaultPages.Add(new Page { FaceId = face.Id, PageTypeId = listPageType.Id, Name = "List", Path = "/list", Index = pageIndex++, CreatedAt = DateTime.UtcNow });
+            }
+
+            if (detailPageType != null)
+            {
+                defaultPages.Add(new Page { FaceId = face.Id, PageTypeId = detailPageType.Id, Name = "Detail", Path = "/detail", Index = pageIndex++, CreatedAt = DateTime.UtcNow });
+            }
+
+            if (!face.IsPublic && wallPageType != null)
+            {
+                defaultPages.Add(new Page { FaceId = face.Id, PageTypeId = wallPageType.Id, Name = "Wall", Path = "/wall", Index = pageIndex++, CreatedAt = DateTime.UtcNow });
+            }
+
+            if (defaultPages.Count > 0)
+            {
+                _context.Pages.AddRange(defaultPages);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Face created with {Count} default pages: {FaceId}", defaultPages.Count, face.Id);
+            }
+            else
+            {
+                _logger.LogInformation("Face created: {FaceId} (no default PageTypes found)", face.Id);
+            }
+
             var faceDto = new
             {
                 id = face.Id,
@@ -217,7 +256,6 @@ public class FacesController : ControllerBase
                 updatedAt = face.UpdatedAt,
             };
 
-            _logger.LogInformation("Face created: {FaceId}", face.Id);
             return CreatedAtAction(nameof(GetFace), new { id = face.Id }, faceDto);
         }
         catch (Exception ex)

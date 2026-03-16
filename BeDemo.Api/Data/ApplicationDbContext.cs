@@ -11,6 +11,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
     }
 
+    public DbSet<FriendRequest> FriendRequests { get; set; } = null!;
+    public DbSet<Friendship> Friendships { get; set; } = null!;
+    public DbSet<Message> Messages { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
     public DbSet<Face> Faces { get; set; } = null!;
     public DbSet<Page> Pages { get; set; } = null!;
     public DbSet<PageType> PageTypes { get; set; } = null!;
@@ -18,6 +22,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<UserProfile> UserProfiles { get; set; } = null!;
     public DbSet<UserFaceProfile> UserFaceProfiles { get; set; } = null!;
     public new DbSet<UserRole> UserRoles { get; set; } = null!;
+    public DbSet<UserFaceRole> UserFaceRoles { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -159,13 +164,118 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(e => e.Name).IsUnique();
             entity.Property(e => e.Name).IsRequired().HasMaxLength(50);
             entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Scope).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
 
-            // One-to-many relationship: UserRole -> ApplicationUsers
             entity.HasMany(e => e.Users)
                   .WithOne(u => u.UserRole)
                   .HasForeignKey(u => u.UserRoleId)
-                  .OnDelete(DeleteBehavior.Restrict); // Prevent deletion if users have this role
+                  .OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(e => e.UserFaceRoles)
+                  .WithOne(ufr => ufr.UserRole)
+                  .HasForeignKey(ufr => ufr.UserRoleId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configure UserFaceRole - one face role per user per face
+        builder.Entity<UserFaceRole>(entity =>
+        {
+            entity.HasKey(e => new { e.UserId, e.FaceId });
+            entity.HasIndex(e => new { e.UserId, e.FaceId }).IsUnique();
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Face)
+                  .WithMany()
+                  .HasForeignKey(e => e.FaceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.UserRole)
+                  .WithMany(r => r.UserFaceRoles)
+                  .HasForeignKey(e => e.UserRoleId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configure FriendRequest entity
+        builder.Entity<FriendRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.SenderId, e.ReceiverId }).IsUnique();
+            entity.Property(e => e.SenderId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.ReceiverId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Status).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.Sender)
+                .WithMany()
+                .HasForeignKey(e => e.SenderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Receiver)
+                .WithMany()
+                .HasForeignKey(e => e.ReceiverId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Friendship entity
+        builder.Entity<Friendship>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.UserId, e.FriendId }).IsUnique();
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.FriendId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Friend)
+                .WithMany()
+                .HasForeignKey(e => e.FriendId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Message entity
+        builder.Entity<Message>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.SenderId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.ReceiverId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.SentAt).IsRequired();
+            entity.HasIndex(e => new { e.SenderId, e.ReceiverId });
+            entity.HasIndex(e => new { e.ReceiverId, e.SenderId });
+
+            entity.HasOne(e => e.Sender)
+                .WithMany()
+                .HasForeignKey(e => e.SenderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Receiver)
+                .WithMany()
+                .HasForeignKey(e => e.ReceiverId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Notification entity
+        builder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Message).IsRequired();
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.CreatedAt);
         });
 
         // Configure ApplicationUser entity - UserRole relationship

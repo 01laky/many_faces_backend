@@ -152,14 +152,20 @@ public class ChatHub : Hub
         var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         _logger.LogInformation("User {UserId} sent message to AI: {Message}", userId, message);
 
-        // Build prompt with conversation context: "User: ...\nAI: ...\nUser: ...\nAI:" + new message + "\nAI:"
-        var prompt = BuildPromptWithHistory(message ?? string.Empty, history);
-        var fullResponse = await _aiGrpcService.GenerateAsync(prompt, maxNewTokens: 50);
+        string aiResponse;
+        try
+        {
+            var prompt = BuildPromptWithHistory(message ?? string.Empty, history);
+            aiResponse = await _aiGrpcService.GenerateAsync(prompt, maxNewTokens: 150);
 
-        // Python returns prompt + generated continuation; strip prompt to get only the new AI part
-        var aiResponse = fullResponse.StartsWith(prompt, StringComparison.Ordinal)
-            ? fullResponse[prompt.Length..].Trim()
-            : fullResponse;
+            if (string.IsNullOrWhiteSpace(aiResponse))
+                aiResponse = "...";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SendToAi failed for user {UserId}", userId);
+            aiResponse = "Error: AI service is currently unavailable. Please try again later.";
+        }
 
         await Clients.Caller.SendAsync("ReceiveAiMessage", message ?? string.Empty, aiResponse);
     }

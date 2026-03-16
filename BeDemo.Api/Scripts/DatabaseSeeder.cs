@@ -47,27 +47,60 @@ public static class DatabaseSeeder
 
     public static async Task SeedUserRolesAsync(ApplicationDbContext context)
     {
-        var roles = new[]
+        var globalRoles = new[]
         {
-            new { Name = UserRole.RoleNames.SuperAdmin, Description = "Super Administrator - Full system access" },
-            new { Name = UserRole.RoleNames.Admin, Description = "Administrator - Administrative access" },
-            new { Name = UserRole.RoleNames.FaceAdmin, Description = "Face Administrator - Manages faces and pages" },
-            new { Name = UserRole.RoleNames.Inzerent, Description = "Inzerent - Advertisement manager" },
-            new { Name = UserRole.RoleNames.Subscriber, Description = "Subscriber - Premium user access" },
-            new { Name = UserRole.RoleNames.User, Description = "User - Standard user access" }
+            new { Name = UserRole.GlobalRoleNames.SuperAdmin, Description = "Super Administrator - Full system access" },
+            new { Name = UserRole.GlobalRoleNames.Admin, Description = "Administrator - Administrative access" },
+            new { Name = UserRole.GlobalRoleNames.User, Description = "User - Standard user access" },
+            new { Name = UserRole.GlobalRoleNames.Host, Description = "Host - Global host role" },
         };
 
-        foreach (var roleData in roles)
+        var faceRoles = new[]
         {
-            var existingRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == roleData.Name);
-            if (existingRole == null)
+            new { Name = UserRole.FaceRoleNames.FaceAdmin, Description = "Face Administrator - Manages faces and pages" },
+            new { Name = UserRole.FaceRoleNames.FaceUser, Description = "Face User - User with face-specific access" },
+            new { Name = UserRole.FaceRoleNames.Inzerent, Description = "Inzerent - Advertisement manager" },
+            new { Name = UserRole.FaceRoleNames.Subscriber, Description = "Subscriber - Premium user access" },
+            new { Name = UserRole.FaceRoleNames.FaceHost, Description = "Face Host - Default role per face" },
+        };
+
+        foreach (var roleData in globalRoles)
+        {
+            var existing = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == roleData.Name);
+            if (existing == null)
             {
                 context.UserRoles.Add(new UserRole
                 {
                     Name = roleData.Name,
                     Description = roleData.Description,
+                    Scope = RoleScope.Global,
                     CreatedAt = DateTime.UtcNow
                 });
+            }
+            else if (existing.Scope != RoleScope.Global)
+            {
+                existing.Scope = RoleScope.Global;
+                existing.Description = roleData.Description;
+            }
+        }
+
+        foreach (var roleData in faceRoles)
+        {
+            var existing = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == roleData.Name);
+            if (existing == null)
+            {
+                context.UserRoles.Add(new UserRole
+                {
+                    Name = roleData.Name,
+                    Description = roleData.Description,
+                    Scope = RoleScope.Face,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+            else if (existing.Scope != RoleScope.Face)
+            {
+                existing.Scope = RoleScope.Face;
+                existing.Description = roleData.Description;
             }
         }
 
@@ -76,7 +109,7 @@ public static class DatabaseSeeder
 
     private static async Task SeedPageTypesAsync(ApplicationDbContext context)
     {
-        var pageTypeIndices = new[] { "home", "list", "detail", "edit", "create", "static" };
+        var pageTypeIndices = new[] { "home", "list", "detail", "edit", "create", "static", "wall" };
 
         foreach (var index in pageTypeIndices)
         {
@@ -101,6 +134,7 @@ public static class DatabaseSeeder
         var staticPageType = await context.PageTypes.FirstOrDefaultAsync(pt => pt.Index == "static");
         var listPageType = await context.PageTypes.FirstOrDefaultAsync(pt => pt.Index == "list");
         var detailPageType = await context.PageTypes.FirstOrDefaultAsync(pt => pt.Index == "detail");
+        var wallPageType = await context.PageTypes.FirstOrDefaultAsync(pt => pt.Index == "wall");
 
         if (homePageType == null || staticPageType == null || listPageType == null || detailPageType == null)
         {
@@ -150,14 +184,17 @@ public static class DatabaseSeeder
             context.Faces.Add(basicFace);
             await context.SaveChangesAsync();
 
-            // Pages for basic face
-            var basicPages = new[]
+            // Pages for basic face (non-public: include Wall)
+            var basicPages = new List<Page>
             {
                 new Page { FaceId = basicFace.Id, PageTypeId = homePageType.Id, Name = "Home", Path = "/home", Index = 0, CreatedAt = DateTime.UtcNow },
                 new Page { FaceId = basicFace.Id, PageTypeId = listPageType.Id, Name = "List", Path = "/list", Index = 1, CreatedAt = DateTime.UtcNow },
                 new Page { FaceId = basicFace.Id, PageTypeId = detailPageType.Id, Name = "Detail", Path = "/detail", Index = 2, CreatedAt = DateTime.UtcNow },
             };
-
+            if (wallPageType != null)
+            {
+                basicPages.Add(new Page { FaceId = basicFace.Id, PageTypeId = wallPageType.Id, Name = "Wall", Path = "/wall", Index = 3, CreatedAt = DateTime.UtcNow });
+            }
             context.Pages.AddRange(basicPages);
         }
 
@@ -177,14 +214,17 @@ public static class DatabaseSeeder
             context.Faces.Add(konceptFace);
             await context.SaveChangesAsync();
 
-            // Pages for koncept face
-            var konceptPages = new[]
+            // Pages for koncept face (non-public: include Wall)
+            var konceptPages = new List<Page>
             {
                 new Page { FaceId = konceptFace.Id, PageTypeId = homePageType.Id, Name = "Home", Path = "/home", Index = 0, CreatedAt = DateTime.UtcNow },
                 new Page { FaceId = konceptFace.Id, PageTypeId = listPageType.Id, Name = "List", Path = "/list", Index = 1, CreatedAt = DateTime.UtcNow },
                 new Page { FaceId = konceptFace.Id, PageTypeId = detailPageType.Id, Name = "Detail", Path = "/detail", Index = 2, CreatedAt = DateTime.UtcNow },
             };
-
+            if (wallPageType != null)
+            {
+                konceptPages.Add(new Page { FaceId = konceptFace.Id, PageTypeId = wallPageType.Id, Name = "Wall", Path = "/wall", Index = 3, CreatedAt = DateTime.UtcNow });
+            }
             context.Pages.AddRange(konceptPages);
         }
 
@@ -196,13 +236,14 @@ public static class DatabaseSeeder
     /// </summary>
     public static async Task SeedUsersAsync(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
     {
-        // Get roles
-        var adminRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.RoleNames.Admin);
-        var userRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.RoleNames.User);
+        // Get global roles (for ApplicationUser) and face role FACE_HOST (default per face)
+        var adminRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.GlobalRoleNames.Admin);
+        var userRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.GlobalRoleNames.User);
+        var faceHostRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.FaceRoleNames.FaceHost);
 
         if (adminRole == null || userRole == null)
         {
-            Console.WriteLine("⚠️  Roles not found. Skipping user seeding.");
+            Console.WriteLine("⚠️  Global roles not found. Skipping user seeding.");
             return;
         }
 
@@ -259,7 +300,7 @@ public static class DatabaseSeeder
                 context.UserProfiles.Add(profile);
                 await context.SaveChangesAsync();
 
-                // Create UserFaceProfile for each face
+                // Create UserFaceProfile and UserFaceRole (FACE_HOST) for each face
                 foreach (var face in faces)
                 {
                     context.UserFaceProfiles.Add(new UserFaceProfile
@@ -270,6 +311,16 @@ public static class DatabaseSeeder
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
                     });
+                    if (faceHostRole != null)
+                    {
+                        context.UserFaceRoles.Add(new UserFaceRole
+                        {
+                            UserId = user.Id,
+                            FaceId = face.Id,
+                            UserRoleId = faceHostRole.Id,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
                 }
                 await context.SaveChangesAsync();
 
@@ -325,7 +376,7 @@ public static class DatabaseSeeder
                 context.UserProfiles.Add(profile);
                 await context.SaveChangesAsync();
 
-                // Create UserFaceProfile for each face
+                // Create UserFaceProfile and UserFaceRole (FACE_HOST) for each face
                 foreach (var face in faces)
                 {
                     context.UserFaceProfiles.Add(new UserFaceProfile
@@ -336,6 +387,16 @@ public static class DatabaseSeeder
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
                     });
+                    if (faceHostRole != null)
+                    {
+                        context.UserFaceRoles.Add(new UserFaceRole
+                        {
+                            UserId = user.Id,
+                            FaceId = face.Id,
+                            UserRoleId = faceHostRole.Id,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
                 }
                 await context.SaveChangesAsync();
             }

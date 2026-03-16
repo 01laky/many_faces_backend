@@ -38,8 +38,8 @@ public static class DatabaseInitializer
             // Ensure UserRoles are seeded before creating users
             await DatabaseSeeder.SeedUserRolesAsync(context);
 
-            // Get SUPER_ADMIN role for admin user
-            var superAdminRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.RoleNames.SuperAdmin);
+            // Get SUPER_ADMIN (global) role for admin user
+            var superAdminRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.GlobalRoleNames.SuperAdmin);
             if (superAdminRole == null)
             {
                 throw new InvalidOperationException("SUPER_ADMIN role not found. Please seed UserRoles first.");

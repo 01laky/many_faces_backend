@@ -19,6 +19,16 @@ The Backend API (be_demo) provides a RESTful API for user authentication, author
   - Code-first migrations
   - Automatic database seeding (admin user creation)
 
+- **Roles (global and face-scoped)**
+  - **Global roles** (one per user): SUPER_ADMIN, ADMIN, USER, HOST — stored in `ApplicationUser.UserRoleId`.
+  - **Face roles** (per user per face): FACE_ADMIN, FACE_USER, INZERENT, SUBSCRIBER, FACE_HOST — stored in `UserFaceRole` (UserId, FaceId, UserRoleId).
+  - On **registration**: user gets global role **USER**; for each face they get **UserFaceRole** with **FACE_HOST**.
+  - See `UserRole.GlobalRoleNames`, `UserRole.FaceRoleNames`, and `RoleScope` (Global/Face).
+
+- **Default pages when creating a face**
+  - Creating a face (POST /api/faces) automatically adds pages: **Home** (`/home`), **List** (`/list`), **Detail** (`/detail`) when corresponding PageTypes exist.
+  - If the face is **non-public** (`IsPublic = false`), a **Wall** page (`/wall`) is also added (PageType `"wall"`).
+
 - **API Documentation**
   - Swagger/OpenAPI documentation
   - Interactive API explorer at `/swagger`

@@ -29,14 +29,69 @@ public class UsersController : ControllerBase
 
     /// <summary>
     /// GET /api/users
-    /// Get list of all users
+    /// Get list of users with optional pagination and search.
+    /// Query params: page (1-based), pageSize (default 10), search (filter by name or email),
+    /// forAddFriend (when true, exclude current user, friends, and pending request users).
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> GetUsers()
+    public async Task<IActionResult> GetUsers(
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] bool forAddFriend = false)
     {
         try
         {
-            var users = _userManager.Users.ToList().AsEnumerable();
+            page = Math.Max(1, page);
+            pageSize = Math.Clamp(pageSize, 1, 100);
+
+            var currentUserId = _userManager.GetUserId(User);
+            if (string.IsNullOrEmpty(currentUserId))
+            {
+                return Unauthorized();
+            }
+
+            var query = _context.Users.AsQueryable();
+
+            if (forAddFriend)
+            {
+                var friendIds = await _context.Friendships
+                    .Where(f => f.UserId == currentUserId || f.FriendId == currentUserId)
+                    .Select(f => f.UserId == currentUserId ? f.FriendId : f.UserId)
+                    .ToListAsync();
+                var requestSenderIds = await _context.FriendRequests
+                    .Where(r => r.ReceiverId == currentUserId && r.Status == BeDemo.Api.Models.FriendRequestStatus.Pending)
+                    .Select(r => r.SenderId)
+                    .ToListAsync();
+                var requestReceiverIds = await _context.FriendRequests
+                    .Where(r => r.SenderId == currentUserId && r.Status == BeDemo.Api.Models.FriendRequestStatus.Pending)
+                    .Select(r => r.ReceiverId)
+                    .ToListAsync();
+                var excludeIds = new[] { currentUserId }
+                    .Concat(friendIds)
+                    .Concat(requestSenderIds)
+                    .Concat(requestReceiverIds)
+                    .Distinct()
+                    .ToList();
+                query = query.Where(u => !excludeIds.Contains(u.Id));
+            }
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var pattern = $"%{search.Trim()}%";
+                query = query.Where(u =>
+                    (u.FirstName != null && EF.Functions.ILike(u.FirstName, pattern)) ||
+                    (u.LastName != null && EF.Functions.ILike(u.LastName, pattern)) ||
+                    (u.Email != null && EF.Functions.ILike(u.Email, pattern)));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var users = await query
+                .OrderBy(u => u.Email)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
 
             var userDtos = users.Select(u => new
             {
@@ -47,8 +102,16 @@ public class UsersController : ControllerBase
                 createdAt = u.CreatedAt,
             }).ToList();
 
-            _logger.LogInformation("Retrieved {Count} users", userDtos.Count);
-            return Ok(userDtos);
+            _logger.LogInformation("Retrieved {Count} users (page {Page}, total {Total})", userDtos.Count, page, totalCount);
+
+            return Ok(new
+            {
+                items = userDtos,
+                totalCount,
+                page,
+                pageSize,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+            });
         }
         catch (Exception ex)
         {
@@ -107,8 +170,8 @@ public class UsersController : ControllerBase
 
         try
         {
-            // Get USER role (default role for new users)
-            var userRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.RoleNames.User);
+            // Get USER (global) role - default for new users
+            var userRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.GlobalRoleNames.User);
             if (userRole == null)
             {
                 _logger.LogError("USER role not found. Please ensure UserRoles are seeded.");

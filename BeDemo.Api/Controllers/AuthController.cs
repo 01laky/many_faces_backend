@@ -32,8 +32,8 @@ public class AuthController : ControllerBase
             return BadRequest(ModelState);
         }
 
-        // Get USER role (default role for new users)
-        var userRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.RoleNames.User);
+        // Get USER (global) role - default for new users
+        var userRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.GlobalRoleNames.User);
         if (userRole == null)
         {
             return BadRequest(new { error = "System configuration error: USER role not found" });

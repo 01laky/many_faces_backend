@@ -167,8 +167,8 @@ builder.Services.AddSingleton<IECDSAKeyService>(ecdsaKeyService);
 // Scoped means the service lives during the HTTP request lifetime
 builder.Services.AddScoped<IOAuth2Service, OAuth2Service>();
 
-// AI gRPC client - calls Python AI service (ai_demo) Generate RPC
-builder.Services.AddScoped<IAiGrpcService, AiGrpcService>();
+// AI gRPC client - singleton to reuse the HTTP/2 channel across requests
+builder.Services.AddSingleton<IAiGrpcService, AiGrpcService>();
 
 // Gets signing key from ECDSAKeyService - this key is used to sign JWT tokens
 var signingKey = ecdsaKeyService.GetSigningKey();
@@ -376,6 +376,7 @@ app.UseAuthorization();
 // This hub requires authentication ([Authorize] attribute)
 // User must connect with valid JWT token: wss://localhost:8001/hubs/chat?access_token=<token>
 app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<MessengerHub>("/hubs/messenger");
 
 // Maps all controllers - automatically finds all controllers and creates endpoints from them
 // E.g., OAuth2Controller with [Route("api/oauth2")] creates endpoints like /api/oauth2/token, /api/oauth2/register
