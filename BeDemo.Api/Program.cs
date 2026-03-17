@@ -14,6 +14,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
@@ -28,7 +29,7 @@ using Grpc.Net.Client;
 if (args.Length > 0 && args[0] == "generate-diagram")
 {
     // Quick test to generate diagram
-    var diagramConnStr = "Host=localhost;Port=5432;Database=bedemo;Username=bedemo_user;Password=bedemo_password";
+    var diagramConnStr = "Host=localhost;Port=54320;Database=bedemo;Username=bedemo_user;Password=bedemo_password";
     var diagramOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
         .UseNpgsql(diagramConnStr)
         .Options;
@@ -111,21 +112,27 @@ builder.Services.AddCors(options =>
 // DATABASE CONFIGURATION (Entity Framework Core)
 // ============================================================================
 
-// Loads connection string from appsettings.json or environment variables
-// Throws exception if connection string doesn't exist
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+if (builder.Environment.IsEnvironment("Testing"))
+{
+    // In-memory database for integration tests (no PostgreSQL required)
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseInMemoryDatabase("BeDemoTestDb"));
+}
+else
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+    var connectionStringForLogging = connectionString.Contains("Password=")
+        ? connectionString.Substring(0, connectionString.IndexOf("Password=")) + "Password=***"
+        : connectionString;
+    Log.Information("Using connection string: {ConnectionString}", connectionStringForLogging);
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(connectionString)
+            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+}
 
-// Log connection string for debugging (without password)
-var connectionStringForLogging = connectionString.Contains("Password=")
-    ? connectionString.Substring(0, connectionString.IndexOf("Password=")) + "Password=***"
-    : connectionString;
-Log.Information("Using connection string: {ConnectionString}", connectionStringForLogging);
-
-// Configures Entity Framework Core to use PostgreSQL database
-// PostgreSQL is a robust, open-source relational database
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(connectionString));
+// FaceService for RoutingMiddleware (face-based URL routing)
+builder.Services.AddScoped<IFaceService, FaceService>();
 
 // ============================================================================
 // ASP.NET CORE IDENTITY CONFIGURATION
@@ -249,13 +256,25 @@ var app = builder.Build();
 // Skip in test environment (in-memory database doesn't support MigrateAsync)
 if (!app.Environment.IsEnvironment("Testing"))
 {
-    try
+    const int maxRetries = 5;
+    const int delaySeconds = 3;
+    for (int attempt = 1; attempt <= maxRetries; attempt++)
     {
-        await DatabaseInitializer.InitializeAsync(app.Services);
-    }
-    catch (Exception ex)
-    {
-        Log.Warning(ex, "Database initialization failed, continuing anyway");
+        try
+        {
+            await DatabaseInitializer.InitializeAsync(app.Services);
+            break;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Database initialization attempt {Attempt}/{Max} failed", attempt, maxRetries);
+            if (attempt == maxRetries)
+            {
+                Log.Warning("Database initialization failed after {Max} attempts, continuing anyway", maxRetries);
+                break;
+            }
+            await Task.Delay(TimeSpan.FromSeconds(delaySeconds));
+        }
     }
 
     // Seed database with PageTypes, Faces, and Pages

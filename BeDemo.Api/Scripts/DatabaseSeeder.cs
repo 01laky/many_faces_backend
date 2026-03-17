@@ -45,6 +45,18 @@ public static class DatabaseSeeder
         await context.SaveChangesAsync();
     }
 
+    /// <summary>
+    /// Seeds only data (UserRoles, PageTypes, Faces, Pages) without running migrations.
+    /// Use when the database already exists (e.g. in-memory or EnsureCreated).
+    /// </summary>
+    public static async Task SeedDataOnlyAsync(ApplicationDbContext context)
+    {
+        await SeedUserRolesAsync(context);
+        await SeedPageTypesAsync(context);
+        await SeedFacesAndPagesAsync(context);
+        await context.SaveChangesAsync();
+    }
+
     public static async Task SeedUserRolesAsync(ApplicationDbContext context)
     {
         var globalRoles = new[]

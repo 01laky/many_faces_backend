@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 
@@ -72,8 +74,6 @@ public class FacesController : ControllerBase
     {
         try
         {
-            // Return ALL faces with pages, route translations and isPublic flag.
-            // The frontend decides which faces to show based on auth state.
             var faces = await _context.Faces
                 .Include(f => f.Pages)
                     .ThenInclude(p => p.PageType)
@@ -82,49 +82,175 @@ public class FacesController : ControllerBase
                 .OrderBy(f => f.Index)
                 .ToListAsync();
 
-            var facesConfig = faces.Select(f => new
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            Dictionary<int, (int RoleId, string RoleName)>? myFaceRoles = null;
+            if (!string.IsNullOrEmpty(userId))
             {
-                index = f.Index,
-                id = f.Id,
-                title = f.Title,
-                description = f.Description,
-                color = f.Color,
-                gradientSettings = f.GradientSettings,
-                isPublic = f.IsPublic,
-                pages = f.Pages
-                    .OrderBy(p => p.Index)
-                    .Select(p => new
-                    {
-                        index = p.Index,
-                        id = p.Id,
-                        name = p.Name,
-                        description = p.Description,
-                        path = p.Path,
-                        gridSchema = p.GridSchema,
-                        pageType = new
+                var userFaceRoles = await _context.UserFaceRoles
+                    .Where(ufr => ufr.UserId == userId)
+                    .Include(ufr => ufr.UserRole)
+                    .ToListAsync();
+                myFaceRoles = userFaceRoles
+                    .Where(ufr => ufr.UserRole != null)
+                    .ToDictionary(ufr => ufr.FaceId, ufr => (ufr.UserRoleId, ufr.UserRole!.Name));
+            }
+
+            var facesConfig = faces.Select(f =>
+            {
+                object? myFaceRoleId = null;
+                object? myFaceRoleName = null;
+                if (myFaceRoles != null && myFaceRoles.TryGetValue(f.Id, out var role))
+                {
+                    myFaceRoleId = role.RoleId;
+                    myFaceRoleName = role.RoleName;
+                }
+
+                return new
+                {
+                    index = f.Index,
+                    id = f.Id,
+                    title = f.Title,
+                    description = f.Description,
+                    color = f.Color,
+                    gradientSettings = f.GradientSettings,
+                    isPublic = f.IsPublic,
+                    myFaceRoleId,
+                    myFaceRoleName,
+                    pages = f.Pages
+                        .OrderBy(p => p.Index)
+                        .Select(p => new
                         {
-                            index = p.PageType.Index,
-                            id = p.PageType.Id
-                        },
-                        routeTranslations = p.RouteTranslations
-                            .OrderBy(rt => rt.LanguageCode)
-                            .Select(rt => new
-                            {
-                                languageCode = rt.LanguageCode,
-                                translatedRoute = rt.TranslatedRoute,
-                            }).ToList(),
-                        createdAt = p.CreatedAt,
-                        updatedAt = p.UpdatedAt
-                    }).ToList()
+                            index = p.Index,
+                            id = p.Id,
+                            name = p.Name,
+                            description = p.Description,
+                            path = p.Path,
+                            gridSchema = p.GridSchema,
+                            pageType = p.PageType != null
+                                ? new { index = p.PageType.Index, id = p.PageType.Id }
+                                : (object?)null,
+                            routeTranslations = p.RouteTranslations
+                                .OrderBy(rt => rt.LanguageCode)
+                                .Select(rt => new
+                                {
+                                    languageCode = rt.LanguageCode,
+                                    translatedRoute = rt.TranslatedRoute,
+                                }).ToList(),
+                            createdAt = p.CreatedAt,
+                            updatedAt = p.UpdatedAt
+                        }).ToList()
+                };
             }).ToList();
 
             _logger.LogInformation("Retrieved faces config with {FaceCount} faces", facesConfig.Count);
             return Ok(facesConfig);
         }
+        catch (PostgresException ex) when (ex.SqlState == "28000" && ex.MessageText?.Contains("does not exist", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            _logger.LogWarning(
+                "Database role from connection string does not exist in PostgreSQL. " +
+                "Returning empty config so the app can load. Message: {Message}",
+                ex.MessageText);
+            return Ok(Array.Empty<object>());
+        }
+        catch (PostgresException ex) when (ex.SqlState == "42P01")
+        {
+            _logger.LogWarning(
+                ex,
+                "Table(s) do not exist yet (migrations not applied or DB empty). Returning empty faces config. Message: {Message}",
+                ex.MessageText);
+            return Ok(Array.Empty<object>());
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving faces config");
             return StatusCode(500, new { error = "An error occurred while retrieving faces config" });
+        }
+    }
+
+    /// <summary>
+    /// GET /api/faces/face-roles
+    /// Returns list of face-scoped roles (for role selector on first visit to a private face).
+    /// </summary>
+    [HttpGet("face-roles")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetFaceRoles()
+    {
+        try
+        {
+            var roles = await _context.UserRoles
+                .Where(r => r.Scope == RoleScope.Face)
+                .OrderBy(r => r.Name)
+                .Select(r => new { id = r.Id, name = r.Name })
+                .ToListAsync();
+            return Ok(roles);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving face roles");
+            return StatusCode(500, new { error = "An error occurred while retrieving face roles" });
+        }
+    }
+
+    /// <summary>
+    /// PUT /api/faces/{id}/my-role
+    /// Set current user's face role for the given face. Used when user selects role on first visit to a private face.
+    /// </summary>
+    [HttpPut("{id}/my-role")]
+    public async Task<IActionResult> SetMyFaceRole(int id, [FromBody] SetMyFaceRoleModel model)
+    {
+        if (model == null || model.UserRoleId <= 0)
+        {
+            return BadRequest(new { error = "userRoleId is required" });
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var face = await _context.Faces.FindAsync(id);
+            if (face == null)
+            {
+                return NotFound(new { error = "Face not found" });
+            }
+
+            var role = await _context.UserRoles.FindAsync(model.UserRoleId);
+            if (role == null || role.Scope != RoleScope.Face)
+            {
+                return BadRequest(new { error = "Invalid face role" });
+            }
+
+            var existing = await _context.UserFaceRoles
+                .FirstOrDefaultAsync(ufr => ufr.UserId == userId && ufr.FaceId == id);
+
+            if (existing != null)
+            {
+                existing.UserRoleId = model.UserRoleId;
+                _context.UserFaceRoles.Update(existing);
+            }
+            else
+            {
+                _context.UserFaceRoles.Add(new UserFaceRole
+                {
+                    UserId = userId,
+                    FaceId = id,
+                    UserRoleId = model.UserRoleId,
+                    CreatedAt = DateTime.UtcNow,
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            _logger.LogInformation("User {UserId} set face role to {RoleName} for face {FaceId}", userId, role.Name, id);
+            return Ok(new { userRoleId = model.UserRoleId, userRoleName = role.Name });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting face role for face {FaceId}", id);
+            return StatusCode(500, new { error = "An error occurred while setting face role" });
         }
     }
 
@@ -425,4 +551,12 @@ public class UpdateFaceModel
     public string? GradientSettings { get; set; }
 
     public bool? IsPublic { get; set; }
+}
+
+/// <summary>
+/// Model for setting current user's face role (PUT /api/faces/{id}/my-role)
+/// </summary>
+public class SetMyFaceRoleModel
+{
+    public int UserRoleId { get; set; }
 }

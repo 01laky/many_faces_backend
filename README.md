@@ -23,6 +23,7 @@ The Backend API (be_demo) provides a RESTful API for user authentication, author
   - **Global roles** (one per user): SUPER_ADMIN, ADMIN, USER, HOST — stored in `ApplicationUser.UserRoleId`.
   - **Face roles** (per user per face): FACE_ADMIN, FACE_USER, INZERENT, SUBSCRIBER, FACE_HOST — stored in `UserFaceRole` (UserId, FaceId, UserRoleId).
   - On **registration**: user gets global role **USER**; for each face they get **UserFaceRole** with **FACE_HOST**.
+  - **First visit to a private face**: frontend can show a role selector; user chooses role and backend **PUT /api/faces/{id}/my-role** updates or creates `UserFaceRole`. Config endpoint returns **myFaceRoleId** / **myFaceRoleName** when called with Authorization.
   - See `UserRole.GlobalRoleNames`, `UserRole.FaceRoleNames`, and `RoleScope` (Global/Face).
 
 - **Default pages when creating a face**
@@ -207,7 +208,10 @@ To perform a clean rebuild of Docker images:
 ### Faces
 
 - `GET /api/faces` - Get all faces
+- `GET /api/faces/config` - Get all faces with pages (for routing). When request includes Authorization, each face includes **myFaceRoleId** and **myFaceRoleName** for the current user.
+- `GET /api/faces/face-roles` - Get list of face-scoped roles `[{ id, name }]` (for role selector on first visit to a private face).
 - `GET /api/faces/{id}` - Get face by ID
+- `PUT /api/faces/{id}/my-role` - Set current user's face role for this face. Body: `{ userRoleId }`. Creates or updates UserFaceRole.
 - `POST /api/faces` - Create new face
 - `PUT /api/faces/{id}` - Update face
 - `DELETE /api/faces/{id}` - Delete face
@@ -321,7 +325,7 @@ The API uses the following environment variables (configured in `docker-compose.
 
 The default connection string format:
 ```
-Host=host.docker.internal;Port=5432;Database=bedemo;Username=bedemo_user;Password=bedemo_password
+Host=host.docker.internal;Port=54320;Database=bedemo;Username=bedemo_user;Password=bedemo_password
 ```
 
 - **From Docker containers**: Use `host.docker.internal` as host
@@ -390,11 +394,11 @@ dotnet ef migrations remove
 
 ## Testing
 
-Run unit tests:
+Run unit tests (no PostgreSQL required; tests use an in-memory database):
 
 ```bash
-cd BeDemo.Api.Tests
-dotnet test
+npm run test
+# or from repo root: cd be_demo && npm run test
 ```
 
 Tests cover:

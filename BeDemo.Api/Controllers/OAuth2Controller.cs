@@ -11,6 +11,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
@@ -104,7 +105,44 @@ public class OAuth2Controller : ControllerBase
 
         // Calls OAuth2Service to generate token
         // This method validates credentials and creates JWT token
-        var tokenResponse = await _oauth2Service.GenerateTokenAsync(request, _userManager);
+        OAuth2TokenResponse? tokenResponse;
+        try
+        {
+            tokenResponse = await _oauth2Service.GenerateTokenAsync(request, _userManager);
+        }
+        catch (PostgresException ex) when (ex.MessageText?.Contains("does not exist", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            _logger.LogWarning(
+                ex,
+                "Database not initialized (PostgreSQL role/object missing). Login unavailable. SqlState: {SqlState}, Message: {Message}",
+                ex.SqlState, ex.MessageText);
+            return StatusCode(503, new OAuth2ErrorResponse
+            {
+                Error = "temporarily_unavailable",
+                ErrorDescription = "Authentication service is not ready. Please try again later or contact support."
+            });
+        }
+        catch (Exception ex) when (ex.InnerException is PostgresException inner && inner.MessageText?.Contains("does not exist", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            _logger.LogWarning(
+                ex.InnerException,
+                "Database not initialized (PostgreSQL role/object missing, wrapped). Login unavailable. Message: {Message}",
+                ((PostgresException)ex.InnerException).MessageText);
+            return StatusCode(503, new OAuth2ErrorResponse
+            {
+                Error = "temporarily_unavailable",
+                ErrorDescription = "Authentication service is not ready. Please try again later or contact support."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Token endpoint failed. Returning 503 so client does not see Internal Server Error.");
+            return StatusCode(503, new OAuth2ErrorResponse
+            {
+                Error = "temporarily_unavailable",
+                ErrorDescription = "Authentication service is temporarily unavailable. Please try again later."
+            });
+        }
 
         // If token generation failed (e.g., incorrect credentials), returns 401 Unauthorized
         if (tokenResponse == null)

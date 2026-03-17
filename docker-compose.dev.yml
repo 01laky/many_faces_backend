@@ -38,7 +38,7 @@ services:
       - ASPNETCORE_URLS=https://0.0.0.0:8001;http://0.0.0.0:8000
       - ASPNETCORE_Kestrel__Certificates__Default__Password=
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/https/dev-cert.pfx
-      - ConnectionStrings__DefaultConnection=Host=host.docker.internal;Port=5432;Database=bedemo;Username=bedemo_user;Password=bedemo_password
+      - ConnectionStrings__DefaultConnection=Host=host.docker.internal;Port=54320;Database=bedemo;Username=bedemo_user;Password=bedemo_password
       - Serilog__WriteTo__0__Name=Seq
       - Serilog__WriteTo__0__Args__serverUrl=http://seq:5341
     volumes:

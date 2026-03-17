@@ -4,7 +4,7 @@
 cd "$(dirname "$0")/BeDemo.Api" || exit 1
 
 # Connection string for local database
-export ConnectionStrings__DefaultConnection="Host=localhost;Port=5432;Database=bedemo;Username=bedemo_user;Password=bedemo_password"
+export ConnectionStrings__DefaultConnection="Host=localhost;Port=54320;Database=bedemo;Username=bedemo_user;Password=bedemo_password"
 
 echo "📊 Generating database ERD diagram..."
 echo ""

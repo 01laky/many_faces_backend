@@ -102,9 +102,10 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var users = await response.Content.ReadFromJsonAsync<List<object>>();
-        users.Should().NotBeNull();
-        users!.Should().BeAssignableTo<IEnumerable<object>>();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.TryGetProperty("items", out var items).Should().BeTrue();
+        items.GetArrayLength().Should().BeGreaterThanOrEqualTo(0);
+        body.TryGetProperty("totalCount", out _).Should().BeTrue();
     }
 
     [Fact]
