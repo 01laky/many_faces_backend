@@ -241,7 +241,9 @@ public class OAuth2Controller : ControllerBase
             {
                 UserProfileId = userProfile.Id,
                 FaceId = face.Id,
-                IsActive = true,
+                IsActive = false,
+                Visited = false,
+                FaceRoleIntroCompleted = false,
                 CreatedAt = DateTime.UtcNow
             }).ToList();
 

@@ -40,6 +40,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ReelFace> ReelFaces { get; set; } = null!;
     public DbSet<ReelComment> ReelComments { get; set; } = null!;
     public DbSet<ReelLike> ReelLikes { get; set; } = null!;
+    public DbSet<UserFaceProfileLike> UserFaceProfileLikes { get; set; } = null!;
+    public DbSet<UserFaceProfileComment> UserFaceProfileComments { get; set; } = null!;
+    public DbSet<UserFaceProfileReview> UserFaceProfileReviews { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -56,6 +59,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Color).HasMaxLength(50);
             entity.Property(e => e.GradientSettings).HasColumnType("text");
             entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.Visibility).IsRequired().HasConversion<int>();
+            entity.Property(e => e.AllowRecensions).IsRequired();
 
             // One-to-many relationship: Face -> Pages
             entity.HasMany(e => e.Pages)
@@ -152,7 +157,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.DisplayName).HasMaxLength(200);
             entity.Property(e => e.AvatarUrl).HasMaxLength(500);
             entity.Property(e => e.Settings).HasColumnType("text"); // JSON string
-            entity.Property(e => e.IsActive).IsRequired().HasDefaultValue(true);
+            entity.Property(e => e.IsActive).IsRequired();
+            entity.Property(e => e.Visited).IsRequired();
+            entity.Property(e => e.FaceRoleIntroCompleted).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
 
             // Many-to-one relationship: UserFaceProfile -> UserProfile
@@ -616,6 +623,64 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<UserFaceProfileLike>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.UserFaceProfileId, e.UserId }).IsUnique();
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.UserFaceProfile)
+                .WithMany(p => p.ProfileLikes)
+                .HasForeignKey(e => e.UserFaceProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<UserFaceProfileComment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Body).IsRequired().HasMaxLength(4000);
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.HasIndex(e => e.UserFaceProfileId);
+
+            entity.HasOne(e => e.UserFaceProfile)
+                .WithMany(p => p.ProfileComments)
+                .HasForeignKey(e => e.UserFaceProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<UserFaceProfileReview>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.UserFaceProfileId, e.AuthorUserId }).IsUnique();
+            entity.Property(e => e.AuthorUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Text).IsRequired().HasMaxLength(8000);
+            entity.Property(e => e.Stars).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.UserFaceProfile)
+                .WithMany(p => p.ProfileReviews)
+                .HasForeignKey(e => e.UserFaceProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Author)
+                .WithMany()
+                .HasForeignKey(e => e.AuthorUserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

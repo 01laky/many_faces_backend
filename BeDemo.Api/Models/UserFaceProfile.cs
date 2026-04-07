@@ -55,9 +55,19 @@ public class UserFaceProfile
     public string? Settings { get; set; }
 
     /// <summary>
-    /// Whether the user is active in this face
+    /// True when the user has a non–FACE_HOST role in this face; false for host-only participation.
     /// </summary>
-    public bool IsActive { get; set; } = true;
+    public bool IsActive { get; set; }
+
+    /// <summary>
+    /// Set true the first time the user switches into this face (server-side, syncs across devices).
+    /// </summary>
+    public bool Visited { get; set; }
+
+    /// <summary>
+    /// After the user confirms face role onboarding in the UI, suppress auto-open role panel.
+    /// </summary>
+    public bool FaceRoleIntroCompleted { get; set; }
 
     /// <summary>
     /// Timestamp when the profile was created
@@ -68,4 +78,8 @@ public class UserFaceProfile
     /// Timestamp when the profile was last updated
     /// </summary>
     public DateTime? UpdatedAt { get; set; }
+
+    public ICollection<UserFaceProfileLike> ProfileLikes { get; set; } = new List<UserFaceProfileLike>();
+    public ICollection<UserFaceProfileComment> ProfileComments { get; set; } = new List<UserFaceProfileComment>();
+    public ICollection<UserFaceProfileReview> ProfileReviews { get; set; } = new List<UserFaceProfileReview>();
 }

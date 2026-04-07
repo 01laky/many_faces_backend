@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
 
@@ -47,6 +48,8 @@ public class FacesController : ControllerBase
                 color = f.Color,
                 gradientSettings = f.GradientSettings,
                 isPublic = f.IsPublic,
+                visibility = f.Visibility.ToString(),
+                allowRecensions = f.AllowRecensions,
                 createdAt = f.CreatedAt,
                 updatedAt = f.UpdatedAt,
             }).ToList();
@@ -84,6 +87,7 @@ public class FacesController : ControllerBase
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             Dictionary<int, (int RoleId, string RoleName)>? myFaceRoles = null;
+            Dictionary<int, (bool Visited, bool FaceRoleIntroCompleted)>? myFaceState = null;
             if (!string.IsNullOrEmpty(userId))
             {
                 var userFaceRoles = await _context.UserFaceRoles
@@ -93,6 +97,21 @@ public class FacesController : ControllerBase
                 myFaceRoles = userFaceRoles
                     .Where(ufr => ufr.UserRole != null)
                     .ToDictionary(ufr => ufr.FaceId, ufr => (ufr.UserRoleId, ufr.UserRole!.Name));
+
+                var userProfileId = await _context.UserProfiles
+                    .AsNoTracking()
+                    .Where(up => up.UserId == userId)
+                    .Select(up => up.Id)
+                    .FirstOrDefaultAsync();
+                if (userProfileId != 0)
+                {
+                    var ufRows = await _context.UserFaceProfiles
+                        .AsNoTracking()
+                        .Where(ufp => ufp.UserProfileId == userProfileId)
+                        .Select(ufp => new { ufp.FaceId, ufp.Visited, ufp.FaceRoleIntroCompleted })
+                        .ToListAsync();
+                    myFaceState = ufRows.ToDictionary(x => x.FaceId, x => (x.Visited, x.FaceRoleIntroCompleted));
+                }
             }
 
             var facesConfig = faces.Select(f =>
@@ -105,6 +124,14 @@ public class FacesController : ControllerBase
                     myFaceRoleName = role.RoleName;
                 }
 
+                object? myVisited = null;
+                object? myFaceRoleIntroCompleted = null;
+                if (myFaceState != null && myFaceState.TryGetValue(f.Id, out var st))
+                {
+                    myVisited = st.Visited;
+                    myFaceRoleIntroCompleted = st.FaceRoleIntroCompleted;
+                }
+
                 return new
                 {
                     index = f.Index,
@@ -114,8 +141,12 @@ public class FacesController : ControllerBase
                     color = f.Color,
                     gradientSettings = f.GradientSettings,
                     isPublic = f.IsPublic,
+                    visibility = f.Visibility.ToString(),
+                    allowRecensions = f.AllowRecensions,
                     myFaceRoleId,
                     myFaceRoleName,
+                    myVisited,
+                    myFaceRoleIntroCompleted,
                     pages = f.Pages
                         .OrderBy(p => p.Index)
                         .Select(p => new
@@ -243,6 +274,19 @@ public class FacesController : ControllerBase
                 });
             }
 
+            var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == userId);
+            if (userProfile != null)
+            {
+                var ufp = await _context.UserFaceProfiles
+                    .FirstOrDefaultAsync(x => x.UserProfileId == userProfile.Id && x.FaceId == id);
+                if (ufp != null)
+                {
+                    ufp.FaceRoleIntroCompleted = true;
+                    ufp.IsActive = FaceRoleParticipation.IsActiveForFaceRoleName(role.Name);
+                    ufp.UpdatedAt = DateTime.UtcNow;
+                }
+            }
+
             await _context.SaveChangesAsync();
             _logger.LogInformation("User {UserId} set face role to {RoleName} for face {FaceId}", userId, role.Name, id);
             return Ok(new { userRoleId = model.UserRoleId, userRoleName = role.Name });
@@ -252,6 +296,124 @@ public class FacesController : ControllerBase
             _logger.LogError(ex, "Error setting face role for face {FaceId}", id);
             return StatusCode(500, new { error = "An error occurred while setting face role" });
         }
+    }
+
+    /// <summary>
+    /// POST /api/faces/{id}/visit — mark current user as having switched to this face (Visited = true).
+    /// </summary>
+    [HttpPost("{id:int}/visit")]
+    public async Task<IActionResult> MarkFaceVisited(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        var face = await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id);
+        if (face == null)
+            return NotFound(new { error = "Face not found" });
+
+        var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == userId);
+        if (userProfile == null)
+            return BadRequest(new { error = "User profile not found" });
+
+        var ufp = await _context.UserFaceProfiles
+            .FirstOrDefaultAsync(x => x.UserProfileId == userProfile.Id && x.FaceId == id);
+        if (ufp == null)
+        {
+            ufp = new UserFaceProfile
+            {
+                UserProfileId = userProfile.Id,
+                FaceId = id,
+                IsActive = false,
+                Visited = true,
+                FaceRoleIntroCompleted = false,
+                CreatedAt = DateTime.UtcNow,
+            };
+            _context.UserFaceProfiles.Add(ufp);
+        }
+        else
+        {
+            ufp.Visited = true;
+            ufp.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { visited = true });
+    }
+
+    /// <summary>
+    /// POST /api/faces/{id}/exit-face — leave non-host participation; purge face-scoped social data and reset role to FACE_HOST.
+    /// </summary>
+    [HttpPost("{id:int}/exit-face")]
+    public async Task<IActionResult> ExitFace(int id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == id);
+        if (face == null)
+            return NotFound(new { error = "Face not found" });
+
+        var hostRole = await _context.UserRoles
+            .FirstOrDefaultAsync(r => r.Name == UserRole.FaceRoleNames.FaceHost && r.Scope == RoleScope.Face);
+        if (hostRole == null)
+            return StatusCode(500, new { error = "FACE_HOST role missing" });
+
+        var ufr = await _context.UserFaceRoles
+            .Include(x => x.UserRole)
+            .FirstOrDefaultAsync(x => x.UserId == userId && x.FaceId == id);
+        if (ufr?.UserRole == null)
+            return BadRequest(new { error = "No face role for this face" });
+        if (FaceRoleParticipation.IsHostFaceRole(ufr.UserRole.Name))
+            return BadRequest(new { error = "Already in host role" });
+
+        var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == userId);
+        if (userProfile == null)
+            return BadRequest(new { error = "User profile not found" });
+
+        var myUfp = await _context.UserFaceProfiles
+            .FirstOrDefaultAsync(x => x.UserProfileId == userProfile.Id && x.FaceId == id);
+        if (myUfp == null)
+            return BadRequest(new { error = "Face profile not found" });
+
+        var faceProfileIds = await _context.UserFaceProfiles
+            .Where(x => x.FaceId == id)
+            .Select(x => x.Id)
+            .ToListAsync();
+
+        // Likes: on my profile, or given by me on any profile in this face
+        var likesToRemove = await _context.UserFaceProfileLikes
+            .Where(l => faceProfileIds.Contains(l.UserFaceProfileId) &&
+                        (l.UserFaceProfileId == myUfp.Id || l.UserId == userId))
+            .ToListAsync();
+        _context.UserFaceProfileLikes.RemoveRange(likesToRemove);
+
+        var commentsToRemove = await _context.UserFaceProfileComments
+            .Where(c => faceProfileIds.Contains(c.UserFaceProfileId) &&
+                        (c.UserFaceProfileId == myUfp.Id || c.UserId == userId))
+            .ToListAsync();
+        _context.UserFaceProfileComments.RemoveRange(commentsToRemove);
+
+        var reviewsToRemove = await _context.UserFaceProfileReviews
+            .Where(r => faceProfileIds.Contains(r.UserFaceProfileId) &&
+                        (r.UserFaceProfileId == myUfp.Id || r.AuthorUserId == userId))
+            .ToListAsync();
+        _context.UserFaceProfileReviews.RemoveRange(reviewsToRemove);
+
+        myUfp.DisplayName = null;
+        myUfp.AvatarUrl = null;
+        myUfp.Settings = null;
+        myUfp.IsActive = false;
+        myUfp.FaceRoleIntroCompleted = true;
+        myUfp.Visited = true;
+        myUfp.UpdatedAt = DateTime.UtcNow;
+
+        ufr.UserRoleId = hostRole.Id;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("User {UserId} exited face {FaceId} (reset to FACE_HOST)", userId, id);
+        return Ok(new { message = "Exited face", userRoleId = hostRole.Id, userRoleName = hostRole.Name });
     }
 
     /// <summary>
@@ -280,6 +442,8 @@ public class FacesController : ControllerBase
                 color = face.Color,
                 gradientSettings = face.GradientSettings,
                 isPublic = face.IsPublic,
+                visibility = face.Visibility.ToString(),
+                allowRecensions = face.AllowRecensions,
                 createdAt = face.CreatedAt,
                 updatedAt = face.UpdatedAt,
             };
@@ -324,6 +488,8 @@ public class FacesController : ControllerBase
                 Color = model.Color,
                 GradientSettings = model.GradientSettings,
                 IsPublic = model.IsPublic,
+                Visibility = model.Visibility ?? FaceVisibility.Public,
+                AllowRecensions = model.AllowRecensions ?? false,
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -378,6 +544,8 @@ public class FacesController : ControllerBase
                 color = face.Color,
                 gradientSettings = face.GradientSettings,
                 isPublic = face.IsPublic,
+                visibility = face.Visibility.ToString(),
+                allowRecensions = face.AllowRecensions,
                 createdAt = face.CreatedAt,
                 updatedAt = face.UpdatedAt,
             };
@@ -449,6 +617,14 @@ public class FacesController : ControllerBase
             {
                 face.IsPublic = model.IsPublic.Value;
             }
+            if (model.Visibility.HasValue)
+            {
+                face.Visibility = model.Visibility.Value;
+            }
+            if (model.AllowRecensions.HasValue)
+            {
+                face.AllowRecensions = model.AllowRecensions.Value;
+            }
             face.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -462,6 +638,8 @@ public class FacesController : ControllerBase
                 color = face.Color,
                 gradientSettings = face.GradientSettings,
                 isPublic = face.IsPublic,
+                visibility = face.Visibility.ToString(),
+                allowRecensions = face.AllowRecensions,
                 createdAt = face.CreatedAt,
                 updatedAt = face.UpdatedAt,
             };
@@ -529,6 +707,10 @@ public class CreateFaceModel
     public string? GradientSettings { get; set; }
 
     public bool IsPublic { get; set; } = true;
+
+    public FaceVisibility? Visibility { get; set; }
+
+    public bool? AllowRecensions { get; set; }
 }
 
 /// <summary>
@@ -551,6 +733,10 @@ public class UpdateFaceModel
     public string? GradientSettings { get; set; }
 
     public bool? IsPublic { get; set; }
+
+    public FaceVisibility? Visibility { get; set; }
+
+    public bool? AllowRecensions { get; set; }
 }
 
 /// <summary>

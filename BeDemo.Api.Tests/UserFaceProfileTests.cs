@@ -89,7 +89,9 @@ public class UserFaceProfileTests : IClassFixture<CustomWebApplicationFactory<Pr
                 userFaceProfile.FaceId.Should().BeGreaterThan(0);
                 userFaceProfile.Face.Should().NotBeNull();
                 userFaceProfile.UserProfile.Should().NotBeNull();
-                userFaceProfile.IsActive.Should().BeTrue();
+                userFaceProfile.IsActive.Should().BeFalse("FACE_HOST is not directory-active");
+                userFaceProfile.Visited.Should().BeFalse();
+                userFaceProfile.FaceRoleIntroCompleted.Should().BeFalse();
                 userFaceProfile.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
             }
         }
@@ -266,7 +268,9 @@ public class UserFaceProfileTests : IClassFixture<CustomWebApplicationFactory<Pr
             userFaceProfile!.DisplayName.Should().BeNull(); // Not set during registration
             userFaceProfile.AvatarUrl.Should().BeNull(); // Not set during registration
             userFaceProfile.Settings.Should().BeNull(); // Not set during registration
-            userFaceProfile.IsActive.Should().BeTrue(); // Default value
+            userFaceProfile.IsActive.Should().BeFalse(); // FACE_HOST default
+            userFaceProfile.Visited.Should().BeFalse();
+            userFaceProfile.FaceRoleIntroCompleted.Should().BeFalse();
             userFaceProfile.CreatedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
             userFaceProfile.UpdatedAt.Should().BeNull(); // Not updated yet
         }

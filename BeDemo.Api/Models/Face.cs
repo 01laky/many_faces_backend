@@ -35,6 +35,16 @@ public class Face
     /// </summary>
     public bool IsPublic { get; set; } = true;
 
+    /// <summary>
+    /// Profile / directory visibility (independent from IsPublic shell routing).
+    /// </summary>
+    public FaceVisibility Visibility { get; set; } = FaceVisibility.Public;
+
+    /// <summary>
+    /// When false, reviews are not shown and cannot be created for profiles in this face.
+    /// </summary>
+    public bool AllowRecensions { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }

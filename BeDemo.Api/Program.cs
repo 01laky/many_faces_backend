@@ -11,6 +11,7 @@
  * - Swagger/OpenAPI documentation
  */
 
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -69,7 +70,11 @@ builder.Host.UseSerilog();
 // ============================================================================
 
 // Adds support for MVC controllers - enables creating REST API endpoints
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 
 // Adds support for OpenAPI/Swagger - automatic API documentation
 builder.Services.AddEndpointsApiExplorer();

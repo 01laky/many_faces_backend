@@ -386,7 +386,9 @@ public static class DatabaseSeeder
                         UserProfileId = profile.Id,
                         FaceId = face.Id,
                         DisplayName = $"{adminData.FirstName} {adminData.LastName}",
-                        IsActive = true,
+                        IsActive = false,
+                        Visited = false,
+                        FaceRoleIntroCompleted = false,
                         CreatedAt = DateTime.UtcNow
                     });
                     if (faceHostRole != null)
@@ -462,7 +464,9 @@ public static class DatabaseSeeder
                         UserProfileId = profile.Id,
                         FaceId = face.Id,
                         DisplayName = $"{firstName} {lastName}",
-                        IsActive = true,
+                        IsActive = false,
+                        Visited = false,
+                        FaceRoleIntroCompleted = false,
                         CreatedAt = DateTime.UtcNow
                     });
                     if (faceHostRole != null)
