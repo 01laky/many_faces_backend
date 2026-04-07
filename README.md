@@ -27,7 +27,7 @@ The Backend API (be_demo) provides a RESTful API for user authentication, author
   - See `UserRole.GlobalRoleNames`, `UserRole.FaceRoleNames`, and `RoleScope` (Global/Face).
 
 - **Default pages when creating a face**
-  - Creating a face (POST /api/faces) automatically adds pages: **Home** (`/home`), **List** (`/list`), **Detail** (`/detail`) when corresponding PageTypes exist.
+  - Creating a face (POST /api/faces) automatically adds pages: **Home** (`/home`), **Detail** (`/detail`) when corresponding PageTypes exist. There is no CMS **List** page: typed lists live on the frontend as **`/list/:componentTypeId`**.
   - If the face is **non-public** (`IsPublic = false`), a **Wall** page (`/wall`) is also added (PageType `"wall"`).
 
 - **API Documentation**
