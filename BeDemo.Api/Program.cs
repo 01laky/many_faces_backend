@@ -142,6 +142,7 @@ else
 // FaceService for RoutingMiddleware (face-based URL routing)
 builder.Services.AddScoped<IFaceService, FaceService>();
 builder.Services.AddScoped<IStoryLifecycleService, StoryLifecycleService>();
+builder.Services.AddScoped<IFaceWallTicketLifecycleService, FaceWallTicketLifecycleService>();
 
 // ============================================================================
 // ASP.NET CORE IDENTITY CONFIGURATION

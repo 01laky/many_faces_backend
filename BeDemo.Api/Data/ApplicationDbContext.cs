@@ -50,6 +50,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<FaceChatRoomMember> FaceChatRoomMembers { get; set; } = null!;
     public DbSet<FaceChatRoomMessage> FaceChatRoomMessages { get; set; } = null!;
     public DbSet<FaceChatRoomJoinRequest> FaceChatRoomJoinRequests { get; set; } = null!;
+    public DbSet<FaceWallTicket> FaceWallTickets { get; set; } = null!;
+    public DbSet<FaceWallTicketComment> FaceWallTicketComments { get; set; } = null!;
+    public DbSet<FaceWallTicketLike> FaceWallTicketLikes { get; set; } = null!;
     public DbSet<UserFaceProfileLike> UserFaceProfileLikes { get; set; } = null!;
     public DbSet<UserFaceProfileComment> UserFaceProfileComments { get; set; } = null!;
     public DbSet<UserFaceProfileReview> UserFaceProfileReviews { get; set; } = null!;
@@ -861,6 +864,65 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(e => e.Room)
                 .WithMany(r => r.JoinRequests)
                 .HasForeignKey(e => e.FaceChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<FaceWallTicket>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).IsRequired().HasColumnType("text");
+            entity.Property(e => e.CreatorUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Status).IsRequired().HasConversion<int>();
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.HasIndex(e => e.FaceId);
+            entity.HasIndex(e => new { e.FaceId, e.CreatorUserId });
+
+            entity.HasOne(e => e.Face)
+                .WithMany()
+                .HasForeignKey(e => e.FaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Creator)
+                .WithMany()
+                .HasForeignKey(e => e.CreatorUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<FaceWallTicketComment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Content).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.HasIndex(e => e.FaceWallTicketId);
+
+            entity.HasOne(e => e.Ticket)
+                .WithMany(t => t.Comments)
+                .HasForeignKey(e => e.FaceWallTicketId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<FaceWallTicketLike>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.HasIndex(e => new { e.FaceWallTicketId, e.UserId }).IsUnique();
+
+            entity.HasOne(e => e.Ticket)
+                .WithMany(t => t.Likes)
+                .HasForeignKey(e => e.FaceWallTicketId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.User)

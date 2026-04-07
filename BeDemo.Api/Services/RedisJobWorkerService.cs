@@ -108,6 +108,9 @@ public sealed class RedisJobWorkerService : BackgroundService
             case "chatroom.idle-check":
                 await ProcessChatRoomIdleJobAsync(env, ct);
                 break;
+            case FaceWallTicketLifecycleService.JobTypeWallTicketDelete:
+                await ProcessWallTicketDeleteJobAsync(env, ct);
+                break;
             default:
                 _logger.LogWarning("Unknown job type {Type} id={Id}", env.Type, env.Id);
                 break;
@@ -149,6 +152,23 @@ public sealed class RedisJobWorkerService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Chat room idle job failed id={Id}", env.Id);
+        }
+    }
+
+    private async Task ProcessWallTicketDeleteJobAsync(RedisJobEnvelope env, CancellationToken ct)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(env.Payload);
+            if (!doc.RootElement.TryGetProperty("wallTicketId", out var idEl) || !idEl.TryGetInt32(out var ticketId))
+                return;
+            using var scope = _scopeFactory.CreateScope();
+            var lifecycle = scope.ServiceProvider.GetRequiredService<IFaceWallTicketLifecycleService>();
+            await lifecycle.DeleteTicketHardAsync(ticketId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Wall ticket delete job failed id={Id}", env.Id);
         }
     }
 }

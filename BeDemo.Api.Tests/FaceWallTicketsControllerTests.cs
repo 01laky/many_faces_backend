@@ -1,0 +1,348 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
+using BeDemo.Api.Data;
+using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Services;
+using Microsoft.EntityFrameworkCore;
+
+namespace BeDemo.Api.Tests;
+
+public class FaceWallTicketsControllerTests : IClassFixture<CustomWebApplicationFactory<Program>>
+{
+    private readonly CustomWebApplicationFactory<Program> _factory;
+
+    public FaceWallTicketsControllerTests(CustomWebApplicationFactory<Program> factory) => _factory = factory;
+
+    private static async Task<(string Token, string UserId)> RegisterAndLoginAsync(HttpClient client)
+    {
+        var email = $"wt_{Guid.NewGuid():N}@test.com";
+        const string password = "Test123!@#";
+        await client.PostAsJsonAsync("/api/oauth2/register", new
+        {
+            email,
+            password,
+            firstName = "Wall",
+            lastName = "Tester",
+        });
+
+        var tokenRequest = new OAuth2TokenRequest
+        {
+            GrantType = "password",
+            ClientId = "be-demo-client",
+            ClientSecret = "be-demo-secret-very-strong-key",
+            Username = email,
+            Password = password,
+        };
+
+        HttpResponseMessage? response = null;
+        for (var i = 0; i < 15; i++)
+        {
+            await Task.Delay(150 * (i + 1));
+            response = await client.PostAsJsonAsync("/api/oauth2/token", tokenRequest);
+            if (response.StatusCode == HttpStatusCode.OK)
+                break;
+        }
+
+        response!.StatusCode.Should().Be(HttpStatusCode.OK);
+        var tokenResponse = await response.Content.ReadFromJsonAsync<OAuth2TokenResponse>();
+        var token = tokenResponse!.AccessToken;
+        var payload = token.Split('.')[1];
+        var pad = payload.Length % 4 == 0 ? "" : new string('=', 4 - payload.Length % 4);
+        var json = Encoding.UTF8.GetString(Convert.FromBase64String(payload + pad));
+        var doc = JsonDocument.Parse(json);
+        var userId = doc.RootElement.TryGetProperty("nameid", out var n) ? n.GetString() : doc.RootElement.GetProperty("sub").GetString();
+        userId.Should().NotBeNullOrEmpty();
+        return (token, userId!);
+    }
+
+    private static async Task<int> GetAnyFaceIdAsync(HttpClient client, string token)
+    {
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var cfg = await client.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
+        cfg.Should().NotBeNullOrEmpty();
+        return cfg![0].GetProperty("id").GetInt32();
+    }
+
+    private static async Task<int> GetFaceRoleIdAsync(HttpClient client, string token, string exactName)
+    {
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var roles = await client.GetFromJsonAsync<JsonElement[]>("/api/faces/face-roles");
+        roles.Should().NotBeNull();
+        foreach (var r in roles!)
+        {
+            var name = r.GetProperty("name").GetString() ?? "";
+            if (string.Equals(name, exactName, StringComparison.Ordinal))
+                return r.GetProperty("id").GetInt32();
+        }
+
+        throw new InvalidOperationException($"Role {exactName} not found");
+    }
+
+    private static async Task PromoteUserToGlobalAdminAsync(CustomWebApplicationFactory<Program> factory, string userId)
+    {
+        using var scope = factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var adminRole = await db.UserRoles.AsNoTracking()
+            .FirstAsync(r => r.Name == UserRole.GlobalRoleNames.Admin);
+        var user = await db.Users.FirstAsync(u => u.Id == userId);
+        user.UserRoleId = adminRole.Id;
+        await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task Create_ShouldFail_WhenHostRole()
+    {
+        using var client = _factory.CreateClient();
+        var (token, _) = await RegisterAndLoginAsync(client);
+        var faceId = await GetAnyFaceIdAsync(client, token);
+        var hostRoleId = await GetFaceRoleIdAsync(client, token, "FACE_HOST");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        (await client.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = hostRoleId })).EnsureSuccessStatusCode();
+
+        var res = await client.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        res.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Create_List_Get_Comment_Like_Approve_FreezeInteractions()
+    {
+        using var clientA = _factory.CreateClient();
+        using var clientB = _factory.CreateClient();
+        using var clientAdmin = _factory.CreateClient();
+        var (tokenA, _) = await RegisterAndLoginAsync(clientA);
+        var (tokenB, _) = await RegisterAndLoginAsync(clientB);
+        var (tokenAdmin, userIdAdmin) = await RegisterAndLoginAsync(clientAdmin);
+        var faceId = await GetAnyFaceIdAsync(clientA, tokenA);
+        var roleId = await GetFaceRoleIdAsync(clientA, tokenA, "FACE_USER");
+
+        clientA.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        (await clientA.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+        clientB.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenB);
+        (await clientB.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+
+        var create = await clientA.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets",
+            new { title = " Idea ", description = " Body text " });
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+
+        clientB.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenB);
+        var like = await clientB.PostAsync($"/api/faces/{faceId}/wall-tickets/{ticketId}/like", null);
+        like.StatusCode.Should().Be(HttpStatusCode.OK);
+        var comment = await clientB.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets/{ticketId}/comments",
+            new { content = "hello" });
+        comment.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        await PromoteUserToGlobalAdminAsync(_factory, userIdAdmin);
+        clientAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
+        var approve = await clientAdmin.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/approve", null);
+        approve.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var likeAfter = await clientB.PostAsync($"/api/faces/{faceId}/wall-tickets/{ticketId}/like", null);
+        likeAfter.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var commentAfter = await clientB.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets/{ticketId}/comments",
+            new { content = "nope" });
+        commentAfter.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Deny_ThenLifecycle_DeletesHard()
+    {
+        using var clientAuthor = _factory.CreateClient();
+        using var clientAdmin = _factory.CreateClient();
+        var (tokenA, _) = await RegisterAndLoginAsync(clientAuthor);
+        var (tokenAdmin, userIdAdmin) = await RegisterAndLoginAsync(clientAdmin);
+        var faceId = await GetAnyFaceIdAsync(clientAuthor, tokenA);
+        var roleId = await GetFaceRoleIdAsync(clientAuthor, tokenA, "FACE_USER");
+        clientAuthor.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        (await clientAuthor.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+
+        var create = await clientAuthor.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets",
+            new { title = "X", description = "Y" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+
+        await PromoteUserToGlobalAdminAsync(_factory, userIdAdmin);
+        clientAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
+        var deny = await clientAdmin.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/deny", null);
+        deny.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var life = scope.ServiceProvider.GetRequiredService<IFaceWallTicketLifecycleService>();
+            await life.DeleteTicketHardAsync(ticketId);
+        }
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            (await db.FaceWallTickets.AnyAsync(t => t.Id == ticketId)).Should().BeFalse();
+        }
+    }
+
+    [Fact]
+    public async Task AuthorCannotDeleteComment_AdminCan()
+    {
+        using var clientA = _factory.CreateClient();
+        using var clientB = _factory.CreateClient();
+        var (tokenA, userA) = await RegisterAndLoginAsync(clientA);
+        var (tokenB, _) = await RegisterAndLoginAsync(clientB);
+        var faceId = await GetAnyFaceIdAsync(clientA, tokenA);
+        var roleId = await GetFaceRoleIdAsync(clientA, tokenA, "FACE_USER");
+
+        clientA.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        (await clientA.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+        clientB.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenB);
+        (await clientB.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+
+        var create = await clientA.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+
+        var comment = await clientB.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets/{ticketId}/comments",
+            new { content = "c1" });
+        var commentId = (await comment.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+
+        // No user endpoint for author to delete comment — only admin API
+        await PromoteUserToGlobalAdminAsync(_factory, userA);
+        clientA.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        var del = await clientA.DeleteAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/comments/{commentId}");
+        del.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task Max20Tickets_Enforced()
+    {
+        using var client = _factory.CreateClient();
+        var (token, _) = await RegisterAndLoginAsync(client);
+        var faceId = await GetAnyFaceIdAsync(client, token);
+        var roleId = await GetFaceRoleIdAsync(client, token, "FACE_USER");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        (await client.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+
+        for (var i = 0; i < 20; i++)
+        {
+            var r = await client.PostAsJsonAsync(
+                $"/api/faces/{faceId}/wall-tickets",
+                new { title = $"T{i}", description = "D" });
+            r.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+
+        var fail = await client.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets",
+            new { title = "Overflow", description = "D" });
+        fail.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task NonAdmin_CannotAccessAdminList()
+    {
+        using var client = _factory.CreateClient();
+        var (token, _) = await RegisterAndLoginAsync(client);
+        var faceId = await GetAnyFaceIdAsync(client, token);
+        var roleId = await GetFaceRoleIdAsync(client, token, "FACE_USER");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        (await client.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+
+        var res = await client.GetAsync($"/api/admin/faces/{faceId}/wall-tickets");
+        res.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task Author_CannotEditOrDelete_WhenApproved_GlobalAdminCanDeleteViaUserApi()
+    {
+        using var clientAuthor = _factory.CreateClient();
+        using var clientAdmin = _factory.CreateClient();
+        var (tokenA, _) = await RegisterAndLoginAsync(clientAuthor);
+        var (tokenAdmin, userIdAdmin) = await RegisterAndLoginAsync(clientAdmin);
+        var faceId = await GetAnyFaceIdAsync(clientAuthor, tokenA);
+        var roleId = await GetFaceRoleIdAsync(clientAuthor, tokenA, "FACE_USER");
+
+        clientAuthor.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        (await clientAuthor.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+
+        var create = await clientAuthor.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+
+        var putOk = await clientAuthor.PutAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets/{ticketId}",
+            new { title = "T2", description = "D2" });
+        putOk.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        await PromoteUserToGlobalAdminAsync(_factory, userIdAdmin);
+        clientAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
+        (await clientAdmin.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/approve", null)).EnsureSuccessStatusCode();
+
+        clientAuthor.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        var putBad = await clientAuthor.PutAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets/{ticketId}",
+            new { title = "T3", description = "D3" });
+        putBad.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var delAuthor = await clientAuthor.DeleteAsync($"/api/faces/{faceId}/wall-tickets/{ticketId}");
+        delAuthor.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var delAdmin = await clientAdmin.DeleteAsync($"/api/faces/{faceId}/wall-tickets/{ticketId}");
+        delAdmin.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task Comment_TooLong_Returns400()
+    {
+        using var client = _factory.CreateClient();
+        var (token, _) = await RegisterAndLoginAsync(client);
+        var faceId = await GetAnyFaceIdAsync(client, token);
+        var roleId = await GetFaceRoleIdAsync(client, token, "FACE_USER");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        (await client.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+
+        var create = await client.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+
+        var longText = new string('x', 256);
+        var res = await client.PostAsJsonAsync(
+            $"/api/faces/{faceId}/wall-tickets/{ticketId}/comments",
+            new { content = longText });
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task ApproveTwice_Returns400()
+    {
+        using var clientA = _factory.CreateClient();
+        using var clientAdmin = _factory.CreateClient();
+        var (tokenA, _) = await RegisterAndLoginAsync(clientA);
+        var (tokenAdmin, userIdAdmin) = await RegisterAndLoginAsync(clientAdmin);
+        var faceId = await GetAnyFaceIdAsync(clientA, tokenA);
+        var roleId = await GetFaceRoleIdAsync(clientA, tokenA, "FACE_USER");
+        clientA.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        (await clientA.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+        var ticketId = (await (await clientA.PostAsJsonAsync(
+                $"/api/faces/{faceId}/wall-tickets",
+                new { title = "T", description = "D" }))
+            .Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+
+        await PromoteUserToGlobalAdminAsync(_factory, userIdAdmin);
+        clientAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
+        (await clientAdmin.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/approve", null)).EnsureSuccessStatusCode();
+        var again = await clientAdmin.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/approve", null);
+        again.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+}
