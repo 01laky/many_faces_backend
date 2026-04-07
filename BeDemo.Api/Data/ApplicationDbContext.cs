@@ -28,6 +28,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ComponentType> ComponentTypes { get; set; } = null!;
     public DbSet<DisplayMode> DisplayModes { get; set; } = null!;
     public DbSet<PageComponent> PageComponents { get; set; } = null!;
+    public DbSet<Album> Albums { get; set; } = null!;
+    public DbSet<AlbumFace> AlbumFaces { get; set; } = null!;
+    public DbSet<AlbumComment> AlbumComments { get; set; } = null!;
+    public DbSet<AlbumLike> AlbumLikes { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -379,6 +383,83 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany()
                 .HasForeignKey(e => e.DisplayModeId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configure Album entity
+        builder.Entity<Album>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CreatorId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.AlbumType).IsRequired();
+            entity.Property(e => e.MediaType).IsRequired();
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasIndex(e => e.CreatorId);
+
+            entity.HasOne(e => e.Creator)
+                .WithMany()
+                .HasForeignKey(e => e.CreatorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure AlbumFace entity (many-to-many: Album <-> Face)
+        builder.Entity<AlbumFace>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.AlbumId, e.FaceId }).IsUnique();
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.Album)
+                .WithMany(a => a.AlbumFaces)
+                .HasForeignKey(e => e.AlbumId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Face)
+                .WithMany()
+                .HasForeignKey(e => e.FaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configure AlbumComment entity
+        builder.Entity<AlbumComment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Content).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasIndex(e => e.AlbumId);
+
+            entity.HasOne(e => e.Album)
+                .WithMany(a => a.Comments)
+                .HasForeignKey(e => e.AlbumId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure AlbumLike entity
+        builder.Entity<AlbumLike>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.AlbumId, e.UserId }).IsUnique();
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.Album)
+                .WithMany(a => a.Likes)
+                .HasForeignKey(e => e.AlbumId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
