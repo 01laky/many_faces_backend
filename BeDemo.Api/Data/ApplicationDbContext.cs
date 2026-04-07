@@ -32,6 +32,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<AlbumFace> AlbumFaces { get; set; } = null!;
     public DbSet<AlbumComment> AlbumComments { get; set; } = null!;
     public DbSet<AlbumLike> AlbumLikes { get; set; } = null!;
+    public DbSet<Blog> Blogs { get; set; } = null!;
+    public DbSet<BlogImage> BlogImages { get; set; } = null!;
+    public DbSet<BlogComment> BlogComments { get; set; } = null!;
+    public DbSet<BlogLike> BlogLikes { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -454,6 +458,82 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(e => e.Album)
                 .WithMany(a => a.Likes)
                 .HasForeignKey(e => e.AlbumId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure Blog entity
+        builder.Entity<Blog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CreatorId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Content).IsRequired().HasColumnType("text");
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasIndex(e => e.CreatorId);
+            entity.HasIndex(e => e.FaceId);
+
+            entity.HasOne(e => e.Creator)
+                .WithMany()
+                .HasForeignKey(e => e.CreatorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Face)
+                .WithMany()
+                .HasForeignKey(e => e.FaceId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Configure BlogImage entity (max 3 per blog, enforced at controller level)
+        builder.Entity<BlogImage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ImageUrl).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.Blog)
+                .WithMany(b => b.Images)
+                .HasForeignKey(e => e.BlogId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure BlogComment entity
+        builder.Entity<BlogComment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Content).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasIndex(e => e.BlogId);
+
+            entity.HasOne(e => e.Blog)
+                .WithMany(b => b.Comments)
+                .HasForeignKey(e => e.BlogId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Configure BlogLike entity
+        builder.Entity<BlogLike>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.BlogId, e.UserId }).IsUnique();
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.Blog)
+                .WithMany(b => b.Likes)
+                .HasForeignKey(e => e.BlogId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(e => e.User)
