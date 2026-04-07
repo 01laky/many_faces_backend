@@ -39,6 +39,12 @@ public static class DatabaseSeeder
         // Seed PageTypes
         await SeedPageTypesAsync(context);
 
+        // Seed ComponentTypes
+        await SeedComponentTypesAsync(context);
+
+        // Seed DisplayModes
+        await SeedDisplayModesAsync(context);
+
         // Seed Faces and Pages
         await SeedFacesAndPagesAsync(context);
 
@@ -53,6 +59,8 @@ public static class DatabaseSeeder
     {
         await SeedUserRolesAsync(context);
         await SeedPageTypesAsync(context);
+        await SeedComponentTypesAsync(context);
+        await SeedDisplayModesAsync(context);
         await SeedFacesAndPagesAsync(context);
         await context.SaveChangesAsync();
     }
@@ -131,6 +139,64 @@ public static class DatabaseSeeder
                 context.PageTypes.Add(new PageType
                 {
                     Index = index,
+                    CreatedAt = DateTime.UtcNow,
+                });
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task SeedComponentTypesAsync(ApplicationDbContext context)
+    {
+        var componentTypes = new[]
+        {
+            new { Id = (int)ComponentTypeId.Ad, Index = ComponentTypeIndex.Ad, Name = "Ad" },
+            new { Id = (int)ComponentTypeId.Album, Index = ComponentTypeIndex.Album, Name = "Album" },
+            new { Id = (int)ComponentTypeId.Blog, Index = ComponentTypeIndex.Blog, Name = "Blog" },
+            new { Id = (int)ComponentTypeId.ChatRoom, Index = ComponentTypeIndex.ChatRoom, Name = "Chat Room" },
+            new { Id = (int)ComponentTypeId.UserProfile, Index = ComponentTypeIndex.UserProfile, Name = "User Profile" },
+            new { Id = (int)ComponentTypeId.Story, Index = ComponentTypeIndex.Story, Name = "Story" },
+            new { Id = (int)ComponentTypeId.Reel, Index = ComponentTypeIndex.Reel, Name = "Reel" },
+        };
+
+        foreach (var ct in componentTypes)
+        {
+            var existing = await context.ComponentTypes.FirstOrDefaultAsync(c => c.Id == ct.Id);
+            if (existing == null)
+            {
+                context.ComponentTypes.Add(new ComponentType
+                {
+                    Id = ct.Id,
+                    Index = ct.Index,
+                    Name = ct.Name,
+                    CreatedAt = DateTime.UtcNow,
+                });
+            }
+        }
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task SeedDisplayModesAsync(ApplicationDbContext context)
+    {
+        var displayModes = new[]
+        {
+            new { Id = (int)DisplayModeId.Item, Index = DisplayModeIndex.Item, Name = "Item" },
+            new { Id = (int)DisplayModeId.Grid, Index = DisplayModeIndex.Grid, Name = "Grid" },
+            new { Id = (int)DisplayModeId.Carousel, Index = DisplayModeIndex.Carousel, Name = "Carousel" },
+        };
+
+        foreach (var dm in displayModes)
+        {
+            var existing = await context.DisplayModes.FirstOrDefaultAsync(d => d.Id == dm.Id);
+            if (existing == null)
+            {
+                context.DisplayModes.Add(new DisplayMode
+                {
+                    Id = dm.Id,
+                    Index = dm.Index,
+                    Name = dm.Name,
                     CreatedAt = DateTime.UtcNow,
                 });
             }

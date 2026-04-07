@@ -3,6 +3,7 @@ using System;
 using BeDemo.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace BeDemo.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260406212932_AddComponentTypes")]
+    partial class AddComponentTypes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -127,35 +130,6 @@ namespace BeDemo.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("ComponentTypes");
-                });
-
-            modelBuilder.Entity("BeDemo.Api.Models.DisplayMode", b =>
-                {
-                    b.Property<int>("Id")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Index")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Index")
-                        .IsUnique();
-
-                    b.ToTable("DisplayModes");
                 });
 
             modelBuilder.Entity("BeDemo.Api.Models.Face", b =>
@@ -401,76 +375,6 @@ namespace BeDemo.Api.Migrations
                     b.HasIndex("PageTypeId");
 
                     b.ToTable("Pages");
-                });
-
-            modelBuilder.Entity("BeDemo.Api.Models.PageComponent", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ComponentTypeId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("DisplayModeId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("GridKey")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<int>("H")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Icon")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("Label")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<int>("MinH")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("MinW")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("PageId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Title")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("W")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("X")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("Y")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ComponentTypeId");
-
-                    b.HasIndex("DisplayModeId");
-
-                    b.HasIndex("PageId", "GridKey")
-                        .IsUnique();
-
-                    b.ToTable("PageComponents");
                 });
 
             modelBuilder.Entity("BeDemo.Api.Models.PageRouteTranslation", b =>
@@ -972,33 +876,6 @@ namespace BeDemo.Api.Migrations
                     b.Navigation("PageType");
                 });
 
-            modelBuilder.Entity("BeDemo.Api.Models.PageComponent", b =>
-                {
-                    b.HasOne("BeDemo.Api.Models.ComponentType", "ComponentType")
-                        .WithMany()
-                        .HasForeignKey("ComponentTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BeDemo.Api.Models.DisplayMode", "DisplayMode")
-                        .WithMany()
-                        .HasForeignKey("DisplayModeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("BeDemo.Api.Models.Page", "Page")
-                        .WithMany("Components")
-                        .HasForeignKey("PageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ComponentType");
-
-                    b.Navigation("DisplayMode");
-
-                    b.Navigation("Page");
-                });
-
             modelBuilder.Entity("BeDemo.Api.Models.PageRouteTranslation", b =>
                 {
                     b.HasOne("BeDemo.Api.Models.Page", "Page")
@@ -1170,8 +1047,6 @@ namespace BeDemo.Api.Migrations
 
             modelBuilder.Entity("BeDemo.Api.Models.Page", b =>
                 {
-                    b.Navigation("Components");
-
                     b.Navigation("RouteTranslations");
                 });
 

@@ -47,4 +47,7 @@ public class Page
 
     // Navigation property - one Page has many RouteTranslations
     public ICollection<PageRouteTranslation> RouteTranslations { get; set; } = new List<PageRouteTranslation>();
+
+    // Navigation property - one Page has many PageComponents
+    public ICollection<PageComponent> Components { get; set; } = new List<PageComponent>();
 }

@@ -25,6 +25,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<UserFaceRole> UserFaceRoles { get; set; } = null!;
     public DbSet<UserBlock> UserBlocks { get; set; } = null!;
     public DbSet<UserFollow> UserFollows { get; set; } = null!;
+    public DbSet<ComponentType> ComponentTypes { get; set; } = null!;
+    public DbSet<DisplayMode> DisplayModes { get; set; } = null!;
+    public DbSet<PageComponent> PageComponents { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -329,6 +332,53 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
             // Ensure UserRoleId is required
             entity.Property(e => e.UserRoleId).IsRequired();
+        });
+
+        // Configure ComponentType entity (lookup table with fixed IDs)
+        builder.Entity<ComponentType>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Index).IsUnique();
+            entity.Property(e => e.Index).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).IsRequired();
+        });
+
+        // Configure DisplayMode entity (lookup table with fixed IDs)
+        builder.Entity<DisplayMode>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Index).IsUnique();
+            entity.Property(e => e.Index).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).IsRequired();
+        });
+
+        // Configure PageComponent entity
+        builder.Entity<PageComponent>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.PageId, e.GridKey }).IsUnique();
+            entity.Property(e => e.GridKey).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Label).HasMaxLength(200);
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.Icon).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.Page)
+                .WithMany(p => p.Components)
+                .HasForeignKey(e => e.PageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ComponentType)
+                .WithMany()
+                .HasForeignKey(e => e.ComponentTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.DisplayMode)
+                .WithMany()
+                .HasForeignKey(e => e.DisplayModeId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
