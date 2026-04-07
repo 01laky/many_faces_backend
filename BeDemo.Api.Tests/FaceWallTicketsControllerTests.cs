@@ -324,6 +324,41 @@ public class FaceWallTicketsControllerTests : IClassFixture<CustomWebApplication
     }
 
     [Fact]
+    public async Task List_Returns404_WhenFaceNotFound()
+    {
+        using var client = _factory.CreateClient();
+        var (token, _) = await RegisterAndLoginAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var res = await client.GetAsync("/api/faces/999999999/wall-tickets");
+        res.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task Deny_ThenLike_ReturnsBadRequest()
+    {
+        using var clientAuthor = _factory.CreateClient();
+        using var clientAdmin = _factory.CreateClient();
+        var (tokenA, _) = await RegisterAndLoginAsync(clientAuthor);
+        var (tokenAdmin, userIdAdmin) = await RegisterAndLoginAsync(clientAdmin);
+        var faceId = await GetAnyFaceIdAsync(clientAuthor, tokenA);
+        var roleId = await GetFaceRoleIdAsync(clientAuthor, tokenA, "FACE_USER");
+        clientAuthor.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenA);
+        (await clientAuthor.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+
+        var ticketId = (await (await clientAuthor.PostAsJsonAsync(
+                $"/api/faces/{faceId}/wall-tickets",
+                new { title = "T", description = "D" }))
+            .Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+
+        await PromoteUserToGlobalAdminAsync(_factory, userIdAdmin);
+        clientAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokenAdmin);
+        (await clientAdmin.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/deny", null)).EnsureSuccessStatusCode();
+
+        var like = await clientAuthor.PostAsync($"/api/faces/{faceId}/wall-tickets/{ticketId}/like", null);
+        like.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task ApproveTwice_Returns400()
     {
         using var clientA = _factory.CreateClient();
