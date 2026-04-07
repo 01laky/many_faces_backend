@@ -1,0 +1,471 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
+using BeDemo.Api.Data;
+using BeDemo.Api.Hubs;
+using BeDemo.Api.Models;
+using BeDemo.Api.Services;
+using BeDemo.Api.Utils;
+
+namespace BeDemo.Api.Controllers;
+
+[ApiController]
+[Route("api/faces/{faceId:int}/chat-rooms")]
+[Authorize]
+public class FaceChatRoomsController : ControllerBase
+{
+    private readonly ApplicationDbContext _context;
+    private readonly IChatRoomLifecycleService _lifecycle;
+    private readonly IHubContext<MessengerHub> _messengerHub;
+    private readonly ILogger<FaceChatRoomsController> _logger;
+
+    public FaceChatRoomsController(
+        ApplicationDbContext context,
+        IChatRoomLifecycleService lifecycle,
+        IHubContext<MessengerHub> messengerHub,
+        ILogger<FaceChatRoomsController> logger)
+    {
+        _context = context;
+        _lifecycle = lifecycle;
+        _messengerHub = messengerHub;
+        _logger = logger;
+    }
+
+    private string? UserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    private async Task<ApplicationUser?> GetUserTrackedAsync(CancellationToken ct) =>
+        string.IsNullOrEmpty(UserId) ? null : await _context.Users.FirstOrDefaultAsync(u => u.Id == UserId, ct);
+
+    private static object RoomDto(
+        FaceChatRoom r,
+        bool isHostViewer,
+        bool canParticipate,
+        bool isMember,
+        bool hasPendingRequest,
+        int memberCount,
+        int? messageCount = null) =>
+        new
+        {
+            r.Id,
+            r.FaceId,
+            r.Title,
+            r.Description,
+            r.IsPublic,
+            r.IsSystemManaged,
+            r.CreatorUserId,
+            r.CreatedAt,
+            r.LastMessageAt,
+            memberCount,
+            messageCount,
+            isHostViewer,
+            canParticipate,
+            isMember,
+            hasPendingRequest,
+        };
+
+    /// <summary>List chat rooms for face (mixed system + user). Host sees list but cannot participate.</summary>
+    [HttpGet]
+    public async Task<IActionResult> List(int faceId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        var face = await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Id == faceId, cancellationToken);
+        if (face == null)
+            return NotFound(new { error = "Face not found" });
+
+        var isHost = await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken);
+        var rooms = await _context.FaceChatRooms
+            .AsNoTracking()
+            .Where(r => r.FaceId == faceId)
+            .OrderByDescending(r => r.LastMessageAt ?? r.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        var ids = rooms.Select(r => r.Id).ToList();
+        var memberCounts = await _context.FaceChatRoomMembers
+            .AsNoTracking()
+            .Where(m => ids.Contains(m.FaceChatRoomId))
+            .GroupBy(m => m.FaceChatRoomId)
+            .Select(g => new { RoomId = g.Key, C = g.Count() })
+            .ToDictionaryAsync(x => x.RoomId, x => x.C, cancellationToken);
+
+        var myMemberships = (await _context.FaceChatRoomMembers
+            .AsNoTracking()
+            .Where(m => m.UserId == UserId && ids.Contains(m.FaceChatRoomId))
+            .Select(m => m.FaceChatRoomId)
+            .ToListAsync(cancellationToken)).ToHashSet();
+
+        var pending = (await _context.FaceChatRoomJoinRequests
+            .AsNoTracking()
+            .Where(j => j.UserId == UserId && j.Status == FaceChatRoomJoinRequestStatus.Pending && ids.Contains(j.FaceChatRoomId))
+            .Select(j => j.FaceChatRoomId)
+            .ToListAsync(cancellationToken)).ToHashSet();
+
+        var list = rooms.Select(r =>
+        {
+            var mc = memberCounts.GetValueOrDefault(r.Id);
+            var member = myMemberships.Contains(r.Id);
+            var canPart = !isHost;
+            return RoomDto(r, isHost, canPart, member, pending.Contains(r.Id), mc);
+        }).ToList();
+
+        return Ok(list);
+    }
+
+    [HttpGet("{roomId:int}")]
+    public async Task<IActionResult> Get(int faceId, int roomId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        var room = await _context.FaceChatRooms.AsNoTracking().FirstOrDefaultAsync(r => r.Id == roomId && r.FaceId == faceId, cancellationToken);
+        if (room == null)
+            return NotFound();
+
+        var isHost = await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken);
+        var memberCount = await _context.FaceChatRoomMembers.CountAsync(m => m.FaceChatRoomId == roomId, cancellationToken);
+        var isMember = await _context.FaceChatRoomMembers.AnyAsync(m => m.FaceChatRoomId == roomId && m.UserId == UserId, cancellationToken);
+        var hasPending = await _context.FaceChatRoomJoinRequests.AnyAsync(
+            j => j.FaceChatRoomId == roomId && j.UserId == UserId && j.Status == FaceChatRoomJoinRequestStatus.Pending,
+            cancellationToken);
+
+        return Ok(RoomDto(room, isHost, canParticipate: !isHost, isMember, hasPending, memberCount));
+    }
+
+    /// <summary>User-created room (requires face.ChatRoomsCreate, non-host).</summary>
+    [HttpPost]
+    public async Task<IActionResult> CreateUserRoom(int faceId, [FromBody] CreateFaceChatRoomDto dto, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == faceId, cancellationToken);
+        if (face == null)
+            return NotFound(new { error = "Face not found" });
+
+        if (!face.ChatRoomsCreate)
+            return Forbid();
+
+        if (await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken))
+            return Forbid();
+
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            return BadRequest(new { error = "Title is required" });
+
+        var room = new FaceChatRoom
+        {
+            FaceId = faceId,
+            Title = dto.Title.Trim(),
+            Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
+            IsPublic = dto.IsPublic,
+            IsSystemManaged = false,
+            CreatorUserId = UserId,
+        };
+        _context.FaceChatRooms.Add(room);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _context.FaceChatRoomMembers.Add(new FaceChatRoomMember
+        {
+            FaceChatRoomId = room.Id,
+            UserId = UserId,
+        });
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await _lifecycle.ScheduleIdleCheckAsync(room.Id, cancellationToken);
+        _logger.LogInformation("User {UserId} created chat room {RoomId} in face {FaceId}", UserId, room.Id, faceId);
+
+        return CreatedAtAction(nameof(Get), new { faceId, roomId = room.Id }, new { room.Id });
+    }
+
+    /// <summary>System-managed room (global admin only). Always public.</summary>
+    [HttpPost("system")]
+    public async Task<IActionResult> CreateSystemRoom(int faceId, [FromBody] CreateSystemFaceChatRoomDto dto, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        var user = await GetUserTrackedAsync(cancellationToken);
+        if (user == null || !await FaceChatRoomAuth.IsGlobalAdminAsync(_context, user, cancellationToken))
+            return Forbid();
+
+        var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == faceId, cancellationToken);
+        if (face == null)
+            return NotFound(new { error = "Face not found" });
+
+        if (string.IsNullOrWhiteSpace(dto.Title))
+            return BadRequest(new { error = "Title is required" });
+
+        var room = new FaceChatRoom
+        {
+            FaceId = faceId,
+            Title = dto.Title.Trim(),
+            Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
+            IsPublic = true,
+            IsSystemManaged = true,
+            CreatorUserId = null,
+        };
+        _context.FaceChatRooms.Add(room);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await _lifecycle.ScheduleIdleCheckAsync(room.Id, cancellationToken);
+        return CreatedAtAction(nameof(Get), new { faceId, roomId = room.Id }, new { room.Id });
+    }
+
+    [HttpPut("{roomId:int}")]
+    public async Task<IActionResult> Update(int faceId, int roomId, [FromBody] UpdateFaceChatRoomDto dto, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        var user = await GetUserTrackedAsync(cancellationToken);
+        if (user == null)
+            return Unauthorized();
+
+        var room = await _context.FaceChatRooms.FirstOrDefaultAsync(r => r.Id == roomId && r.FaceId == faceId, cancellationToken);
+        if (room == null)
+            return NotFound();
+
+        if (room.IsSystemManaged)
+        {
+            if (!await FaceChatRoomAuth.IsGlobalAdminAsync(_context, user, cancellationToken))
+                return Forbid();
+        }
+        else
+        {
+            if (room.CreatorUserId != UserId)
+                return Forbid();
+            if (dto.IsPublic.HasValue)
+                room.IsPublic = dto.IsPublic.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(dto.Title))
+            room.Title = dto.Title.Trim();
+        if (dto.Description != null)
+            room.Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim();
+
+        room.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+        return Ok(new { room.Id });
+    }
+
+    [HttpDelete("{roomId:int}")]
+    public async Task<IActionResult> Delete(int faceId, int roomId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        var user = await GetUserTrackedAsync(cancellationToken);
+        if (user == null)
+            return Unauthorized();
+
+        var room = await _context.FaceChatRooms.FirstOrDefaultAsync(r => r.Id == roomId && r.FaceId == faceId, cancellationToken);
+        if (room == null)
+            return NotFound();
+
+        if (room.IsSystemManaged)
+        {
+            if (!await FaceChatRoomAuth.IsGlobalAdminAsync(_context, user, cancellationToken))
+                return Forbid();
+        }
+        else
+        {
+            if (room.CreatorUserId != UserId)
+                return Forbid();
+        }
+
+        await _lifecycle.DeleteRoomCompletelyAsync(roomId, "deleted", notifyCreatorIdleExpiry: false, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{roomId:int}/join")]
+    public async Task<IActionResult> JoinPublic(int faceId, int roomId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        if (await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken))
+            return Forbid();
+
+        var room = await _context.FaceChatRooms.FirstOrDefaultAsync(r => r.Id == roomId && r.FaceId == faceId, cancellationToken);
+        if (room == null)
+            return NotFound();
+        if (!room.IsPublic)
+            return BadRequest(new { error = "Room is private; use join request" });
+
+        if (await _context.FaceChatRoomMembers.AnyAsync(m => m.FaceChatRoomId == roomId && m.UserId == UserId, cancellationToken))
+            return Ok(new { alreadyMember = true });
+
+        _context.FaceChatRoomMembers.Add(new FaceChatRoomMember { FaceChatRoomId = roomId, UserId = UserId });
+        await _context.SaveChangesAsync(cancellationToken);
+        return Ok(new { joined = true });
+    }
+
+    [HttpPost("{roomId:int}/join-requests")]
+    public async Task<IActionResult> RequestJoin(int faceId, int roomId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        if (await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken))
+            return Forbid();
+
+        var room = await _context.FaceChatRooms.FirstOrDefaultAsync(r => r.Id == roomId && r.FaceId == faceId, cancellationToken);
+        if (room == null)
+            return NotFound();
+        if (room.IsPublic)
+            return BadRequest(new { error = "Room is public; use join" });
+
+        if (await _context.FaceChatRoomMembers.AnyAsync(m => m.FaceChatRoomId == roomId && m.UserId == UserId, cancellationToken))
+            return BadRequest(new { error = "Already a member" });
+
+        if (await _context.FaceChatRoomJoinRequests.AnyAsync(
+                j => j.FaceChatRoomId == roomId && j.UserId == UserId && j.Status == FaceChatRoomJoinRequestStatus.Pending,
+                cancellationToken))
+            return Ok(new { pending = true });
+
+        var req = new FaceChatRoomJoinRequest { FaceChatRoomId = roomId, UserId = UserId };
+        _context.FaceChatRoomJoinRequests.Add(req);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        if (!string.IsNullOrEmpty(room.CreatorUserId))
+        {
+            var requester = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == UserId, cancellationToken);
+            var requesterName = requester != null ? $"{requester.FirstName} {requester.LastName}".Trim() : UserId;
+            var notification = new Notification
+            {
+                UserId = room.CreatorUserId,
+                Title = "Chat room join request",
+                Message = $"{requesterName} wants to join \"{room.Title}\".",
+                Type = "chat_room_join_request",
+            };
+            _context.Notifications.Add(notification);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            await _messengerHub.Clients.User(room.CreatorUserId).SendAsync(
+                "ReceiveNotification",
+                notification.Id,
+                notification.Title,
+                notification.Message,
+                notification.Type,
+                notification.CreatedAt,
+                cancellationToken);
+        }
+
+        return Ok(new { requestId = req.Id });
+    }
+
+    [HttpPost("requests/{requestId:int}/approve")]
+    public async Task<IActionResult> ApproveRequest(int faceId, int requestId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        var req = await _context.FaceChatRoomJoinRequests
+            .Include(r => r.Room)
+            .FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken);
+        if (req == null || req.Room.FaceId != faceId)
+            return NotFound();
+
+        if (req.Room.CreatorUserId != UserId)
+            return Forbid();
+
+        if (req.Status != FaceChatRoomJoinRequestStatus.Pending)
+            return BadRequest(new { error = "Request is not pending" });
+
+        req.Status = FaceChatRoomJoinRequestStatus.Approved;
+        req.ResolvedAt = DateTime.UtcNow;
+
+        if (!await _context.FaceChatRoomMembers.AnyAsync(m => m.FaceChatRoomId == req.FaceChatRoomId && m.UserId == req.UserId, cancellationToken))
+        {
+            _context.FaceChatRoomMembers.Add(new FaceChatRoomMember
+            {
+                FaceChatRoomId = req.FaceChatRoomId,
+                UserId = req.UserId,
+            });
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return Ok(new { approved = true });
+    }
+
+    [HttpPost("requests/{requestId:int}/deny")]
+    public async Task<IActionResult> DenyRequest(int faceId, int requestId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        var req = await _context.FaceChatRoomJoinRequests
+            .Include(r => r.Room)
+            .FirstOrDefaultAsync(r => r.Id == requestId, cancellationToken);
+        if (req == null || req.Room.FaceId != faceId)
+            return NotFound();
+
+        if (req.Room.CreatorUserId != UserId)
+            return Forbid();
+
+        if (req.Status != FaceChatRoomJoinRequestStatus.Pending)
+            return BadRequest(new { error = "Request is not pending" });
+
+        req.Status = FaceChatRoomJoinRequestStatus.Denied;
+        req.ResolvedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+        return Ok(new { denied = true });
+    }
+
+    [HttpGet("{roomId:int}/messages")]
+    public async Task<IActionResult> Messages(int faceId, int roomId, [FromQuery] int pageSize = 50, [FromQuery] int? beforeId = null, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+
+        var room = await _context.FaceChatRooms.AsNoTracking().FirstOrDefaultAsync(r => r.Id == roomId && r.FaceId == faceId, cancellationToken);
+        if (room == null)
+            return NotFound();
+
+        var isHost = await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken);
+        var isMember = await _context.FaceChatRoomMembers.AnyAsync(m => m.FaceChatRoomId == roomId && m.UserId == UserId, cancellationToken);
+        if (!isHost && !isMember)
+            return Forbid();
+
+        var q = _context.FaceChatRoomMessages.AsNoTracking().Where(m => m.FaceChatRoomId == roomId);
+        if (beforeId.HasValue)
+            q = q.Where(m => m.Id < beforeId.Value);
+
+        var items = await q
+            .OrderByDescending(m => m.Id)
+            .Take(Math.Clamp(pageSize, 1, 100))
+            .Select(m => new
+            {
+                m.Id,
+                m.SenderUserId,
+                m.Content,
+                m.SentAt,
+            })
+            .ToListAsync(cancellationToken);
+
+        items.Reverse();
+        return Ok(items);
+    }
+}
+
+public class CreateFaceChatRoomDto
+{
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public bool IsPublic { get; set; } = true;
+}
+
+public class CreateSystemFaceChatRoomDto
+{
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+}
+
+public class UpdateFaceChatRoomDto
+{
+    public string? Title { get; set; }
+    public string? Description { get; set; }
+    public bool? IsPublic { get; set; }
+}

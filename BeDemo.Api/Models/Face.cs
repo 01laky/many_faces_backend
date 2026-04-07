@@ -45,6 +45,11 @@ public class Face
     /// </summary>
     public bool AllowRecensions { get; set; }
 
+    /// <summary>
+    /// When true, non-host users may create user-owned chat rooms from the frontend (+ panel).
+    /// </summary>
+    public bool ChatRoomsCreate { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime? UpdatedAt { get; set; }
@@ -54,4 +59,6 @@ public class Face
 
     // Navigation property - one Face has many UserFaceProfiles
     public ICollection<UserFaceProfile> UserFaceProfiles { get; set; } = new List<UserFaceProfile>();
+
+    public ICollection<FaceChatRoom> ChatRooms { get; set; } = new List<FaceChatRoom>();
 }

@@ -46,6 +46,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<StoryLike> StoryLikes { get; set; } = null!;
     public DbSet<StoryComment> StoryComments { get; set; } = null!;
     public DbSet<StoryView> StoryViews { get; set; } = null!;
+    public DbSet<FaceChatRoom> FaceChatRooms { get; set; } = null!;
+    public DbSet<FaceChatRoomMember> FaceChatRoomMembers { get; set; } = null!;
+    public DbSet<FaceChatRoomMessage> FaceChatRoomMessages { get; set; } = null!;
+    public DbSet<FaceChatRoomJoinRequest> FaceChatRoomJoinRequests { get; set; } = null!;
     public DbSet<UserFaceProfileLike> UserFaceProfileLikes { get; set; } = null!;
     public DbSet<UserFaceProfileComment> UserFaceProfileComments { get; set; } = null!;
     public DbSet<UserFaceProfileReview> UserFaceProfileReviews { get; set; } = null!;
@@ -67,6 +71,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.CreatedAt).IsRequired();
             entity.Property(e => e.Visibility).IsRequired().HasConversion<int>();
             entity.Property(e => e.AllowRecensions).IsRequired();
+            entity.Property(e => e.ChatRoomsCreate).IsRequired();
 
             // One-to-many relationship: Face -> Pages
             entity.HasMany(e => e.Pages)
@@ -789,6 +794,78 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.HasOne(e => e.Author)
                 .WithMany()
                 .HasForeignKey(e => e.AuthorUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<FaceChatRoom>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.HasIndex(e => e.FaceId);
+
+            entity.HasOne(e => e.Face)
+                .WithMany(f => f.ChatRooms)
+                .HasForeignKey(e => e.FaceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Creator)
+                .WithMany()
+                .HasForeignKey(e => e.CreatorUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<FaceChatRoomMember>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.FaceChatRoomId, e.UserId }).IsUnique();
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+
+            entity.HasOne(e => e.Room)
+                .WithMany(r => r.Members)
+                .HasForeignKey(e => e.FaceChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<FaceChatRoomMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Content).IsRequired().HasMaxLength(8000);
+            entity.Property(e => e.SenderUserId).IsRequired().HasMaxLength(450);
+            entity.HasIndex(e => e.FaceChatRoomId);
+            entity.HasIndex(e => e.SentAt);
+
+            entity.HasOne(e => e.Room)
+                .WithMany(r => r.Messages)
+                .HasForeignKey(e => e.FaceChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Sender)
+                .WithMany()
+                .HasForeignKey(e => e.SenderUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<FaceChatRoomJoinRequest>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.UserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.Status).IsRequired().HasConversion<int>();
+            entity.HasIndex(e => new { e.FaceChatRoomId, e.UserId, e.Status });
+
+            entity.HasOne(e => e.Room)
+                .WithMany(r => r.JoinRequests)
+                .HasForeignKey(e => e.FaceChatRoomId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

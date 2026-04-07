@@ -50,6 +50,7 @@ public class FacesController : ControllerBase
                 isPublic = f.IsPublic,
                 visibility = f.Visibility.ToString(),
                 allowRecensions = f.AllowRecensions,
+                chatRoomsCreate = f.ChatRoomsCreate,
                 createdAt = f.CreatedAt,
                 updatedAt = f.UpdatedAt,
             }).ToList();
@@ -143,6 +144,7 @@ public class FacesController : ControllerBase
                     isPublic = f.IsPublic,
                     visibility = f.Visibility.ToString(),
                     allowRecensions = f.AllowRecensions,
+                    chatRoomsCreate = f.ChatRoomsCreate,
                     myFaceRoleId,
                     myFaceRoleName,
                     myVisited,
@@ -444,6 +446,7 @@ public class FacesController : ControllerBase
                 isPublic = face.IsPublic,
                 visibility = face.Visibility.ToString(),
                 allowRecensions = face.AllowRecensions,
+                chatRoomsCreate = face.ChatRoomsCreate,
                 createdAt = face.CreatedAt,
                 updatedAt = face.UpdatedAt,
             };
@@ -490,6 +493,7 @@ public class FacesController : ControllerBase
                 IsPublic = model.IsPublic,
                 Visibility = model.Visibility ?? FaceVisibility.Public,
                 AllowRecensions = model.AllowRecensions ?? false,
+                ChatRoomsCreate = model.ChatRoomsCreate ?? false,
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -534,6 +538,7 @@ public class FacesController : ControllerBase
                 isPublic = face.IsPublic,
                 visibility = face.Visibility.ToString(),
                 allowRecensions = face.AllowRecensions,
+                chatRoomsCreate = face.ChatRoomsCreate,
                 createdAt = face.CreatedAt,
                 updatedAt = face.UpdatedAt,
             };
@@ -613,6 +618,10 @@ public class FacesController : ControllerBase
             {
                 face.AllowRecensions = model.AllowRecensions.Value;
             }
+            if (model.ChatRoomsCreate.HasValue)
+            {
+                face.ChatRoomsCreate = model.ChatRoomsCreate.Value;
+            }
             face.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
@@ -628,6 +637,7 @@ public class FacesController : ControllerBase
                 isPublic = face.IsPublic,
                 visibility = face.Visibility.ToString(),
                 allowRecensions = face.AllowRecensions,
+                chatRoomsCreate = face.ChatRoomsCreate,
                 createdAt = face.CreatedAt,
                 updatedAt = face.UpdatedAt,
             };
@@ -699,6 +709,9 @@ public class CreateFaceModel
     public FaceVisibility? Visibility { get; set; }
 
     public bool? AllowRecensions { get; set; }
+
+    /// <summary>When true, users (non-host) may create chat rooms from the app.</summary>
+    public bool? ChatRoomsCreate { get; set; }
 }
 
 /// <summary>
@@ -725,6 +738,8 @@ public class UpdateFaceModel
     public FaceVisibility? Visibility { get; set; }
 
     public bool? AllowRecensions { get; set; }
+
+    public bool? ChatRoomsCreate { get; set; }
 }
 
 /// <summary>

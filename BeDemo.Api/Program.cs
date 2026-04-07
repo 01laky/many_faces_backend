@@ -44,6 +44,8 @@ if (args.Length > 0 && args[0] == "generate-diagram")
 // Creates WebApplicationBuilder, which is used to configure the application
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddScoped<IChatRoomLifecycleService, ChatRoomLifecycleService>();
+
 // Configure Serilog for structured logging
 // Serilog provides better logging capabilities than default .NET logging
 // It supports structured logging (logging with properties) and multiple sinks (outputs)
@@ -293,8 +295,8 @@ catch (Exception ex)
 // DATABASE INITIALIZATION
 // ============================================================================
 
-// Initialize database and create admin user if needed
-// Skip in test environment (in-memory database doesn't support MigrateAsync)
+// Initialize database and create admin user if needed.
+// Testing: no PostgreSQL migrate — use EnsureCreated + SeedDataOnlyAsync (see else branch) so `dotnet run` with ASPNETCORE_ENVIRONMENT=Testing works for manual/curl checks.
 if (!app.Environment.IsEnvironment("Testing"))
 {
     const int maxRetries = 5;
@@ -386,6 +388,21 @@ if (!app.Environment.IsEnvironment("Testing"))
         Log.Warning(ex, "AI service health check failed, continuing anyway");
     }
 }
+else
+{
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        await context.Database.EnsureCreatedAsync();
+        await DatabaseSeeder.SeedDataOnlyAsync(context);
+        Log.Information("Testing environment: EnsureCreated + SeedDataOnlyAsync completed");
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Testing environment: database seed failed");
+    }
+}
 
 // ============================================================================
 // HTTP REQUEST PIPELINE - MIDDLEWARE
@@ -440,6 +457,7 @@ app.UseAuthorization();
 // User must connect with valid JWT token: wss://localhost:8001/hubs/chat?access_token=<token>
 app.MapHub<ChatHub>("/hubs/chat");
 app.MapHub<MessengerHub>("/hubs/messenger");
+app.MapHub<ChatRoomHub>("/hubs/chatroom");
 
 // Maps all controllers - automatically finds all controllers and creates endpoints from them
 // E.g., OAuth2Controller with [Route("api/oauth2")] creates endpoints like /api/oauth2/token, /api/oauth2/register

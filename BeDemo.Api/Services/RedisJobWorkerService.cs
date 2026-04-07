@@ -105,6 +105,9 @@ public sealed class RedisJobWorkerService : BackgroundService
             case "story.expire":
                 await ProcessStoryJobAsync(env, ct);
                 break;
+            case "chatroom.idle-check":
+                await ProcessChatRoomIdleJobAsync(env, ct);
+                break;
             default:
                 _logger.LogWarning("Unknown job type {Type} id={Id}", env.Type, env.Id);
                 break;
@@ -129,6 +132,23 @@ public sealed class RedisJobWorkerService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Story job {Type} failed id={Id}", env.Type, env.Id);
+        }
+    }
+
+    private async Task ProcessChatRoomIdleJobAsync(RedisJobEnvelope env, CancellationToken ct)
+    {
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(env.Payload);
+            if (!doc.RootElement.TryGetProperty("faceChatRoomId", out var idEl) || !idEl.TryGetInt32(out var roomId))
+                return;
+            using var scope = _scopeFactory.CreateScope();
+            var lifecycle = scope.ServiceProvider.GetRequiredService<IChatRoomLifecycleService>();
+            await lifecycle.ProcessIdleCheckAsync(roomId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Chat room idle job failed id={Id}", env.Id);
         }
     }
 }
