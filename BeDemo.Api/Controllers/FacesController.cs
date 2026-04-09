@@ -45,7 +45,6 @@ public class FacesController : ControllerBase
                 index = f.Index,
                 title = f.Title,
                 description = f.Description,
-                color = f.Color,
                 gradientSettings = f.GradientSettings,
                 isPublic = f.IsPublic,
                 visibility = f.Visibility.ToString(),
@@ -139,7 +138,6 @@ public class FacesController : ControllerBase
                     id = f.Id,
                     title = f.Title,
                     description = f.Description,
-                    color = f.Color,
                     gradientSettings = f.GradientSettings,
                     isPublic = f.IsPublic,
                     visibility = f.Visibility.ToString(),
@@ -286,6 +284,18 @@ public class FacesController : ControllerBase
                     ufp.FaceRoleIntroCompleted = true;
                     ufp.IsActive = FaceRoleParticipation.IsActiveForFaceRoleName(role.Name);
                     ufp.UpdatedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    _context.UserFaceProfiles.Add(new UserFaceProfile
+                    {
+                        UserProfileId = userProfile.Id,
+                        FaceId = id,
+                        IsActive = FaceRoleParticipation.IsActiveForFaceRoleName(role.Name),
+                        Visited = false,
+                        FaceRoleIntroCompleted = true,
+                        CreatedAt = DateTime.UtcNow,
+                    });
                 }
             }
 
@@ -441,7 +451,6 @@ public class FacesController : ControllerBase
                 index = face.Index,
                 title = face.Title,
                 description = face.Description,
-                color = face.Color,
                 gradientSettings = face.GradientSettings,
                 isPublic = face.IsPublic,
                 visibility = face.Visibility.ToString(),
@@ -483,13 +492,16 @@ public class FacesController : ControllerBase
                 return BadRequest(new { error = "Face with this index already exists" });
             }
 
+            var gradient = string.IsNullOrWhiteSpace(model.GradientSettings)
+                ? FaceGradientPresets.JsonForFaceIndex(model.Index)
+                : model.GradientSettings;
+
             var face = new Face
             {
                 Index = model.Index,
                 Title = model.Title,
                 Description = model.Description,
-                Color = model.Color,
-                GradientSettings = model.GradientSettings,
+                GradientSettings = gradient,
                 IsPublic = model.IsPublic,
                 Visibility = model.Visibility ?? FaceVisibility.Public,
                 AllowRecensions = model.AllowRecensions ?? false,
@@ -533,7 +545,6 @@ public class FacesController : ControllerBase
                 index = face.Index,
                 title = face.Title,
                 description = face.Description,
-                color = face.Color,
                 gradientSettings = face.GradientSettings,
                 isPublic = face.IsPublic,
                 visibility = face.Visibility.ToString(),
@@ -598,10 +609,6 @@ public class FacesController : ControllerBase
             {
                 face.Description = model.Description;
             }
-            if (model.Color != null)
-            {
-                face.Color = model.Color;
-            }
             if (model.GradientSettings != null)
             {
                 face.GradientSettings = model.GradientSettings;
@@ -632,7 +639,6 @@ public class FacesController : ControllerBase
                 index = face.Index,
                 title = face.Title,
                 description = face.Description,
-                color = face.Color,
                 gradientSettings = face.GradientSettings,
                 isPublic = face.IsPublic,
                 visibility = face.Visibility.ToString(),
@@ -699,9 +705,6 @@ public class CreateFaceModel
     [StringLength(1000, ErrorMessage = "Description must be at most 1000 characters")]
     public string? Description { get; set; }
 
-    [StringLength(50, ErrorMessage = "Color must be at most 50 characters")]
-    public string? Color { get; set; }
-
     public string? GradientSettings { get; set; }
 
     public bool IsPublic { get; set; } = true;
@@ -727,9 +730,6 @@ public class UpdateFaceModel
 
     [StringLength(1000, ErrorMessage = "Description must be at most 1000 characters")]
     public string? Description { get; set; }
-
-    [StringLength(50, ErrorMessage = "Color must be at most 50 characters")]
-    public string? Color { get; set; }
 
     public string? GradientSettings { get; set; }
 

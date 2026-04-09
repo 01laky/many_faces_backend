@@ -146,8 +146,7 @@ public class FacesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         {
             index = $"test_{Guid.NewGuid()}",
             title = "Test Face",
-            description = "Test Description",
-            color = "#FF0000"
+            description = "Test Description"
         };
 
         // Act
@@ -158,6 +157,7 @@ public class FacesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         var face = await response.Content.ReadFromJsonAsync<JsonElement>();
         face.Should().NotBeNull();
         face.GetProperty("title").GetString().Should().Be("Test Face");
+        face.GetProperty("gradientSettings").GetString().Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]

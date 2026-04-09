@@ -69,7 +69,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Index).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Description).HasMaxLength(1000);
-            entity.Property(e => e.Color).HasMaxLength(50);
             entity.Property(e => e.GradientSettings).HasColumnType("text");
             entity.Property(e => e.CreatedAt).IsRequired();
             entity.Property(e => e.Visibility).IsRequired().HasConversion<int>();

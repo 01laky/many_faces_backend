@@ -21,9 +21,6 @@ public class Face
     [StringLength(1000)]
     public string? Description { get; set; }
 
-    [StringLength(50)]
-    public string? Color { get; set; }
-
     /// <summary>
     /// JSON string with gradient settings (type, colors, angle, animation, animationSpeed)
     /// </summary>

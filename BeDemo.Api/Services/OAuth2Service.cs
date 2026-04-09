@@ -197,15 +197,20 @@ public class OAuth2Service : IOAuth2Service
             claims.Add(new Claim(ClaimTypes.Surname, user.LastName));
         }
 
-        // Gets ECDSA signing key and configuration
+        // Gets ECDSA signing key and JWT lifetime from configuration.
         var signingKey = _keyService.GetSigningKey();
-        var expiresIn = _configuration.GetValue<int>("Jwt:ExpiresInMinutes", 60);  // Default: 60 minutes
+        // Short session (browser closed / "normal" login): Jwt:ExpiresInMinutes — used when RememberMe is not true.
+        var sessionMinutes = _configuration.GetValue<int>("Jwt:ExpiresInMinutes", 60);
+        // "Stay signed in" / persistent login: Jwt:ExpiresInMinutesRememberMe — only when client sends rememberMe: true (password grant).
+        var rememberMinutes = _configuration.GetValue<int>("Jwt:ExpiresInMinutesRememberMe", 10080); // default 7 days if unset
+        // Nullable bool: only explicit true selects the long lifetime; null/false → session TTL (matches FE buildPasswordGrantTokenRequest).
+        var expiresInMinutes = request.RememberMe == true ? rememberMinutes : sessionMinutes;
 
         // Creates SecurityTokenDescriptor - describes how token should be created
         var tokenDescriptor = new SecurityTokenDescriptor
         {
             Subject = new ClaimsIdentity(claims),                       // Claims that will be in token
-            Expires = DateTime.UtcNow.AddMinutes(expiresIn),            // Token expiration time
+            Expires = DateTime.UtcNow.AddMinutes(expiresInMinutes),     // Token expiration time
             Issuer = _configuration["Jwt:Issuer"] ?? "BeDemoApi",    // Who issued the token
             Audience = _configuration["Jwt:Audience"] ?? "BeDemoApi", // Who the token is intended for
             SigningCredentials = new SigningCredentials(signingKey, SecurityAlgorithms.EcdsaSha512),  // ECDSA P-521 with SHA-512 hash
@@ -229,7 +234,7 @@ public class OAuth2Service : IOAuth2Service
         {
             AccessToken = accessToken,           // JWT access token
             TokenType = "Bearer",                // Token type (Bearer is standard for OAuth2)
-            ExpiresIn = expiresIn * 60,         // Expiration time in seconds
+            ExpiresIn = expiresInMinutes * 60,    // Expiration time in seconds
             RefreshToken = refreshToken,         // Refresh token to refresh access token
             Scope = request.Scope               // Requested scope (optional)
         };

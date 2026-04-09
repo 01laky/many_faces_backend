@@ -166,23 +166,28 @@ namespace BeDemo.Api.Migrations
                 columns: new[] { "UserFaceProfileId", "AuthorUserId" },
                 unique: true);
 
-            // Sync IsActive with face role: host = inactive in directory sense
+            // Sync IsActive with face role: host = inactive in directory sense.
+            // PostgreSQL: target alias (ufp) must not appear inside JOIN ON of FROM; use WHERE for ufp/ufr link.
             migrationBuilder.Sql("""
                 UPDATE "UserFaceProfiles" AS ufp
                 SET "IsActive" = false
                 FROM "UserProfiles" AS up
-                INNER JOIN "UserFaceRoles" AS ufr ON ufr."UserId" = up."UserId" AND ufr."FaceId" = ufp."FaceId"
+                INNER JOIN "UserFaceRoles" AS ufr ON ufr."UserId" = up."UserId"
                 INNER JOIN "UserRoles" AS ur ON ur."Id" = ufr."UserRoleId"
-                WHERE ufp."UserProfileId" = up."Id" AND ur."Name" = 'FACE_HOST';
+                WHERE ufp."UserProfileId" = up."Id"
+                  AND ufr."FaceId" = ufp."FaceId"
+                  AND ur."Name" = 'FACE_HOST';
                 """);
 
             migrationBuilder.Sql("""
                 UPDATE "UserFaceProfiles" AS ufp
                 SET "IsActive" = true
                 FROM "UserProfiles" AS up
-                INNER JOIN "UserFaceRoles" AS ufr ON ufr."UserId" = up."UserId" AND ufr."FaceId" = ufp."FaceId"
+                INNER JOIN "UserFaceRoles" AS ufr ON ufr."UserId" = up."UserId"
                 INNER JOIN "UserRoles" AS ur ON ur."Id" = ufr."UserRoleId"
-                WHERE ufp."UserProfileId" = up."Id" AND ur."Name" <> 'FACE_HOST';
+                WHERE ufp."UserProfileId" = up."Id"
+                  AND ufr."FaceId" = ufp."FaceId"
+                  AND ur."Name" <> 'FACE_HOST';
                 """);
         }
 

@@ -1,5 +1,6 @@
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Utils;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -227,7 +228,7 @@ public static class DatabaseSeeder
                 Index = "public",
                 Title = "Public",
                 Description = "Public face",
-                Color = "#007bff",
+                GradientSettings = FaceGradientPresets.JsonForFaceIndex("public"),
                 IsPublic = true,
                 CreatedAt = DateTime.UtcNow,
             };
@@ -254,7 +255,7 @@ public static class DatabaseSeeder
                 Index = "basic",
                 Title = "Basic",
                 Description = "Basic face",
-                Color = "#28a745",
+                GradientSettings = FaceGradientPresets.JsonForFaceIndex("basic"),
                 IsPublic = false,
                 CreatedAt = DateTime.UtcNow,
             };
@@ -282,7 +283,7 @@ public static class DatabaseSeeder
                 Index = "koncept",
                 Title = "Koncept",
                 Description = "Koncept face",
-                Color = "#ffc107",
+                GradientSettings = FaceGradientPresets.JsonForFaceIndex("koncept"),
                 IsPublic = false,
                 CreatedAt = DateTime.UtcNow,
             };
@@ -506,9 +507,10 @@ public static class DatabaseSeeder
         if (faces.Count == 0)
             return;
 
+        // EndsWith(StringComparison) is not translatable; seeded demo emails use lowercase domain.
         var demoUserIds = await context.Users
             .AsNoTracking()
-            .Where(u => u.Email != null && u.Email.EndsWith("@demo.com", StringComparison.OrdinalIgnoreCase))
+            .Where(u => u.Email != null && u.Email.EndsWith("@demo.com"))
             .Select(u => u.Id)
             .ToListAsync();
 
@@ -536,13 +538,16 @@ public static class DatabaseSeeder
         if (faceUser == null || faceHost == null)
             return;
 
-        var targetUserIds = await context.Users
+        // Avoid StartsWith/EndsWith(StringComparison): not translatable to SQL on all providers.
+        var candidates = await context.Users
             .AsNoTracking()
-            .Where(u => u.Email != null &&
-                        u.Email.StartsWith("user", StringComparison.OrdinalIgnoreCase) &&
-                        u.Email.EndsWith("@demo.com", StringComparison.OrdinalIgnoreCase))
-            .Select(u => u.Id)
+            .Where(u => u.Email != null && u.Email.EndsWith("@demo.com"))
+            .Select(u => new { u.Id, Email = u.Email! })
             .ToListAsync();
+        var targetUserIds = candidates
+            .Where(x => x.Email.StartsWith("user", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Id)
+            .ToList();
 
         if (targetUserIds.Count == 0)
             return;

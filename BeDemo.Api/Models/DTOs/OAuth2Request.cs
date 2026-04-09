@@ -60,6 +60,13 @@ public class OAuth2TokenRequest
     public string? Scope { get; set; }
 
     /// <summary>
+    /// Password grant only: when <c>true</c>, access token lifetime uses <c>Jwt:ExpiresInMinutesRememberMe</c>;
+    /// when <c>false</c>, <c>null</c>, or omitted, uses <c>Jwt:ExpiresInMinutes</c> (short session).
+    /// Ignored for other grant types once a user is authenticated (same JWT path).
+    /// </summary>
+    public bool? RememberMe { get; set; }
+
+    /// <summary>
     /// ECDSA Signature - Base64 encoded request signature (optional)
     /// Used to ensure request integrity
     /// </summary>

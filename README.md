@@ -191,8 +191,10 @@ To perform a clean rebuild of Docker images:
 ### OAuth2
 
 - `POST /api/oauth2/token` - Get OAuth2 access token
-  - Request body: `OAuth2TokenRequest` (grant_type, username, password, etc.)
-  - Returns: `OAuth2TokenResponse` with access_token, refresh_token, expires_in
+  - Request body: `OAuth2TokenRequest` (`grantType`, `username`, `password`, `clientId`, `clientSecret`, optional **`rememberMe`**)
+  - **`rememberMe: true`** (password grant) selects **`Jwt:ExpiresInMinutesRememberMe`** for access-token lifetime; omitted/false uses **`Jwt:ExpiresInMinutes`**. See monorepo docs: [**authentication-and-sessions**](../docs/authentication-and-sessions.md) / [**autentifikacia-a-relacie-sk**](../docs/autentifikacia-a-relacie-sk.md).
+  - Returns: `OAuth2TokenResponse` with `accessToken`, `refreshToken`, `expiresIn` (seconds), `tokenType`
+  - **Refresh grant:** `refresh_token` is not fully implemented for re-issue; clients rely on access JWT lifetime (and `rememberMe` for longer sessions).
 
 - `POST /api/oauth2/register` - Register new user via OAuth2 flow
   - Request body: `OAuth2RegisterModel` (email, password, firstName, lastName)
@@ -399,8 +401,8 @@ dotnet ef migrations remove
 Run unit tests (no PostgreSQL required; tests use an in-memory database):
 
 ```bash
-npm run test
-# or from repo root: cd be_demo && npm run test
+yarn test
+# or from repo root: cd be_demo && yarn test
 ```
 
 Tests cover:
