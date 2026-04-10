@@ -192,7 +192,7 @@ To perform a clean rebuild of Docker images:
 
 - `POST /api/oauth2/token` - Get OAuth2 access token
   - Request body: `OAuth2TokenRequest` (`grantType`, `username`, `password`, `clientId`, `clientSecret`, optional **`rememberMe`**)
-  - **`rememberMe: true`** (password grant) selects **`Jwt:ExpiresInMinutesRememberMe`** for access-token lifetime; omitted/false uses **`Jwt:ExpiresInMinutes`**. See monorepo docs: [**authentication-and-sessions**](../docs/guides/authentication-and-sessions.md) / [**authentication-and-sessions-sk**](../docs/readmes/authentication-and-sessions-sk.md).
+  - **`rememberMe: true`** (password grant) selects **`Jwt:ExpiresInMinutesRememberMe`** for access-token lifetime; omitted/false uses **`Jwt:ExpiresInMinutes`**. See monorepo [**authentication-and-sessions**](../docs/guides/authentication-and-sessions.md).
   - Returns: `OAuth2TokenResponse` with `accessToken`, `refreshToken`, `expiresIn` (seconds), `tokenType`
   - **Refresh grant:** `grant_type=refresh_token` rotates stored refresh tokens (see `OAuthRefreshTokenStore`); details in monorepo [**acl-and-capabilities**](../docs/guides/acl-and-capabilities.md).
 
