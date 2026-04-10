@@ -10,7 +10,7 @@ namespace BeDemo.Api.Security;
 /// <item><description><c>SUPER_ADMIN</c> — same platform gates as ADMIN plus capability <c>platform:super</c>; use for break-glass ops only.</description></item>
 /// <item><description><c>ADMIN</c> — platform UI on admin face: all faces, users, global PageTypes mutations, delegated face roles.</description></item>
 /// <item><description><c>USER</c> — default registered user; tenant APIs + self-service face role within whitelist.</description></item>
-/// <item><description><c>HOST</c> — global host role (rare); not the same as per-face <c>FACE_HOST</c> (see A8 in ACL_ROLES_DESIGN.md).</description></item>
+/// <item><description><c>HOST</c> — global host role (rare); not the same as per-face <c>FACE_HOST</c> (see <see cref="BeDemo.Api.Utils.FaceRoleParticipation"/> / <c>UserRole</c> A8).</description></item>
 /// </list>
 /// <para><b>Face roles</b> (<c>UserFaceRole</c> for URL-scoped face):</para>
 /// <list type="bullet">
@@ -21,5 +21,5 @@ namespace BeDemo.Api.Security;
 /// </remarks>
 public static class AclRolePermissionMatrix
 {
-    // Intentionally no runtime API: documentation-only anchor for A5; keep in sync with docs/acl-and-capabilities.md.
+    // Intentionally no runtime API: documentation-only anchor for A5; keep in sync with docs/guides/acl-and-capabilities.md (monorepo root).
 }
