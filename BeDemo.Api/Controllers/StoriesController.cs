@@ -17,20 +17,43 @@ public class StoriesController : ControllerBase
     private readonly IStoryLifecycleService _lifecycle;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<StoriesController> _logger;
+    private readonly IFaceScopeContext _faceScope;
 
     public StoriesController(
         ApplicationDbContext context,
         IStoryLifecycleService lifecycle,
         IWebHostEnvironment env,
-        ILogger<StoriesController> logger)
+        ILogger<StoriesController> logger,
+        IFaceScopeContext faceScope)
     {
         _context = context;
         _lifecycle = lifecycle;
         _env = env;
         _logger = logger;
+        _faceScope = faceScope;
     }
 
     private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+    private bool CanManageAllFaces() =>
+        _faceScope.IsAdminFaceScope &&
+        (User.IsInRole(UserRole.GlobalRoleNames.Admin) ||
+         User.IsInRole(UserRole.GlobalRoleNames.SuperAdmin));
+
+    /// <summary>
+    /// Tenants may only mutate stories that are untargeted (draft) or targeted at their face.
+    /// Global admins under /admin/ may touch any story.
+    /// </summary>
+    private IActionResult? GateStoryForScope(Story story)
+    {
+        if (CanManageAllFaces())
+            return null;
+        if (!story.StoryFaces.Any())
+            return null;
+        if (story.StoryFaces.All(sf => sf.FaceId != _faceScope.FaceId))
+            return NotFound(new { error = "Story not found" });
+        return null;
+    }
 
     /// <summary>Published stories for the current face (non-host viewers only).</summary>
     [HttpGet]
@@ -39,7 +62,8 @@ public class StoriesController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
-        if (!await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, faceId, cancellationToken))
+        var effectiveFaceId = _faceScope.ResolveDataFaceId(faceId);
+        if (!await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, effectiveFaceId, cancellationToken))
             return Ok(Array.Empty<object>());
 
         var now = DateTime.UtcNow;
@@ -58,7 +82,7 @@ public class StoriesController : ControllerBase
             .ToListAsync(cancellationToken);
 
         var visible = stories
-            .Where(s => StoryVisibility.IsTargetedForFace(s, faceId))
+            .Where(s => StoryVisibility.IsTargetedForFace(s, effectiveFaceId))
             .ToList();
 
         var result = visible.Select(s => new
@@ -89,11 +113,12 @@ public class StoriesController : ControllerBase
             .Include(s => s.Images)
             .Where(s => s.CreatorId == UserId);
 
-        if (faceId.HasValue)
+        var filterFace = _faceScope.ResolveDataFaceId(faceId);
+        if (faceId.HasValue || !_faceScope.IsAdminFaceScope)
         {
             query = query.Where(s =>
                 !s.StoryFaces.Any() ||
-                s.StoryFaces.Any(sf => sf.FaceId == faceId.Value));
+                s.StoryFaces.Any(sf => sf.FaceId == filterFace));
         }
 
         var list = await query
@@ -121,6 +146,8 @@ public class StoriesController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
+        var effectiveFaceId = _faceScope.ResolveDataFaceId(faceId);
+
         var story = await _context.Stories
             .Include(s => s.Creator)
             .Include(s => s.StoryFaces)
@@ -142,10 +169,10 @@ public class StoriesController : ControllerBase
 
         if (!isCreator)
         {
-            if (!await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, faceId, cancellationToken))
+            if (!await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, effectiveFaceId, cancellationToken))
                 return NotFound(new { error = "Story not found" });
 
-            if (!isLive || !StoryVisibility.IsTargetedForFace(story, faceId))
+            if (!isLive || !StoryVisibility.IsTargetedForFace(story, effectiveFaceId))
                 return NotFound(new { error = "Story not found" });
         }
 
@@ -219,6 +246,15 @@ public class StoriesController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.Title))
             return BadRequest(new { error = "Title is required" });
 
+        var faceTargets = dto.FaceIds;
+        if (faceTargets == null || faceTargets.Count == 0)
+            faceTargets = new List<int> { _faceScope.FaceId };
+        else if (!CanManageAllFaces())
+        {
+            if (faceTargets.Any(fid => fid != _faceScope.FaceId))
+                return BadRequest(new { error = "Stories may only target the current face scope" });
+        }
+
         await _lifecycle.EnsureRoomForNewStoryAsync(UserId, cancellationToken);
 
         var story = new Story
@@ -231,16 +267,14 @@ public class StoriesController : ControllerBase
         _context.Stories.Add(story);
         await _context.SaveChangesAsync(cancellationToken);
 
-        if (dto.FaceIds is { Count: > 0 })
-        {
-            var valid = await _context.Faces
-                .Where(f => dto.FaceIds.Contains(f.Id))
-                .Select(f => f.Id)
-                .ToListAsync(cancellationToken);
-            foreach (var fid in valid)
-                _context.StoryFaces.Add(new StoryFace { StoryId = story.Id, FaceId = fid });
+        var valid = await _context.Faces
+            .Where(f => faceTargets.Contains(f.Id))
+            .Select(f => f.Id)
+            .ToListAsync(cancellationToken);
+        foreach (var fid in valid)
+            _context.StoryFaces.Add(new StoryFace { StoryId = story.Id, FaceId = fid });
+        if (valid.Count > 0)
             await _context.SaveChangesAsync(cancellationToken);
-        }
 
         return StatusCode(StatusCodes.Status201Created, new { story.Id });
     }
@@ -250,6 +284,13 @@ public class StoriesController : ControllerBase
     {
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
+
+        var storyPre = await _context.Stories.Include(s => s.StoryFaces).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+        if (storyPre == null)
+            return NotFound(new { error = "Story not found" });
+        var pubGate = GateStoryForScope(storyPre);
+        if (pubGate != null)
+            return pubGate;
 
         var (ok, err) = await _lifecycle.TryPublishAsync(UserId, id, dto.ScheduledPublishAt, cancellationToken);
         if (!ok)
@@ -273,11 +314,14 @@ public class StoriesController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
-        var story = await _context.Stories.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+        var story = await _context.Stories.Include(s => s.StoryFaces).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
         if (story == null)
             return NotFound(new { error = "Story not found" });
         if (story.CreatorId != UserId)
             return Forbid();
+        var delGate = GateStoryForScope(story);
+        if (delGate != null)
+            return delGate;
 
         _context.Stories.Remove(story);
         await _context.SaveChangesAsync(cancellationToken);
@@ -292,7 +336,9 @@ public class StoriesController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
-        if (!await StoryViewerRules.ViewerIsActiveNonHostInFaceAsync(_context, UserId, faceId, cancellationToken))
+        var effectiveFaceId = _faceScope.ResolveDataFaceId(faceId);
+
+        if (!await StoryViewerRules.ViewerIsActiveNonHostInFaceAsync(_context, UserId, effectiveFaceId, cancellationToken))
             return Forbid();
 
         var story = await _context.Stories
@@ -306,7 +352,7 @@ public class StoriesController : ControllerBase
         if (story.State != StoryState.Published || story.PublishedAt > now || story.ExpiresAt <= now)
             return NotFound(new { error = "Story not found" });
 
-        if (!StoryVisibility.IsTargetedForFace(story, faceId))
+        if (!StoryVisibility.IsTargetedForFace(story, effectiveFaceId))
             return NotFound(new { error = "Story not found" });
 
         var existing = await _context.StoryViews.FirstOrDefaultAsync(
@@ -337,11 +383,15 @@ public class StoriesController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
-        var story = await _context.Stories.Include(s => s.Images).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+        var story = await _context.Stories.Include(s => s.Images).Include(s => s.StoryFaces).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
         if (story == null)
             return NotFound(new { error = "Story not found" });
         if (story.CreatorId != UserId)
             return Forbid();
+
+        var imgGate = GateStoryForScope(story);
+        if (imgGate != null)
+            return imgGate;
 
         if (story.State == StoryState.Published)
         {

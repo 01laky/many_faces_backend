@@ -24,7 +24,9 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
 
@@ -59,15 +61,18 @@ public class OAuth2Service : IOAuth2Service
     private readonly IECDSAKeyService _keyService;      // Service for managing ECDSA keys
     private readonly IConfiguration _configuration;      // Application configuration (appsettings.json)
     private readonly ILogger<OAuth2Service> _logger;   // Logger for logging events
+    private readonly ApplicationDbContext _db;
 
     public OAuth2Service(
         IECDSAKeyService keyService,
         IConfiguration configuration,
-        ILogger<OAuth2Service> logger)
+        ILogger<OAuth2Service> logger,
+        ApplicationDbContext db)
     {
         _keyService = keyService;
         _configuration = configuration;
         _logger = logger;
+        _db = db;
     }
 
     /// <summary>
@@ -196,6 +201,15 @@ public class OAuth2Service : IOAuth2Service
         {
             claims.Add(new Claim(ClaimTypes.Surname, user.LastName));
         }
+
+        // Global role name (UserRole row) for [Authorize(Roles = ...)] and face-admin checks.
+        var globalRoleName = await _db.Users
+            .AsNoTracking()
+            .Where(u => u.Id == user.Id)
+            .Select(u => u.UserRole.Name)
+            .FirstOrDefaultAsync();
+        if (!string.IsNullOrEmpty(globalRoleName))
+            claims.Add(new Claim(ClaimTypes.Role, globalRoleName));
 
         // Gets ECDSA signing key and JWT lifetime from configuration.
         var signingKey = _keyService.GetSigningKey();

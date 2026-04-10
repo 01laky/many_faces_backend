@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Controllers;
 
@@ -14,13 +15,32 @@ public class PagesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<PagesController> _logger;
+    private readonly IFaceScopeContext _faceScope;
 
     public PagesController(
         ApplicationDbContext context,
-        ILogger<PagesController> logger)
+        ILogger<PagesController> logger,
+        IFaceScopeContext faceScope)
     {
         _context = context;
         _logger = logger;
+        _faceScope = faceScope;
+    }
+
+    /// <summary>Admin SPA (/admin/) with global Admin JWT may see or move pages across faces.</summary>
+    private bool CanManageAllFaces() =>
+        _faceScope.IsAdminFaceScope &&
+        (User.IsInRole(UserRole.GlobalRoleNames.Admin) ||
+         User.IsInRole(UserRole.GlobalRoleNames.SuperAdmin));
+
+    /// <summary>Returns NotFound when a tenant tries to touch another face's page.</summary>
+    private IActionResult? EnsurePageBelongsToScope(Page page)
+    {
+        if (CanManageAllFaces())
+            return null;
+        if (page.FaceId != _faceScope.FaceId)
+            return NotFound(new { error = "Page not found" });
+        return null;
     }
 
     /// <summary>
@@ -34,9 +54,16 @@ public class PagesController : ControllerBase
         {
             IQueryable<Page> query = _context.Pages;
 
-            if (faceId.HasValue)
+            if (CanManageAllFaces())
             {
-                query = query.Where(p => p.FaceId == faceId.Value);
+                // Optional filter when admin passes ?faceId= for a specific tenant.
+                if (faceId.HasValue)
+                    query = query.Where(p => p.FaceId == faceId.Value);
+            }
+            else
+            {
+                // Tenants always see only their scoped face's pages (ignore spoofed query).
+                query = query.Where(p => p.FaceId == _faceScope.FaceId);
             }
 
             var pages = await query
@@ -85,6 +112,10 @@ public class PagesController : ControllerBase
                 return NotFound(new { error = "Page not found" });
             }
 
+            var gate = EnsurePageBelongsToScope(page);
+            if (gate != null)
+                return gate;
+
             var pageDto = new
             {
                 id = page.Id,
@@ -130,6 +161,9 @@ public class PagesController : ControllerBase
                 _logger.LogWarning("Face not found: {FaceId}", model.FaceId);
                 return BadRequest(new { error = "Face not found" });
             }
+
+            if (!CanManageAllFaces() && model.FaceId != _faceScope.FaceId)
+                return BadRequest(new { error = "Pages can only be created for the current face scope" });
 
             // Verify that PageType exists
             var pageTypeExists = await _context.PageTypes.AnyAsync(pt => pt.Id == model.PageTypeId);
@@ -198,6 +232,10 @@ public class PagesController : ControllerBase
                 return NotFound(new { error = "Page not found" });
             }
 
+            var updateGate = EnsurePageBelongsToScope(page);
+            if (updateGate != null)
+                return updateGate;
+
             // Update page properties
             if (model.Name != null)
             {
@@ -221,6 +259,9 @@ public class PagesController : ControllerBase
             }
             if (model.FaceId.HasValue)
             {
+                if (!CanManageAllFaces())
+                    return BadRequest(new { error = "Only admin scope may reassign a page to another face" });
+
                 // Verify that new Face exists
                 var faceExists = await _context.Faces.AnyAsync(f => f.Id == model.FaceId.Value);
                 if (!faceExists)
@@ -286,6 +327,10 @@ public class PagesController : ControllerBase
                 return NotFound(new { error = "Page not found" });
             }
 
+            var delGate = EnsurePageBelongsToScope(page);
+            if (delGate != null)
+                return delGate;
+
             _context.Pages.Remove(page);
             await _context.SaveChangesAsync();
 
@@ -308,11 +353,12 @@ public class PagesController : ControllerBase
     {
         try
         {
-            var pageExists = await _context.Pages.AnyAsync(p => p.Id == pageId);
-            if (!pageExists)
-            {
+            var page = await _context.Pages.FindAsync(pageId);
+            if (page == null)
                 return NotFound(new { error = "Page not found" });
-            }
+            var trGate = EnsurePageBelongsToScope(page);
+            if (trGate != null)
+                return trGate;
 
             var translations = await _context.PageRouteTranslations
                 .Where(t => t.PageId == pageId)
@@ -346,11 +392,12 @@ public class PagesController : ControllerBase
     {
         try
         {
-            var pageExists = await _context.Pages.AnyAsync(p => p.Id == pageId);
-            if (!pageExists)
-            {
+            var page = await _context.Pages.FindAsync(pageId);
+            if (page == null)
                 return NotFound(new { error = "Page not found" });
-            }
+            var trGate = EnsurePageBelongsToScope(page);
+            if (trGate != null)
+                return trGate;
 
             // Get existing translations
             var existing = await _context.PageRouteTranslations

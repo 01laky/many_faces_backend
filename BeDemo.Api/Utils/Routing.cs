@@ -1,88 +1,91 @@
 /*
- * Routing.cs - Helper utilities for routing logic
- * 
- * This file contains helper methods for face path routing:
- * - HasFacePath: Determines if a path should use face routing
- * - ConvertToKebabCase: Converts string to kebab-case format
+ * Routing.cs — URL rules for face-prefixed vs system-exempt paths.
+ *
+ * Exempt paths do not carry a face prefix and do not receive HttpContext.Items face scope.
+ * All other API traffic must be shaped as /{face-kebab}/api/... so the first segment
+ * resolves to a real Face row.
  */
 
 namespace BeDemo.Api.Utils;
 
 /// <summary>
-/// Helper class for routing utilities
+/// Helpers for face-prefix routing and string normalization.
 /// </summary>
 public static class Routing
 {
-    // Paths that should NOT use face routing (public endpoints)
-    // These paths are accessible without face prefix
-    // Note: Paths starting with these prefixes are public (e.g., /api/faces, /api/users)
-    private static readonly string[] PublicPaths = new[]
+    /// <summary>
+    /// Paths that must work without a leading face segment (OAuth, legacy cookie auth, docs, static files).
+    /// Order does not matter; we use prefix checks with OrdinalIgnoreCase.
+    /// </summary>
+    /// <remarks>
+    /// <list type="bullet">
+    /// <item><description><c>/api/oauth2/*</c> — token and registration must be callable before any face context exists.</description></item>
+    /// <item><description><c>/api/auth/*</c> — legacy Identity cookie endpoints (if used).</description></item>
+    /// <item><description>Swagger / OpenAPI — developer tooling; not tenant data.</description></item>
+    /// <item><description><c>/uploads/*</c> — static files under wwwroot (avatars, story images).</description></item>
+    /// </list>
+    /// </remarks>
+    private static readonly string[] ExemptPathPrefixes =
     {
-        "/api/",        // All /api/* paths are public (e.g., /api/faces, /api/users, /api/pages)
-        "/uploads/",    // Static files (e.g. uploaded avatars)
+        "/api/oauth2",
+        "/api/auth",
         "/swagger",
-        "/swagger-ui",
         "/openapi",
-        "/hubs",
+        "/favicon",
+        "/uploads/",
     };
 
     /// <summary>
-    /// Determines if a path should use face routing
-    /// Returns true if path should be checked for face prefix, false if it's a public path
+    /// True when the request path is exempt from face-prefix routing and from face-scope enforcement.
     /// </summary>
-    /// <param name="path">Request path (e.g., "/acme-corp/api/users")</param>
-    /// <returns>True if path should use face routing, false if it's public</returns>
-    public static bool HasFacePath(string path)
+    public static bool IsExemptFromFaceScope(string? path)
     {
-        // Empty or null path is not a face path
         if (string.IsNullOrEmpty(path))
-        {
             return false;
-        }
 
-        // Check if path starts with any public path
-        // Public paths are accessible without face prefix
-        foreach (var publicPath in PublicPaths)
+        foreach (var prefix in ExemptPathPrefixes)
         {
-            if (path.StartsWith(publicPath, StringComparison.OrdinalIgnoreCase))
-            {
-                return false; // This is a public path, don't use face routing
-            }
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return true;
         }
 
-        // All other paths should use face routing
-        return true;
+        return false;
     }
 
     /// <summary>
-    /// Converts a string to kebab-case format
-    /// Examples: "AcmeCorp" -> "acme-corp", "MyCompany" -> "my-company"
-    /// Used to convert Face.Index to URL prefix format
+    /// True when the path clearly forgot the face prefix: bare <c>/api/...</c> or <c>/hubs/...</c> (not exempt).
+    /// Used to return 400 with a helpful message instead of 403 "unknown face".
     /// </summary>
-    /// <param name="input">Input string to convert</param>
-    /// <returns>Kebab-case string</returns>
+    public static bool IsReservedPathWithoutFacePrefix(string? path)
+    {
+        if (string.IsNullOrEmpty(path))
+            return false;
+
+        if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(path, "/api", StringComparison.OrdinalIgnoreCase))
+            return !IsExemptFromFaceScope(path);
+
+        if (path.StartsWith("/hubs/", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(path, "/hubs", StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// Converts Face.Index (often PascalCase or lowercase) to the first URL segment we match against.
+    /// </summary>
     public static string ConvertToKebabCase(string input)
     {
         if (string.IsNullOrEmpty(input))
-        {
             return string.Empty;
-        }
 
-        // Split by uppercase letters (except first)
-        // This handles PascalCase and camelCase
         var result = new System.Text.StringBuilder();
-
-        for (int i = 0; i < input.Length; i++)
+        for (var i = 0; i < input.Length; i++)
         {
             var c = input[i];
-
-            // If current character is uppercase and not first character, add hyphen before it
             if (char.IsUpper(c) && i > 0)
-            {
                 result.Append('-');
-            }
-
-            // Convert to lowercase and add to result
             result.Append(char.ToLowerInvariant(c));
         }
 

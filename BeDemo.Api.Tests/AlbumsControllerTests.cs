@@ -3,6 +3,7 @@
  */
 
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
@@ -67,24 +68,16 @@ public class AlbumsControllerTests : IClassFixture<CustomWebApplicationFactory<P
 
     private void SetAuth(string token)
     {
-        _client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 
-    private async Task<int> CreateTestFaceAsync()
+    private static async Task<int> GetScopedFaceIdFromConfigAsync(HttpClient faceScopedClient, string bearerToken)
     {
-        var token = await GetAuthTokenAsync();
-        SetAuth(token);
-
-        var resp = await _client.PostAsJsonAsync("/api/faces", new
-        {
-            index = $"album_test_{Guid.NewGuid()}",
-            title = "Album Test Face",
-            description = "For album tests"
-        });
-        resp.StatusCode.Should().Be(HttpStatusCode.Created);
-        var face = await resp.Content.ReadFromJsonAsync<JsonElement>();
-        return face.GetProperty("id").GetInt32();
+        faceScopedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+        var cfg = await faceScopedClient.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
+        cfg.Should().NotBeNull();
+        cfg!.Length.Should().Be(1);
+        return cfg[0].GetProperty("id").GetInt32();
     }
 
     private async Task<int> CreateTestAlbumAsync(
@@ -128,37 +121,39 @@ public class AlbumsControllerTests : IClassFixture<CustomWebApplicationFactory<P
     }
 
     [Fact]
-    public async Task GetAlbums_WithFaceId_ShouldReturnOnlyAlbumsLinkedToFace()
+    public async Task GetAlbums_ShouldIsolateAlbums_ByTenantUrlScope()
     {
-        SetAuth(await GetAuthTokenAsync());
-        var faceA = await CreateTestFaceAsync();
-        var faceB = await CreateTestFaceAsync();
+        var token = await GetAuthTokenAsync();
+        using var publicClient = _factory.CreateFaceClient("public");
+        using var basicClient = _factory.CreateFaceClient("basic");
+        publicClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        basicClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        await _client.PostAsJsonAsync("/api/albums", new
+        var pubResp = await publicClient.PostAsJsonAsync("/api/albums", new
         {
-            title = "Only on A",
+            title = "Only on Public",
             albumType = 1,
             mediaType = 1,
-            faceIds = new[] { faceA },
         });
-        await _client.PostAsJsonAsync("/api/albums", new
+        pubResp.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var basicResp = await basicClient.PostAsJsonAsync("/api/albums", new
         {
-            title = "Only on B",
+            title = "Only on Basic",
             albumType = 1,
             mediaType = 1,
-            faceIds = new[] { faceB },
         });
+        basicResp.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var resA = await _client.GetAsync($"/api/albums?faceId={faceA}");
-        resA.StatusCode.Should().Be(HttpStatusCode.OK);
-        var arrA = await resA.Content.ReadFromJsonAsync<JsonElement>();
-        arrA.ValueKind.Should().Be(JsonValueKind.Array);
-        arrA.GetArrayLength().Should().BeGreaterThanOrEqualTo(1);
-        foreach (var el in arrA.EnumerateArray())
-        {
-            var faceIds = el.GetProperty("faces").EnumerateArray().Select(f => f.GetProperty("faceId").GetInt32()).ToList();
-            faceIds.Should().Contain(faceA);
-        }
+        var publicList = await publicClient.GetFromJsonAsync<JsonElement[]>("/api/albums");
+        publicList.Should().NotBeNull();
+        publicList!.Select(e => e.GetProperty("title").GetString()).Should().Contain("Only on Public");
+        publicList.Select(e => e.GetProperty("title").GetString()).Should().NotContain("Only on Basic");
+
+        var basicList = await basicClient.GetFromJsonAsync<JsonElement[]>("/api/albums");
+        basicList.Should().NotBeNull();
+        basicList!.Select(e => e.GetProperty("title").GetString()).Should().Contain("Only on Basic");
+        basicList.Select(e => e.GetProperty("title").GetString()).Should().NotContain("Only on Public");
     }
 
     [Fact]
@@ -199,8 +194,9 @@ public class AlbumsControllerTests : IClassFixture<CustomWebApplicationFactory<P
     [Fact]
     public async Task CreateAlbum_ShouldAssociateFaces()
     {
-        SetAuth(await GetAuthTokenAsync());
-        var faceId = await CreateTestFaceAsync();
+        var token = await GetAuthTokenAsync();
+        SetAuth(token);
+        var faceId = await GetScopedFaceIdFromConfigAsync(_client, token);
 
         var response = await _client.PostAsJsonAsync("/api/albums", new
         {
@@ -259,25 +255,23 @@ public class AlbumsControllerTests : IClassFixture<CustomWebApplicationFactory<P
     }
 
     [Fact]
-    public async Task UpdateAlbum_ShouldUpdateFaces()
+    public async Task UpdateAlbum_ShouldReturnBadRequest_WhenFaceIdsTargetAnotherTenant()
     {
-        SetAuth(await GetAuthTokenAsync());
-        var faceId1 = await CreateTestFaceAsync();
-        var faceId2 = await CreateTestFaceAsync();
-        var albumId = await CreateTestAlbumAsync(faceIds: new List<int> { faceId1 });
+        var token = await GetAuthTokenAsync();
+        SetAuth(token);
+        var publicFaceId = await GetScopedFaceIdFromConfigAsync(_client, token);
+
+        using var basicClient = _factory.CreateFaceClient("basic");
+        var basicFaceId = await GetScopedFaceIdFromConfigAsync(basicClient, token);
+
+        var albumId = await CreateTestAlbumAsync(faceIds: new List<int> { publicFaceId });
 
         var response = await _client.PutAsJsonAsync($"/api/albums/{albumId}", new
         {
-            faceIds = new[] { faceId2 }
+            faceIds = new[] { basicFaceId },
         });
 
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var detailResp = await _client.GetAsync($"/api/albums/{albumId}");
-        var detail = await detailResp.Content.ReadFromJsonAsync<JsonElement>();
-        var faces = detail.GetProperty("faces");
-        faces.GetArrayLength().Should().Be(1);
-        faces[0].GetProperty("faceId").GetInt32().Should().Be(faceId2);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]

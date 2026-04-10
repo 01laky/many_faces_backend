@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Controllers;
 
@@ -13,16 +14,24 @@ public class AlbumsController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<AlbumsController> _logger;
+    private readonly IFaceScopeContext _faceScope;
 
     public AlbumsController(
         ApplicationDbContext context,
-        ILogger<AlbumsController> logger)
+        ILogger<AlbumsController> logger,
+        IFaceScopeContext faceScope)
     {
         _context = context;
         _logger = logger;
+        _faceScope = faceScope;
     }
 
     private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+    private bool CanManageAllFaces() =>
+        _faceScope.IsAdminFaceScope &&
+        (User.IsInRole(UserRole.GlobalRoleNames.Admin) ||
+         User.IsInRole(UserRole.GlobalRoleNames.SuperAdmin));
 
     /// <summary>GET /api/albums?faceId= - Optional face filter (album must be linked via AlbumFaces).</summary>
     [HttpGet]
@@ -34,10 +43,9 @@ public class AlbumsController : ControllerBase
         var query = _context.Albums
             .Where(a => a.AlbumType == AlbumTypeEnum.Public || a.CreatorId == UserId);
 
-        if (faceId.HasValue)
-        {
-            query = query.Where(a => a.AlbumFaces.Any(af => af.FaceId == faceId.Value));
-        }
+        // Tenant: always filter to scoped face. Admin: optional ?faceId= targets a tenant (required to see non-admin face albums).
+        var effectiveFaceId = _faceScope.ResolveDataFaceId(faceId);
+        query = query.Where(a => a.AlbumFaces.Any(af => af.FaceId == effectiveFaceId));
 
         var albums = await query
             .Include(a => a.Creator)
@@ -86,6 +94,11 @@ public class AlbumsController : ControllerBase
         if (album.AlbumType != AlbumTypeEnum.Public && album.CreatorId != UserId)
             return Forbid();
 
+        var effectiveFaceId = _faceScope.ResolveDataFaceId(
+            Request.Query.TryGetValue("faceId", out var qf) && int.TryParse(qf.FirstOrDefault(), out var qid) ? qid : null);
+        if (!album.AlbumFaces.Any(af => af.FaceId == effectiveFaceId))
+            return NotFound(new { error = "Album not found" });
+
         return Ok(new
         {
             album.Id,
@@ -116,6 +129,10 @@ public class AlbumsController : ControllerBase
         // Other users can only see public albums
         if (userId != UserId)
             query = query.Where(a => a.AlbumType == AlbumTypeEnum.Public);
+
+        var effectiveFaceId = _faceScope.ResolveDataFaceId(
+            Request.Query.TryGetValue("faceId", out var qf) && int.TryParse(qf.FirstOrDefault(), out var qid) ? qid : null);
+        query = query.Where(a => a.AlbumFaces.Any(af => af.FaceId == effectiveFaceId));
 
         var albums = await query
             .Include(a => a.Creator)
@@ -165,24 +182,34 @@ public class AlbumsController : ControllerBase
         _context.Albums.Add(album);
         await _context.SaveChangesAsync();
 
-        // Add face associations
-        if (dto.FaceIds != null && dto.FaceIds.Count > 0)
+        // Face links: tenants default to current scope when omitted; admins must supply FaceIds (or get only admin-face links).
+        var targetFaceIds = dto.FaceIds;
+        if (targetFaceIds == null || targetFaceIds.Count == 0)
         {
-            var validFaceIds = await _context.Faces
-                .Where(f => dto.FaceIds.Contains(f.Id))
-                .Select(f => f.Id)
-                .ToListAsync();
-
-            foreach (var faceId in validFaceIds)
-            {
-                _context.AlbumFaces.Add(new AlbumFace
-                {
-                    AlbumId = album.Id,
-                    FaceId = faceId,
-                });
-            }
-            await _context.SaveChangesAsync();
+            if (!CanManageAllFaces())
+                targetFaceIds = new List<int> { _faceScope.FaceId };
+            else
+                targetFaceIds = new List<int> { _faceScope.FaceId };
         }
+
+        if (!CanManageAllFaces())
+        {
+            if (targetFaceIds.Any(fid => fid != _faceScope.FaceId))
+                return BadRequest(new { error = "Albums may only be linked to the current face scope" });
+        }
+
+        var validFaceIds = await _context.Faces
+            .Where(f => targetFaceIds.Contains(f.Id))
+            .Select(f => f.Id)
+            .ToListAsync();
+
+        foreach (var fid in validFaceIds)
+        {
+            _context.AlbumFaces.Add(new AlbumFace { AlbumId = album.Id, FaceId = fid });
+        }
+
+        if (validFaceIds.Count > 0)
+            await _context.SaveChangesAsync();
 
         _logger.LogInformation("User {UserId} created album {AlbumId}", UserId, album.Id);
 
@@ -215,6 +242,10 @@ public class AlbumsController : ControllerBase
         if (album.CreatorId != UserId)
             return Forbid();
 
+        var scopeFace = _faceScope.ResolveDataFaceId(null);
+        if (!album.AlbumFaces.Any(af => af.FaceId == scopeFace))
+            return NotFound(new { error = "Album not found" });
+
         if (dto.Title != null)
             album.Title = dto.Title.Trim();
         if (dto.Description != null)
@@ -229,6 +260,12 @@ public class AlbumsController : ControllerBase
         // Update face associations if provided
         if (dto.FaceIds != null)
         {
+            if (!CanManageAllFaces())
+            {
+                if (dto.FaceIds.Any(fid => fid != _faceScope.FaceId))
+                    return BadRequest(new { error = "Albums may only be linked to the current face scope" });
+            }
+
             _context.AlbumFaces.RemoveRange(album.AlbumFaces);
 
             var validFaceIds = await _context.Faces
@@ -269,13 +306,17 @@ public class AlbumsController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
-        var album = await _context.Albums.FindAsync(id);
+        var album = await _context.Albums.Include(a => a.AlbumFaces).FirstOrDefaultAsync(a => a.Id == id);
 
         if (album == null)
             return NotFound(new { error = "Album not found" });
 
         if (album.CreatorId != UserId)
             return Forbid();
+
+        var scopeFace = _faceScope.ResolveDataFaceId(null);
+        if (!album.AlbumFaces.Any(af => af.FaceId == scopeFace))
+            return NotFound(new { error = "Album not found" });
 
         _context.Albums.Remove(album);
         await _context.SaveChangesAsync();

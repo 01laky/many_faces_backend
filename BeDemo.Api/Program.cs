@@ -141,6 +141,8 @@ else
 
 // FaceService for RoutingMiddleware (face-based URL routing)
 builder.Services.AddScoped<IFaceService, FaceService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IFaceScopeContext, FaceScopeContext>();
 builder.Services.AddScoped<IStoryLifecycleService, StoryLifecycleService>();
 builder.Services.AddScoped<IFaceWallTicketLifecycleService, FaceWallTicketLifecycleService>();
 
@@ -354,6 +356,21 @@ if (!app.Environment.IsEnvironment("Testing"))
         Log.Warning(ex, "User seeding failed, continuing anyway");
     }
 
+    // Extend expired / Expired-state stories so GET /api/stories is not empty after 24h publish TTL (runs even if grid seed failed).
+    try
+    {
+        using (var scope = app.Services.CreateScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            await DatabaseSeeder.ReactivateExpiredStoriesForStartupAsync(context);
+            Log.Information("Story list reactivation (expired → extended) completed");
+        }
+    }
+    catch (Exception ex)
+    {
+        Log.Warning(ex, "Story list reactivation on startup skipped");
+    }
+
     // ============================================================================
     // AI SERVICE HEALTH CHECK
     // ============================================================================
@@ -438,6 +455,9 @@ if (app.Environment.IsDevelopment())
 // Rewrites URLs like /acme-corp/api/users to /api/users?requestFaceID=123
 app.UseMiddleware<RoutingMiddleware>();
 
+// Endpoint matching must run *after* the face prefix is stripped; otherwise /public/api/... would 404.
+app.UseRouting();
+
 // Adds custom OAuth2 middleware - validates client credentials and request signatures
 // This middleware executes after routing, before authentication
 app.UseMiddleware<OAuth2Middleware>();
@@ -447,6 +467,9 @@ app.UseStaticFiles();
 
 // Adds authentication middleware - extracts and validates JWT tokens from requests
 app.UseAuthentication();
+
+// After JWT: enforce private-face auth and query/scope consistency (see middleware XML docs).
+app.UseMiddleware<FaceScopeEnforcementMiddleware>();
 
 // Adds authorization middleware - checks user permissions
 app.UseAuthorization();

@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Xunit;
 using BeDemo.Api.Models.DTOs;
@@ -12,32 +12,35 @@ namespace BeDemo.Api.Tests;
 /// Integration tests for password-grant <c>rememberMe</c> → JWT lifetime (Jwt:ExpiresInMinutes vs Jwt:ExpiresInMinutesRememberMe).
 /// Uses per-client configuration overrides so assertions stay small and stable.
 /// </summary>
-public class OAuth2RememberMeTests : IClassFixture<CustomWebApplicationFactory<Program>>
+public class OAuth2RememberMeTests
 {
-    private readonly CustomWebApplicationFactory<Program> _factory;
-
-    public OAuth2RememberMeTests(CustomWebApplicationFactory<Program> factory)
+    private sealed class JwtDurationFactory : CustomWebApplicationFactory<Program>
     {
-        _factory = factory;
-    }
+        private readonly int _sessionMinutes;
+        private readonly int _rememberMinutes;
 
-    private static HttpClient CreateClientWithJwtDurations(
-        CustomWebApplicationFactory<Program> baseFactory,
-        int sessionMinutes,
-        int rememberMinutes)
-    {
-        return baseFactory.WithWebHostBuilder(builder =>
+        public JwtDurationFactory(int sessionMinutes, int rememberMinutes)
         {
+            _sessionMinutes = sessionMinutes;
+            _rememberMinutes = rememberMinutes;
+        }
+
+        protected override void ConfigureWebHost(IWebHostBuilder builder)
+        {
+            base.ConfigureWebHost(builder);
             builder.ConfigureAppConfiguration((_, config) =>
             {
                 config.AddInMemoryCollection(new Dictionary<string, string?>
                 {
-                    ["Jwt:ExpiresInMinutes"] = sessionMinutes.ToString(),
-                    ["Jwt:ExpiresInMinutesRememberMe"] = rememberMinutes.ToString()
+                    ["Jwt:ExpiresInMinutes"] = _sessionMinutes.ToString(),
+                    ["Jwt:ExpiresInMinutesRememberMe"] = _rememberMinutes.ToString(),
                 });
             });
-        }).CreateClient();
+        }
     }
+
+    private static HttpClient CreateClientWithJwtDurations(int sessionMinutes, int rememberMinutes) =>
+        new JwtDurationFactory(sessionMinutes, rememberMinutes).CreateClient();
 
     private static async Task<string> RegisterUniqueUserAsync(HttpClient client)
     {
@@ -82,7 +85,7 @@ public class OAuth2RememberMeTests : IClassFixture<CustomWebApplicationFactory<P
     {
         const int sessionMin = 13;
         const int rememberMin = 777;
-        using var client = CreateClientWithJwtDurations(_factory, sessionMin, rememberMin);
+        using var client = CreateClientWithJwtDurations(sessionMin, rememberMin);
         var email = await RegisterUniqueUserAsync(client);
 
         var token = await LoginAsync(client, email, "Test123!@#", rememberMe: null);
@@ -96,7 +99,7 @@ public class OAuth2RememberMeTests : IClassFixture<CustomWebApplicationFactory<P
     {
         const int sessionMin = 14;
         const int rememberMin = 888;
-        using var client = CreateClientWithJwtDurations(_factory, sessionMin, rememberMin);
+        using var client = CreateClientWithJwtDurations(sessionMin, rememberMin);
         var email = await RegisterUniqueUserAsync(client);
 
         var token = await LoginAsync(client, email, "Test123!@#", rememberMe: false);
@@ -110,7 +113,7 @@ public class OAuth2RememberMeTests : IClassFixture<CustomWebApplicationFactory<P
     {
         const int sessionMin = 15;
         const int rememberMin = 999;
-        using var client = CreateClientWithJwtDurations(_factory, sessionMin, rememberMin);
+        using var client = CreateClientWithJwtDurations(sessionMin, rememberMin);
         var email = await RegisterUniqueUserAsync(client);
 
         var token = await LoginAsync(client, email, "Test123!@#", rememberMe: true);
@@ -124,7 +127,7 @@ public class OAuth2RememberMeTests : IClassFixture<CustomWebApplicationFactory<P
     {
         const int sessionMin = 3;
         const int rememberMin = 400;
-        using var client = CreateClientWithJwtDurations(_factory, sessionMin, rememberMin);
+        using var client = CreateClientWithJwtDurations(sessionMin, rememberMin);
         var email = await RegisterUniqueUserAsync(client);
 
         OAuth2TokenResponse? token = null;

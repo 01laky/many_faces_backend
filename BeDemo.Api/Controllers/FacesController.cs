@@ -3,9 +3,11 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Npgsql;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -17,13 +19,48 @@ public class FacesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<FacesController> _logger;
+    private readonly IFaceScopeContext _faceScope;
+    private readonly IMemoryCache _memoryCache;
 
     public FacesController(
         ApplicationDbContext context,
-        ILogger<FacesController> logger)
+        ILogger<FacesController> logger,
+        IFaceScopeContext faceScope,
+        IMemoryCache memoryCache)
     {
         _context = context;
         _logger = logger;
+        _faceScope = faceScope;
+        _memoryCache = memoryCache;
+    }
+
+    private void InvalidateFacesRoutingCache()
+    {
+        _memoryCache.Remove("Faces");
+    }
+
+    /// <summary>
+    /// Global Identity role from JWT (OAuth2 puts <see cref="ClaimTypes.Role"/>).
+    /// </summary>
+    private bool IsGlobalAdmin() =>
+        User.IsInRole(UserRole.GlobalRoleNames.Admin) ||
+        User.IsInRole(UserRole.GlobalRoleNames.SuperAdmin);
+
+    /// <summary>
+    /// Admin UI scope (/admin/...) plus global Admin/SuperAdmin — can manage all faces.
+    /// </summary>
+    private bool CanManageAllFaces() => _faceScope.IsAdminFaceScope && IsGlobalAdmin();
+
+    /// <summary>
+    /// Tenant users may only target their URL-scoped face; returns NotFound to avoid leaking ids.
+    /// </summary>
+    private IActionResult? GateTenantFaceOrNotFound(int targetFaceId)
+    {
+        if (CanManageAllFaces())
+            return null;
+        if (targetFaceId != _faceScope.FaceId)
+            return NotFound(new { error = "Face not found" });
+        return null;
     }
 
     /// <summary>
@@ -35,9 +72,15 @@ public class FacesController : ControllerBase
     {
         try
         {
-            var faces = await _context.Faces
-                .OrderBy(f => f.Index)
-                .ToListAsync();
+            // Admin scope + global admin: full directory for CMS. Tenant scope: only the current face row.
+            if (_faceScope.IsAdminFaceScope && !IsGlobalAdmin())
+                return Forbid();
+
+            IQueryable<Face> q = _context.Faces;
+            if (!CanManageAllFaces())
+                q = q.Where(f => f.Id == _faceScope.FaceId);
+
+            var faces = await q.OrderBy(f => f.Index).ToListAsync();
 
             var faceDtos = faces.Select(f => new
             {
@@ -77,13 +120,47 @@ public class FacesController : ControllerBase
     {
         try
         {
-            var faces = await _context.Faces
-                .Include(f => f.Pages)
+            // Face scope rules:
+            // - Admin URL + global admin JWT: full graph (all faces) for admin SPA.
+            // - Admin URL + anyone else: Forbid (private face + enforcement already blocks anonymous).
+            // - Public tenant + anonymous: all public faces (landing / directory across public tenants only).
+            // - Otherwise (private tenant, or authenticated on a public tenant): single scoped face only.
+            List<Face> faces;
+            if (_faceScope.IsAdminFaceScope)
+            {
+                if (User.Identity?.IsAuthenticated != true || !IsGlobalAdmin())
+                    return Forbid();
+
+                faces = await _context.Faces
+                    .Include(f => f.Pages)
                     .ThenInclude(p => p.PageType)
-                .Include(f => f.Pages)
+                    .Include(f => f.Pages)
                     .ThenInclude(p => p.RouteTranslations)
-                .OrderBy(f => f.Index)
-                .ToListAsync();
+                    .OrderBy(f => f.Index)
+                    .ToListAsync();
+            }
+            else if (_faceScope.IsPublicFace && User.Identity?.IsAuthenticated != true)
+            {
+                faces = await _context.Faces
+                    .Where(f => f.IsPublic)
+                    .Include(f => f.Pages)
+                    .ThenInclude(p => p.PageType)
+                    .Include(f => f.Pages)
+                    .ThenInclude(p => p.RouteTranslations)
+                    .OrderBy(f => f.Index)
+                    .ToListAsync();
+            }
+            else
+            {
+                faces = await _context.Faces
+                    .Where(f => f.Id == _faceScope.FaceId)
+                    .Include(f => f.Pages)
+                    .ThenInclude(p => p.PageType)
+                    .Include(f => f.Pages)
+                    .ThenInclude(p => p.RouteTranslations)
+                    .OrderBy(f => f.Index)
+                    .ToListAsync();
+            }
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             Dictionary<int, (int RoleId, string RoleName)>? myFaceRoles = null;
@@ -241,6 +318,10 @@ public class FacesController : ControllerBase
             return Unauthorized();
         }
 
+        var scopeGate = GateTenantFaceOrNotFound(id);
+        if (scopeGate != null)
+            return scopeGate;
+
         try
         {
             var face = await _context.Faces.FindAsync(id);
@@ -320,6 +401,10 @@ public class FacesController : ControllerBase
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();
 
+        var visitGate = GateTenantFaceOrNotFound(id);
+        if (visitGate != null)
+            return visitGate;
+
         var face = await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id);
         if (face == null)
             return NotFound(new { error = "Face not found" });
@@ -363,9 +448,16 @@ public class FacesController : ControllerBase
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();
 
+        var exitGate = GateTenantFaceOrNotFound(id);
+        if (exitGate != null)
+            return exitGate;
+
         var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == id);
         if (face == null)
             return NotFound(new { error = "Face not found" });
+
+        if (FaceScopeConstants.IsAdminFaceIndex(face.Index))
+            return BadRequest(new { error = "Cannot exit the admin scope face" });
 
         var hostRole = await _context.UserRoles
             .FirstOrDefaultAsync(r => r.Name == UserRole.FaceRoleNames.FaceHost && r.Scope == RoleScope.Face);
@@ -437,6 +529,10 @@ public class FacesController : ControllerBase
     {
         try
         {
+            var gate = GateTenantFaceOrNotFound(id);
+            if (gate != null)
+                return gate;
+
             var face = await _context.Faces.FindAsync(id);
 
             if (face == null)
@@ -482,6 +578,9 @@ public class FacesController : ControllerBase
             return BadRequest(ModelState);
         }
 
+        if (!CanManageAllFaces())
+            return Forbid();
+
         try
         {
             // Check if index already exists
@@ -511,6 +610,7 @@ public class FacesController : ControllerBase
 
             _context.Faces.Add(face);
             await _context.SaveChangesAsync();
+            InvalidateFacesRoutingCache();
 
             // Default pages: Home; Wall for non-public. Typed list/detail flows are FE routes (/list/:id, future /detail/...).
             var homePageType = await _context.PageTypes.FirstOrDefaultAsync(pt => pt.Index == "home");
@@ -575,6 +675,9 @@ public class FacesController : ControllerBase
             return BadRequest(ModelState);
         }
 
+        if (!CanManageAllFaces())
+            return Forbid();
+
         try
         {
             var face = await _context.Faces.FindAsync(id);
@@ -632,6 +735,7 @@ public class FacesController : ControllerBase
             face.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+            InvalidateFacesRoutingCache();
 
             var faceDto = new
             {
@@ -665,6 +769,9 @@ public class FacesController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteFace(int id)
     {
+        if (!CanManageAllFaces())
+            return Forbid();
+
         try
         {
             var face = await _context.Faces.FindAsync(id);
@@ -675,8 +782,12 @@ public class FacesController : ControllerBase
                 return NotFound(new { error = "Face not found" });
             }
 
+            if (FaceScopeConstants.IsAdminFaceIndex(face.Index))
+                return BadRequest(new { error = "The admin scope face cannot be deleted" });
+
             _context.Faces.Remove(face);
             await _context.SaveChangesAsync();
+            InvalidateFacesRoutingCache();
 
             _logger.LogInformation("Face deleted: {FaceId}", id);
             return NoContent();

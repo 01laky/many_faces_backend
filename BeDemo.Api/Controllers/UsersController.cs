@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Models;
 using BeDemo.Api.Data;
+using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Controllers;
 
@@ -16,16 +17,24 @@ public class UsersController : ControllerBase
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<UsersController> _logger;
     private readonly ApplicationDbContext _context;
+    private readonly IFaceScopeContext _faceScope;
 
     public UsersController(
         UserManager<ApplicationUser> userManager,
         ILogger<UsersController> logger,
-        ApplicationDbContext context)
+        ApplicationDbContext context,
+        IFaceScopeContext faceScope)
     {
         _userManager = userManager;
         _logger = logger;
         _context = context;
+        _faceScope = faceScope;
     }
+
+    private bool CanManageAllFaces() =>
+        _faceScope.IsAdminFaceScope &&
+        (User.IsInRole(UserRole.GlobalRoleNames.Admin) ||
+         User.IsInRole(UserRole.GlobalRoleNames.SuperAdmin));
 
     /// <summary>
     /// GET /api/users
@@ -94,6 +103,18 @@ public class UsersController : ControllerBase
                     (u.Email != null && EF.Functions.ILike(u.Email, pattern)));
             }
 
+            // Tenant directory: only users who have a UserFaceProfile row for this face (community members).
+            // Admin scope + global Admin JWT: full user list for moderation.
+            if (!CanManageAllFaces())
+            {
+                var scopeFaceId = _faceScope.FaceId;
+                query = query.Where(u =>
+                    _context.UserProfiles.Any(up =>
+                        up.UserId == u.Id &&
+                        _context.UserFaceProfiles.Any(ufp =>
+                            ufp.UserProfileId == up.Id && ufp.FaceId == scopeFaceId)));
+            }
+
             var totalCount = await query.CountAsync();
 
             var users = await query
@@ -146,6 +167,17 @@ public class UsersController : ControllerBase
                 return NotFound(new { error = "User not found" });
             }
 
+            if (!CanManageAllFaces())
+            {
+                var inScope = await _context.UserProfiles
+                    .AnyAsync(up =>
+                        up.UserId == id &&
+                        _context.UserFaceProfiles.Any(ufp =>
+                            ufp.UserProfileId == up.Id && ufp.FaceId == _faceScope.FaceId));
+                if (!inScope)
+                    return NotFound(new { error = "User not found" });
+            }
+
             var userDto = new
             {
                 id = user.Id,
@@ -176,6 +208,9 @@ public class UsersController : ControllerBase
         {
             return BadRequest(ModelState);
         }
+
+        if (!CanManageAllFaces())
+            return Forbid();
 
         try
         {
@@ -234,6 +269,9 @@ public class UsersController : ControllerBase
         {
             return BadRequest(ModelState);
         }
+
+        if (!CanManageAllFaces())
+            return Forbid();
 
         try
         {

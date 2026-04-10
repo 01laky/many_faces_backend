@@ -302,6 +302,35 @@ public static class DatabaseSeeder
             context.Pages.AddRange(konceptPages);
         }
 
+        // Face 4: admin — non-public platform scope for the admin SPA (URL prefix /admin/...).
+        // Global Admin users manage all tenants from this scope; tenant URLs must not access other faces' data.
+        var adminFace = await context.Faces.FirstOrDefaultAsync(f => f.Index == Utils.FaceScopeConstants.AdminFaceIndex);
+        if (adminFace == null)
+        {
+            adminFace = new Face
+            {
+                Index = Utils.FaceScopeConstants.AdminFaceIndex,
+                Title = "Admin",
+                Description = "Administration scope (admin UI only)",
+                GradientSettings = FaceGradientPresets.JsonForFaceIndex(Utils.FaceScopeConstants.AdminFaceIndex),
+                IsPublic = false,
+                CreatedAt = DateTime.UtcNow,
+            };
+            context.Faces.Add(adminFace);
+            await context.SaveChangesAsync();
+
+            var adminPages = new List<Page>
+            {
+                new Page { FaceId = adminFace.Id, PageTypeId = homePageType.Id, Name = "Home", Path = "/home", Index = 0, CreatedAt = DateTime.UtcNow },
+            };
+            if (wallPageType != null)
+            {
+                adminPages.Add(new Page { FaceId = adminFace.Id, PageTypeId = wallPageType.Id, Name = "Wall", Path = "/wall", Index = 1, CreatedAt = DateTime.UtcNow });
+            }
+
+            context.Pages.AddRange(adminPages);
+        }
+
         await context.SaveChangesAsync();
     }
 
@@ -315,6 +344,7 @@ public static class DatabaseSeeder
         var userRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.GlobalRoleNames.User);
         var faceHostRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.FaceRoleNames.FaceHost);
         var faceUserRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.FaceRoleNames.FaceUser);
+        var faceAdminRole = await context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.FaceRoleNames.FaceAdmin);
         var regularFaceRole = faceUserRole ?? faceHostRole;
 
         if (adminRole == null || userRole == null)
@@ -376,7 +406,8 @@ public static class DatabaseSeeder
                 context.UserProfiles.Add(profile);
                 await context.SaveChangesAsync();
 
-                // Create UserFaceProfile and UserFaceRole (FACE_HOST) for each face
+                // Create UserFaceProfile and UserFaceRole for each face.
+                // Demo admins get FaceAdmin on the admin scope face, FaceHost elsewhere (so they can open admin UI and tenants).
                 foreach (var face in faces)
                 {
                     context.UserFaceProfiles.Add(new UserFaceProfile
@@ -389,13 +420,16 @@ public static class DatabaseSeeder
                         FaceRoleIntroCompleted = false,
                         CreatedAt = DateTime.UtcNow
                     });
-                    if (faceHostRole != null)
+                    var useFaceAdmin = faceAdminRole != null &&
+                        string.Equals(face.Index, Utils.FaceScopeConstants.AdminFaceIndex, StringComparison.OrdinalIgnoreCase);
+                    var perFaceRoleId = useFaceAdmin ? faceAdminRole!.Id : faceHostRole?.Id;
+                    if (perFaceRoleId != null)
                     {
                         context.UserFaceRoles.Add(new UserFaceRole
                         {
                             UserId = user.Id,
                             FaceId = face.Id,
-                            UserRoleId = faceHostRole.Id,
+                            UserRoleId = perFaceRoleId.Value,
                             CreatedAt = DateTime.UtcNow
                         });
                     }
@@ -528,7 +562,102 @@ public static class DatabaseSeeder
         }
 
         await context.SaveChangesAsync();
+        await EnsureSecondStoryImageForDemoStoriesAsync(context, demoUserIds);
+        await ReactivateDemoExpiredStoriesAsync(context, demoUserIds);
         Console.WriteLine("✅ Face grid demo content seeded (idempotent)");
+    }
+
+    /// <summary>
+    /// Demo stories seeded with one image get a second slide so FE hover slideshow has material (idempotent).
+    /// </summary>
+    private static async Task EnsureSecondStoryImageForDemoStoriesAsync(
+        ApplicationDbContext context,
+        List<string> demoUserIds)
+    {
+        if (demoUserIds.Count == 0) return;
+
+        var stories = await context.Stories
+            .Include(s => s.Images)
+            .Where(s => demoUserIds.Contains(s.CreatorId))
+            .ToListAsync();
+
+        var added = 0;
+        foreach (var story in stories)
+        {
+            if (story.Images.Count != 1) continue;
+            context.StoryImages.Add(new StoryImage
+            {
+                StoryId = story.Id,
+                ImageUrl = $"https://picsum.photos/seed/storyslide2-{story.Id}/400/700",
+                SortOrder = 1,
+                Description = "Slide 2",
+                CreatedAt = DateTime.UtcNow,
+            });
+            added++;
+        }
+
+        if (added > 0)
+        {
+            await context.SaveChangesAsync();
+            Console.WriteLine($"✅ Added second slide to {added} demo stor(y/ies) (hover slideshow)");
+        }
+    }
+
+    /// <summary>
+    /// Runs <see cref="ReactivateDemoExpiredStoriesAsync"/> using current @demo.com user ids.
+    /// Called on API startup so listable stories stay visible even when <see cref="SeedFaceGridContentAsync"/> was skipped or failed earlier in the pipeline.
+    /// </summary>
+    public static async Task ReactivateExpiredStoriesForStartupAsync(ApplicationDbContext context)
+    {
+        var demoUserIds = await context.Users
+            .AsNoTracking()
+            .Where(u => u.Email != null && u.Email.EndsWith("@demo.com"))
+            .Select(u => u.Id)
+            .ToListAsync();
+        await ReactivateDemoExpiredStoriesAsync(context, demoUserIds);
+    }
+
+    /// <summary>
+    /// Demo: stories with elapsed TTL or <see cref="StoryState.Expired"/> become list-visible again (Published + far-future <see cref="Story.ExpiresAt"/>).
+    /// In Production only creators in <paramref name="demoUserIds"/> are updated; in other environments all matching rows are updated.
+    /// </summary>
+    private static async Task ReactivateDemoExpiredStoriesAsync(ApplicationDbContext context, List<string> demoUserIds)
+    {
+        var now = DateTime.UtcNow;
+        var until = now.AddYears(10);
+
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")
+                  ?? Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT")
+                  ?? "";
+        var productionLike = env.Equals("Production", StringComparison.OrdinalIgnoreCase);
+
+        var q = context.Stories.Where(s =>
+            (s.State == StoryState.Published && s.ExpiresAt != null && s.ExpiresAt <= now) ||
+            s.State == StoryState.Expired);
+
+        if (productionLike)
+        {
+            if (demoUserIds.Count == 0)
+                return;
+            q = q.Where(s => demoUserIds.Contains(s.CreatorId));
+        }
+
+        var stories = await q.ToListAsync();
+
+        foreach (var s in stories)
+        {
+            s.State = StoryState.Published;
+            s.ExpiresAt = until;
+            if (s.PublishedAt == null || s.PublishedAt > now)
+                s.PublishedAt = now.AddMinutes(-10);
+            s.UpdatedAt = now;
+        }
+
+        if (stories.Count > 0)
+        {
+            await context.SaveChangesAsync();
+            Console.WriteLine($"✅ Reactivated {stories.Count} demo stor(y/ies) (extended ExpiresAt)");
+        }
     }
 
     private static async Task NormalizeDemoUserFaceRolesForProfileGridAsync(ApplicationDbContext context)
@@ -697,7 +826,7 @@ public static class DatabaseSeeder
                 Title = $"Story {i + 1} (face {faceId})",
                 State = StoryState.Published,
                 PublishedAt = now.AddMinutes(-10),
-                ExpiresAt = now.AddDays(1),
+                ExpiresAt = now.AddYears(10),
                 CreatedAt = now,
             };
             context.Stories.Add(story);
@@ -714,6 +843,14 @@ public static class DatabaseSeeder
                 ImageUrl = $"https://picsum.photos/seed/story{faceId}{userId.GetHashCode()}{i}/400/700",
                 SortOrder = 0,
                 Description = "Cover",
+                CreatedAt = now,
+            });
+            context.StoryImages.Add(new StoryImage
+            {
+                StoryId = story.Id,
+                ImageUrl = $"https://picsum.photos/seed/story2-{faceId}-{userId.GetHashCode()}-{i}/400/700",
+                SortOrder = 1,
+                Description = "Slide 2",
                 CreatedAt = now,
             });
         }

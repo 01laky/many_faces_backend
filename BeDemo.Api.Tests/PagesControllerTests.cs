@@ -79,24 +79,14 @@ public class PagesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         return _authToken;
     }
 
-    /// <summary>
-    /// Helper method to create a Face for testing
-    /// </summary>
-    private async Task<int> CreateTestFaceAsync()
+    /// <summary>Face id for the current URL scope (tests use the default <c>public</c> client).</summary>
+    private async Task<int> GetScopedFaceIdAsync()
     {
         var token = await GetAuthTokenAsync();
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-        var faceResponse = await _client.PostAsJsonAsync("/api/faces", new
-        {
-            index = $"test_{Guid.NewGuid()}",
-            title = "Test Face",
-            description = "Test Description"
-        });
-
-        faceResponse.StatusCode.Should().Be(HttpStatusCode.Created);
-        var face = await faceResponse.Content.ReadFromJsonAsync<JsonElement>();
-        return (int)face.GetProperty("id").GetInt32();
+        var cfg = await _client.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
+        cfg.Should().NotBeNull();
+        return cfg![0].GetProperty("id").GetInt32();
     }
 
     /// <summary>
@@ -151,7 +141,7 @@ public class PagesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         var token = await GetAuthTokenAsync();
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var faceId = await CreateTestFaceAsync();
+        var faceId = await GetScopedFaceIdAsync();
         var pageTypeId = await CreateTestPageTypeAsync();
 
         var createResponse = await _client.PostAsJsonAsync("/api/pages", new
@@ -185,7 +175,7 @@ public class PagesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         var token = await GetAuthTokenAsync();
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var faceId = await CreateTestFaceAsync();
+        var faceId = await GetScopedFaceIdAsync();
         var pageTypeId = await CreateTestPageTypeAsync();
 
         var createRequest = new
@@ -239,7 +229,7 @@ public class PagesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         var token = await GetAuthTokenAsync();
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var faceId = await CreateTestFaceAsync();
+        var faceId = await GetScopedFaceIdAsync();
         var pageTypeId = await CreateTestPageTypeAsync();
 
         var createResponse = await _client.PostAsJsonAsync("/api/pages", new
@@ -276,7 +266,7 @@ public class PagesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         var token = await GetAuthTokenAsync();
         _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var faceId = await CreateTestFaceAsync();
+        var faceId = await GetScopedFaceIdAsync();
         var pageTypeId = await CreateTestPageTypeAsync();
 
         var createResponse = await _client.PostAsJsonAsync("/api/pages", new

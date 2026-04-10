@@ -9,6 +9,7 @@
  */
 
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
@@ -80,6 +81,14 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         return _authToken;
     }
 
+    private async Task<HttpClient> CreateAdminApiClientAsync()
+    {
+        var admin = _factory.CreateFaceClient("admin");
+        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(admin);
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return admin;
+    }
+
     [Fact]
     public async Task GetUsers_ShouldReturnUnauthorized_WhenNoToken()
     {
@@ -111,29 +120,24 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     [Fact]
     public async Task GetUser_ShouldReturnUser_WhenValidId()
     {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        using var admin = await CreateAdminApiClientAsync();
 
-        // Create a user first
-        var createResponse = await _client.PostAsJsonAsync("/api/users", new
+        var createResponse = await admin.PostAsJsonAsync("/api/users", new
         {
             email = $"test_{Guid.NewGuid()}@test.com",
             password = "Test123!@#",
             firstName = "Test",
-            lastName = "User"
+            lastName = "User",
         });
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var createdUserJson = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
-        string userId = createdUserJson.GetProperty("id").GetString() ?? string.Empty;
+        var userId = createdUserJson.GetProperty("id").GetString() ?? string.Empty;
 
-        // Act
-        var response = await _client.GetAsync($"/api/users/{userId}");
+        var response = await admin.GetAsync($"/api/users/{userId}");
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var user = await response.Content.ReadFromJsonAsync<JsonElement>();
-        user.ValueKind.Should().Be(JsonValueKind.Object);
+        user!.ValueKind.Should().Be(JsonValueKind.Object);
         user.GetProperty("id").GetString().Should().Be(userId);
     }
 
@@ -154,25 +158,21 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     [Fact]
     public async Task CreateUser_ShouldReturnCreated_WhenValidData()
     {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        using var admin = await CreateAdminApiClientAsync();
 
         var createRequest = new
         {
             email = $"test_{Guid.NewGuid()}@test.com",
             password = "Test123!@#",
             firstName = "Test",
-            lastName = "User"
+            lastName = "User",
         };
 
-        // Act
-        var response = await _client.PostAsJsonAsync("/api/users", createRequest);
+        var response = await admin.PostAsJsonAsync("/api/users", createRequest);
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
         var user = await response.Content.ReadFromJsonAsync<JsonElement>();
-        user.ValueKind.Should().Be(JsonValueKind.Object);
+        user!.ValueKind.Should().Be(JsonValueKind.Object);
         user.GetProperty("email").GetString().Should().Be(createRequest.email);
     }
 
@@ -201,32 +201,27 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     [Fact]
     public async Task UpdateUser_ShouldReturnOk_WhenValidData()
     {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        using var admin = await CreateAdminApiClientAsync();
 
-        // Create a user first
-        var createResponse = await _client.PostAsJsonAsync("/api/users", new
+        var createResponse = await admin.PostAsJsonAsync("/api/users", new
         {
             email = $"test_{Guid.NewGuid()}@test.com",
             password = "Test123!@#",
             firstName = "Test",
-            lastName = "User"
+            lastName = "User",
         });
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
         var createdUser = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
-        string userId = createdUser.GetProperty("id").GetString() ?? string.Empty;
+        var userId = createdUser.GetProperty("id").GetString() ?? string.Empty;
 
         var updateRequest = new
         {
             firstName = "Updated",
-            lastName = "Name"
+            lastName = "Name",
         };
 
-        // Act
-        var response = await _client.PutAsJsonAsync($"/api/users/{userId}", updateRequest);
+        var response = await admin.PutAsJsonAsync($"/api/users/{userId}", updateRequest);
 
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var updatedUser = await response.Content.ReadFromJsonAsync<JsonElement>();
         updatedUser.ValueKind.Should().Be(JsonValueKind.Object);

@@ -4,8 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using BeDemo.Api.Data;
-using BeDemo.Api.Models;
-using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Tests;
 
@@ -33,6 +31,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                         context.Database.EnsureCreated();
                         BeDemo.Api.Scripts.DatabaseSeeder.SeedDataOnlyAsync(context).GetAwaiter().GetResult();
+                        IntegrationTestSeed.EnsureAsync(scope.ServiceProvider).GetAwaiter().GetResult();
                         _databaseInitialized = true;
                     }
                 }
@@ -46,4 +45,20 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
             logging.SetMinimumLevel(LogLevel.Warning);
         });
     }
+
+    /// <summary>
+    /// HTTP client that prefixes requests with <c>/{face}/</c> for API and SignalR paths (see <see cref="FaceScopeTestHandler"/>).
+    /// </summary>
+    public HttpClient CreateFaceClient(string faceIndex = "public", WebApplicationFactoryClientOptions? options = null)
+    {
+        _ = options;
+        return CreateDefaultClient(new FaceScopeTestHandler(faceIndex));
+    }
+
+    public new HttpClient CreateClient() => CreateFaceClient("public");
+
+    public new HttpClient CreateClient(WebApplicationFactoryClientOptions options) => CreateFaceClient("public", options);
+
+    /// <summary>Test server client without face prefix (for asserting legacy bare <c>/api/...</c> behavior).</summary>
+    public HttpClient CreateUnscopedClient() => base.CreateClient();
 }

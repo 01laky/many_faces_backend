@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
@@ -100,11 +101,29 @@ public class FacesControllerConfigTests : IClassFixture<CustomWebApplicationFact
             face.TryGetProperty("index", out _).Should().BeTrue();
         }
 
-        // Verify seeded faces exist
+        // Anonymous callers on the public tenant URL only receive public faces (see FacesController.GetFacesConfig).
         var faceIndices = facesConfig.Select(f => f.GetProperty("index").GetString()).ToList();
         faceIndices.Should().Contain("public");
-        faceIndices.Should().Contain("basic");
-        faceIndices.Should().Contain("koncept");
+        faceIndices.Should().NotContain("basic");
+        faceIndices.Should().NotContain("koncept");
+    }
+
+    [Fact]
+    public async Task GetFacesConfig_ShouldListAllSeededFaces_WhenGlobalAdminOnAdminScope()
+    {
+        using var admin = _factory.CreateFaceClient("admin");
+        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(admin);
+        admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await admin.GetAsync("/api/faces/config");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var facesConfig = await response.Content.ReadFromJsonAsync<JsonElement[]>();
+        facesConfig.Should().NotBeNull();
+        var indices = facesConfig!.Select(f => f.GetProperty("index").GetString()).ToList();
+        indices.Should().Contain("public");
+        indices.Should().Contain("basic");
+        indices.Should().Contain("koncept");
+        indices.Should().Contain("admin");
     }
 
     [Fact]

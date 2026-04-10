@@ -71,21 +71,7 @@ public class BlogsControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
     }
 
-    private async Task<int> CreateTestFaceAsync()
-    {
-        var token = await GetAuthTokenAsync();
-        SetAuth(token);
-
-        var resp = await _client.PostAsJsonAsync("/api/faces", new
-        {
-            index = $"blog_test_{Guid.NewGuid()}",
-            title = "Blog Test Face",
-            description = "For blog tests"
-        });
-        resp.StatusCode.Should().Be(HttpStatusCode.Created);
-        var face = await resp.Content.ReadFromJsonAsync<JsonElement>();
-        return face.GetProperty("id").GetInt32();
-    }
+    private Task<int> CreateTestFaceAsync() => IntegrationTestFaceHelper.CreateUniqueFaceIdAsync(_factory);
 
     private async Task<int> CreateTestBlogAsync(int? faceId = null, List<string>? imageUrls = null)
     {
@@ -267,17 +253,20 @@ public class BlogsControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     }
 
     [Fact]
-    public async Task GetBlogs_ShouldFilterByFace()
+    public async Task GetBlogs_ShouldFilterByTenantScopedFaceId_FromMiddleware()
     {
         SetAuth(await GetAuthTokenAsync());
-        var faceId = await CreateTestFaceAsync();
-        await CreateTestBlogAsync(faceId: faceId);
-        await CreateTestBlogAsync(faceId: faceId);
+        var cfg = await _client.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
+        var scopedFaceId = cfg![0].GetProperty("id").GetInt32();
+        await CreateTestBlogAsync(faceId: scopedFaceId);
+        await CreateTestBlogAsync(faceId: scopedFaceId);
 
-        var response = await _client.GetAsync($"/api/blogs?faceId={faceId}");
+        var response = await _client.GetAsync("/api/blogs");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var blogs = await response.Content.ReadFromJsonAsync<JsonElement>();
         blogs.GetArrayLength().Should().BeGreaterThanOrEqualTo(2);
+        foreach (var b in blogs.EnumerateArray())
+            b.GetProperty("faceId").GetInt32().Should().Be(scopedFaceId);
     }
 
     [Fact]
