@@ -13,7 +13,7 @@ The Backend API (be_demo) provides a RESTful API for user authentication, author
 - **Session invalidation (J6):** access tokens carry claim `atv` (matches `AspNetUsers.AccessTokenVersion`). Admin **password reset** via `PUT /api/users/{id}` increments the version and revokes refresh tokens for that user.
 - **Swagger in production:** disabled unless `Swagger:EnableInProduction` is `true`.
 - **Emergency:** bump `AccessTokenVersion` in the database and revoke `OAuthRefreshTokens` rows for a user to invalidate all sessions.
-- **Gap list vs. hardening prompt:** see repository root `SECURITY_GAP_ANALYSIS.md`.
+- **Security backlog / deferred follow-ups:** in the monorepo root, see [`docs/guides/security-crypto-sockets.md`](../docs/guides/security-crypto-sockets.md) (baseline table and **Deferred follow-ups**).
 
 ## Features
 
