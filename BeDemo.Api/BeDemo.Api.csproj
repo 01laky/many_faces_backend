@@ -27,7 +27,8 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
     <PackageReference Include="Google.Protobuf" Version="3.34.1" />
     <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />
-    <PackageReference Include="Grpc.Tools" Version="2.80.0">
+    <!-- Grpc.Tools 2.80 linux_arm64 protoc can segfault in Docker (MSB6006 exit 139); keep tools line aligned with last known-good in dev images. -->
+    <PackageReference Include="Grpc.Tools" Version="2.63.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
