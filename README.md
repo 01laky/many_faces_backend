@@ -4,7 +4,7 @@ ASP.NET Core WebAPI project with Identity framework and PostgreSQL database.
 
 ## Overview
 
-The Backend API (be_demo) provides a RESTful API for user authentication, authorization, and management. It uses ASP.NET Core Identity for user management, Entity Framework Core for access to PostgreSQL, and OAuth2-issued JWTs for bearer APIs.
+The Backend API (**many_faces_backend**; monorepo path `be_demo/`) provides a RESTful API for user authentication, authorization, and management. It uses ASP.NET Core Identity for user management, Entity Framework Core for access to PostgreSQL, and OAuth2-issued JWTs for bearer APIs.
 
 The backend is the trust boundary for the Many Faces AI demo. It owns authentication, token issuing, face-aware request routing, role and capability evaluation, persisted social data, page/grid schemas, real-time hubs, AI integration, Redis-backed background work, structured logs, and OpenAPI contracts consumed by the frontend and admin submodules.
 
@@ -22,7 +22,7 @@ For engineers, the backend is designed as a layered ASP.NET Core service: middle
 - Backend-enforced checks for face-specific data access, admin operations, role selection, and private face behaviour.
 - Capability responses through `/api/me/capabilities` so clients can render role-aware UI without guessing.
 - CRUD and domain APIs for users, faces, pages, page types, route translations, profiles, albums, blogs, reels, stories, wall listings, chats, comments, likes, follows, blocks, and notifications.
-- Page `gridSchema` persistence used by `admin_demo` to configure layouts and by `fe_demo` to render them.
+- Page `gridSchema` persistence used by **many_faces_admin** (`admin_demo/`) to configure layouts and by **many_faces_portal** (`fe_demo/`) to render them.
 - SignalR hubs for chat and real-time communication.
 - AI gRPC client integration and Redis-backed queue infrastructure for asynchronous workflows.
 - Structured Serilog/Seq logging, Swagger/OpenAPI documentation, migrations, seed data, and unit/integration tests.
@@ -71,7 +71,7 @@ The intended solution shape is:
 
 ```mermaid
 flowchart TD
-    client["fe_demo / admin_demo / API client"] --> url["HTTP or HTTPS request<br/>/{face-prefix}/api/... or /api/oauth2/..."]
+    client["many_faces_portal / many_faces_admin / API client"] --> url["HTTP or HTTPS request<br/>/{face-prefix}/api/... or /api/oauth2/..."]
     url --> routing["RoutingMiddleware<br/>resolve face prefix + rewrite path"]
     routing --> scope["Trusted face scope<br/>HttpContext.Items + requestFaceID"]
     scope --> auth["JWT Bearer authentication<br/>ES512 signature + issuer/audience/lifetime"]
@@ -133,13 +133,13 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    admin["admin_demo<br/>EditPagePage"] --> pagesApi["PagesController"]
+    admin["many_faces_admin<br/>EditPagePage"] --> pagesApi["PagesController"]
     pagesApi --> validate["Validate face, page type,<br/>authorization, route translations"]
     validate --> save["Save Page.GridSchema<br/>JSON string"]
     save --> db["PostgreSQL Pages table"]
 
     db --> faceConfig["FacesController config response<br/>faces + pages + page types"]
-    faceConfig --> frontend["fe_demo"]
+    faceConfig --> frontend["many_faces_portal"]
     frontend --> parse["PageGridLayout parses gridSchema"]
     parse --> render["ComponentBlock renders<br/>album/blog/reel/story/chat/profile blocks"]
 ```
@@ -658,12 +658,12 @@ Tests cover:
 
 This backend is part of the **`many_faces_main`** monorepo (`be_demo/` submodule on GitHub: `many_faces_backend`) and integrates with:
 
-- **Database**: `db_demo` (PostgreSQL)
-- **Redis**: `redis_demo` (job queue)
-- **Frontend**: `fe_demo` (React + Vite)
-- **Admin**: `admin_demo` (React + Vite admin panel)
-- **AI Demo**: `ai_demo` (Python gRPC server)
-- **Logger Demo**: `logger_demo` (Dozzle log viewer)
+- **Database**: **many_faces_database** (`db_demo/`)
+- **Redis**: **many_faces_redis** (`redis_demo/`)
+- **Frontend**: **many_faces_portal** (`fe_demo/`)
+- **Admin**: **many_faces_admin** (`admin_demo/`)
+- **AI Demo**: **many_faces_ai** (`ai_demo/`)
+- **Logger Demo**: **many_faces_logger** (`logger_demo/`)
 
 Use root-level scripts to manage all services:
 

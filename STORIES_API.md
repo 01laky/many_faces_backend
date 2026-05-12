@@ -4,7 +4,7 @@ Stories are **draft → scheduled (optional) → published (24h) → expired**. 
 
 **Lists** (`GET /api/stories`) are only returned for viewers who have a **non-host** face role in the given face. **No `faceIds` on create** means the story targets **all** faces (same idea as reels).
 
-**Full OAuth2 + face role + curl walkthrough** (Slovak, step-by-step): in the **`mfai_demo` monorepo root**, see [`docs/api-oauth-stories-curl.md`](../docs/api-oauth-stories-curl.md).
+**Full OAuth2 + face role + curl walkthrough** (Slovak, step-by-step): in the **`many_faces_main`** monorepo root, see [`docs/api-oauth-stories-curl.md`](../docs/api-oauth-stories-curl.md).
 
 ## Endpoints
 
@@ -28,7 +28,7 @@ Redis jobs: `story.publish` (scheduled), `story.expire` (24h after publish).
 ```bash
 # Docker dev: 8000. dotnet run (launchSettings): often 8080.
 BASE=http://127.0.0.1:8000
-# 1) Register + OAuth2 token — see mfai_demo/docs/api-oauth-stories-curl.md
+# 1) Register + OAuth2 token — see many_faces_main/docs/api-oauth-stories-curl.md
 # 2) PUT /api/faces/{faceId}/my-role with non-host role (e.g. FACE_USER)
 # 3) Create draft
 STORY_ID=$(curl -sS -X POST "$BASE/api/stories" \
