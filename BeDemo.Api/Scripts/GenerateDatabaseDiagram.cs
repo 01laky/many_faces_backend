@@ -2,7 +2,7 @@
  * GenerateDatabaseDiagram.cs - Script to generate Mermaid ERD diagram from PostgreSQL database
  * 
  * This script extracts the database schema from PostgreSQL and generates a Mermaid ERD diagram
- * that is automatically saved to be_demo/README.md.
+ * that is automatically saved to many_faces_backend/README.md.
  */
 
 using System.Text;
@@ -19,7 +19,7 @@ namespace BeDemo.Api.Scripts;
 public static class DatabaseDiagramGenerator
 {
     /// <summary>
-    /// Generates Mermaid ERD diagram and saves it to be_demo/README.md
+    /// Generates Mermaid ERD diagram and saves it to many_faces_backend/README.md
     /// </summary>
     public static async Task GenerateDiagramAsync(ApplicationDbContext context, string connectionString)
     {
@@ -307,11 +307,11 @@ public static class DatabaseDiagramGenerator
     }
 
     /// <summary>
-    /// Saves diagram to documentation file in be_demo/README.md
+    /// Saves diagram to documentation file in many_faces_backend/README.md
     /// </summary>
     private static async Task SaveDiagramToFileAsync(string diagram)
     {
-        // Try multiple paths to find be_demo/README.md
+        // Try multiple paths to find many_faces_backend/README.md
         var possiblePaths = new List<string>();
 
         // 1. Try relative to current execution directory (from BeDemo.Api)
@@ -323,7 +323,7 @@ public static class DatabaseDiagramGenerator
         var assemblyDir = Path.GetDirectoryName(typeof(DatabaseDiagramGenerator).Assembly.Location);
         if (!string.IsNullOrEmpty(assemblyDir))
         {
-            // From bin/Debug/net10.0 -> BeDemo.Api -> be_demo -> README.md
+            // From bin/Debug/net10.0 -> BeDemo.Api -> many_faces_backend -> README.md
             var assemblyReadme = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", "README.md"));
             possiblePaths.Add(assemblyReadme);
         }
@@ -336,15 +336,15 @@ public static class DatabaseDiagramGenerator
             possiblePaths.Add(apiReadme);
         }
 
-        // Find the first existing README.md in be_demo directory
+        // Find the first existing README.md in many_faces_backend directory
         string? readmePath = null;
         foreach (var path in possiblePaths.Distinct())
         {
             if (File.Exists(path))
             {
-                // Verify it's in be_demo directory by checking parent directory name
+                // Verify it's in many_faces_backend directory by checking parent directory name
                 var parentDir = Path.GetDirectoryName(path);
-                if (parentDir != null && (Path.GetFileName(parentDir) == "be_demo" || parentDir.Contains("be_demo")))
+                if (parentDir != null && (Path.GetFileName(parentDir) == "many_faces_backend" || parentDir.Contains("many_faces_backend")))
                 {
                     readmePath = path;
                     break;
@@ -352,16 +352,16 @@ public static class DatabaseDiagramGenerator
             }
         }
 
-        // Fallback: try to find be_demo/README.md from common structures
+        // Fallback: try to find many_faces_backend/README.md from common structures
         if (readmePath == null)
         {
-            // From current directory, go up to find be_demo
+            // From current directory, go up to find many_faces_backend
             var checkDir = currentDir;
             for (int i = 0; i < 5; i++)
             {
                 var checkReadme = Path.Combine(checkDir, "README.md");
                 var checkParent = Path.GetDirectoryName(checkDir);
-                if (checkParent != null && Path.GetFileName(checkDir) == "be_demo" && File.Exists(checkReadme))
+                if (checkParent != null && Path.GetFileName(checkDir) == "many_faces_backend" && File.Exists(checkReadme))
                 {
                     readmePath = checkReadme;
                     break;
@@ -373,7 +373,7 @@ public static class DatabaseDiagramGenerator
 
         if (readmePath == null || !File.Exists(readmePath))
         {
-            Console.WriteLine($"⚠️  be_demo/README.md not found. Tried paths:");
+            Console.WriteLine($"⚠️  many_faces_backend/README.md not found. Tried paths:");
             foreach (var path in possiblePaths)
             {
                 Console.WriteLine($"   - {path}");

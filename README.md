@@ -4,7 +4,7 @@ ASP.NET Core WebAPI project with Identity framework and PostgreSQL database.
 
 ## Overview
 
-The Backend API (**many_faces_backend**; monorepo path `be_demo/`) provides a RESTful API for user authentication, authorization, and management. It uses ASP.NET Core Identity for user management, Entity Framework Core for access to PostgreSQL, and OAuth2-issued JWTs for bearer APIs.
+The Backend API (**many_faces_backend**; monorepo path `many_faces_backend/`) provides a RESTful API for user authentication, authorization, and management. It uses ASP.NET Core Identity for user management, Entity Framework Core for access to PostgreSQL, and OAuth2-issued JWTs for bearer APIs.
 
 The backend is the trust boundary for the Many Faces AI demo. It owns authentication, token issuing, face-aware request routing, role and capability evaluation, persisted social data, page/grid schemas, real-time hubs, AI integration, Redis-backed background work, structured logs, and OpenAPI contracts consumed by the frontend and admin submodules.
 
@@ -22,7 +22,7 @@ For engineers, the backend is designed as a layered ASP.NET Core service: middle
 - Backend-enforced checks for face-specific data access, admin operations, role selection, and private face behaviour.
 - Capability responses through `/api/me/capabilities` so clients can render role-aware UI without guessing.
 - CRUD and domain APIs for users, faces, pages, page types, route translations, profiles, albums, blogs, reels, stories, wall listings, chats, comments, likes, follows, blocks, and notifications.
-- Page `gridSchema` persistence used by **many_faces_admin** (`admin_demo/`) to configure layouts and by **many_faces_portal** (`fe_demo/`) to render them.
+- Page `gridSchema` persistence used by **many_faces_admin** (`many_faces_admin/`) to configure layouts and by **many_faces_portal** (`many_faces_portal/`) to render them.
 - SignalR hubs for chat and real-time communication.
 - AI gRPC client integration and Redis-backed queue infrastructure for asynchronous workflows.
 - Structured Serilog/Seq logging, Swagger/OpenAPI documentation, migrations, seed data, and unit/integration tests.
@@ -205,7 +205,7 @@ flowchart TD
     pending --> job["Enqueue content.ai-review"]
 
     job --> worker["RedisJobWorkerService"]
-    worker --> ai["ai_demo ReviewContent"]
+    worker --> ai["many_faces_ai ReviewContent"]
     ai --> policy["Policy validation + version check"]
 
     policy --> recApprove["RecommendedApprove"]
@@ -294,7 +294,7 @@ flowchart TD
 ## Project Structure
 
 ```
-be_demo/
+many_faces_backend/
 ├── BeDemo.Api/              # Main API project
 │   ├── Controllers/         # API controllers (Auth, OAuth2, Users, Faces, Pages)
 │   ├── Services/            # Business logic services (IFaceService, FaceService)
@@ -378,8 +378,8 @@ To perform a clean rebuild of Docker images:
 
 ### Local Development (Without Docker)
 
-1. **Ensure PostgreSQL is running** (see `db_demo` folder or monorepo `./scripts/start-all-dev.sh`)
-2. **For job queue**: Redis via submodule `redis_demo` (`./start-redis.sh` or monorepo `./scripts/start-all-dev.sh`)
+1. **Ensure PostgreSQL is running** (see `many_faces_database` folder or monorepo `./scripts/start-all-dev.sh`)
+2. **For job queue**: Redis via submodule `many_faces_redis` (`./start-redis.sh` or monorepo `./scripts/start-all-dev.sh`)
 
 3. **Install .NET SDK 10.0**
 
@@ -621,9 +621,9 @@ dotnet ef migrations remove
 
 ## Development Workflow
 
-1. **Start database**: Ensure PostgreSQL is running (via `db_demo` or monorepo `./scripts/start-all-dev.sh`)
+1. **Start database**: Ensure PostgreSQL is running (via `many_faces_database` or monorepo `./scripts/start-all-dev.sh`)
 
-2. **Start Redis** (optional, for job queue): submodule `redis_demo` or monorepo `./scripts/start-all-dev.sh`
+2. **Start Redis** (optional, for job queue): submodule `many_faces_redis` or monorepo `./scripts/start-all-dev.sh`
 
 3. **Start backend**: Run `./start-dev.sh` or use monorepo `./scripts/start-all-dev.sh` to start all services
 
@@ -643,7 +643,7 @@ Run unit tests (no PostgreSQL required; tests use an in-memory database):
 
 ```bash
 yarn test
-# or from repo root: cd be_demo && yarn test
+# or from repo root: cd many_faces_backend && yarn test
 ```
 
 Tests cover:
@@ -656,14 +656,14 @@ Tests cover:
 
 ## Integration with Root Project
 
-This backend is part of the **`many_faces_main`** monorepo (`be_demo/` submodule on GitHub: `many_faces_backend`) and integrates with:
+This backend is part of the **`many_faces_main`** monorepo (`many_faces_backend/` submodule on GitHub: `many_faces_backend`) and integrates with:
 
-- **Database**: **many_faces_database** (`db_demo/`)
-- **Redis**: **many_faces_redis** (`redis_demo/`)
-- **Frontend**: **many_faces_portal** (`fe_demo/`)
-- **Admin**: **many_faces_admin** (`admin_demo/`)
-- **AI Demo**: **many_faces_ai** (`ai_demo/`)
-- **Logger Demo**: **many_faces_logger** (`logger_demo/`)
+- **Database**: **many_faces_database** (`many_faces_database/`)
+- **Redis**: **many_faces_redis** (`many_faces_redis/`)
+- **Frontend**: **many_faces_portal** (`many_faces_portal/`)
+- **Admin**: **many_faces_admin** (`many_faces_admin/`)
+- **AI Demo**: **many_faces_ai** (`many_faces_ai/`)
+- **Logger Demo**: **many_faces_logger** (`many_faces_logger/`)
 
 Use root-level scripts to manage all services:
 
@@ -694,7 +694,7 @@ lsof -ti:8000,8001 | xargs kill -9
 
 - Ensure PostgreSQL container is running: `docker ps | grep postgres-dev`
 - Check connection string in `docker-compose.dev.yml`
-- Verify database credentials match `db_demo` configuration
+- Verify database credentials match `many_faces_database` configuration
 
 ### Seq Logging Server Not Accessible
 

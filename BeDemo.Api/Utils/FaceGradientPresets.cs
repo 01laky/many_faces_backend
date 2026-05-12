@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace BeDemo.Api.Utils;
 
 /// <summary>
-/// Default animated gradients for faces (JSON matches fe_demo useAnimatedGradient / GradientPicker).
+/// Default animated gradients for faces (JSON matches many_faces_portal useAnimatedGradient / GradientPicker).
 /// </summary>
 public static class FaceGradientPresets
 {

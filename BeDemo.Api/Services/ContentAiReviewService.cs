@@ -127,7 +127,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         AddEvent(item, oldAiStatus, AiReviewStatus.InProgress, ModerationActorType.System, "AI review started.");
         await _context.SaveChangesAsync(cancellationToken);
 
-        // gRPC call into ai_demo; failures are handled separately from invalid JSON recommendations.
+        // gRPC call into many_faces_ai; failures are handled separately from invalid JSON recommendations.
         var result = await _aiGrpcService.ReviewContentAsync(item.ToAiRequest(), cancellationToken);
         if (result.Recommendation == null)
         {

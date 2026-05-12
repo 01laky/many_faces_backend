@@ -1,5 +1,5 @@
 /*
- * AiGrpcService.cs - gRPC client for Python AI service (ai_demo)
+ * AiGrpcService.cs - gRPC client for Python AI service (many_faces_ai)
  *
  * Calls the Generate RPC on the AI service. Address is read from configuration
  * (AiService:GrpcAddress or AI_SERVICE_GRPC_ADDRESS), e.g. http://ai-demo-dev:50051.

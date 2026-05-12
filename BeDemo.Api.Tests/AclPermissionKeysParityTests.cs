@@ -6,7 +6,7 @@ namespace BeDemo.Api.Tests;
 
 /// <summary>
 /// **Cross-repo contract test:** backend constants in <see cref="AclPermissionKeys"/> must stay in lockstep
-/// with the sorted union exported by both SPAs (<c>fe_demo</c>/<c>admin_demo</c> <c>src/acl/aclPermissionKeys.ts</c>,
+/// with the sorted union exported by both SPAs (<c>many_faces_portal</c>/<c>many_faces_admin</c> <c>src/acl/aclPermissionKeys.ts</c>,
 /// symbol <c>ALL_ACL_PERMISSION_KEYS_SORTED</c>). If this fails, either update the TS catalog or add the new
 /// permission server-side first — otherwise the UI will compile capabilities the API never issues.
 /// </summary>

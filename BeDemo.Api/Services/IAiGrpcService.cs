@@ -1,7 +1,7 @@
 /*
  * IAiGrpcService.cs - Interface for AI gRPC client
  *
- * Used by ChatHub to call the Python AI service (ai_demo) via gRPC Generate RPC.
+ * Used by ChatHub to call the Python AI service (many_faces_ai) via gRPC Generate RPC.
  */
 
 using BeDemo.Api.Models;
