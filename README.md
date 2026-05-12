@@ -656,7 +656,7 @@ Tests cover:
 
 ## Integration with Root Project
 
-This backend is part of the `_mfai_demo` monorepo and integrates with:
+This backend is part of the **`many_faces_main`** monorepo (`be_demo/` submodule on GitHub: `many_faces_backend`) and integrates with:
 
 - **Database**: `db_demo` (PostgreSQL)
 - **Redis**: `redis_demo` (job queue)
