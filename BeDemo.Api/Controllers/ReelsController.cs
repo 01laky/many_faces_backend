@@ -9,6 +9,7 @@ using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
 
+/// <summary>Reel CRUD with multi-face visibility rules and moderation-aware submission paths.</summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
@@ -17,15 +18,19 @@ public class ReelsController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly IRedisJobQueue _jobQueue;
     private readonly ILogger<ReelsController> _logger;
+    /// <summary>Queues in-app notifications when reels enter the moderation pipeline.</summary>
+    private readonly IContentModerationNotifier _moderationNotifier;
 
     public ReelsController(
         ApplicationDbContext context,
         IRedisJobQueue jobQueue,
-        ILogger<ReelsController> logger)
+        ILogger<ReelsController> logger,
+        IContentModerationNotifier moderationNotifier)
     {
         _context = context;
         _jobQueue = jobQueue;
         _logger = logger;
+        _moderationNotifier = moderationNotifier;
     }
 
     private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -235,6 +240,17 @@ public class ReelsController : ControllerBase
                 UserId,
                 "Content submitted for approval.",
                 "Your content was created and is waiting for review."));
+            // Creator + super-admin notifications: safe copy only; detailed AI diagnostics stay server-side until admin review.
+            _moderationNotifier.NotifyCreator(
+                UserId,
+                "Submitted for approval",
+                "Your reel was submitted and is waiting for review.",
+                "content_moderation");
+            await _moderationNotifier.NotifySuperAdminsAsync(
+                "New pending submission",
+                $"Reel #{reel.Id} is pending moderation.",
+                "moderation_ops",
+                CancellationToken.None);
             await _context.SaveChangesAsync();
         }
 

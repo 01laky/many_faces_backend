@@ -84,8 +84,12 @@ if (builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("T
 }
 
 builder.Services.AddScoped<IChatRoomLifecycleService, ChatRoomLifecycleService>();
+// User-generated content moderation: AI job worker, dashboard metrics, in-app notifications, and optional retention cleanup.
 builder.Services.AddScoped<IContentAiReviewService, ContentAiReviewService>();
 builder.Services.AddScoped<IContentModerationMetrics, ContentModerationMetrics>();
+builder.Services.AddScoped<IContentModerationNotifier, ContentModerationNotifier>();
+builder.Services.AddScoped<IContentRetentionCleanupService, ContentRetentionCleanupService>();
+builder.Services.AddHostedService<ContentRetentionHostedService>();
 
 // Configure Serilog for structured logging
 // Serilog provides better logging capabilities than default .NET logging

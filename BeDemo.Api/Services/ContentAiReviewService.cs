@@ -5,23 +5,50 @@ using BeDemo.Api.Models;
 
 namespace BeDemo.Api.Services;
 
+/// <summary>Processes a single Redis-delivered AI review job for albums, blogs, or reels.</summary>
 public interface IContentAiReviewService
 {
     Task ProcessQueuedReviewAsync(string payloadJson, CancellationToken cancellationToken = default);
 }
 
+/// <summary>Aggregates moderation + AI job counters for dashboards and alerting.</summary>
 public interface IContentModerationMetrics
 {
     Task<ContentModerationMetricsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>Point-in-time snapshot materialized for <c>GET /api/contentmoderation/metrics</c> and alert evaluation.</summary>
 public sealed record ContentModerationMetricsSnapshot(
     int PendingSubmissions,
     int AiQueuedJobs,
     int AiProcessingJobs,
     int AiFailedJobs,
-    DateTime? OldestPendingSubmissionUtc);
+    DateTime? OldestPendingSubmissionUtc,
+    double? OldestPendingAgeHours,
+    double? AverageReviewLatencyHours,
+    double? P95ReviewLatencyHours,
+    int ApprovedCount,
+    int RejectedCount,
+    int RemovedCount,
+    int RecommendedApproveCount,
+    int RecommendedRejectCount,
+    int NeedsHumanReviewCount,
+    int AiJobsLikelyTimeoutCount,
+    IReadOnlyList<FlagCountDto> TopModerationFlags,
+    IReadOnlyList<FacePendingCountDto> PendingSubmissionsByFace);
 
+public sealed record FlagCountDto(string Flag, int Count);
+
+public sealed record FacePendingCountDto(int FaceId, string FaceTitle, int PendingCount);
+
+/// <summary>
+/// Worker invoked by the Redis job host. Responsible for:
+/// <list type="number">
+/// <item>Idempotency (stale moderation versions, duplicate completions).</item>
+/// <item>Calling the AI gRPC service and validating its recommendation.</item>
+/// <item>Retry scheduling vs terminal failure with creator + super-admin notifications.</item>
+/// </list>
+/// </summary>
 public sealed class ContentAiReviewService : IContentAiReviewService
 {
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMinutes(5);
@@ -30,17 +57,20 @@ public sealed class ContentAiReviewService : IContentAiReviewService
     private readonly IAiGrpcService _aiGrpcService;
     private readonly IRedisJobQueue _queue;
     private readonly ILogger<ContentAiReviewService> _logger;
+    private readonly IContentModerationNotifier _moderationNotifier;
 
     public ContentAiReviewService(
         ApplicationDbContext context,
         IAiGrpcService aiGrpcService,
         IRedisJobQueue queue,
-        ILogger<ContentAiReviewService> logger)
+        ILogger<ContentAiReviewService> logger,
+        IContentModerationNotifier moderationNotifier)
     {
         _context = context;
         _aiGrpcService = aiGrpcService;
         _queue = queue;
         _logger = logger;
+        _moderationNotifier = moderationNotifier;
     }
 
     public async Task ProcessQueuedReviewAsync(string payloadJson, CancellationToken cancellationToken = default)
@@ -59,6 +89,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
             return;
         }
 
+        // Creator edited/resubmitted after this job was queued: never apply stale AI results.
         if (item.ModerationVersion != payload.ModerationVersion)
         {
             _logger.LogInformation(
@@ -71,6 +102,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
             return;
         }
 
+        // Human moderation may have raced ahead of the worker; treat as successful no-op for the job.
         if (item.ApprovalStatus != ContentApprovalStatus.PendingApproval)
         {
             await MarkJobTerminalAsync(payload, AiReviewJobStatus.Completed, "Content no longer pending.", cancellationToken);
@@ -78,12 +110,15 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         }
 
         var job = await GetOrCreateJobAsync(item, payload, cancellationToken);
+        // Skip duplicate deliveries: job already finished or escalated to human review.
         if (job.Status is AiReviewJobStatus.Completed or AiReviewJobStatus.NeedsHumanReview)
             return;
+        // Failed jobs may be retried until attempts reach MaxAttempts (checked after increment in the caller path).
         if (job.Status == AiReviewJobStatus.Failed && job.Attempts >= job.MaxAttempts)
             return;
 
         var oldAiStatus = item.AiReviewStatus;
+        // Transition job + entity into an in-progress AI state visible to moderators.
         job.Status = AiReviewJobStatus.Processing;
         job.Attempts += 1;
         job.StartedAtUtc = DateTime.UtcNow;
@@ -92,6 +127,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         AddEvent(item, oldAiStatus, AiReviewStatus.InProgress, ModerationActorType.System, "AI review started.");
         await _context.SaveChangesAsync(cancellationToken);
 
+        // gRPC call into ai_demo; failures are handled separately from invalid JSON recommendations.
         var result = await _aiGrpcService.ReviewContentAsync(item.ToAiRequest(), cancellationToken);
         if (result.Recommendation == null)
         {
@@ -103,6 +139,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         ApplyRecommendation(item, result.Recommendation, validation);
         job.CompletedAtUtc = DateTime.UtcNow;
         job.LastError = validation.FallbackReason;
+        // NeedsHumanReview is both an AI status and a terminal job disposition when validation fails.
         job.Status = item.AiReviewStatus == AiReviewStatus.NeedsHumanReview
             ? AiReviewJobStatus.NeedsHumanReview
             : AiReviewJobStatus.Completed;
@@ -127,6 +164,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>Parses the Redis payload JSON; returns null if the envelope is malformed.</summary>
     private static AiReviewPayload? ParsePayload(string payloadJson)
     {
         try
@@ -209,6 +247,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         return job;
     }
 
+    /// <summary>Maps transient AI/gRPC errors to either a delayed retry or terminal human review.</summary>
     private async Task HandleFailureAsync(
         ModeratedContentSnapshot item,
         AiReviewJob job,
@@ -219,6 +258,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         job.LastError = ContentModerationHelpers.RedactForAudit(error);
         if (job.Attempts < job.MaxAttempts)
         {
+            // Exponential-style backoff is centralized in RetryDelay; reschedule the same payload.
             job.Status = AiReviewJobStatus.RetryScheduled;
             job.NextAttemptAtUtc = DateTime.UtcNow.Add(RetryDelay);
             item.AiReviewStatus = AiReviewStatus.Queued;
@@ -231,6 +271,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         }
         else
         {
+            // Out of retries: freeze item in NeedsHumanReview and page operators + creator via notifications.
             job.Status = AiReviewJobStatus.NeedsHumanReview;
             job.CompletedAtUtc = DateTime.UtcNow;
             item.AiReviewStatus = AiReviewStatus.NeedsHumanReview;
@@ -238,6 +279,16 @@ public sealed class ContentAiReviewService : IContentAiReviewService
             item.AiReviewReason = "AI review failed after retries.";
             item.AiReviewUserMessage = "Your content needs manual review.";
             AddEvent(item, oldAiStatus, AiReviewStatus.NeedsHumanReview, ModerationActorType.System, error);
+            _moderationNotifier.NotifyCreator(
+                item.CreatorId,
+                "Content needs manual review",
+                "AI review could not finish automatically. A moderator will review your submission.",
+                "content_moderation");
+            await _moderationNotifier.NotifySuperAdminsAsync(
+                "AI review exhausted retries",
+                $"{item.ContentType} #{item.ContentId} needs human review.",
+                "moderation_ops",
+                cancellationToken);
         }
 
         _logger.LogWarning(
@@ -250,6 +301,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>Copies validated AI fields onto the moderated entity snapshot (in-memory wrapper around EF entities).</summary>
     private void ApplyRecommendation(
         ModeratedContentSnapshot item,
         AiReviewRecommendation recommendation,
@@ -536,6 +588,10 @@ public sealed class ContentAiReviewService : IContentAiReviewService
     }
 }
 
+/// <summary>
+/// EF-backed metrics provider used by <c>ContentModerationController</c>.
+/// Computes queue depth, AI pipeline health, histogram-style latencies, and lightweight flag histograms over pending items.
+/// </summary>
 public sealed class ContentModerationMetrics : IContentModerationMetrics
 {
     private readonly ApplicationDbContext _context;
@@ -547,6 +603,7 @@ public sealed class ContentModerationMetrics : IContentModerationMetrics
 
     public async Task<ContentModerationMetricsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
     {
+        // Pending = still awaiting human decision (AI may already have recommended approve/reject).
         var pendingAlbums = _context.Albums.Where(a => a.ApprovalStatus == ContentApprovalStatus.PendingApproval);
         var pendingBlogs = _context.Blogs.Where(b => b.ApprovalStatus == ContentApprovalStatus.PendingApproval);
         var pendingReels = _context.Reels.Where(r => r.ApprovalStatus == ContentApprovalStatus.PendingApproval);
@@ -554,6 +611,7 @@ public sealed class ContentModerationMetrics : IContentModerationMetrics
             await pendingAlbums.CountAsync(cancellationToken) +
             await pendingBlogs.CountAsync(cancellationToken) +
             await pendingReels.CountAsync(cancellationToken);
+        // Oldest submission timestamp drives queue-age SLAs in the alert evaluator.
         var oldestDates = new[]
         {
             await pendingAlbums.MinAsync(a => (DateTime?)a.SubmittedAtUtc, cancellationToken),
@@ -561,11 +619,180 @@ public sealed class ContentModerationMetrics : IContentModerationMetrics
             await pendingReels.MinAsync(r => (DateTime?)r.SubmittedAtUtc, cancellationToken),
         };
 
+        var latencies = await CollectReviewLatenciesHoursAsync(cancellationToken);
+        var p95 = Percentile95(latencies);
+        var topFlags = await CollectTopFlagsAsync(cancellationToken);
+        var pendingFaces = await CollectPendingByFaceAsync(cancellationToken);
+        // Heuristic: failed jobs whose LastError mentions "timeout" (case-insensitive) for ops dashboards.
+        var timeoutJobs = await _context.AiReviewJobs.CountAsync(
+            j => j.Status == AiReviewJobStatus.Failed &&
+                j.LastError != null &&
+                j.LastError.ToLower().Contains("timeout"),
+            cancellationToken);
+
         return new ContentModerationMetricsSnapshot(
             pendingCount,
             await _context.AiReviewJobs.CountAsync(j => j.Status == AiReviewJobStatus.Queued || j.Status == AiReviewJobStatus.RetryScheduled, cancellationToken),
             await _context.AiReviewJobs.CountAsync(j => j.Status == AiReviewJobStatus.Processing, cancellationToken),
             await _context.AiReviewJobs.CountAsync(j => j.Status == AiReviewJobStatus.Failed, cancellationToken),
-            oldestDates.Where(d => d.HasValue).DefaultIfEmpty().Min());
+            oldestDates.Where(d => d.HasValue).DefaultIfEmpty().Min(),
+            CalculateAgeHours(oldestDates.Where(d => d.HasValue).DefaultIfEmpty().Min(), DateTime.UtcNow),
+            latencies.Count == 0 ? null : latencies.Average(),
+            p95,
+            await CountApprovalStatusAsync(ContentApprovalStatus.Approved, cancellationToken),
+            await CountApprovalStatusAsync(ContentApprovalStatus.Rejected, cancellationToken),
+            await CountApprovalStatusAsync(ContentApprovalStatus.Removed, cancellationToken),
+            await CountAiStatusAsync(AiReviewStatus.RecommendedApprove, cancellationToken),
+            await CountAiStatusAsync(AiReviewStatus.RecommendedReject, cancellationToken),
+            await CountAiStatusAsync(AiReviewStatus.NeedsHumanReview, cancellationToken),
+            timeoutJobs,
+            topFlags,
+            pendingFaces);
     }
+
+    /// <summary>Counts entities in a terminal approval status across all moderated types.</summary>
+    private async Task<int> CountApprovalStatusAsync(ContentApprovalStatus status, CancellationToken cancellationToken) =>
+        await _context.Albums.CountAsync(a => a.ApprovalStatus == status, cancellationToken) +
+        await _context.Blogs.CountAsync(b => b.ApprovalStatus == status, cancellationToken) +
+        await _context.Reels.CountAsync(r => r.ApprovalStatus == status, cancellationToken);
+
+    /// <summary>Counts rows whose AI pipeline is in a particular <see cref="AiReviewStatus"/>.</summary>
+    private async Task<int> CountAiStatusAsync(AiReviewStatus status, CancellationToken cancellationToken) =>
+        await _context.Albums.CountAsync(a => a.AiReviewStatus == status, cancellationToken) +
+        await _context.Blogs.CountAsync(b => b.AiReviewStatus == status, cancellationToken) +
+        await _context.Reels.CountAsync(r => r.AiReviewStatus == status, cancellationToken);
+
+    /// <summary>Human review latency samples (hours) used for average and P95 dashboard cards.</summary>
+    private async Task<List<double>> CollectReviewLatenciesHoursAsync(CancellationToken cancellationToken)
+    {
+        var latencies = new List<double>();
+        latencies.AddRange(await _context.Albums
+            .Where(a => a.SubmittedAtUtc.HasValue && a.HumanReviewedAtUtc.HasValue)
+            .Select(a => (a.HumanReviewedAtUtc!.Value - a.SubmittedAtUtc!.Value).TotalHours)
+            .ToListAsync(cancellationToken));
+        latencies.AddRange(await _context.Blogs
+            .Where(b => b.SubmittedAtUtc.HasValue && b.HumanReviewedAtUtc.HasValue)
+            .Select(b => (b.HumanReviewedAtUtc!.Value - b.SubmittedAtUtc!.Value).TotalHours)
+            .ToListAsync(cancellationToken));
+        latencies.AddRange(await _context.Reels
+            .Where(r => r.SubmittedAtUtc.HasValue && r.HumanReviewedAtUtc.HasValue)
+            .Select(r => (r.HumanReviewedAtUtc!.Value - r.SubmittedAtUtc!.Value).TotalHours)
+            .ToListAsync(cancellationToken));
+        return latencies;
+    }
+
+    /// <summary>Nearest-rank P95 over latency samples; null when there is no completed human review data.</summary>
+    private static double? Percentile95(IReadOnlyList<double> values)
+    {
+        if (values.Count == 0)
+            return null;
+        var sorted = values.OrderBy(v => v).ToList();
+        var idx = (int)Math.Ceiling(0.95 * sorted.Count) - 1;
+        idx = Math.Clamp(idx, 0, sorted.Count - 1);
+        return sorted[idx];
+    }
+
+    /// <summary>
+    /// Builds a histogram of AI flag strings for pending items only (bounded sample per entity type for query cost).
+    /// </summary>
+    private async Task<IReadOnlyList<FlagCountDto>> CollectTopFlagsAsync(CancellationToken cancellationToken)
+    {
+        var jsonSamples = new List<string?>();
+        jsonSamples.AddRange(await _context.Albums
+            .Where(a => a.ApprovalStatus == ContentApprovalStatus.PendingApproval && a.AiReviewFlagsJson != null)
+            .Select(a => a.AiReviewFlagsJson)
+            .Take(2000)
+            .ToListAsync(cancellationToken));
+        jsonSamples.AddRange(await _context.Blogs
+            .Where(b => b.ApprovalStatus == ContentApprovalStatus.PendingApproval && b.AiReviewFlagsJson != null)
+            .Select(b => b.AiReviewFlagsJson)
+            .Take(2000)
+            .ToListAsync(cancellationToken));
+        jsonSamples.AddRange(await _context.Reels
+            .Where(r => r.ApprovalStatus == ContentApprovalStatus.PendingApproval && r.AiReviewFlagsJson != null)
+            .Select(r => r.AiReviewFlagsJson)
+            .Take(2000)
+            .ToListAsync(cancellationToken));
+
+        var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var json in jsonSamples)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                continue;
+            try
+            {
+                var flags = JsonSerializer.Deserialize<List<string>>(json);
+                if (flags == null)
+                    continue;
+                foreach (var f in flags.Where(s => !string.IsNullOrWhiteSpace(s)))
+                {
+                    counts.TryGetValue(f, out var c);
+                    counts[f] = c + 1;
+                }
+            }
+            catch (JsonException)
+            {
+                // Malformed JSON should not break the entire metrics query.
+            }
+        }
+
+        return counts
+            .OrderByDescending(kv => kv.Value)
+            .Take(12)
+            .Select(kv => new FlagCountDto(kv.Key, kv.Value))
+            .ToList();
+    }
+
+    /// <summary>Rolls up pending submissions per face across blogs, albums, and reels for hotspot detection.</summary>
+    private async Task<IReadOnlyList<FacePendingCountDto>> CollectPendingByFaceAsync(CancellationToken cancellationToken)
+    {
+        var map = new Dictionary<int, int>();
+        var blogGroups = await _context.Blogs
+            .Where(b => b.ApprovalStatus == ContentApprovalStatus.PendingApproval)
+            .GroupBy(b => b.FaceId)
+            .Select(g => new { FaceId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        foreach (var g in blogGroups)
+            map[g.FaceId] = map.GetValueOrDefault(g.FaceId) + g.Count;
+
+        var albumGroups = await _context.Albums
+            .Where(a => a.ApprovalStatus == ContentApprovalStatus.PendingApproval)
+            .SelectMany(a => a.AlbumFaces)
+            .GroupBy(af => af.FaceId)
+            .Select(g => new { FaceId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        foreach (var g in albumGroups)
+            map[g.FaceId] = map.GetValueOrDefault(g.FaceId) + g.Count;
+
+        var reelGroups = await _context.Reels
+            .Where(r => r.ApprovalStatus == ContentApprovalStatus.PendingApproval)
+            .SelectMany(r => r.ReelFaces)
+            .GroupBy(rf => rf.FaceId)
+            .Select(g => new { FaceId = g.Key, Count = g.Count() })
+            .ToListAsync(cancellationToken);
+        foreach (var g in reelGroups)
+            map[g.FaceId] = map.GetValueOrDefault(g.FaceId) + g.Count;
+
+        var faceIds = map.Keys.ToList();
+        if (faceIds.Count == 0)
+            return Array.Empty<FacePendingCountDto>();
+
+        var titles = await _context.Faces
+            .Where(f => faceIds.Contains(f.Id))
+            .Select(f => new { f.Id, f.Title })
+            .ToListAsync(cancellationToken);
+        var titleById = titles.ToDictionary(t => t.Id, t => t.Title);
+
+        return map
+            .OrderByDescending(kv => kv.Value)
+            .Take(20)
+            .Select(kv => new FacePendingCountDto(
+                kv.Key,
+                titleById.GetValueOrDefault(kv.Key, $"Face {kv.Key}"),
+                kv.Value))
+            .ToList();
+    }
+
+    private static double? CalculateAgeHours(DateTime? dateTimeUtc, DateTime nowUtc) =>
+        dateTimeUtc.HasValue ? Math.Max(0, (nowUtc - dateTimeUtc.Value).TotalHours) : null;
 }

@@ -4,6 +4,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
@@ -12,6 +13,10 @@ using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Tests;
 
+/// <summary>
+/// Integration + unit coverage for the user content moderation extensions: creator APIs, super-admin queue,
+/// bulk actions, metrics/alerts helpers, retention dry-run, and public visibility rules.
+/// </summary>
 public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<Program>>, IDisposable
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
@@ -74,6 +79,27 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
     public void IsSafeHttpUrl_ShouldAllowOnlyAbsoluteHttpUrls(string value, bool expected)
     {
         ContentModerationHelpers.IsSafeHttpUrl(value).Should().Be(expected);
+    }
+
+    [Fact]
+    public void MediaAndRetentionHelpers_ShouldValidateSupportedMediaAndDueDates()
+    {
+        ContentModerationHelpers.HasSupportedMediaExtension(
+            "https://cdn.example.com/video.mp4",
+            ".mp4",
+            ".webm").Should().BeTrue();
+        ContentModerationHelpers.HasSupportedMediaExtension(
+            "https://cdn.example.com/script.js",
+            ".mp4",
+            ".webm").Should().BeFalse();
+        ContentModerationHelpers.HasSupportedMediaExtension(
+            "javascript:alert(1)",
+            ".mp4").Should().BeFalse();
+
+        var now = new DateTime(2026, 5, 12, 12, 0, 0, DateTimeKind.Utc);
+        ContentModerationHelpers.IsRetentionDue(now.AddDays(-181), now).Should().BeTrue();
+        ContentModerationHelpers.IsRetentionDue(now.AddDays(-10), now).Should().BeFalse();
+        ContentModerationHelpers.IsRetentionDue(null, now).Should().BeFalse();
     }
 
     [Fact]
@@ -233,6 +259,64 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
 
         snapshot.PendingSubmissions.Should().Be(0);
         snapshot.OldestPendingSubmissionUtc.Should().BeNull();
+        snapshot.OldestPendingAgeHours.Should().BeNull();
+        snapshot.AverageReviewLatencyHours.Should().BeNull();
+        snapshot.P95ReviewLatencyHours.Should().BeNull();
+        snapshot.TopModerationFlags.Should().BeEmpty();
+        snapshot.PendingSubmissionsByFace.Should().BeEmpty();
+        snapshot.AiJobsLikelyTimeoutCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ContentModerationMetrics_ShouldReturnStatusAndLatencyCounts()
+    {
+        await using var context = CreateContext();
+        var face = new Face { Index = $"face-{Guid.NewGuid():N}", Title = "Metrics Face" };
+        var user = CreateUser("metrics-user");
+        context.Faces.Add(face);
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        context.Blogs.AddRange(
+            new Blog
+            {
+                CreatorId = user.Id,
+                FaceId = face.Id,
+                Title = "Pending",
+                Content = "Pending",
+                ApprovalStatus = ContentApprovalStatus.PendingApproval,
+                AiReviewStatus = AiReviewStatus.RecommendedApprove,
+                SubmittedAtUtc = DateTime.UtcNow.AddHours(-3),
+            },
+            new Blog
+            {
+                CreatorId = user.Id,
+                FaceId = face.Id,
+                Title = "Approved",
+                Content = "Approved",
+                ApprovalStatus = ContentApprovalStatus.Approved,
+                AiReviewStatus = AiReviewStatus.RecommendedReject,
+                SubmittedAtUtc = DateTime.UtcNow.AddHours(-4),
+                HumanReviewedAtUtc = DateTime.UtcNow.AddHours(-2),
+            });
+        context.AiReviewJobs.Add(new AiReviewJob
+        {
+            ContentType = ModeratedContentType.Blog,
+            ContentId = 1,
+            FaceId = face.Id,
+            CreatedByUserId = user.Id,
+            Status = AiReviewJobStatus.Failed,
+        });
+        await context.SaveChangesAsync();
+
+        var snapshot = await new ContentModerationMetrics(context).GetSnapshotAsync();
+
+        snapshot.PendingSubmissions.Should().Be(1);
+        snapshot.ApprovedCount.Should().BeGreaterThanOrEqualTo(1);
+        snapshot.RecommendedApproveCount.Should().Be(1);
+        snapshot.RecommendedRejectCount.Should().Be(1);
+        snapshot.AiFailedJobs.Should().Be(1);
+        snapshot.OldestPendingAgeHours.Should().BeGreaterThan(0);
+        snapshot.AverageReviewLatencyHours.Should().BeGreaterThan(0);
     }
 
     [Fact]
@@ -321,6 +405,320 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
         events!.Select(e => e.GetProperty("newApprovalStatus").GetString()).Should().Contain("Removed");
     }
 
+    [Fact]
+    public async Task MyContentSubmissions_ShouldReturnOnlyAuthenticatedCreatorItems()
+    {
+        var ownerToken = await RegisterAndLoginAsync("owner_submissions");
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+        var ownerCreate = await _client.PostAsJsonAsync("/api/blogs", new
+        {
+            title = "Owner Blog",
+            content = "<p>Only owner sees pending</p>",
+            faceId = await GetPublicFaceIdAsync(_client),
+        });
+        ownerCreate.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var otherToken = await RegisterAndLoginAsync("other_submissions");
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", otherToken);
+        var otherList = await _client.GetFromJsonAsync<JsonElement[]>("/api/my/content-submissions");
+        otherList.Should().BeEmpty();
+
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+        var ownerList = await _client.GetFromJsonAsync<JsonElement[]>("/api/my/content-submissions");
+        ownerList.Should().ContainSingle();
+        ownerList![0].GetProperty("title").GetString().Should().Be("Owner Blog");
+        ownerList[0].GetProperty("approvalStatus").GetString().Should().Be("PendingApproval");
+        ownerList[0].GetProperty("canEdit").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task BulkModeration_ShouldApplyPerItemAuditAndNotifications()
+    {
+        var userToken = await RegisterAndLoginAsync("bulk_creator");
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+        var faceId = await GetPublicFaceIdAsync(_client);
+        var first = await _client.PostAsJsonAsync("/api/blogs", new
+        {
+            title = "Bulk One",
+            content = "<p>Bulk one</p>",
+            faceId,
+        });
+        var second = await _client.PostAsJsonAsync("/api/blogs", new
+        {
+            title = "Bulk Two",
+            content = "<p>Bulk two</p>",
+            faceId,
+        });
+        first.StatusCode.Should().Be(HttpStatusCode.Created);
+        second.StatusCode.Should().Be(HttpStatusCode.Created);
+        var firstId = (await first.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+        var secondId = (await second.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+
+        using var superAdmin = _factory.CreateFaceClient("admin");
+        superAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(superAdmin));
+
+        var missingReason = await superAdmin.PostAsJsonAsync("/api/contentmoderation/bulk", new
+        {
+            action = "Reject",
+            items = new[]
+            {
+                new { contentType = "Blog", contentId = firstId },
+            },
+            reason = "",
+        });
+        missingReason.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+
+        var bulk = await superAdmin.PostAsJsonAsync("/api/contentmoderation/bulk", new
+        {
+            action = "Reject",
+            items = new[]
+            {
+                new { contentType = "Blog", contentId = firstId },
+                new { contentType = "Blog", contentId = secondId },
+            },
+            reason = "Bulk policy mismatch",
+            userMessage = "Please update and resubmit.",
+        });
+        bulk.StatusCode.Should().Be(HttpStatusCode.OK);
+        var response = await bulk.Content.ReadFromJsonAsync<JsonElement>();
+        response.GetProperty("results").EnumerateArray().Should().HaveCount(2);
+        response.GetProperty("results").EnumerateArray().Should().OnlyContain(r => r.GetProperty("success").GetBoolean());
+
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+        var notifications = await _client.GetFromJsonAsync<JsonElement[]>("/api/notifications");
+        notifications!.Select(n => n.GetProperty("type").GetString()).Should().Contain("content_moderation");
+    }
+
+    [Fact]
+    public async Task PublicBlogsList_ShouldNotExposeOtherUsersPendingPosts()
+    {
+        var ownerToken = await RegisterAndLoginAsync("pub_owner");
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+        var faceId = await GetPublicFaceIdAsync(_client);
+        var create = await _client.PostAsJsonAsync("/api/blogs", new
+        {
+            title = "Hidden pending",
+            content = "<p>secret</p>",
+            faceId,
+        });
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        var blogId = (await create.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+
+        var otherToken = await RegisterAndLoginAsync("pub_other");
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", otherToken);
+        var list = await _client.GetFromJsonAsync<JsonElement[]>($"/api/blogs?faceId={faceId}");
+        list.Should().NotBeNull();
+        list!.Select(e => e.GetProperty("id").GetInt32()).Should().NotContain(blogId);
+    }
+
+    [Fact]
+    public async Task BulkModeration_ShouldReturnPerItemFailuresForMissingContent()
+    {
+        var userToken = await RegisterAndLoginAsync("bulk_partial");
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+        var faceId = await GetPublicFaceIdAsync(_client);
+        var create = await _client.PostAsJsonAsync("/api/blogs", new
+        {
+            title = "Partial",
+            content = "<p>ok</p>",
+            faceId,
+        });
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        var blogId = (await create.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
+
+        using var superAdmin = _factory.CreateFaceClient("admin");
+        superAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(superAdmin));
+
+        var bulk = await superAdmin.PostAsJsonAsync("/api/contentmoderation/bulk", new
+        {
+            action = "Approve",
+            items = new[]
+            {
+                new { contentType = "Blog", contentId = blogId },
+                new { contentType = "Blog", contentId = 9_999_999 },
+            },
+            reason = "bulk ok",
+        });
+        bulk.StatusCode.Should().Be(HttpStatusCode.OK);
+        var response = await bulk.Content.ReadFromJsonAsync<JsonElement>();
+        var results = response.GetProperty("results").EnumerateArray().ToList();
+        results.Should().HaveCount(2);
+        results.Count(r => r.GetProperty("success").GetBoolean()).Should().Be(1);
+        results.Count(r => !r.GetProperty("success").GetBoolean()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ContentRetentionCleanup_ShouldDryRunThenRedactInternalAiFields()
+    {
+        await using var context = CreateContext();
+        var face = new Face { Index = $"ret-face-{Guid.NewGuid():N}", Title = "Retention Face" };
+        var user = CreateUser("retention-user");
+        context.Faces.Add(face);
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        context.Blogs.Add(new Blog
+        {
+            CreatorId = user.Id,
+            FaceId = face.Id,
+            Title = "Old rejected",
+            Content = "<p>Old</p>",
+            ApprovalStatus = ContentApprovalStatus.Rejected,
+            AiReviewStatus = AiReviewStatus.RecommendedReject,
+            HumanReviewedAtUtc = DateTime.UtcNow.AddDays(-200),
+            AiReviewReason = "internal-ai-detail",
+            AiReviewTraceId = "trace-123",
+        });
+        await context.SaveChangesAsync();
+
+        var svc = new ContentRetentionCleanupService(context);
+        var dry = await svc.RunAsync(true, DateTime.UtcNow);
+        dry.BlogsRedacted.Should().Be(1);
+        (await context.Blogs.SingleAsync()).AiReviewReason.Should().NotBeNull();
+
+        var executed = await svc.RunAsync(false, DateTime.UtcNow);
+        executed.BlogsRedacted.Should().Be(1);
+        (await context.Blogs.SingleAsync()).AiReviewReason.Should().BeNull();
+        (await context.Blogs.SingleAsync()).AiReviewTraceId.Should().BeNull();
+        (await context.ContentModerationEvents.CountAsync(e => e.ActorType == ModerationActorType.Retention))
+            .Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public void ContentModerationAlertEvaluator_ShouldFlagOldPendingQueue()
+    {
+        var snapshot = new ContentModerationMetricsSnapshot(
+            10,
+            0,
+            0,
+            0,
+            DateTime.UtcNow.AddHours(-30),
+            30,
+            1,
+            2,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            Array.Empty<FlagCountDto>(),
+            Array.Empty<FacePendingCountDto>());
+        var alerts = ContentModerationAlertEvaluator.Evaluate(snapshot, DateTime.UtcNow);
+        alerts.Select(a => a.Code).Should().Contain(ContentModerationAlertEvaluator.OldestPendingExceeded);
+    }
+
+    [Fact]
+    public async Task MyContentSubmissions_Unauthenticated_ShouldReturn401()
+    {
+        using var anon = _factory.CreateClient();
+        anon.DefaultRequestHeaders.Authorization = null;
+        var response = await anon.GetAsync("/api/my/content-submissions");
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task ModerationQueueHttp_ShouldForbidNonSuperAdmin()
+    {
+        var userToken = await RegisterAndLoginAsync("queue_forbid");
+        using var userClient = _factory.CreateFaceClient("admin");
+        userClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+
+        var queue = await userClient.GetAsync("/api/contentmoderation");
+        queue.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task ModerationMetricsHttp_ShouldReturnWrappedPayload_ForSuperAdminOnly()
+    {
+        using var superAdmin = _factory.CreateFaceClient("admin");
+        superAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(superAdmin));
+
+        var ok = await superAdmin.GetAsync("/api/contentmoderation/metrics");
+        ok.StatusCode.Should().Be(HttpStatusCode.OK);
+        var body = await ok.Content.ReadFromJsonAsync<JsonElement>();
+        body!.ValueKind.Should().Be(JsonValueKind.Object);
+        body.TryGetProperty("metrics", out var metrics).Should().BeTrue();
+        body.TryGetProperty("alerts", out var alerts).Should().BeTrue();
+        metrics.ValueKind.Should().Be(JsonValueKind.Object);
+        alerts.ValueKind.Should().Be(JsonValueKind.Array);
+
+        var userToken = await RegisterAndLoginAsync("metrics_forbid");
+        using var userClient = _factory.CreateFaceClient("admin");
+        userClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+        var forbidden = await userClient.GetAsync("/api/contentmoderation/metrics");
+        forbidden.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task ModerationQueueFilter_ShouldRespectFlagContains_ForSuperAdmin()
+    {
+        var userToken = await RegisterAndLoginAsync("flag_filter");
+        using var user = _factory.CreateFaceClient("public");
+        user.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", userToken);
+        var faceId = await GetPublicFaceIdAsync(user);
+        var create = await user.PostAsJsonAsync("/api/blogs", new
+        {
+            title = "Flagged blog",
+            content = "<p>x</p>",
+            faceId,
+        });
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        var blogId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var blog = await db.Blogs.FindAsync(blogId);
+            blog.Should().NotBeNull();
+            blog!.AiReviewFlagsJson = "contains_unique_spam_token_xyz";
+            await db.SaveChangesAsync();
+        }
+
+        using var superAdmin = _factory.CreateFaceClient("admin");
+        superAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer",
+            await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(superAdmin));
+
+        var miss = await superAdmin.GetFromJsonAsync<JsonElement[]>(
+            "/api/contentmoderation?contentType=Blog&flagContains=nomatch999");
+        miss.Should().NotContain(b => b.GetProperty("contentId").GetInt32() == blogId);
+
+        var hit = await superAdmin.GetFromJsonAsync<JsonElement[]>(
+            "/api/contentmoderation?contentType=Blog&flagContains=spam_token_xyz");
+        hit.Should().ContainSingle(b => b.GetProperty("contentId").GetInt32() == blogId);
+    }
+
+    [Fact]
+    public async Task PublicReelsList_ShouldNotExposeOtherUsersPendingReels()
+    {
+        var ownerToken = await RegisterAndLoginAsync("reel_pub_owner");
+        using var owner = _factory.CreateFaceClient("public");
+        owner.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", ownerToken);
+        var faceId = await GetPublicFaceIdAsync(owner);
+        var create = await owner.PostAsJsonAsync("/api/reels", new
+        {
+            title = "Hidden pending reel",
+            description = "d",
+            videoUrl = "https://example.com/video.mp4",
+            faceIds = new[] { faceId },
+        });
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        var reelId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+
+        var otherToken = await RegisterAndLoginAsync("reel_pub_other");
+        owner.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", otherToken);
+        var list = await owner.GetFromJsonAsync<JsonElement[]>($"/api/reels?faceId={faceId}");
+        list.Should().NotBeNull();
+        list!.Select(e => e.GetProperty("id").GetInt32()).Should().NotContain(reelId);
+    }
+
     private async Task<string> RegisterAndLoginAsync(string prefix)
     {
         var email = $"{prefix}_{Guid.NewGuid()}@test.com";
@@ -389,7 +787,22 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
             context,
             ai,
             queue ?? new CapturingRedisJobQueue(),
-            NullLogger<ContentAiReviewService>.Instance);
+            NullLogger<ContentAiReviewService>.Instance,
+            new NullContentModerationNotifier());
+
+    private sealed class NullContentModerationNotifier : IContentModerationNotifier
+    {
+        public void NotifyCreator(string creatorId, string title, string message, string type = "content_moderation")
+        {
+        }
+
+        public Task NotifySuperAdminsAsync(
+            string title,
+            string message,
+            string type = "moderation_ops",
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+    }
 
     private sealed class FakeAiGrpcService : IAiGrpcService
     {

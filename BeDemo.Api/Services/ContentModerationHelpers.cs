@@ -3,13 +3,24 @@ using BeDemo.Api.Models;
 
 namespace BeDemo.Api.Services;
 
+/// <summary>
+/// Shared, side-effect-free helpers for the user-generated content moderation pipeline:
+/// policy checks, AI payload serialization, audit redaction, and retention helpers.
+/// </summary>
 public static class ContentModerationHelpers
 {
+    /// <summary>Maximum AI attempts per moderation version before forcing human review.</summary>
     public const int DefaultMaxAttempts = 3;
+    /// <summary>Guards against duplicate concurrent jobs for the same content version.</summary>
     public const int DefaultPerContentQueueLimit = 1;
+    /// <summary>Upper bound for bulk moderation batch sizes (controller may enforce a lower cap).</summary>
     public const int DefaultBatchSizeLimit = 25;
+    /// <summary>Redis job type consumed by the background worker to call the AI gRPC service.</summary>
     public const string AiReviewJobType = "content.ai-review";
+    /// <summary>Days after terminal moderation before internal AI fields may be redacted by retention.</summary>
+    public const int DefaultRetentionDays = 180;
 
+    /// <summary>Human-readable status for creator dashboards (matches FE grouping expectations).</summary>
     public static string CreatorStatusLabel(ContentApprovalStatus approvalStatus, AiReviewStatus aiReviewStatus) =>
         approvalStatus switch
         {
@@ -25,12 +36,15 @@ public static class ContentModerationHelpers
     public static bool IsPubliclyVisible(ContentApprovalStatus approvalStatus) =>
         approvalStatus == ContentApprovalStatus.Approved;
 
+    /// <summary>Creators may edit while moderation is still open or after rejection (resubmit flow).</summary>
     public static bool IsCreatorEditable(ContentApprovalStatus approvalStatus) =>
         approvalStatus is ContentApprovalStatus.PendingApproval or ContentApprovalStatus.Rejected;
 
+    /// <summary>Deletion is restricted to the same states as edit to avoid removing published catalog content.</summary>
     public static bool IsCreatorDeletable(ContentApprovalStatus approvalStatus) =>
         approvalStatus is ContentApprovalStatus.PendingApproval or ContentApprovalStatus.Rejected;
 
+    /// <summary>Validates absolute http(s) URLs used for thumbnails, reels, or embedded media references.</summary>
     public static bool IsSafeHttpUrl(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -40,6 +54,25 @@ public static class ContentModerationHelpers
         return uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps;
     }
 
+    /// <summary>Checks file extension on the URL path against an allow-list (e.g. .jpg, .mp4).</summary>
+    public static bool HasSupportedMediaExtension(string? value, params string[] allowedExtensions)
+    {
+        if (!IsSafeHttpUrl(value))
+            return false;
+        if (!Uri.TryCreate(value!.Trim(), UriKind.Absolute, out var uri))
+            return false;
+        var extension = Path.GetExtension(uri.AbsolutePath);
+        return !string.IsNullOrWhiteSpace(extension) &&
+            allowedExtensions.Any(allowed => string.Equals(extension, allowed, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public static bool IsRetentionDue(DateTime? statusChangedAtUtc, DateTime nowUtc, int retentionDays = DefaultRetentionDays) =>
+        statusChangedAtUtc.HasValue && statusChangedAtUtc.Value <= nowUtc.AddDays(-Math.Max(1, retentionDays));
+
+    /// <summary>
+    /// Backend guard-rails so invalid or unsafe AI JSON cannot auto-publish content.
+    /// Returns <see cref="AiRecommendationValidationResult.NeedsHumanReview"/> when manual review is required.
+    /// </summary>
     public static AiRecommendationValidationResult ValidateRecommendation(AiReviewRecommendation recommendation)
     {
         if (!Enum.IsDefined(recommendation.Decision))
@@ -54,6 +87,7 @@ public static class ContentModerationHelpers
         return AiRecommendationValidationResult.Valid();
     }
 
+    /// <summary>Factory for consistent audit rows across albums, blogs, and reels.</summary>
     public static ContentModerationEvent BuildEvent(
         ModeratedContentType contentType,
         int contentId,
@@ -86,6 +120,7 @@ public static class ContentModerationHelpers
             CreatedAtUtc = DateTime.UtcNow,
         };
 
+    /// <summary>Minimal JSON envelope stored on Redis for the AI review worker.</summary>
     public static string BuildAiReviewPayload(
         ModeratedContentType contentType,
         int contentId,
@@ -97,6 +132,7 @@ public static class ContentModerationHelpers
             moderationVersion,
         });
 
+    /// <summary>Truncates very long free-text fields before they are written to immutable audit tables.</summary>
     public static string? RedactForAudit(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))

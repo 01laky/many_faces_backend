@@ -7,6 +7,7 @@ using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Controllers;
 
+/// <summary>Album CRUD with face scoping and moderation-aware submission paths.</summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
@@ -17,19 +18,23 @@ public class AlbumsController : ControllerBase
     private readonly IFaceScopeContext _faceScope;
     private readonly IAccessEvaluator _access;
     private readonly IRedisJobQueue _jobQueue;
+    /// <summary>Queues in-app notifications when albums enter the moderation pipeline.</summary>
+    private readonly IContentModerationNotifier _moderationNotifier;
 
     public AlbumsController(
         ApplicationDbContext context,
         ILogger<AlbumsController> logger,
         IFaceScopeContext faceScope,
         IAccessEvaluator access,
-        IRedisJobQueue jobQueue)
+        IRedisJobQueue jobQueue,
+        IContentModerationNotifier moderationNotifier)
     {
         _context = context;
         _logger = logger;
         _faceScope = faceScope;
         _access = access;
         _jobQueue = jobQueue;
+        _moderationNotifier = moderationNotifier;
     }
 
     private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -258,6 +263,17 @@ public class AlbumsController : ControllerBase
                 UserId,
                 "Content submitted for approval.",
                 "Your content was created and is waiting for review."));
+            // Creator + super-admin notifications: safe copy only; detailed AI diagnostics stay server-side until admin review.
+            _moderationNotifier.NotifyCreator(
+                UserId,
+                "Submitted for approval",
+                "Your album was submitted and is waiting for review.",
+                "content_moderation");
+            await _moderationNotifier.NotifySuperAdminsAsync(
+                "New pending submission",
+                $"Album #{album.Id} is pending moderation.",
+                "moderation_ops",
+                CancellationToken.None);
             await _context.SaveChangesAsync();
             await EnqueueAiReviewAsync(ModeratedContentType.Album, album.Id, album.ModerationVersion);
         }

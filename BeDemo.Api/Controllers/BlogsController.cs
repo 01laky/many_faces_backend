@@ -7,6 +7,7 @@ using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Controllers;
 
+/// <summary>CRUD and social features for blogs, including moderation-aware create/update paths.</summary>
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
@@ -15,15 +16,19 @@ public class BlogsController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly ILogger<BlogsController> _logger;
     private readonly IRedisJobQueue _jobQueue;
+    /// <summary>Queues in-app notifications when user content enters the moderation pipeline.</summary>
+    private readonly IContentModerationNotifier _moderationNotifier;
 
     public BlogsController(
         ApplicationDbContext context,
         ILogger<BlogsController> logger,
-        IRedisJobQueue jobQueue)
+        IRedisJobQueue jobQueue,
+        IContentModerationNotifier moderationNotifier)
     {
         _context = context;
         _logger = logger;
         _jobQueue = jobQueue;
+        _moderationNotifier = moderationNotifier;
     }
 
     private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -193,6 +198,17 @@ public class BlogsController : ControllerBase
             UserId,
             "Content submitted for approval.",
             "Your content was created and is waiting for review."));
+        // Creator + super-admin notifications: safe copy only; detailed AI diagnostics stay server-side until admin review.
+        _moderationNotifier.NotifyCreator(
+            UserId,
+            "Submitted for approval",
+            "Your blog was submitted and is waiting for review.",
+            "content_moderation");
+        await _moderationNotifier.NotifySuperAdminsAsync(
+            "New pending submission",
+            $"Blog #{blog.Id} is pending moderation.",
+            "moderation_ops",
+            CancellationToken.None);
         await _context.SaveChangesAsync();
         await EnqueueAiReviewAsync(ModeratedContentType.Blog, blog.Id, blog.ModerationVersion);
 

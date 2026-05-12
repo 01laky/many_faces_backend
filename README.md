@@ -188,35 +188,42 @@ Implemented backend pieces:
 
 - `ContentApprovalStatus`, `AiReviewStatus`, AI decision/risk enums, `AiReviewJob`, and `ContentModerationEvent`.
 - Moderation metadata fields on `Album`, `Blog`, and `Reel`.
-- `ContentModerationController` for queue listing, audit events, and superadmin-only approve/reject/remove actions.
-- `ContentAiReviewService` for `content.ai-review` job processing, structured AI calls, retry scheduling, stale-version protection, and fallback to human review.
-- Moderation metrics for pending submissions and AI queue health.
+- `ContentModerationController` for filterable queue listing, `{ metrics, alerts }`, audit events, single-item approve/reject/remove/requeue, and **bulk** moderation with per-item results.
+- `MyContentSubmissionsController` (`GET /api/my/content-submissions`) for authenticated creators — unified pending items with safe fields and `canEdit` / `canDelete`.
+- `ContentAiReviewService` for `content.ai-review` job processing, structured gRPC calls, retry scheduling, stale-version protection, and escalation to `NeedsHumanReview`.
+- `IContentModerationNotifier` for in-app notifications on submit and when AI exhausts retries.
+- Optional `ContentRetentionCleanupService` + hosted worker (see `Retention` configuration) for dry-run or executed redaction of internal AI trace fields after policy delay.
 - Migration defaults that preserve existing content as `Approved`.
-- Tests covering pending defaults, public visibility filtering, AI recommendation validation, media URL safety, superadmin restrictions, and audit writes.
+- Integration tests covering visibility, bulk moderation, metrics/alerts wiring, retention behaviour, and audit writes (see `ContentModerationTests`).
 
 ```mermaid
 flowchart TD
     create["FE create album/blog/reel"] --> backend["Backend create endpoint"]
     backend --> pending["ApprovalStatus = PendingApproval"]
-    pending --> filter["Public APIs return<br/>Approved only"]
-    pending --> job["Create AI review job"]
+    pending --> filter["Public APIs return<br/>Approved only for non-owners"]
+    pending --> notif["IContentModerationNotifier"]
+    pending --> job["Enqueue content.ai-review"]
 
-    job --> worker["Queue worker<br/>rate-limited + retryable"]
-    worker --> ai["ai_demo recommendation"]
-    ai --> policy["Backend policy validation"]
+    job --> worker["RedisJobWorkerService"]
+    worker --> ai["ai_demo ReviewContent"]
+    ai --> policy["Policy validation + version check"]
 
     policy --> recApprove["RecommendedApprove"]
     policy --> recReject["RecommendedReject"]
-    policy --> needsHuman["NeedsHumanReview"]
+    policy --> needsHuman["NeedsHumanReview / Failed"]
 
-    recApprove --> adminApi["Admin moderation API"]
+    recApprove --> adminApi["ContentModerationController<br/>+ bulk endpoint"]
     recReject --> adminApi
     needsHuman --> adminApi
+
+    mysub["GET /api/my/content-submissions"] --> creator["Creator My submissions UI"]
 
     adminApi --> approved["Approved"]
     adminApi --> rejected["Rejected"]
     adminApi --> removed["Removed"]
     adminApi --> audit["ContentModerationEvents"]
+
+    retain["Optional Retention worker"] -.->|"Retention:Enabled"| audit
 ```
 
 ## Security (operations)

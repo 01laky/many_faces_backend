@@ -1,5 +1,9 @@
 namespace BeDemo.Api.Models;
 
+/// <summary>
+/// Enums and persistence models for AI-assisted user content moderation (albums, blogs, reels).
+/// Approval is always human-gated for non-owner publication; AI fields hold advisory recommendations only.
+/// </summary>
 public enum ModeratedContentType
 {
     Album = 1,
@@ -59,6 +63,8 @@ public enum ModerationActorType
     Admin = 3,
     SuperAdmin = 4,
     System = 5,
+    /// <summary>Automated retention worker redacting internal AI fields after policy delay.</summary>
+    Retention = 6,
 }
 
 public sealed class AiReviewJob
