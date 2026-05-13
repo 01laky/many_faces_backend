@@ -57,6 +57,16 @@ public sealed class StatsControllerTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
+    public async Task GetPublicStats_ShouldReturnOk_WithoutAuth_OnPublicFaceScope()
+    {
+        var client = _factory.CreateFaceClient("public");
+        var response = await client.GetAsync("/api/Stats/public");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var json = await response.Content.ReadFromJsonAsync<JsonElement>();
+        json.GetProperty("usersCount").GetInt32().Should().BeGreaterThan(0);
+    }
+
+    [Fact]
     public async Task GetTimeseries_ShouldReturnBadRequest_WhenInvalidRange()
     {
         var client = _factory.CreateFaceClient("admin");

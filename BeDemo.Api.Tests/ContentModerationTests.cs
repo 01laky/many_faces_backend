@@ -1195,7 +1195,20 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
 
         public AiContentReviewRequest? LastReviewRequest { get; private set; }
 
-        public Task<string> GenerateAsync(string prompt, int maxNewTokens = 50, CancellationToken cancellationToken = default) =>
+        public Task<string> GenerateAsync(
+            string prompt,
+            int maxNewTokens = 50,
+            string? statsContextJson = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(string.Empty);
+
+        public Task<string> OperatorStatsChatAsync(
+            string userMessage,
+            string historyText,
+            bool fetchLivePublicSnapshot,
+            string publicStatsAbsoluteUrl,
+            int maxNewTokens = 150,
+            CancellationToken cancellationToken = default) =>
             Task.FromResult(string.Empty);
 
         public Task<AiContentReviewResult> ReviewContentAsync(

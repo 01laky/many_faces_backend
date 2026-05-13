@@ -65,7 +65,11 @@ public class AiGrpcService : IAiGrpcService, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<string> GenerateAsync(string prompt, int maxNewTokens = 50, CancellationToken cancellationToken = default)
+    public async Task<string> GenerateAsync(
+        string prompt,
+        int maxNewTokens = 50,
+        string? statsContextJson = null,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(prompt))
             return string.Empty;
@@ -73,8 +77,10 @@ public class AiGrpcService : IAiGrpcService, IDisposable
         var request = new GenerateRequest
         {
             Prompt = prompt,
-            MaxNewTokens = maxNewTokens <= 0 ? 50 : maxNewTokens
+            MaxNewTokens = maxNewTokens <= 0 ? 50 : maxNewTokens,
         };
+        if (!string.IsNullOrWhiteSpace(statsContextJson))
+            request.StatsContextJson = statsContextJson.Trim();
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(_deadline);
         var callOptions = new CallOptions(deadline: DateTime.UtcNow.Add(_deadline), cancellationToken: cts.Token);
@@ -129,6 +135,75 @@ public class AiGrpcService : IAiGrpcService, IDisposable
                 return $"Error: {ex.Message}";
             }
         }
+        return "Error: AI service unavailable";
+    }
+
+    /// <inheritdoc />
+    public async Task<string> OperatorStatsChatAsync(
+        string userMessage,
+        string historyText,
+        bool fetchLivePublicSnapshot,
+        string publicStatsAbsoluteUrl,
+        int maxNewTokens = 150,
+        CancellationToken cancellationToken = default)
+    {
+        var grpcRequest = new OperatorStatsChatRequest
+        {
+            UserMessage = userMessage ?? string.Empty,
+            HistoryText = historyText ?? string.Empty,
+            FetchLivePublicSnapshot = fetchLivePublicSnapshot,
+            PublicStatsAbsoluteUrl = publicStatsAbsoluteUrl ?? string.Empty,
+            MaxNewTokens = maxNewTokens <= 0 ? 150 : maxNewTokens,
+        };
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(_deadline);
+        var callOptions = new CallOptions(deadline: DateTime.UtcNow.Add(_deadline), cancellationToken: cts.Token);
+
+        for (int attempt = 1; attempt <= 2; attempt++)
+        {
+            try
+            {
+                var channel = GetOrCreateChannel();
+                var client = new HealthService.HealthServiceClient(channel);
+                _logger.LogInformation(
+                    "Sending OperatorStatsChat (attempt {Attempt}), live={Live}, urlLen={UrlLen}",
+                    attempt,
+                    fetchLivePublicSnapshot,
+                    grpcRequest.PublicStatsAbsoluteUrl.Length);
+                var response = await client.OperatorStatsChatAsync(grpcRequest, callOptions);
+                if (!string.IsNullOrEmpty(response.Error))
+                {
+                    _logger.LogWarning("AI OperatorStatsChat returned error: {Error}", response.Error);
+                    return response.Error;
+                }
+
+                return response.Text ?? string.Empty;
+            }
+            catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable || ex.StatusCode == StatusCode.Unimplemented)
+            {
+                _logger.LogWarning(ex, "OperatorStatsChat gRPC unavailable (attempt {Attempt})", attempt);
+                InvalidateChannel();
+                if (attempt == 2)
+                    return $"Error: AI service unavailable ({ex.StatusCode})";
+            }
+            catch (RpcException ex)
+            {
+                _logger.LogError(ex, "OperatorStatsChat gRPC failed: Status={Status}", ex.StatusCode);
+                return $"Error: AI service unavailable ({ex.StatusCode})";
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("AI OperatorStatsChat timed out after {Seconds}s", _deadline.TotalSeconds);
+                return "Error: AI service timed out";
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "AI OperatorStatsChat failed");
+                return $"Error: {ex.Message}";
+            }
+        }
+
         return "Error: AI service unavailable";
     }
 

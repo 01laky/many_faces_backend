@@ -10,6 +10,7 @@
  * - SendMessage: Sends message to all connected clients
  * - SendPrivateMessage: Sends private message to specific user
  * - SendToAi: Sends user message to AI service via gRPC, returns AI response to caller (ReceiveAiMessage)
+ * - SendToAiWithOperatorStats: Operator-only; optional public aggregate stats (off / inline / live) then same ReceiveAiMessage callback
  * 
  * Events:
  * - OnConnectedAsync: Invoked when client connects
@@ -21,6 +22,9 @@
  * - ReceiveAiMessage: Receives AI response (userMessage, aiResponse) after SendToAi
  */
 
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using BeDemo.Api.Data;
@@ -37,24 +41,36 @@ namespace BeDemo.Api.Hubs;
 [Authorize]
 public class ChatHub : Hub
 {
+    private static readonly JsonSerializerOptions PublicStatsJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
     private readonly ILogger<ChatHub> _logger;
     private readonly IAiGrpcService _aiGrpcService;
     private readonly IChatHubAiRateLimiter _aiRateLimiter;
     private readonly ApplicationDbContext _context;
     private readonly IFaceScopeContext _faceScope;
+    private readonly IPlatformStatsQueryService _platformStats;
+    private readonly IConfiguration _configuration;
 
     public ChatHub(
         ILogger<ChatHub> logger,
         IAiGrpcService aiGrpcService,
         IChatHubAiRateLimiter aiRateLimiter,
         ApplicationDbContext context,
-        IFaceScopeContext faceScope)
+        IFaceScopeContext faceScope,
+        IPlatformStatsQueryService platformStats,
+        IConfiguration configuration)
     {
         _logger = logger;
         _aiGrpcService = aiGrpcService;
         _aiRateLimiter = aiRateLimiter;
         _context = context;
         _faceScope = faceScope;
+        _platformStats = platformStats;
+        _configuration = configuration;
     }
 
     private static string FaceChatBroadcastGroup(int faceId) => $"hubchat_face_{faceId}";
@@ -218,6 +234,89 @@ public class ChatHub : Hub
     }
 
     /// <summary>
+    /// Platform-operator AI chat with optional public aggregate statistics (<paramref name="statsMode"/>:
+    /// <c>off</c>, <c>inline</c> — JSON from DB, <c>live</c> — Python HTTP-fetches configured public URL).
+    /// </summary>
+    public async Task SendToAiWithOperatorStats(string message, ChatHistoryEntry[]? history, string? statsMode)
+    {
+        var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        _logger.LogInformation(
+            "User {UserId} sent operator stats AI message (mode {Mode})",
+            userId,
+            statsMode ?? "off");
+
+        if (!CanManageAllFaces())
+        {
+            await Clients.Caller.SendAsync(
+                "ReceiveAiMessage",
+                message ?? string.Empty,
+                "Statistics-aware AI is only available to platform operators (admin face scope + manage-all-faces capability).");
+            return;
+        }
+
+        if (!_aiRateLimiter.TryAllow(userId))
+        {
+            await Clients.Caller.SendAsync(
+                "ReceiveAiMessage",
+                message ?? string.Empty,
+                "You are sending too many AI requests. Please wait a moment and try again.");
+            return;
+        }
+
+        var mode = (statsMode ?? "off").Trim().ToLowerInvariant();
+        if (mode is not ("off" or "inline" or "live"))
+            mode = "off";
+
+        string aiResponse;
+        try
+        {
+            var prompt = BuildPromptWithHistory(message ?? string.Empty, history);
+            if (mode == "inline")
+            {
+                var snapshot = await _platformStats.GetPublicSnapshotAsync(Context.ConnectionAborted);
+                var json = JsonSerializer.Serialize(snapshot, PublicStatsJsonOptions);
+                aiResponse = await _aiGrpcService.GenerateAsync(
+                    prompt,
+                    maxNewTokens: 150,
+                    statsContextJson: json,
+                    cancellationToken: Context.ConnectionAborted);
+            }
+            else if (mode == "live")
+            {
+                var liveUrl = (_configuration["AiStats:PublicSnapshotAbsoluteUrl"] ?? string.Empty).Trim();
+                if (string.IsNullOrEmpty(liveUrl))
+                {
+                    aiResponse =
+                        "Live statistics mode is not configured on the server (AiStats:PublicSnapshotAbsoluteUrl). Use inline mode or contact an administrator.";
+                }
+                else
+                {
+                    var historyText = BuildHistoryPlainText(history);
+                    aiResponse = await _aiGrpcService.OperatorStatsChatAsync(
+                        message ?? string.Empty,
+                        historyText,
+                        fetchLivePublicSnapshot: true,
+                        publicStatsAbsoluteUrl: liveUrl,
+                        maxNewTokens: 150,
+                        cancellationToken: Context.ConnectionAborted);
+                }
+            }
+            else
+                aiResponse = await _aiGrpcService.GenerateAsync(prompt, maxNewTokens: 150, cancellationToken: Context.ConnectionAborted);
+
+            if (string.IsNullOrWhiteSpace(aiResponse))
+                aiResponse = "...";
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SendToAiWithOperatorStats failed for user {UserId}", userId);
+            aiResponse = "Error: AI service is currently unavailable. Please try again later.";
+        }
+
+        await Clients.Caller.SendAsync("ReceiveAiMessage", message ?? string.Empty, aiResponse);
+    }
+
+    /// <summary>
     /// Builds prompt string from optional history and current user message so the model sees conversation context.
     /// </summary>
     private static string BuildPromptWithHistory(string message, ChatHistoryEntry[]? history)
@@ -235,6 +334,21 @@ public class ChatHub : Hub
         }
         sb.Append("User: ").AppendLine(message);
         sb.Append("AI:");
+        return sb.ToString();
+    }
+
+    private static string BuildHistoryPlainText(ChatHistoryEntry[]? history)
+    {
+        if (history == null || history.Length == 0)
+            return string.Empty;
+
+        var sb = new StringBuilder();
+        foreach (var entry in history)
+        {
+            sb.Append("User: ").AppendLine(entry.UserMessage ?? string.Empty);
+            sb.Append("AI: ").AppendLine(entry.AiResponse ?? string.Empty);
+        }
+
         return sb.ToString();
     }
 }

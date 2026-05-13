@@ -16,11 +16,23 @@ public interface IAiGrpcService
     /// <summary>
     /// Calls the AI service Generate RPC and returns the generated text (or error message).
     /// </summary>
-    /// <param name="prompt">User message / prompt.</param>
-    /// <param name="maxNewTokens">Max new tokens to generate (default 50).</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>Generated text, or error message if the RPC failed.</returns>
-    Task<string> GenerateAsync(string prompt, int maxNewTokens = 50, CancellationToken cancellationToken = default);
+    /// <param name="statsContextJson">When set, forwarded to the Python worker as read-only aggregate context (admin AI).</param>
+    Task<string> GenerateAsync(
+        string prompt,
+        int maxNewTokens = 50,
+        string? statsContextJson = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Optional path: Python may HTTP-fetch public aggregate JSON then answer with the local model.
+    /// </summary>
+    Task<string> OperatorStatsChatAsync(
+        string userMessage,
+        string historyText,
+        bool fetchLivePublicSnapshot,
+        string publicStatsAbsoluteUrl,
+        int maxNewTokens = 150,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Calls the AI service structured content review RPC and returns a moderation recommendation.
