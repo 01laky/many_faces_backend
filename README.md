@@ -246,7 +246,7 @@ flowchart TD
 
 ## Detailed reference (features, endpoints, migrations, diagram)
 
-Long tables (**Features**, **API Endpoints**, routing, **Configuration**, **Migrations**, **Testing**, **Troubleshooting**, and the **ER diagram**) live in **[`docs/DETAILED_README.md`](./docs/DETAILED_README.md)** so this README stays a shorter entry point.
+Long tables (**Features**, **API Endpoints**, routing, **Configuration**, **Migrations**, **Testing**, **Troubleshooting**, and the **ER diagram**) live under **[`docs/reference/`](./docs/reference/)** with an index at **[`docs/DETAILED_README.md`](./docs/DETAILED_README.md)** so this README stays a shorter entry point.
 
 **Stories HTTP API** (curl-oriented table): **[`STORIES_API.md`](./STORIES_API.md)** (see also [`docs/guides/api-oauth-stories-curl.md`](../docs/guides/api-oauth-stories-curl.md)).
 
@@ -258,11 +258,15 @@ Long tables (**Features**, **API Endpoints**, routing, **Configuration**, **Migr
 
 ### Monorepo documentation hub (`many_faces_main`)
 
-Inside the monorepo checkout, guides live under [`../docs/`](../docs/README.md).
+With the backend checked out as **`many_faces_main/many_faces_backend/`**, open the parent docs tree:
 
-On GitHub (this API repo only), open the same content at:
+- [Documentation hub](../docs/README.md)
+- [AI-assisted content approval](../docs/guides/ai-assisted-content-approval.md)
+- [Git submodules](../docs/guides/git-submodules.md)
+- [Development and CI](../docs/guides/development.md)
 
-- [Documentation hub](https://github.com/01laky/many_faces_main/blob/main/docs/README.md)
-- [AI-assisted content approval](https://github.com/01laky/many_faces_main/blob/main/docs/guides/ai-assisted-content-approval.md)
-- [Git submodules](https://github.com/01laky/many_faces_main/blob/main/docs/guides/git-submodules.md)
-- [Development and CI](https://github.com/01laky/many_faces_main/blob/main/docs/guides/development.md)
+If you use a **standalone clone** of only `many_faces_backend` (no sibling `docs/` folder), browse the same files in the **`many_faces_main`** repository on your host (fork-friendly paths above work only inside the monorepo layout).
+
+### Git hooks (commitlint) in this submodule
+
+Husky + commitlint run via **Yarn** in this repo. After `git clone`, run **`yarn install`** once under `many_faces_backend/` so `.husky/commit-msg` can resolve `yarn exec commitlint` (see monorepo [`docs/guides/development.md`](../docs/guides/development.md) — *Git hooks*).

@@ -2,6 +2,8 @@
 
 This document complements **[`docs/guides/api-oauth-stories-curl.md`](../docs/guides/api-oauth-stories-curl.md)** (step-by-step **curl** smoke). For **authoritative route shapes**, use **Swagger** (`/swagger`) or **`/swagger/v1/swagger.json`** while the API is running.
 
+**Maintenance:** whenever Stories controllers or DTOs change, refresh this table and the curl guide in the **same PR** as OpenAPI / SPA client regeneration (**[`openapi-client-generation.md`](../docs/guides/openapi-client-generation.md)**) so the three sources (Swagger, this file, curl doc) stay aligned.
+
 ## Base URL and face prefix
 
 - Local smoke often uses `http://127.0.0.1:8000` as `BASE`.
@@ -28,5 +30,5 @@ Exact paths and DTOs are defined in **OpenAPI** / controllers (search `StoryLike
 ## Related
 
 - [`api-oauth-stories-curl.md`](../docs/guides/api-oauth-stories-curl.md) — full curl script and OAuth prelude.
-- [`docs/DETAILED_README.md`](./DETAILED_README.md) — broader endpoint inventory (non-Stories modules) + ER diagram.
+- [`docs/DETAILED_README.md`](./docs/DETAILED_README.md) — index to the split **detailed reference** (`docs/reference/*.md`: non-Stories endpoint bullets, routing, ER diagram).
 - Monorepo **database / Redis** guides if you debug publish workers or list visibility.
