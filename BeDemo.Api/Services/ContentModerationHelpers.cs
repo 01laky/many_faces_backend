@@ -69,23 +69,81 @@ public static class ContentModerationHelpers
     public static bool IsRetentionDue(DateTime? statusChangedAtUtc, DateTime nowUtc, int retentionDays = DefaultRetentionDays) =>
         statusChangedAtUtc.HasValue && statusChangedAtUtc.Value <= nowUtc.AddDays(-Math.Max(1, retentionDays));
 
+    /// <summary>Flags emitted by <c>many_faces_ai</c> <c>ReviewContent</c> plus backend-only markers (e.g. instruction-like heuristic). Unknown values are dropped.</summary>
+    public static IReadOnlyList<string> NormalizeAiFlags(IReadOnlyList<string>? flags)
+    {
+        if (flags == null || flags.Count == 0)
+            return Array.Empty<string>();
+
+        static string? MatchCanonical(string raw)
+        {
+            foreach (var c in CanonicalAiFlagNames)
+            {
+                if (c.Equals(raw, StringComparison.OrdinalIgnoreCase))
+                    return c;
+            }
+
+            return null;
+        }
+
+        var list = new List<string>();
+        foreach (var f in flags)
+        {
+            if (string.IsNullOrWhiteSpace(f))
+                continue;
+            var canon = MatchCanonical(f.Trim());
+            if (canon != null && !list.Contains(canon, StringComparer.Ordinal))
+                list.Add(canon);
+        }
+
+        list.Sort(StringComparer.Ordinal);
+        return list;
+    }
+
     /// <summary>
     /// Backend guard-rails so invalid or unsafe AI JSON cannot auto-publish content.
     /// Returns <see cref="AiRecommendationValidationResult.NeedsHumanReview"/> when manual review is required.
     /// </summary>
     public static AiRecommendationValidationResult ValidateRecommendation(AiReviewRecommendation recommendation)
     {
-        if (!Enum.IsDefined(recommendation.Decision))
+        var flags = NormalizeAiFlags(recommendation.Flags);
+        var rec = recommendation with { Flags = flags };
+
+        if (!Enum.IsDefined(rec.Decision))
             return AiRecommendationValidationResult.NeedsHumanReview("Unknown AI decision.");
-        if (recommendation.Confidence is < 0 or > 1)
+        if (rec.Confidence is < 0 or > 1)
             return AiRecommendationValidationResult.NeedsHumanReview("AI confidence must be between 0 and 1.");
-        if (recommendation.RiskLevel == AiReviewRiskLevel.High && recommendation.Decision == AiReviewDecision.Approve)
+        if (rec.RiskLevel == AiReviewRiskLevel.High && rec.Decision == AiReviewDecision.Approve)
             return AiRecommendationValidationResult.NeedsHumanReview("High-risk content cannot be auto-approved.");
-        if (recommendation.Decision == AiReviewDecision.Reject && string.IsNullOrWhiteSpace(recommendation.Reason))
+        if (rec.Decision == AiReviewDecision.Reject && string.IsNullOrWhiteSpace(rec.Reason))
             return AiRecommendationValidationResult.NeedsHumanReview("Reject recommendations require a reason.");
+        if (rec.Decision == AiReviewDecision.Approve &&
+            rec.Flags.Any(f => string.Equals(f, ContentModerationPromptInjectionHeuristic.InstructionLikeFlag, StringComparison.Ordinal)))
+            return AiRecommendationValidationResult.NeedsHumanReview(
+                "Instruction-like text requires human review before approval.");
 
         return AiRecommendationValidationResult.Valid();
     }
+
+    /// <summary>Lower-case canonical names aligned with <c>many_faces_ai</c> <c>ReviewContent</c> plus <see cref="ContentModerationPromptInjectionHeuristic.InstructionLikeFlag"/>.</summary>
+    private static readonly string[] CanonicalAiFlagNames =
+    {
+        "spam",
+        "scam",
+        "phishing",
+        "hate",
+        "harassment",
+        "adult",
+        "violence",
+        "self_harm",
+        "copyright",
+        "low_quality",
+        "unsafe_link",
+        "unsupported_media",
+        "image_analysis_boundary",
+        "video_analysis_boundary",
+        ContentModerationPromptInjectionHeuristic.InstructionLikeFlag,
+    };
 
     /// <summary>Factory for consistent audit rows across albums, blogs, and reels.</summary>
     public static ContentModerationEvent BuildEvent(

@@ -90,6 +90,8 @@ builder.Services.AddScoped<IContentModerationMetrics, ContentModerationMetrics>(
 builder.Services.AddScoped<IContentModerationNotifier, ContentModerationNotifier>();
 builder.Services.AddScoped<IContentRetentionCleanupService, ContentRetentionCleanupService>();
 builder.Services.AddHostedService<ContentRetentionHostedService>();
+builder.Services.Configure<ContentModerationSecurityOptions>(
+    builder.Configuration.GetSection(ContentModerationSecurityOptions.SectionName));
 
 // Configure Serilog for structured logging
 // Serilog provides better logging capabilities than default .NET logging

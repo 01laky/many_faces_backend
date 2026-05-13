@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 
@@ -58,19 +59,22 @@ public sealed class ContentAiReviewService : IContentAiReviewService
     private readonly IRedisJobQueue _queue;
     private readonly ILogger<ContentAiReviewService> _logger;
     private readonly IContentModerationNotifier _moderationNotifier;
+    private readonly IOptions<ContentModerationSecurityOptions> _securityOptions;
 
     public ContentAiReviewService(
         ApplicationDbContext context,
         IAiGrpcService aiGrpcService,
         IRedisJobQueue queue,
         ILogger<ContentAiReviewService> logger,
-        IContentModerationNotifier moderationNotifier)
+        IContentModerationNotifier moderationNotifier,
+        IOptions<ContentModerationSecurityOptions> securityOptions)
     {
         _context = context;
         _aiGrpcService = aiGrpcService;
         _queue = queue;
         _logger = logger;
         _moderationNotifier = moderationNotifier;
+        _securityOptions = securityOptions;
     }
 
     public async Task ProcessQueuedReviewAsync(string payloadJson, CancellationToken cancellationToken = default)
@@ -127,16 +131,39 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         AddEvent(item, oldAiStatus, AiReviewStatus.InProgress, ModerationActorType.System, "AI review started.");
         await _context.SaveChangesAsync(cancellationToken);
 
-        // gRPC call into many_faces_ai; failures are handled separately from invalid JSON recommendations.
-        var result = await _aiGrpcService.ReviewContentAsync(item.ToAiRequest(), cancellationToken);
+        // gRPC call into many_faces_ai; sanitize untrusted fields before they enter the AI process (defense in depth).
+        var baseRequest = item.ToAiRequest();
+        var (sanTitle, sanBody, sanMedia) = ContentModerationInputSanitizer.SanitizeForAiReview(
+            baseRequest.Title,
+            baseRequest.Body,
+            baseRequest.MediaUrl);
+        var aiRequest = baseRequest with
+        {
+            Title = sanTitle,
+            Body = sanBody,
+            MediaUrl = sanMedia,
+        };
+        var result = await _aiGrpcService.ReviewContentAsync(aiRequest, cancellationToken);
         if (result.Recommendation == null)
         {
             await HandleFailureAsync(item, job, result.Error ?? "AI review failed.", cancellationToken);
             return;
         }
 
-        var validation = ContentModerationHelpers.ValidateRecommendation(result.Recommendation);
-        ApplyRecommendation(item, result.Recommendation, validation);
+        var merged = result.Recommendation;
+        if (_securityOptions.Value.InstructionHeuristicEnabled &&
+            ContentModerationPromptInjectionHeuristic.IsInstructionLike(item.Title, item.Body, item.MediaUrl))
+        {
+            var flags = merged.Flags.ToList();
+            var needle = ContentModerationPromptInjectionHeuristic.InstructionLikeFlag;
+            if (!flags.Exists(f => string.Equals(f, needle, StringComparison.OrdinalIgnoreCase)))
+                flags.Add(needle);
+            merged = merged with { Flags = flags };
+        }
+
+        merged = merged with { Flags = ContentModerationHelpers.NormalizeAiFlags(merged.Flags) };
+        var validation = ContentModerationHelpers.ValidateRecommendation(merged);
+        ApplyRecommendation(item, merged, validation);
         job.CompletedAtUtc = DateTime.UtcNow;
         job.LastError = validation.FallbackReason;
         // NeedsHumanReview is both an AI status and a terminal job disposition when validation fails.
@@ -149,8 +176,8 @@ public sealed class ContentAiReviewService : IContentAiReviewService
             AiReviewStatus.InProgress,
             item.AiReviewStatus,
             ModerationActorType.AI,
-            validation.FallbackReason ?? result.Recommendation.Reason,
-            result.Recommendation.UserMessage);
+            validation.FallbackReason ?? merged.Reason,
+            merged.UserMessage);
 
         _logger.LogInformation(
             "AI review completed for {ContentType}:{ContentId} v{ModerationVersion}: {AiReviewStatus} confidence={Confidence} risk={Risk}",
@@ -158,8 +185,8 @@ public sealed class ContentAiReviewService : IContentAiReviewService
             item.ContentId,
             item.ModerationVersion,
             item.AiReviewStatus,
-            result.Recommendation.Confidence,
-            result.Recommendation.RiskLevel);
+            merged.Confidence,
+            merged.RiskLevel);
 
         await _context.SaveChangesAsync(cancellationToken);
     }

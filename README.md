@@ -175,6 +175,7 @@ Backend responsibilities:
 - Create AI review job records and enqueue review work instead of calling AI synchronously from create requests.
 - Store AI recommendation metadata separately from final approval status.
 - Apply backend policy before any AI recommendation changes public visibility.
+- Strip delimiter-smuggling characters from creator text before it reaches the AI process, and treat obvious instruction-like phrases as **human-review** when the model still returns **Approve** (configurable via `ContentModeration:InstructionHeuristicEnabled`).
 - Expose protected moderation APIs restricted to `SUPER_ADMIN` for approve/reject/remove in this phase.
 - Write moderation audit events for submit, queue, AI recommendation, approve, reject, remove, and override transitions.
 
@@ -190,11 +191,12 @@ Implemented backend pieces:
 - Moderation metadata fields on `Album`, `Blog`, and `Reel`.
 - `ContentModerationController` for filterable queue listing, `{ metrics, alerts }`, audit events, single-item approve/reject/remove/requeue, and **bulk** moderation with per-item results.
 - `MyContentSubmissionsController` (`GET /api/my/content-submissions`) for authenticated creators — unified pending items with safe fields and `canEdit` / `canDelete`.
-- `ContentAiReviewService` for `content.ai-review` job processing, structured gRPC calls, retry scheduling, stale-version protection, and escalation to `NeedsHumanReview`.
+- `ContentAiReviewService` for `content.ai-review` job processing: **sanitized gRPC payloads**, optional **`instruction_like_text`** heuristic on stored content, structured `ReviewContent` calls, **normalized AI flags**, policy validation, retry scheduling, stale-version protection, and escalation to `NeedsHumanReview`.
+- `ContentModerationSecurityOptions` (`ContentModeration:` in configuration) toggles the instruction heuristic (default on).
 - `IContentModerationNotifier` for in-app notifications on submit and when AI exhausts retries.
 - Optional `ContentRetentionCleanupService` + hosted worker (see `Retention` configuration) for dry-run or executed redaction of internal AI trace fields after policy delay.
 - Migration defaults that preserve existing content as `Approved`.
-- Integration tests covering visibility, bulk moderation, metrics/alerts wiring, retention behaviour, and audit writes (see `ContentModerationTests`).
+- Integration tests covering visibility, bulk moderation, metrics/alerts wiring, retention behaviour, audit writes, and **moderation security edge cases** (see `ContentModerationTests`, `ContentModerationSecurityEdgeTests`).
 
 ```mermaid
 flowchart TD
@@ -205,8 +207,9 @@ flowchart TD
     pending --> job["Enqueue content.ai-review"]
 
     job --> worker["RedisJobWorkerService"]
-    worker --> ai["many_faces_ai ReviewContent"]
-    ai --> policy["Policy validation + version check"]
+    worker --> sanitize["Sanitize + cap untrusted fields"]
+    sanitize --> ai["many_faces_ai ReviewContent"]
+    ai --> policy["Normalize flags + validate policy"]
 
     policy --> recApprove["RecommendedApprove"]
     policy --> recReject["RecommendedReject"]
