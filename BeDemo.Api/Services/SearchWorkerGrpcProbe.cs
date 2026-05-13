@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using System.Net.Http;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using BeDemo.Api.Models.DTOs;
 using Grpc.Core;
 using Grpc.Net.Client;
@@ -18,6 +21,7 @@ public sealed class SearchWorkerGrpcProbe : ISearchWorkerProbe, IDisposable
     private readonly ILogger<SearchWorkerGrpcProbe> _logger;
     private readonly GrpcChannel? _channel;
     private readonly global::ManyFaces.Search.V1.SearchService.SearchServiceClient? _client;
+    private readonly List<X509Certificate2> _tlsCertificatesToDispose = [];
 
     /// <summary>
     /// Captures options and eagerly builds a gRPC channel when <see cref="SearchOptions.IsEnabled"/> is true.
@@ -32,13 +36,136 @@ public sealed class SearchWorkerGrpcProbe : ISearchWorkerProbe, IDisposable
             return;
         }
 
-        // ForAddress validates the URI scheme early; invalid URLs should have made IsEnabled false.
-        _channel = GrpcChannel.ForAddress(o.WorkerGrpcUrl!, new GrpcChannelOptions
+        _channel = CreateGrpcChannel(o, _tlsCertificatesToDispose);
+        _client = new global::ManyFaces.Search.V1.SearchService.SearchServiceClient(_channel);
+    }
+
+    internal static string? TrimOrNull(string? s) =>
+        string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    /// <summary>
+    /// Builds a <see cref="GrpcChannel"/> for the configured worker URL. Exposed for unit tests (see <c>BeDemo.Api.Tests</c>).
+    /// </summary>
+    internal static GrpcChannel CreateGrpcChannel(SearchOptions o, List<X509Certificate2> disposeList)
+    {
+        var uri = new Uri(o.WorkerGrpcUrl!.Trim(), UriKind.Absolute);
+
+        var channelOptions = new GrpcChannelOptions
         {
             MaxReceiveMessageSize = 4 * 1024 * 1024,
             MaxSendMessageSize = 4 * 1024 * 1024,
-        });
-        _client = new global::ManyFaces.Search.V1.SearchService.SearchServiceClient(_channel);
+            DisposeHttpClient = true,
+        };
+
+        if (string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase))
+        {
+            ValidateHttpUrlHasNoTlsOptions(o);
+            return GrpcChannel.ForAddress(uri, channelOptions);
+        }
+
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Search:WorkerGrpcUrl must use http:// or https://.");
+        }
+
+        var caPath = TrimOrNull(o.WorkerTlsServerCaPath);
+        var clientCertPath = TrimOrNull(o.WorkerTlsClientCertPath);
+        var clientKeyPath = TrimOrNull(o.WorkerTlsClientKeyPath);
+        var tlsServerName = TrimOrNull(o.WorkerGrpcTlsServerName);
+
+        if (clientCertPath is null ^ clientKeyPath is null)
+        {
+            throw new InvalidOperationException(
+                "Search:WorkerTlsClientCertPath and Search:WorkerTlsClientKeyPath must both be set for mTLS, or both left empty.");
+        }
+
+        var needsCustomHandler = caPath is not null || clientCertPath is not null || tlsServerName is not null;
+        if (!needsCustomHandler)
+        {
+            return GrpcChannel.ForAddress(uri, channelOptions);
+        }
+
+        var handler = new SocketsHttpHandler
+        {
+            PooledConnectionIdleTimeout = Timeout.InfiniteTimeSpan,
+            KeepAlivePingDelay = TimeSpan.FromSeconds(60),
+            KeepAlivePingTimeout = TimeSpan.FromSeconds(30),
+            EnableMultipleHttp2Connections = true,
+            SslOptions = new SslClientAuthenticationOptions
+            {
+                TargetHost = tlsServerName ?? uri.Host,
+            },
+        };
+
+        if (caPath is not null)
+        {
+            var pem = File.ReadAllText(caPath);
+            var customRoots = new X509Certificate2Collection();
+            customRoots.ImportFromPem(pem);
+            if (customRoots.Count == 0)
+            {
+                throw new InvalidOperationException($"Search:WorkerTlsServerCaPath did not contain any PEM certificates: {caPath}");
+            }
+
+            foreach (X509Certificate2 c in customRoots)
+            {
+                disposeList.Add(c);
+            }
+
+            var roots = customRoots;
+            handler.SslOptions.RemoteCertificateValidationCallback = (_, certificate, _, sslPolicyErrors) =>
+                ValidateServerCertWithCustomRoots(certificate, sslPolicyErrors, roots);
+        }
+
+        if (clientCertPath is not null && clientKeyPath is not null)
+        {
+            var clientCert = X509Certificate2.CreateFromPemFile(clientCertPath, clientKeyPath);
+            disposeList.Add(clientCert);
+            handler.SslOptions.ClientCertificates ??= new X509CertificateCollection();
+            handler.SslOptions.ClientCertificates.Add(clientCert);
+        }
+
+        channelOptions.HttpHandler = handler;
+        return GrpcChannel.ForAddress(uri, channelOptions);
+    }
+
+    internal static void ValidateHttpUrlHasNoTlsOptions(SearchOptions o)
+    {
+        if (TrimOrNull(o.WorkerTlsServerCaPath) is not null
+            || TrimOrNull(o.WorkerTlsClientCertPath) is not null
+            || TrimOrNull(o.WorkerTlsClientKeyPath) is not null
+            || TrimOrNull(o.WorkerGrpcTlsServerName) is not null)
+        {
+            throw new InvalidOperationException(
+                "Search TLS options (Search:WorkerTls*, Search:WorkerGrpcTlsServerName) apply only when Search:WorkerGrpcUrl uses https://.");
+        }
+    }
+
+    internal static bool ValidateServerCertWithCustomRoots(
+        X509Certificate? certificate,
+        SslPolicyErrors sslPolicyErrors,
+        X509Certificate2Collection customRoots)
+    {
+        if (certificate is not X509Certificate2 server)
+        {
+            return false;
+        }
+
+        if (sslPolicyErrors == SslPolicyErrors.None)
+        {
+            return true;
+        }
+
+        if ((sslPolicyErrors & ~SslPolicyErrors.RemoteCertificateChainErrors) != 0)
+        {
+            return false;
+        }
+
+        using var chain = new X509Chain();
+        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+        chain.ChainPolicy.CustomTrustStore.AddRange(customRoots);
+        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+        return chain.Build(server);
     }
 
     /// <inheritdoc />
@@ -151,5 +278,14 @@ public sealed class SearchWorkerGrpcProbe : ISearchWorkerProbe, IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose() => _channel?.Dispose();
+    public void Dispose()
+    {
+        _channel?.Dispose();
+        foreach (var c in _tlsCertificatesToDispose)
+        {
+            c.Dispose();
+        }
+
+        _tlsCertificatesToDispose.Clear();
+    }
 }

@@ -13,9 +13,27 @@ public sealed class SearchOptions
 
     /// <summary>
     /// Absolute gRPC server address for the worker, e.g. <c>http://search-worker-dev:50052</c> on <c>many_faces_main_dev-network</c>.
-    /// Plaintext HTTP/2 (h2c) is acceptable only on trusted dev Docker networks; production should use TLS and stronger auth (see many_faces_elastic README).
+    /// Plaintext HTTP/2 (h2c) is acceptable only on trusted dev Docker networks; production should use <c>https://</c> plus the TLS options below (see <c>docs/guides/elasticsearch-grpc-tls-mtls.md</c>).
     /// </summary>
     public string? WorkerGrpcUrl { get; set; }
+
+    /// <summary>
+    /// When <see cref="WorkerGrpcUrl"/> uses <c>https://</c>, optional PEM file path for extra CA certificates (private CA / self-signed server). When empty, the platform default trust store is used.
+    /// </summary>
+    public string? WorkerTlsServerCaPath { get; set; }
+
+    /// <summary>
+    /// When the worker is configured for mTLS, PEM paths for the client (service) certificate and private key presented to the worker (must chain to the worker's <c>SEARCH_WORKER_GRPC_MTLS_CLIENT_CA_FILE</c> bundle).
+    /// </summary>
+    public string? WorkerTlsClientCertPath { get; set; }
+
+    /// <summary>PEM private key matching <see cref="WorkerTlsClientCertPath"/>.</summary>
+    public string? WorkerTlsClientKeyPath { get; set; }
+
+    /// <summary>
+    /// Optional TLS hostname (SNI / certificate validation) when it differs from the host in <see cref="WorkerGrpcUrl"/> (e.g. URL uses an IP or short Docker name but the cert is issued for a longer DNS name).
+    /// </summary>
+    public string? WorkerGrpcTlsServerName { get; set; }
 
     /// <summary>
     /// Optional shared secret sent as gRPC metadata <c>x-search-worker-token</c>; must match <c>SEARCH_WORKER_EXPECTED_TOKEN</c> in the worker container when that env is set.

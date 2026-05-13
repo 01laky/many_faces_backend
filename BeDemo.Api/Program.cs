@@ -52,11 +52,15 @@ if (args.Length > 0 && args[0] == "generate-diagram")
     return; // Exit after generating diagram
 }
 
-// gRPC to many_faces_elastic search-worker uses HTTP/2 without TLS in local Docker; .NET requires this switch before opening cleartext h2c channels.
-AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
-
 // Creates WebApplicationBuilder, which is used to configure the application
 var builder = WebApplication.CreateBuilder(args);
+
+// gRPC to many_faces_elastic search-worker may use cleartext HTTP/2 (h2c) when Search:WorkerGrpcUrl is http://; .NET requires this switch before opening those channels.
+var searchWorkerGrpcUrl = builder.Configuration["Search:WorkerGrpcUrl"] ?? string.Empty;
+if (searchWorkerGrpcUrl.TrimStart().StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+{
+    AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+}
 
 // Development HTTPS: shared cert from dev/generate-https-certs.sh (repo dev/certs/localhost.pfx) or ASPNETCORE_DEV_HTTPS_PFX (e.g. Docker /https-certs/localhost.pfx).
 if (builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing"))
