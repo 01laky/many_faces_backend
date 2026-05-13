@@ -1,7 +1,7 @@
 namespace BeDemo.Api.Models.DTOs;
 
 /// <summary>
-/// Response for <c>GET /api/search/health</c>: whether search is configured and whether the cluster answered.
+/// Response for <c>GET /api/search/health</c>: whether search is enabled in configuration and whether the Go search-worker reports Elasticsearch reachability (via gRPC Ping).
 /// </summary>
 public sealed class SearchHealthDto
 {

@@ -8,7 +8,7 @@ using Xunit;
 namespace BeDemo.Api.Tests;
 
 /// <summary>
-/// Integration tests for <see cref="Controllers.SearchController"/> health endpoint (optional Elasticsearch).
+/// Integration tests for <see cref="Controllers.SearchController"/> health endpoint (optional search worker over gRPC).
 /// </summary>
 public sealed class SearchControllerTests : IClassFixture<CustomWebApplicationFactory<Program>>, IDisposable
 {
@@ -19,7 +19,7 @@ public sealed class SearchControllerTests : IClassFixture<CustomWebApplicationFa
     public void Dispose() { }
 
     [Fact]
-    public async Task GetHealth_ShouldReturnConfiguredFalse_WhenSearchUriUnset_OnPublicFace()
+    public async Task GetHealth_ShouldReturnConfiguredFalse_WhenSearchDisabled_OnPublicFace()
     {
         var client = _factory.CreateFaceClient("public");
         var response = await client.GetAsync("/api/search/health");

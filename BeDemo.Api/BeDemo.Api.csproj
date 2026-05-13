@@ -40,6 +40,8 @@
 
   <ItemGroup>
     <Protobuf Include="Protos\health.proto" GrpcServices="Client" />
+    <!-- Canonical contract lives in many_faces_elastic; C# client stubs are generated at build time (same proto as Go worker). -->
+    <Protobuf Include="..\..\many_faces_elastic\proto\manyfaces\search\v1\search.proto" GrpcServices="Client" Link="Protos\manyfaces\search\v1\search.proto" />
   </ItemGroup>
 
   <ItemGroup>

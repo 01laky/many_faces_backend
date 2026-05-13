@@ -52,6 +52,9 @@ if (args.Length > 0 && args[0] == "generate-diagram")
     return; // Exit after generating diagram
 }
 
+// gRPC to many_faces_elastic search-worker uses HTTP/2 without TLS in local Docker; .NET requires this switch before opening cleartext h2c channels.
+AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
+
 // Creates WebApplicationBuilder, which is used to configure the application
 var builder = WebApplication.CreateBuilder(args);
 
@@ -96,7 +99,7 @@ builder.Services.Configure<ContentModerationSecurityOptions>(
     builder.Configuration.GetSection(ContentModerationSecurityOptions.SectionName));
 builder.Services.Configure<SearchOptions>(builder.Configuration.GetSection(SearchOptions.SectionName));
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<ISearchElasticsearchProbe, SearchElasticsearchProbe>();
+builder.Services.AddSingleton<ISearchWorkerProbe, SearchWorkerGrpcProbe>();
 
 // Configure Serilog for structured logging
 // Serilog provides better logging capabilities than default .NET logging
