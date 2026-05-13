@@ -26,7 +26,7 @@ For engineers, the backend is designed as a layered ASP.NET Core service: middle
 - SignalR hubs for chat and real-time communication.
 - **Operator statistics APIs:** `GET /api/Stats`, `GET /api/Stats/timeseries` (JWT + **`CanManageAllFaces`**), and **`GET /api/Stats/public`** (anonymous aggregate counts on the **`public`** face prefix only). Counts for the full dashboard are centralized in **`IPlatformStatsQueryService`**.
 - AI gRPC client integration (**`Generate`** with optional **`stats_context_json`**, **`OperatorStatsChat`**, **`ReviewContent`**) and Redis-backed queue infrastructure for asynchronous workflows.
-- **Optional Elasticsearch search projection:** gRPC **`SearchService`** client to the Go **search-worker** in **`many_faces_elastic`** (shipping path does not open Elasticsearch HTTP from the API process); see monorepo [`docs/guides/elasticsearch-local-dev.md`](../../docs/guides/elasticsearch-local-dev.md) and [`docs/guides/elasticsearch-grpc-tls-mtls.md`](../../docs/guides/elasticsearch-grpc-tls-mtls.md).
+- **Optional Elasticsearch search projection:** gRPC **`SearchService`** client to the Go **search-worker** in **`many_faces_elastic`** (shipping path does not open Elasticsearch HTTP from the API process); see monorepo [`docs/guides/elasticsearch-search-features-overview.md`](../../docs/guides/elasticsearch-search-features-overview.md), [`docs/guides/elasticsearch-local-dev.md`](../../docs/guides/elasticsearch-local-dev.md), and [`docs/guides/elasticsearch-grpc-tls-mtls.md`](../../docs/guides/elasticsearch-grpc-tls-mtls.md).
 - Structured Serilog/Seq logging, Swagger/OpenAPI documentation, migrations, seed data, and unit/integration tests.
 
 ## Technical Specification
