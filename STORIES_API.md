@@ -1,50 +1,32 @@
-# Stories API
+# Stories HTTP API (reference)
 
-Stories are **draft → scheduled (optional) → published (24h) → expired**. Interactions (likes, comments, views) are removed on expiry; the creator can **publish again** from the same row. Each creator keeps at most **three** story rows (oldest deleted when a fourth would exist).
+This document complements **[`docs/guides/api-oauth-stories-curl.md`](../docs/guides/api-oauth-stories-curl.md)** (step-by-step **curl** smoke). For **authoritative route shapes**, use **Swagger** (`/swagger`) or **`/swagger/v1/swagger.json`** while the API is running.
 
-**Lists** (`GET /api/stories`) are only returned for viewers who have a **non-host** face role in the given face. **No `faceIds` on create** means the story targets **all** faces (same idea as reels).
+## Base URL and face prefix
 
-**Full OAuth2 + face role + curl walkthrough** (Slovak, step-by-step): in the **`many_faces_main`** monorepo root, see [`docs/api-oauth-stories-curl.md`](../docs/api-oauth-stories-curl.md).
+- Local smoke often uses `http://127.0.0.1:8000` as `BASE`.
+- In multi-face deployments, callers typically use a **face-prefixed** path such as `/{facePrefix}/api/...` (see **`RoutingMiddleware`** and [`docs/guides/authentication-and-sessions.md`](../docs/guides/authentication-and-sessions.md)).
 
-## Endpoints
+Unless noted, endpoints below assume **`$BASE/api/stories`** as in the curl guide (adjust for your prefix).
 
-| Method            | Path                                 | Notes                                                        |
-| ----------------- | ------------------------------------ | ------------------------------------------------------------ |
-| `GET`             | `/api/stories?faceId=`               | Live published stories for this face (non-host only).        |
-| `GET`             | `/api/stories/me`                    | Creator’s stories; optional `faceId` filter.                 |
-| `GET`             | `/api/stories/{id}?faceId=`          | Detail; creator sees `viewers`, others see `viewCount` only. |
-| `POST`            | `/api/stories`                       | Body: `{ "title", "faceIds": [] optional }`.                 |
-| `POST`            | `/api/stories/{id}/images`           | Multipart: `file`, `sortOrder` 0–9, optional `description`.  |
-| `POST`            | `/api/stories/{id}/publish`          | Body: `{ "scheduledPublishAt": null or ISO UTC }`.           |
-| `DELETE`          | `/api/stories/{id}`                  | Creator only.                                                |
-| `POST`            | `/api/stories/{id}/view?faceId=`     | Idempotent view record.                                      |
-| `GET/POST/DELETE` | `/api/stories/{id}/likes?faceId=`    | Like / unlike (live story, non-host).                        |
-| `GET/POST`        | `/api/stories/{id}/comments?faceId=` | Body: `{ "content" }`.                                       |
+## Endpoints (overview)
 
-Redis jobs: `story.publish` (scheduled), `story.expire` (24h after publish).
+| Method | Path | Auth | Notes |
+| ------ | ---- | ---- | ----- |
+| `POST` | `/api/stories` | Bearer | Create **draft**. Body may include `title`, optional `faceIds` (empty = all faces). |
+| `POST` | `/api/stories/{id}/images` | Bearer | **Multipart** upload; at least one image before publish. Fields: `file`, `sortOrder` (0–9), optional `description`. |
+| `POST` | `/api/stories/{id}/publish` | Bearer | Publish (immediate or scheduled). Body: `scheduledPublishAt` (ISO UTC or `null`). Worker may process job `story.publish` when scheduled. |
+| `GET` | `/api/stories?faceId={faceId}` | Bearer | List stories for a **face** (viewer / host rules apply). |
+| `GET` | `/api/stories/{id}?faceId=…` | Bearer | Story **detail** for a face context. |
+| `GET` | `/api/stories/me` | Bearer | Current user’s stories. |
+| `POST` | `/api/stories/{id}/view?faceId=…` | Bearer | Record a **view** (analytics). |
 
-## curl example
+## Likes and comments
 
-```bash
-# Docker dev: 8000. dotnet run (launchSettings): often 8080.
-BASE=http://127.0.0.1:8000
-# 1) Register + OAuth2 token — see many_faces_main/docs/api-oauth-stories-curl.md
-# 2) PUT /api/faces/{faceId}/my-role with non-host role (e.g. FACE_USER)
-# 3) Create draft
-STORY_ID=$(curl -sS -X POST "$BASE/api/stories" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"title":"Hello"}' | jq -r .id)
+Exact paths and DTOs are defined in **OpenAPI** / controllers (search `StoryLikes`, `StoryComments` in the backend). Regenerate SPA clients after contract changes (**[`openapi-client-generation.md`](../docs/guides/openapi-client-generation.md)**).
 
-# 4) Upload image (jpeg bytes)
-curl -sS -X POST "$BASE/api/stories/$STORY_ID/images" \
-  -H "Authorization: Bearer $TOKEN" \
-  -F "file=@/path/to/photo.jpg" -F "sortOrder=0" -F "description=caption"
+## Related
 
-# 5) Publish now
-curl -sS -X POST "$BASE/api/stories/$STORY_ID/publish" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"scheduledPublishAt":null}'
-
-# 6) List
-curl -sS "$BASE/api/stories?faceId=$FACE_ID" -H "Authorization: Bearer $TOKEN"
-```
+- [`api-oauth-stories-curl.md`](../docs/guides/api-oauth-stories-curl.md) — full curl script and OAuth prelude.
+- [`docs/DETAILED_README.md`](./DETAILED_README.md) — broader endpoint inventory (non-Stories modules) + ER diagram.
+- Monorepo **database / Redis** guides if you debug publish workers or list visibility.
