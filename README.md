@@ -1304,3 +1304,14 @@ erDiagram
 - **Seq Logging**: See `SEQ_LOGGING.md` for detailed logging setup
 - **HTTPS Certificates**: See `INSTALL_HTTPS_CERT.md` for HTTPS certificate setup
 - **Docker**: See `docker-compose.dev.yml` for Docker configuration
+
+### Monorepo documentation hub (`many_faces_main`)
+
+Inside the monorepo checkout, guides live under [`../docs/`](../docs/README.md).
+
+On GitHub (this API repo only), open the same content at:
+
+- [Documentation hub](https://github.com/01laky/many_faces_main/blob/main/docs/README.md)
+- [AI-assisted content approval](https://github.com/01laky/many_faces_main/blob/main/docs/guides/ai-assisted-content-approval.md)
+- [Git submodules](https://github.com/01laky/many_faces_main/blob/main/docs/guides/git-submodules.md)
+- [Development and CI](https://github.com/01laky/many_faces_main/blob/main/docs/guides/development.md)
