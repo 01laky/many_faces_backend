@@ -40,12 +40,10 @@
 
   <ItemGroup>
     <Protobuf Include="Protos\health.proto" GrpcServices="Client" />
-    <!-- Canonical contract lives in many_faces_elastic; C# client stubs are generated at build time (same proto as Go worker). -->
-    <Protobuf Include="..\..\many_faces_elastic\proto\manyfaces\search\v1\search.proto" GrpcServices="Client" Link="Protos\manyfaces\search\v1\search.proto" />
-    <!-- Push / FCM worker contract in many_faces_push; C# client stubs generated at build time. -->
-    <Protobuf Include="..\..\many_faces_push\proto\manyfaces\push\v1\push.proto" GrpcServices="Client" Link="Protos\manyfaces\push\v1\push.proto" />
-    <!-- Transactional mail worker contract in many_faces_mailer; C# client stubs generated at build time. -->
-    <Protobuf Include="..\..\many_faces_mailer\proto\manyfaces\mailer\v1\mailer.proto" GrpcServices="Client" Link="Protos\manyfaces\mailer\v1\mailer.proto" />
+    <!-- Canonical worker contracts live in many_faces_proto; C# client stubs generated at build time. -->
+    <Protobuf Include="..\..\many_faces_proto\proto\manyfaces\search\v1\search.proto" GrpcServices="Client" Link="Protos\manyfaces\search\v1\search.proto" />
+    <Protobuf Include="..\..\many_faces_proto\proto\manyfaces\push\v1\push.proto" GrpcServices="Client" Link="Protos\manyfaces\push\v1\push.proto" />
+    <Protobuf Include="..\..\many_faces_proto\proto\manyfaces\mailer\v1\mailer.proto" GrpcServices="Client" Link="Protos\manyfaces\mailer\v1\mailer.proto" />
   </ItemGroup>
 
   <ItemGroup>
