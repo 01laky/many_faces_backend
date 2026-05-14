@@ -1,20 +1,18 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0
-WORKDIR /app
 
-# Expose ports
-EXPOSE 8000
-EXPOSE 8001
+# Build context: many_faces_backend (parent of BeDemo.Api; many_faces_proto is ../many_faces_proto from the project).
+WORKDIR /src/BeDemo.Api
 
-# Install dotnet-ef tools
 RUN dotnet tool install --global dotnet-ef --version 10.0.5
 ENV PATH="$PATH:/root/.dotnet/tools"
 
-# Copy project file and restore dependencies
-COPY ["BeDemo.Api.csproj", "./"]
+COPY ["BeDemo.Api/BeDemo.Api.csproj", "./"]
 RUN dotnet restore
 
-# Copy everything else
-COPY . .
+COPY ["BeDemo.Api/", "./"]
+COPY ["many_faces_proto/", "../many_faces_proto/"]
 
-# Ports 8000 (HTTP) + 8001 (HTTPS) when ASPNETCORE_DEV_HTTPS_PFX is set (see root docker-compose.dev.yml).
+EXPOSE 8000
+EXPOSE 8001
+
 ENTRYPOINT ["dotnet", "watch", "run"]

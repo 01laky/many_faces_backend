@@ -3,11 +3,11 @@ WORKDIR /app
 EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
-COPY ["BeDemo.Api.csproj", "./"]
+WORKDIR /src/BeDemo.Api
+COPY ["BeDemo.Api/BeDemo.Api.csproj", "./"]
 RUN dotnet restore "BeDemo.Api.csproj"
-COPY . .
-WORKDIR "/src/."
+COPY ["BeDemo.Api/", "./"]
+COPY ["many_faces_proto/", "../many_faces_proto/"]
 RUN dotnet build "BeDemo.Api.csproj" -c Release -o /app/build
 
 FROM build AS publish

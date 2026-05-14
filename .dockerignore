@@ -1,0 +1,6 @@
+# Build context = many_faces_backend (Strategy B: sibling many_faces_proto).
+.git/
+BeDemo.Api/bin/
+BeDemo.Api/obj/
+BeDemo.Api/.vs/
+**/*.user
