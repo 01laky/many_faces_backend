@@ -39,7 +39,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Protobuf Include="Protos\health.proto" GrpcServices="Client" />
+    <!-- AI worker contract (Python many_faces_ai); C# client stubs generated at build time. -->
+    <Protobuf Include="..\..\many_faces_proto\proto\health.proto" GrpcServices="Client" Link="Protos\health.proto" />
     <!-- Canonical worker contracts live in many_faces_proto; C# client stubs generated at build time. -->
     <Protobuf Include="..\..\many_faces_proto\proto\manyfaces\search\v1\search.proto" GrpcServices="Client" Link="Protos\manyfaces\search\v1\search.proto" />
     <Protobuf Include="..\..\many_faces_proto\proto\manyfaces\push\v1\push.proto" GrpcServices="Client" Link="Protos\manyfaces\push\v1\push.proto" />
