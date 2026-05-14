@@ -6,7 +6,7 @@ using Grpc.Net.Client;
 namespace BeDemo.Api.Services;
 
 /// <summary>
-/// Shared <see cref="GrpcChannel"/> construction for internal Go workers (search, push) so TLS and h2c rules stay consistent.
+/// Shared <see cref="GrpcChannel"/> construction for internal workers (search, push, mailer) so TLS and h2c rules stay consistent.
 /// </summary>
 internal static class GrpcWorkerChannelFactory
 {
@@ -37,6 +37,14 @@ internal static class GrpcWorkerChannelFactory
         o.WorkerTlsClientKeyPath,
         o.WorkerGrpcTlsServerName,
         "Push");
+
+    internal static GrpcWorkerTlsSettings FromMail(MailOptions o) => new(
+        o.WorkerGrpcUrl!.Trim(),
+        o.WorkerTlsServerCaPath,
+        o.WorkerTlsClientCertPath,
+        o.WorkerTlsClientKeyPath,
+        o.WorkerGrpcTlsServerName,
+        "Mail");
 
     internal static GrpcChannel CreateChannel(GrpcWorkerTlsSettings s, List<X509Certificate2> disposeList)
     {

@@ -55,11 +55,13 @@ if (args.Length > 0 && args[0] == "generate-diagram")
 // Creates WebApplicationBuilder, which is used to configure the application
 var builder = WebApplication.CreateBuilder(args);
 
-// gRPC to many_faces_elastic search-worker and many_faces_push may use cleartext HTTP/2 (h2c) when WorkerGrpcUrl is http://; .NET requires this switch before opening those channels.
+// gRPC to many_faces_elastic search-worker, many_faces_push, and many_faces_mailer may use cleartext HTTP/2 (h2c) when WorkerGrpcUrl is http://; .NET requires this switch before opening those channels.
 var searchWorkerGrpcUrl = builder.Configuration["Search:WorkerGrpcUrl"] ?? string.Empty;
 var pushWorkerGrpcUrl = builder.Configuration["Push:WorkerGrpcUrl"] ?? string.Empty;
+var mailWorkerGrpcUrl = builder.Configuration["Mail:WorkerGrpcUrl"] ?? string.Empty;
 if (searchWorkerGrpcUrl.TrimStart().StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-    || pushWorkerGrpcUrl.TrimStart().StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+    || pushWorkerGrpcUrl.TrimStart().StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+    || mailWorkerGrpcUrl.TrimStart().StartsWith("http://", StringComparison.OrdinalIgnoreCase))
 {
     AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 }
@@ -105,9 +107,11 @@ builder.Services.Configure<ContentModerationSecurityOptions>(
     builder.Configuration.GetSection(ContentModerationSecurityOptions.SectionName));
 builder.Services.Configure<SearchOptions>(builder.Configuration.GetSection(SearchOptions.SectionName));
 builder.Services.Configure<PushOptions>(builder.Configuration.GetSection(PushOptions.SectionName));
+builder.Services.Configure<MailOptions>(builder.Configuration.GetSection(MailOptions.SectionName));
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<ISearchWorkerProbe, SearchWorkerGrpcProbe>();
 builder.Services.AddSingleton<IPushWorkerClient, PushWorkerGrpcClient>();
+builder.Services.AddSingleton<IMailerWorkerClient, MailerWorkerGrpcClient>();
 
 // Configure Serilog for structured logging
 // Serilog provides better logging capabilities than default .NET logging
@@ -299,6 +303,9 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()       // Uses Entity Framework Core as storage for Identity
 .AddDefaultTokenProviders();                            // Adds default token providers (e.g., for email confirmation)
+
+// Transactional mail: many_faces_mailer gRPC worker (templates + SMTP). When Mail:Enabled is false, MailerGrpcEmailSender logs and no-ops.
+builder.Services.AddScoped<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender, MailerGrpcEmailSender>();
 
 // ============================================================================
 // OAUTH2 AND JWT AUTHENTICATION CONFIGURATION
