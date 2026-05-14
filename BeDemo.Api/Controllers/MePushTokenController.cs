@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
-using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Controllers;
 
@@ -97,6 +96,37 @@ public sealed class MePushTokenController : ControllerBase
 
         await _db.SaveChangesAsync(cancellationToken);
         _logger.LogInformation("Push token registered for user (platform {Platform}, installation set: {HasInstallation})", platform, installationId is not null);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Removes push device rows for the caller. When <paramref name="installationId"/> is set, only that installation is removed; otherwise all rows for the user are deleted (sign-out-all-devices style).
+    /// </summary>
+    [HttpDelete("push-token")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> UnregisterPushToken([FromQuery] string? installationId, CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized();
+        }
+
+        var q = _db.UserPushDevices.Where(d => d.UserId == userId);
+        if (!string.IsNullOrWhiteSpace(installationId))
+        {
+            var id = installationId.Trim();
+            q = q.Where(d => d.InstallationId == id);
+        }
+
+        var rows = await q.ToListAsync(cancellationToken);
+        if (rows.Count > 0)
+        {
+            _db.UserPushDevices.RemoveRange(rows);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        _logger.LogInformation("Push token(s) removed for user (count {Count}, scopedToInstallation: {Scoped})", rows.Count, !string.IsNullOrWhiteSpace(installationId));
         return NoContent();
     }
 }
