@@ -2,6 +2,7 @@ using System.Security.Cryptography.X509Certificates;
 using Grpc.Core;
 using Grpc.Net.Client;
 using ManyFaces.Mailer.V1;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
 namespace BeDemo.Api.Services;
@@ -14,14 +15,19 @@ public sealed class MailerWorkerGrpcClient : IMailerWorkerClient, IDisposable
 {
     private readonly IOptions<MailOptions> _options;
     private readonly ILogger<MailerWorkerGrpcClient> _logger;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly GrpcChannel? _channel;
     private readonly MailerService.MailerServiceClient? _client;
     private readonly List<X509Certificate2> _tlsCertificatesToDispose = [];
 
-    public MailerWorkerGrpcClient(IOptions<MailOptions> options, ILogger<MailerWorkerGrpcClient> logger)
+    public MailerWorkerGrpcClient(
+        IOptions<MailOptions> options,
+        ILogger<MailerWorkerGrpcClient> logger,
+        IHttpContextAccessor httpContextAccessor)
     {
         _options = options;
         _logger = logger;
+        _httpContextAccessor = httpContextAccessor;
         var o = options.Value;
         if (!o.IsEnabled)
         {
@@ -44,6 +50,7 @@ public sealed class MailerWorkerGrpcClient : IMailerWorkerClient, IDisposable
         }
 
         var headers = new Metadata();
+        MailerWorkerCorrelationMetadata.AppendFromHttpHeaders(_httpContextAccessor.HttpContext?.Request.Headers, headers);
         if (!string.IsNullOrWhiteSpace(o.WorkerAuthToken))
         {
             // Header name matches many_faces_mailer MailerAuthInterceptor (parity with x-push-worker-token).
