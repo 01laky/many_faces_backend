@@ -49,7 +49,7 @@ public class SignalRHubTests : IClassFixture<CustomWebApplicationFactory<Program
         var email = $"sr_{Guid.NewGuid():N}@test.com";
         const string password = "Test123!@#";
 
-                var tokenData = await IntegrationTestRegistration.CompleteRegistrationAsync(
+        var tokenData = await IntegrationTestRegistration.CompleteRegistrationAsync(
             _client,
             _factory,
             email,
