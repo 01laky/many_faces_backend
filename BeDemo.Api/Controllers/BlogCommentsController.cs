@@ -65,9 +65,6 @@ public class BlogCommentsController : ControllerBase
         if (blog == null)
             return NotFound(new { error = "Blog not found" });
 
-        if (string.IsNullOrWhiteSpace(dto.Content))
-            return BadRequest(new { error = "Content is required" });
-
         var comment = new BlogComment
         {
             BlogId = blogId,
@@ -104,9 +101,6 @@ public class BlogCommentsController : ControllerBase
 
         if (comment.UserId != UserId)
             return Forbid();
-
-        if (string.IsNullOrWhiteSpace(dto.Content))
-            return BadRequest(new { error = "Content is required" });
 
         comment.Content = dto.Content.Trim();
         comment.UpdatedAt = DateTime.UtcNow;

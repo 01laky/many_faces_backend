@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Models.Requests.Users;
 
 namespace BeDemo.Api.Controllers;
 
@@ -39,18 +40,8 @@ public sealed class MePushTokenController : ControllerBase
             return Unauthorized();
         }
 
-        var platform = (dto.Platform ?? string.Empty).Trim().ToLowerInvariant();
-        if (platform is not ("ios" or "android"))
-        {
-            return BadRequest("Platform must be 'ios' or 'android'.");
-        }
-
-        var token = (dto.RegistrationToken ?? string.Empty).Trim();
-        if (token.Length < 10)
-        {
-            return BadRequest("RegistrationToken is required.");
-        }
-
+        var platform = dto.Platform.Trim().ToLowerInvariant();
+        var token = dto.RegistrationToken.Trim();
         var now = DateTime.UtcNow;
 
         // A registration token must not be shared across users — reclaim it if another row still holds it.
@@ -104,7 +95,7 @@ public sealed class MePushTokenController : ControllerBase
     /// </summary>
     [HttpDelete("push-token")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
-    public async Task<IActionResult> UnregisterPushToken([FromQuery] string? installationId, CancellationToken cancellationToken)
+    public async Task<IActionResult> UnregisterPushToken([FromQuery] DeletePushTokenQuery query, CancellationToken cancellationToken)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(userId))
@@ -113,9 +104,9 @@ public sealed class MePushTokenController : ControllerBase
         }
 
         var q = _db.UserPushDevices.Where(d => d.UserId == userId);
-        if (!string.IsNullOrWhiteSpace(installationId))
+        if (!string.IsNullOrWhiteSpace(query.InstallationId))
         {
-            var id = installationId.Trim();
+            var id = query.InstallationId.Trim();
             q = q.Where(d => d.InstallationId == id);
         }
 
@@ -126,7 +117,7 @@ public sealed class MePushTokenController : ControllerBase
             await _db.SaveChangesAsync(cancellationToken);
         }
 
-        _logger.LogInformation("Push token(s) removed for user (count {Count}, scopedToInstallation: {Scoped})", rows.Count, !string.IsNullOrWhiteSpace(installationId));
+        _logger.LogInformation("Push token(s) removed for user (count {Count}, scopedToInstallation: {Scoped})", rows.Count, !string.IsNullOrWhiteSpace(query.InstallationId));
         return NoContent();
     }
 }

@@ -107,9 +107,6 @@ public class ReelCommentsController : ControllerBase
         if (comment.UserId != UserId)
             return Forbid();
 
-        if (string.IsNullOrWhiteSpace(dto.Content))
-            return BadRequest(new { error = "Content is required" });
-
         comment.Content = dto.Content.Trim();
         comment.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();

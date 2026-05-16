@@ -30,6 +30,7 @@ For engineers, the backend is designed as a layered ASP.NET Core service: middle
 - **Optional FCM push dispatch:** gRPC **`PushService`** client to the Go **push-worker** in **`many_faces_push`**; device registration via **`POST /{face}/api/me/push-token`** and removal via **`DELETE /{face}/api/me/push-token`**; operator smoke via **`POST /api/admin/push/test-self`**. See [`docs/guides/push-notifications-local-dev.md`](../../docs/guides/push-notifications-local-dev.md).
 - **Worker `.proto` source:** nested **`many_faces_proto`** submodule at **`many_faces_backend/many_faces_proto`** (`..\many_faces_proto\proto\...` from `BeDemo.Api/`), including **`health.proto`** for the AI **HealthService** client. Use **`git submodule update --init --recursive`** in this repo (and in **`many_faces_main`** so nested submodules initialize).
 - Structured Serilog/Seq logging, Swagger/OpenAPI documentation, migrations, seed data, and unit/integration tests.
+- **REST input validation:** FluentValidation (**~76** schemas), `ValidationProblemDetails` on most endpoints, `IFileValidator` for avatar/story uploads — [`docs/guides/api-request-validation.md`](../../docs/guides/api-request-validation.md).
 
 ## Technical Specification
 

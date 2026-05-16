@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -43,8 +44,7 @@ public class FaceWallTicketsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List(
         int faceId,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] WallTicketListQuery listQuery,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(UserId))
@@ -54,8 +54,8 @@ public class FaceWallTicketsController : ControllerBase
         if (!faceExists)
             return NotFound(new { error = "Face not found" });
 
-        pageSize = Math.Clamp(pageSize, 1, 100);
-        page = Math.Max(1, page);
+        var page = listQuery.Page;
+        var pageSize = listQuery.PageSize;
 
         var isHost = await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken);
 
@@ -167,16 +167,8 @@ public class FaceWallTicketsController : ControllerBase
         if (!faceExists)
             return NotFound(new { error = "Face not found" });
 
-        var title = dto.Title?.Trim() ?? "";
-        var description = dto.Description?.Trim() ?? "";
-        if (string.IsNullOrWhiteSpace(title))
-            return BadRequest(new { error = "Title is required" });
-        if (title.Length > 200)
-            return BadRequest(new { error = "Title is too long" });
-        if (string.IsNullOrWhiteSpace(description))
-            return BadRequest(new { error = "Description is required" });
-        if (description.Length > MaxDescriptionLength)
-            return BadRequest(new { error = "Description is too long" });
+        var title = dto.Title.Trim();
+        var description = dto.Description.Trim();
 
         var count = await _context.FaceWallTickets.CountAsync(
             t => t.FaceId == faceId && t.CreatorUserId == UserId,
@@ -224,25 +216,11 @@ public class FaceWallTicketsController : ControllerBase
         if (ticket.Status != FaceWallTicketStatus.Active)
             return BadRequest(new { error = "Only active tickets can be edited" });
 
-        var title = dto.Title?.Trim();
-        var description = dto.Description?.Trim();
-        if (title != null)
-        {
-            if (string.IsNullOrWhiteSpace(title))
-                return BadRequest(new { error = "Title cannot be empty" });
-            if (title.Length > 200)
-                return BadRequest(new { error = "Title is too long" });
-            ticket.Title = title;
-        }
+        if (dto.Title is not null)
+            ticket.Title = dto.Title.Trim();
 
-        if (description != null)
-        {
-            if (string.IsNullOrWhiteSpace(description))
-                return BadRequest(new { error = "Description cannot be empty" });
-            if (description.Length > MaxDescriptionLength)
-                return BadRequest(new { error = "Description is too long" });
-            ticket.Description = description;
-        }
+        if (dto.Description is not null)
+            ticket.Description = dto.Description.Trim();
 
         ticket.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
@@ -396,17 +374,11 @@ public class FaceWallTicketsController : ControllerBase
         if (ticket.Status != FaceWallTicketStatus.Active)
             return BadRequest(new { error = "Comments are frozen for this ticket" });
 
-        var content = dto.Content?.Trim() ?? "";
-        if (string.IsNullOrWhiteSpace(content))
-            return BadRequest(new { error = "Content is required" });
-        if (content.Length > MaxCommentLength)
-            return BadRequest(new { error = $"Comment must be at most {MaxCommentLength} characters" });
-
         var comment = new FaceWallTicketComment
         {
             FaceWallTicketId = ticketId,
             UserId = UserId,
-            Content = content,
+            Content = dto.Content.Trim(),
             CreatedAt = DateTime.UtcNow,
         };
         _context.FaceWallTicketComments.Add(comment);
@@ -423,14 +395,4 @@ public class FaceWallTicketsController : ControllerBase
         });
     }
 
-    public sealed class WallTicketWriteDto
-    {
-        public string? Title { get; set; }
-        public string? Description { get; set; }
-    }
-
-    public sealed class WallTicketCommentDto
-    {
-        public string? Content { get; set; }
-    }
 }

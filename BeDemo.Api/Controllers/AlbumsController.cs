@@ -195,9 +195,6 @@ public class AlbumsController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
-        if (string.IsNullOrWhiteSpace(dto.Title))
-            return BadRequest(new { error = "Title is required" });
-
         var album = new Album
         {
             CreatorId = UserId,

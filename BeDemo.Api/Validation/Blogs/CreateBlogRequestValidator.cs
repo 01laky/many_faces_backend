@@ -9,6 +9,8 @@ public sealed class CreateBlogRequestValidator : AbstractValidator<BeDemo.Api.Mo
 {
     public CreateBlogRequestValidator()
     {
-        RuleFor(x => x.Title).NotEmpty().MaximumLength(ValidationConstants.TitleMaxLength); RuleFor(x => x.Content).NotEmpty().MaximumLength(ValidationConstants.BlogContentMaxLength);
+        RuleFor(x => x.Title).NotEmpty().MaximumLength(ValidationConstants.TitleMaxLength).WithErrorCode("val_string_required");
+        RuleFor(x => x.Content).NotEmpty().MaximumLength(ValidationConstants.BlogContentMaxLength).WithErrorCode("val_string_required");
+        RuleFor(x => x.FaceId).GreaterThan(0).WithErrorCode("val_face_id_invalid");
     }
 }

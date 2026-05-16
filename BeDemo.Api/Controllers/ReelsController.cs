@@ -181,14 +181,6 @@ public class ReelsController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
-        if (string.IsNullOrWhiteSpace(dto.Title))
-            return BadRequest(new { error = "Title is required" });
-
-        if (string.IsNullOrWhiteSpace(dto.VideoUrl))
-            return BadRequest(new { error = "VideoUrl is required" });
-        if (!ContentModerationHelpers.IsSafeHttpUrl(dto.VideoUrl))
-            return BadRequest(new { error = "VideoUrl must be an absolute http or https URL" });
-
         var reel = new Reel
         {
             CreatorId = UserId,

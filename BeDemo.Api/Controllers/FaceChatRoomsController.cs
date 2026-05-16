@@ -151,9 +151,6 @@ public class FaceChatRoomsController : ControllerBase
         if (await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken))
             return Forbid();
 
-        if (string.IsNullOrWhiteSpace(dto.Title))
-            return BadRequest(new { error = "Title is required" });
-
         var room = new FaceChatRoom
         {
             FaceId = faceId,
@@ -193,9 +190,6 @@ public class FaceChatRoomsController : ControllerBase
         var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == faceId, cancellationToken);
         if (face == null)
             return NotFound(new { error = "Face not found" });
-
-        if (string.IsNullOrWhiteSpace(dto.Title))
-            return BadRequest(new { error = "Title is required" });
 
         var room = new FaceChatRoom
         {

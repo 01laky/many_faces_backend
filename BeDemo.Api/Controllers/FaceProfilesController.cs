@@ -289,9 +289,6 @@ public class FaceProfilesController : ControllerBase
     [Authorize]
     public async Task<IActionResult> AddComment(int faceId, string userId, [FromBody] FaceProfileCommentDto dto, CancellationToken ct = default)
     {
-        if (dto == null || string.IsNullOrWhiteSpace(dto.Body))
-            return BadRequest(new { error = "Body is required" });
-
         var viewerId = CurrentUserId!;
         var face = await GetFaceAsync(faceId, ct);
         if (face == null)
@@ -377,8 +374,6 @@ public class FaceProfilesController : ControllerBase
     [Authorize]
     public async Task<IActionResult> UpsertReview(int faceId, string userId, [FromBody] FaceProfileReviewDto dto, CancellationToken ct = default)
     {
-        if (dto == null || string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.Text))
-            return BadRequest(new { error = "Title and text are required" });
         if (dto.Stars is < 1 or > 6)
             return BadRequest(new { error = "Stars must be 1–6" });
 

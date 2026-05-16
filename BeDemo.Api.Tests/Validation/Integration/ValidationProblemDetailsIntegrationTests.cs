@@ -19,6 +19,16 @@ public sealed class ValidationProblemDetailsIntegrationTests : IClassFixture<Cus
     }
 
     [Fact]
+    public async Task Invalid_json_body_returns_problem_details()
+    {
+        var content = new StringContent("{ not json", System.Text.Encoding.UTF8, "application/json");
+        var response = await _client.PostAsync("/api/oauth2/register/request", content);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().Contain("errors");
+    }
+
+    [Fact]
     public async Task Register_request_with_invalid_email_returns_problem_details()
     {
         var response = await _client.PostAsJsonAsync(

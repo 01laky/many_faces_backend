@@ -130,15 +130,6 @@ public class BlogsController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
-        if (string.IsNullOrWhiteSpace(dto.Title))
-            return BadRequest(new { error = "Title is required" });
-
-        if (string.IsNullOrWhiteSpace(dto.Content))
-            return BadRequest(new { error = "Content is required" });
-
-        if (dto.FaceId <= 0)
-            return BadRequest(new { error = "FaceId is required" });
-
         var faceExists = await _context.Faces.AnyAsync(f => f.Id == dto.FaceId);
         if (!faceExists)
             return BadRequest(new { error = "Face not found" });

@@ -10,4 +10,4 @@
 | [`reference/04-database-schema-diagram.md`](./reference/04-database-schema-diagram.md) | ER diagram (generated). |
 | [`../STORIES_API.md`](../STORIES_API.md) | Stories HTTP surface (tables + curl guide pointers). |
 
-Monorepo guides live under **`many_faces_main/docs/guides/`** (authentication, dev-https, Docker, OpenAPI regeneration).
+Monorepo guides live under **`many_faces_main/docs/guides/`** (authentication, [`api-request-validation.md`](../../docs/guides/api-request-validation.md), dev-https, Docker, OpenAPI regeneration).

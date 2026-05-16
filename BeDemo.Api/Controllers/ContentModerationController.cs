@@ -281,16 +281,6 @@ public sealed class ContentModerationController : ControllerBase
             return Forbid();
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
-        if (request.Items.Count == 0)
-            return BadRequest(new { error = "At least one item is required" });
-        if (request.Items.Count > 100)
-            return BadRequest(new { error = "Bulk moderation is limited to 100 items" });
-        if (request.Action is BulkModerationAction.Reject or BulkModerationAction.Remove &&
-            string.IsNullOrWhiteSpace(request.Reason))
-        {
-            return BadRequest(new { error = "Reason is required" });
-        }
-
         var results = new List<BulkModerationResultDto>();
         foreach (var item in request.Items.DistinctBy(i => (i.ContentType, i.ContentId)))
         {
@@ -696,24 +686,6 @@ public sealed class ContentModerationController : ControllerBase
         };
     }
 }
-
-public sealed record ModerationDecisionDto(string? Reason, string? UserMessage);
-
-public enum BulkModerationAction
-{
-    Approve = 1,
-    Reject = 2,
-    Remove = 3,
-    RequeueAiReview = 4,
-}
-
-public sealed record BulkModerationRequest(
-    BulkModerationAction Action,
-    List<BulkModerationItemDto> Items,
-    string? Reason,
-    string? UserMessage);
-
-public sealed record BulkModerationItemDto(ModeratedContentType ContentType, int ContentId);
 
 public sealed record BulkModerationResponse(List<BulkModerationResultDto> Results);
 

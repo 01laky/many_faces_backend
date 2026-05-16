@@ -1,13 +1,9 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace BeDemo.Api.Models.DTOs;
 
 /// <summary>HTTP contracts for email-code registration (`/api/oauth2/register/*` and admin invite APIs).</summary>
 
 public sealed class RegisterRequestDto
 {
-    [Required]
-    [EmailAddress]
     public string Email { get; set; } = string.Empty;
 
     public string? FirstName { get; set; }
@@ -27,13 +23,10 @@ public sealed class RegisterRequestResponseDto
 
 public sealed class RegisterCompleteDto
 {
-    [Required]
     public string Hash { get; set; } = string.Empty;
 
-    [Required]
     public string Code { get; set; } = string.Empty;
 
-    [Required]
     public string Password { get; set; } = string.Empty;
 
     public string? FirstName { get; set; }
@@ -56,8 +49,6 @@ public sealed class RegisterCompleteResponseDto : OAuth2TokenResponse
 
 public sealed class RegisterResendDto
 {
-    [Required]
-    [EmailAddress]
     public string Email { get; set; } = string.Empty;
 
     public string? Locale { get; set; }
@@ -80,8 +71,6 @@ public sealed class RegisterPrefillResponseDto
 
 public sealed class AdminCreateRegistrationInviteDto
 {
-    [Required]
-    [EmailAddress]
     public string Email { get; set; } = string.Empty;
 
     public string? FirstName { get; set; }

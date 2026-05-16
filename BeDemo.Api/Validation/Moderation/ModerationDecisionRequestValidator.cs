@@ -4,8 +4,8 @@ using FluentValidation;
 
 namespace BeDemo.Api.Validation.Moderation;
 
-/// <summary>FluentValidation for <see cref="BeDemo.Api.Controllers.ModerationDecisionDto"/> (endpoint-schema-validation §12.1).</summary>
-public sealed class ModerationDecisionRequestValidator : AbstractValidator<BeDemo.Api.Controllers.ModerationDecisionDto>
+/// <summary>FluentValidation for <see cref="BeDemo.Api.Models.Requests.Moderation.ModerationDecisionDto"/> (endpoint-schema-validation §12.1).</summary>
+public sealed class ModerationDecisionRequestValidator : AbstractValidator<BeDemo.Api.Models.Requests.Moderation.ModerationDecisionDto>
 {
     public ModerationDecisionRequestValidator()
     {

@@ -72,9 +72,6 @@ public class AlbumCommentsController : ControllerBase
         if (album.AlbumType != AlbumTypeEnum.Public && album.CreatorId != UserId)
             return Forbid();
 
-        if (string.IsNullOrWhiteSpace(dto.Content))
-            return BadRequest(new { error = "Content is required" });
-
         var comment = new AlbumComment
         {
             AlbumId = albumId,
@@ -111,9 +108,6 @@ public class AlbumCommentsController : ControllerBase
 
         if (comment.UserId != UserId)
             return Forbid();
-
-        if (string.IsNullOrWhiteSpace(dto.Content))
-            return BadRequest(new { error = "Content is required" });
 
         comment.Content = dto.Content.Trim();
         comment.UpdatedAt = DateTime.UtcNow;

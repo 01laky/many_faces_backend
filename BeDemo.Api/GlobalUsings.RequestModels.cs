@@ -10,3 +10,4 @@ global using BeDemo.Api.Models.Requests.Reels;
 global using BeDemo.Api.Models.Requests.Social;
 global using BeDemo.Api.Models.Requests.Stories;
 global using BeDemo.Api.Models.Requests.Users;
+global using BeDemo.Api.Models.Requests.Moderation;
