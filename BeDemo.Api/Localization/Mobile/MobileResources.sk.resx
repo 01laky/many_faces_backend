@@ -247,6 +247,18 @@
   <data name="common.shell.openMenu" xml:space="preserve">
     <value>Open navigation menu</value>
   </data>
+  <data name="common.shell.openSettings" xml:space="preserve">
+    <value>Otvoriť nastavenia</value>
+  </data>
+  <data name="common.settings.closePanel" xml:space="preserve">
+    <value>Zavrieť nastavenia</value>
+  </data>
+  <data name="common.settings.panelBody" xml:space="preserve">
+    <value>Úplné nastavenia účtu (jazyk, profil, messenger, notifikácie) dorovnáme s web portálom v ďalšej fáze. Dnes použite many_faces_portal.</value>
+  </data>
+  <data name="common.settings.panelTitle" xml:space="preserve">
+    <value>Nastavenia</value>
+  </data>
   <data name="common.wallTickets.empty" xml:space="preserve">
     <value>No wall tickets yet.</value>
   </data>

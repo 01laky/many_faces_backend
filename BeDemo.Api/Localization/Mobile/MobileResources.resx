@@ -247,6 +247,18 @@
   <data name="common.shell.openMenu" xml:space="preserve">
     <value>Open navigation menu</value>
   </data>
+  <data name="common.shell.openSettings" xml:space="preserve">
+    <value>Open settings</value>
+  </data>
+  <data name="common.settings.closePanel" xml:space="preserve">
+    <value>Close settings</value>
+  </data>
+  <data name="common.settings.panelBody" xml:space="preserve">
+    <value>Full account settings (language, profile, messenger, notifications) match the web portal in a later slice. Use many_faces_portal for complete settings today.</value>
+  </data>
+  <data name="common.settings.panelTitle" xml:space="preserve">
+    <value>Settings</value>
+  </data>
   <data name="common.wallTickets.empty" xml:space="preserve">
     <value>No wall tickets yet.</value>
   </data>
