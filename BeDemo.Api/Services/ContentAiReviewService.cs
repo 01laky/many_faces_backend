@@ -151,6 +151,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         }
 
         var merged = result.Recommendation;
+        // Heuristic runs on stored entity fields (not sanitized wire copy) so smuggled bytes in DB still escalate.
         if (_securityOptions.Value.InstructionHeuristicEnabled &&
             ContentModerationPromptInjectionHeuristic.IsInstructionLike(item.Title, item.Body, item.MediaUrl))
         {

@@ -50,7 +50,7 @@ public static class ContentModerationInputSanitizer
             if (len >= maxLength)
                 break;
 
-            if (ShouldStripRune(rune))
+            if (ShouldStripRuneForMatching(rune))
                 continue;
 
             if (rune.Value is >= 0 and < 32 && rune.Value is not ('\n' or '\r' or '\t'))
@@ -63,8 +63,8 @@ public static class ContentModerationInputSanitizer
         return sb.ToString().Trim();
     }
 
-    /// <summary>Bidi / format characters often used to spoof delimiters or confuse parsers.</summary>
-    private static bool ShouldStripRune(Rune rune)
+    /// <summary>Bidi / format characters often used to spoof delimiters or confuse parsers (also used by heuristic scans).</summary>
+    internal static bool ShouldStripRuneForMatching(Rune rune)
     {
         var v = rune.Value;
         return v is

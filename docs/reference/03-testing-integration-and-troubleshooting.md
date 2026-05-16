@@ -20,6 +20,11 @@ Tests cover:
 - Edge cases and security scenarios
 - SignalR hubs
 - Performance tests
+- **Content moderation security** — `ContentModerationTests`, `ContentModerationAlertEvaluatorTests`, `ContentModerationSecurityEdgeTests` (red-team corpus in `BeDemo.Api.Tests/Fixtures/prompt_injection_corpus.txt`)
+
+```bash
+dotnet test --filter "FullyQualifiedName~ContentModeration"
+```
 - **Static localization API** — `LocalizationControllerTests` (200/404, face-prefix exempt path); `LocalizationRateLimit429Tests` (`localization-read` policy → **429** + `Retry-After` via `RateLimitedLocalizationWebApplicationFactory`, serial xUnit collection). Each test host gets a unique `Testing:RateLimitScopeId` so rate-limit counters are not shared across parallel `WebApplicationFactory` instances.
 
 ```bash
