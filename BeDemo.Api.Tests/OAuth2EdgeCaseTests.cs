@@ -2,10 +2,11 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
-using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Xunit;
+using BeDemo.Api.Data;
 using BeDemo.Api.Models.DTOs;
+using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
 
 namespace BeDemo.Api.Tests;
 
@@ -13,146 +14,56 @@ namespace BeDemo.Api.Tests;
 /// Edge case tests for OAuth2 endpoints
 /// Tests boundary cases, error scenarios and security aspects
 /// </summary>
-public class OAuth2EdgeCaseTests : IClassFixture<CustomWebApplicationFactory<Program>>, IDisposable
+public class OAuth2EdgeCaseTests : IClassFixture<RegistrationInviteWebApplicationFactory>, IDisposable
 {
-    private readonly CustomWebApplicationFactory<Program> _factory;
+    private readonly RegistrationInviteWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
-    public OAuth2EdgeCaseTests(CustomWebApplicationFactory<Program> factory)
+    public OAuth2EdgeCaseTests(RegistrationInviteWebApplicationFactory factory)
     {
         _factory = factory;
-        _client = _factory.CreateClient();
+        _client = _factory.CreateUnscopedClient();
     }
 
-    #region Registration Edge Cases
+    #region Registration Edge Cases (email-code flow)
 
     [Fact]
-    public async Task Register_ShouldFail_WhenEmailIsEmpty()
+    public async Task RegisterRequest_ShouldReturnOk_ForValidEmail()
     {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = "", password = "Test123!@#" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Register_ShouldFail_WhenEmailIsNull()
-    {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { password = "Test123!@#" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Register_ShouldFail_WhenPasswordIsEmpty()
-    {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = "test@test.com", password = "" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Register_ShouldFail_WhenPasswordIsNull()
-    {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = "test@test.com" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Register_ShouldFail_WhenPasswordTooShort()
-    {
-        // Minimum password length is 4 characters, so test with 3 characters that don't meet requirements
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = "test@test.com", password = "Te1" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Register_ShouldFail_WhenPasswordNoDigit()
-    {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = "test@test.com", password = "TestPass!" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Register_ShouldFail_WhenPasswordNoLowercase()
-    {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = "test@test.com", password = "TEST123!@#" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Register_ShouldFail_WhenPasswordNoUppercase()
-    {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = "test@test.com", password = "test123!@#" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Register_ShouldFail_WhenPasswordNoSpecialChar()
-    {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = "test@test.com", password = "Test12345" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Register_ShouldFail_WhenEmailAlreadyExists()
-    {
-        var email = $"test_{Guid.NewGuid()}@test.com";
-        var firstResponse = await _client.PostAsJsonAsync("/api/oauth2/register", new { email, password = "Test123!@#", firstName = "Test", lastName = "User" });
-        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        // Wait a bit to ensure first user is fully created in Identity
-        await Task.Delay(1000);
-
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email, password = "Test123!@#", firstName = "Test", lastName = "User" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Register_ShouldFail_WhenEmailInvalidFormat()
-    {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = "invalid-email", password = "Test123!@#" });
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    // [Fact] // Temporarily disabled - database conflict
-    // public async Task Register_ShouldFail_WhenEmailIsVeryLong()
-    // {
-    //     var longEmail = new string('a', 200) + "@test.com";
-    //     var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = longEmail, password = "Test123!@#" });
-    //     response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    // }
-
-    [Fact]
-    public async Task Register_ShouldSucceed_WhenPasswordExactly8Chars()
-    {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = $"test_{Guid.NewGuid()}@test.com", password = "Test1!@#" });
+        var response = await _client.PostAsJsonAsync("/api/oauth2/register/request", new { email = $"test_{Guid.NewGuid()}@test.com" });
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
-    public async Task Register_ShouldSucceed_WhenPasswordVeryLong()
+    public async Task RegisterRequest_ShouldReturnOk_WhenEmailAlreadyRegistered_NoEnumeration()
     {
-        var longPassword = "Test123!@#" + new string('a', 100);
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = $"test_{Guid.NewGuid()}@test.com", password = longPassword });
+        var email = $"dup_{Guid.NewGuid()}@test.com";
+        await CompleteInviteRegistrationAsync(email, "Test123!@#");
+        var response = await _client.PostAsJsonAsync("/api/oauth2/register/request", new { email });
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     [Fact]
-    public async Task Register_ShouldSucceed_WithSpecialCharactersInEmail()
+    public async Task RegisterComplete_ShouldFail_WhenPasswordTooWeak()
     {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = $"test+{Guid.NewGuid()}@test.com", password = "Test123!@#" });
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var email = $"weak_{Guid.NewGuid()}@test.com";
+        var (hash, code) = await StartInviteAsync(email);
+        var response = await _client.PostAsJsonAsync("/api/oauth2/register/complete", new
+        {
+            hash,
+            code,
+            password = "weak",
+            clientId = "be-demo-client",
+            clientSecret = "be-demo-secret-very-strong-key",
+        });
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Register_ShouldSucceed_WithUnicodeInName()
+    public async Task LegacyRegister_ShouldReturn400()
     {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = $"test_{Guid.NewGuid()}@test.com", password = "Test123!@#", firstName = "John", lastName = "Doe" });
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    [Fact]
-    public async Task Register_ShouldSucceed_WithEmptyOptionalFields()
-    {
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = $"test_{Guid.NewGuid()}@test.com", password = "Test123!@#", firstName = "", lastName = "" });
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new { email = "a@b.com", password = "Test123!@#" });
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     #endregion
@@ -425,15 +336,41 @@ public class OAuth2EdgeCaseTests : IClassFixture<CustomWebApplicationFactory<Pro
     // }
 
     [Fact]
-    public async Task Register_ShouldHandleConcurrentRegistrations()
+    public async Task RegisterRequest_ShouldHandleConcurrentRequests()
     {
-        var tasks = Enumerable.Range(0, 10).Select(i =>
-            _client.PostAsJsonAsync("/api/oauth2/register", new { email = $"test_{Guid.NewGuid()}@test.com", password = "Test123!@#" }));
+        var tasks = Enumerable.Range(0, 10).Select(_ =>
+            _client.PostAsJsonAsync("/api/oauth2/register/request", new { email = $"test_{Guid.NewGuid()}@test.com" }));
         var responses = await Task.WhenAll(tasks);
         responses.Should().AllSatisfy(r => r.StatusCode.Should().Be(HttpStatusCode.OK));
     }
 
     #endregion
+
+    private async Task<(string Hash, string Code)> StartInviteAsync(string email)
+    {
+        _factory.CapturingMailer.Reset();
+        var response = await _client.PostAsJsonAsync("/api/oauth2/register/request", new { email, locale = "en" });
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var code = _factory.CapturingMailer.LastRequest!.Params["registration_code"];
+        using var scope = _factory.Services.CreateScope();
+        var ctx = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var invite = ctx.RegistrationInvites.OrderByDescending(i => i.CreatedAtUtc).First(i => i.Email == email);
+        return (invite.LinkHash, code);
+    }
+
+    private async Task CompleteInviteRegistrationAsync(string email, string password)
+    {
+        var (hash, code) = await StartInviteAsync(email);
+        var response = await _client.PostAsJsonAsync("/api/oauth2/register/complete", new
+        {
+            hash,
+            code,
+            password,
+            clientId = "be-demo-client",
+            clientSecret = "be-demo-secret-very-strong-key",
+        });
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 
     public void Dispose()
     {

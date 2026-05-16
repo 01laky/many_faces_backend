@@ -14,16 +14,16 @@ using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Tests;
 
-public class AlbumsControllerTests : IClassFixture<CustomWebApplicationFactory<Program>>, IDisposable
+public class AlbumsControllerTests : IClassFixture<RegistrationInviteWebApplicationFactory>, IDisposable
 {
-    private readonly CustomWebApplicationFactory<Program> _factory;
+    private readonly RegistrationInviteWebApplicationFactory _factory;
     private readonly HttpClient _client;
     private string? _authToken;
 
-    public AlbumsControllerTests(CustomWebApplicationFactory<Program> factory)
+    public AlbumsControllerTests(RegistrationInviteWebApplicationFactory factory)
     {
         _factory = factory;
-        _client = _factory.CreateClient();
+        _client = _factory.CreateUnscopedClient();
     }
 
     private async Task<string> GetAuthTokenAsync()
@@ -34,35 +34,14 @@ public class AlbumsControllerTests : IClassFixture<CustomWebApplicationFactory<P
         var email = $"album_test_{Guid.NewGuid()}@test.com";
         var password = "Test123!@#";
 
-        await _client.PostAsJsonAsync("/api/oauth2/register", new
-        {
+        var tokens = await IntegrationTestRegistration.CompleteRegistrationAsync(
+            _client,
+            _factory,
             email,
             password,
-            firstName = "Album",
-            lastName = "Tester"
-        });
-
-        var tokenRequest = new OAuth2TokenRequest
-        {
-            GrantType = "password",
-            ClientId = "be-demo-client",
-            ClientSecret = "be-demo-secret-very-strong-key",
-            Username = email,
-            Password = password
-        };
-
-        HttpResponseMessage? response = null;
-        for (int i = 0; i < 15; i++)
-        {
-            await Task.Delay(150 * (i + 1));
-            response = await _client.PostAsJsonAsync("/api/oauth2/token", tokenRequest);
-            if (response.StatusCode == HttpStatusCode.OK)
-                break;
-        }
-
-        response!.StatusCode.Should().Be(HttpStatusCode.OK);
-        var tokenResponse = await response.Content.ReadFromJsonAsync<OAuth2TokenResponse>();
-        _authToken = tokenResponse!.AccessToken;
+            "Album",
+            "Tester");
+        _authToken = tokens.AccessToken;
         return _authToken;
     }
 

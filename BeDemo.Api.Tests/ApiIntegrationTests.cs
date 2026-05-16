@@ -28,15 +28,15 @@ namespace BeDemo.Api.Tests;
 /// Integration tests for all API endpoints
 /// Tests verify that endpoints respond correctly (not throwing 500 errors)
 /// </summary>
-public class ApiIntegrationTests : IClassFixture<CustomWebApplicationFactory<Program>>, IDisposable
+public class ApiIntegrationTests : IClassFixture<RegistrationInviteWebApplicationFactory>, IDisposable
 {
-    private readonly CustomWebApplicationFactory<Program> _factory;
+    private readonly RegistrationInviteWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
-    public ApiIntegrationTests(CustomWebApplicationFactory<Program> factory)
+    public ApiIntegrationTests(RegistrationInviteWebApplicationFactory factory)
     {
         _factory = factory;
-        _client = _factory.CreateClient();
+        _client = _factory.CreateUnscopedClient();
     }
 
     #region OAuth2 Endpoints
@@ -55,8 +55,8 @@ public class ApiIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
 
         // Assert - should not return 500 Internal Server Error
         response.StatusCode.Should().NotBe(HttpStatusCode.InternalServerError);
-        // Should be 200 (success) or 400 (validation error), not 500
-        response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.BadRequest);
+        // Legacy endpoint is deprecated (400), not 500
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -66,16 +66,7 @@ public class ApiIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
         var email = $"test_{Guid.NewGuid()}@test.com";
         var password = "Test123!@#";
 
-        await _client.PostAsJsonAsync("/api/oauth2/register", new
-        {
-            email,
-            password,
-            firstName = "Test",
-            lastName = "User"
-        });
-
-        // Wait a bit for registration to complete
-        await Task.Delay(200);
+        await IntegrationTestRegistration.CompleteRegistrationAsync(_client, _factory, email, password);
 
         // Act
         var tokenRequest = new OAuth2TokenRequest
@@ -241,15 +232,7 @@ public class ApiIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
         var email = $"test_{Guid.NewGuid()}@test.com";
         var password = "Test123!@#";
 
-        await _client.PostAsJsonAsync("/api/oauth2/register", new
-        {
-            email,
-            password,
-            firstName = "Test",
-            lastName = "User"
-        });
-
-        await Task.Delay(300);
+        await IntegrationTestRegistration.CompleteRegistrationAsync(_client, _factory, email, password);
 
         var tokenRequest = new OAuth2TokenRequest
         {
@@ -385,21 +368,15 @@ public class ApiIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
         var email = $"test_{Guid.NewGuid()}@test.com";
         var password = "Test123!@#";
 
-        var registerResponse = await _client.PostAsJsonAsync("/api/oauth2/register", new
-        {
+        var tokens = await IntegrationTestRegistration.CompleteRegistrationAsync(
+            _client,
+            _factory,
             email,
-            password,
-            firstName = "Test",
-            lastName = "User"
-        });
+            password);
 
-        registerResponse.StatusCode.Should().NotBe(HttpStatusCode.InternalServerError);
-        registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        tokens.AccessToken.Should().NotBeNullOrEmpty();
 
-        // 2. Wait for registration to complete
-        await Task.Delay(300);
-
-        // 3. Get token
+        // 2. Get token (password grant should also work)
         var tokenRequest = new OAuth2TokenRequest
         {
             GrantType = "password",
@@ -427,12 +404,12 @@ public class ApiIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
             tokenData!.AccessToken.Should().NotBeNullOrEmpty();
 
             // 4. Use token to access protected endpoint
-            _client.DefaultRequestHeaders.Authorization =
+            using var faceClient = _factory.CreateFaceClient("public");
+            faceClient.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenData.AccessToken);
 
-            var facesResponse = await _client.GetAsync("/api/faces");
+            var facesResponse = await faceClient.GetAsync("/api/faces");
             facesResponse.StatusCode.Should().NotBe(HttpStatusCode.InternalServerError);
-            // Should be 200 (authorized) or 401 (token invalid)
             facesResponse.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.Unauthorized);
         }
     }

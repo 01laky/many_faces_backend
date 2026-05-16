@@ -108,6 +108,11 @@ builder.Services.Configure<ContentModerationSecurityOptions>(
 builder.Services.Configure<SearchOptions>(builder.Configuration.GetSection(SearchOptions.SectionName));
 builder.Services.Configure<PushOptions>(builder.Configuration.GetSection(PushOptions.SectionName));
 builder.Services.Configure<MailOptions>(builder.Configuration.GetSection(MailOptions.SectionName));
+builder.Services.Configure<RegistrationInviteOptions>(builder.Configuration.GetSection(RegistrationInviteOptions.SectionName));
+builder.Services.Configure<MailRegistrationLinkOptions>(builder.Configuration.GetSection(MailRegistrationLinkOptions.SectionName));
+builder.Services.AddScoped<IRegistrationInviteService, RegistrationInviteService>();
+builder.Services.AddScoped<IUserRegistrationProvisioner, UserRegistrationProvisioner>();
+builder.Services.AddHostedService<RegistrationInviteCleanupHostedService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<ISearchWorkerProbe, SearchWorkerGrpcProbe>();
 builder.Services.AddSingleton<IPushWorkerClient, PushWorkerGrpcClient>();
@@ -304,9 +309,6 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()       // Uses Entity Framework Core as storage for Identity
 .AddDefaultTokenProviders();                            // Adds default token providers (e.g., for email confirmation)
-
-// Transactional mail: many_faces_mailer gRPC worker (templates + SMTP). When Mail:Enabled is false, MailerGrpcEmailSender logs and no-ops.
-builder.Services.AddScoped<Microsoft.AspNetCore.Identity.UI.Services.IEmailSender, MailerGrpcEmailSender>();
 
 // ============================================================================
 // OAUTH2 AND JWT AUTHENTICATION CONFIGURATION

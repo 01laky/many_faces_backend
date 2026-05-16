@@ -1,42 +1,34 @@
 using System.Net;
 using System.Net.Http.Json;
-using FluentAssertions;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Xunit;
+using BeDemo.Api.Data;
 using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Services;
+using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Xunit;
 
 namespace BeDemo.Api.Tests;
 
-public class OAuth2ControllerTests : IClassFixture<CustomWebApplicationFactory<Program>>, IDisposable
+public class OAuth2ControllerTests : IClassFixture<RegistrationInviteWebApplicationFactory>, IDisposable
 {
-    private readonly CustomWebApplicationFactory<Program> _factory;
+    private readonly RegistrationInviteWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
-    public OAuth2ControllerTests(CustomWebApplicationFactory<Program> factory)
+    public OAuth2ControllerTests(RegistrationInviteWebApplicationFactory factory)
     {
         _factory = factory;
-        _client = _factory.CreateClient();
+        _client = _factory.CreateUnscopedClient();
     }
 
     [Fact]
-    public async Task Register_ShouldReturnSuccess_WhenValidData()
+    public async Task Register_ShouldReturnDeprecated_WhenLegacyEndpointUsed()
     {
-        // Arrange
-        var registerRequest = new
+        var response = await _client.PostAsJsonAsync("/api/oauth2/register", new
         {
             email = $"test_{Guid.NewGuid()}@test.com",
             password = "Test123!@#",
-            firstName = "Test",
-            lastName = "User"
-        };
-
-        // Act
-        var response = await _client.PostAsJsonAsync("/api/oauth2/register", registerRequest);
-
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("registered successfully");
+        });
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
@@ -46,15 +38,7 @@ public class OAuth2ControllerTests : IClassFixture<CustomWebApplicationFactory<P
         var email = $"test_{Guid.NewGuid()}@test.com";
         var password = "Test123!@#";
 
-        // Register user first
-        var registerResponse = await _client.PostAsJsonAsync("/api/oauth2/register", new
-        {
-            email,
-            password,
-            firstName = "Test",
-            lastName = "User"
-        });
-        registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        await RegisterViaInviteFlowAsync(email, password);
 
         var tokenRequest = new OAuth2TokenRequest
         {
@@ -126,6 +110,32 @@ public class OAuth2ControllerTests : IClassFixture<CustomWebApplicationFactory<P
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    private async Task RegisterViaInviteFlowAsync(string email, string password)
+    {
+        _factory.CapturingMailer.Reset();
+        var requestResponse = await _client.PostAsJsonAsync("/api/oauth2/register/request", new RegisterRequestDto
+        {
+            Email = email,
+            FirstName = "Test",
+            LastName = "User",
+            Locale = "en",
+        });
+        requestResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var code = _factory.CapturingMailer.LastRequest!.Params["registration_code"];
+        using var scope = _factory.Services.CreateScope();
+        var ctx = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var invite = ctx.RegistrationInvites.OrderByDescending(i => i.CreatedAtUtc).First(i => i.Email == email);
+        var completeResponse = await _client.PostAsJsonAsync("/api/oauth2/register/complete", new RegisterCompleteDto
+        {
+            Hash = invite.LinkHash,
+            Code = code,
+            Password = password,
+            ClientId = "be-demo-client",
+            ClientSecret = "be-demo-secret-very-strong-key",
+        });
+        completeResponse.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
     public void Dispose()

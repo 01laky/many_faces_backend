@@ -179,115 +179,15 @@ public class OAuth2Controller : ControllerBase
     /// <summary>ACL A21: fixed-window rate limit per client IP (same bypass flag as token in Testing).</summary>
     [HttpPost("register")]
     [EnableRateLimiting("oauth-register")]
-    public async Task<IActionResult> Register([FromBody] OAuth2RegisterModel model)
+    [Obsolete("Use POST /api/oauth2/register/request then /api/oauth2/register/complete")]
+    public IActionResult Register([FromBody] OAuth2RegisterModel model)
     {
-        // Validates ModelState - checks data annotations
-        if (!ModelState.IsValid)
+        _ = model;
+        return BadRequest(new
         {
-            _logger.LogWarning("Invalid model state for registration");
-            return BadRequest(ModelState);
-        }
-
-        // Validates that email doesn't contain null bytes (PostgreSQL doesn't support them)
-        if (!string.IsNullOrEmpty(model.Email) && model.Email.Contains('\0'))
-        {
-            _logger.LogWarning("Email contains null byte");
-            return BadRequest(new { error = "Email cannot contain null bytes" });
-        }
-
-        // Validates that password doesn't contain null bytes
-        if (!string.IsNullOrEmpty(model.Password) && model.Password.Contains('\0'))
-        {
-            _logger.LogWarning("Password contains null byte");
-            return BadRequest(new { error = "Password cannot contain null bytes" });
-        }
-
-        // Get USER (global) role - default for new users
-        var userRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.GlobalRoleNames.User);
-        if (userRole == null)
-        {
-            _logger.LogError("USER role not found. Please ensure UserRoles are seeded.");
-            return BadRequest(new { error = "System configuration error: USER role not found" });
-        }
-
-        // Creates new ApplicationUser instance
-        var user = new ApplicationUser
-        {
-            UserName = model.Email,      // Email is used as username
-            Email = model.Email,          // Email address
-            FirstName = model.FirstName, // Optional first name
-            LastName = model.LastName,   // Optional last name
-            UserRoleId = userRole.Id     // Assign default USER role
-        };
-
-        // Creates user in database using ASP.NET Core Identity
-        // Identity automatically hashes password and validates requirements (length, characters, etc.)
-        var result = await _userManager.CreateAsync(user, model.Password);
-
-        // If registration succeeded
-        if (result.Succeeded)
-        {
-            // Ensure user is fully persisted before creating UserProfile
-            // This helps with test timing issues in in-memory databases
-            await _context.SaveChangesAsync();
-
-            // Create UserProfile automatically for new user (one-to-one relationship)
-            var userProfile = new UserProfile
-            {
-                UserId = user.Id,
-                CreatedAt = DateTime.UtcNow
-            };
-            _context.UserProfiles.Add(userProfile);
-            await _context.SaveChangesAsync();
-
-            // Create UserFaceProfile and UserFaceRole (FACE_HOST) for each Face
-            var faces = await _context.Faces.ToListAsync();
-            var userFaceProfiles = faces.Select(face => new UserFaceProfile
-            {
-                UserProfileId = userProfile.Id,
-                FaceId = face.Id,
-                IsActive = false,
-                Visited = false,
-                FaceRoleIntroCompleted = false,
-                CreatedAt = DateTime.UtcNow
-            }).ToList();
-
-            if (userFaceProfiles.Any())
-            {
-                _context.UserFaceProfiles.AddRange(userFaceProfiles);
-                var faceHostRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.FaceRoleNames.FaceHost);
-                if (faceHostRole != null)
-                {
-                    var userFaceRoles = faces.Select(face => new UserFaceRole
-                    {
-                        UserId = user.Id,
-                        FaceId = face.Id,
-                        UserRoleId = faceHostRole.Id,
-                        CreatedAt = DateTime.UtcNow
-                    }).ToList();
-                    _context.UserFaceRoles.AddRange(userFaceRoles);
-                }
-                await _context.SaveChangesAsync();
-                _logger.LogInformation("Created {Count} UserFaceProfile(s) for user: {Email}", userFaceProfiles.Count, model.Email);
-            }
-
-            // Verify user can be found immediately (for test reliability)
-            var verifyUser = await _userManager.FindByEmailAsync(model.Email);
-            if (verifyUser == null)
-            {
-                // If user not found, wait a bit and try again (for in-memory DB timing)
-                await Task.Delay(100);
-                verifyUser = await _userManager.FindByEmailAsync(model.Email);
-            }
-
-            _logger.LogInformation("User registered successfully: {Email} with UserProfile ID: {ProfileId} and {FaceProfileCount} face profile(s)",
-                model.Email, userProfile.Id, userFaceProfiles.Count);
-            return Ok(new { message = "User registered successfully", userId = user.Id, profileId = userProfile.Id, faceProfileCount = userFaceProfiles.Count });
-        }
-
-        // If registration failed (e.g., email already exists, password doesn't meet requirements), returns errors
-        _logger.LogWarning("User registration failed: {Email}, Errors: {Errors}", model.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
-        return BadRequest(result.Errors);
+            error = "registration_flow_deprecated",
+            message = "Use POST /api/oauth2/register/request (email) then complete signup from the email link with POST /api/oauth2/register/complete.",
+        });
     }
 }
 

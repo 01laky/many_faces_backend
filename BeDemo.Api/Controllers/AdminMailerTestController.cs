@@ -76,7 +76,7 @@ public sealed class AdminMailerTestController : ControllerBase
 
         var request = new SendTemplatedEmailRequest();
         request.To.Add(user.Email!);
-        request.TemplateId = MailerIdentityEmailFlowClassifier.TemplateIdentityEmailConfirm;
+        request.TemplateId = MailTemplateIds.IdentityEmailConfirm;
         request.Locale = locale;
         request.Params["action_link"] = pilotUrl;
         request.Params["user_name"] = display;

@@ -68,6 +68,9 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     /// <summary>FCM / push registration rows for signed-in mobile clients (<c>POST /api/me/push-token</c>).</summary>
     public DbSet<UserPushDevice> UserPushDevices { get; set; } = null!;
 
+    /// <summary>Pending email-code signups (<c>POST /api/oauth2/register/request</c>).</summary>
+    public DbSet<RegistrationInvite> RegistrationInvites { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -1062,6 +1065,24 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<RegistrationInvite>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.NormalizedEmail).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.FirstName).HasMaxLength(100);
+            entity.Property(e => e.LastName).HasMaxLength(100);
+            entity.Property(e => e.LinkHash).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.CodeHash).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.Locale).IsRequired().HasMaxLength(16);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+            entity.HasIndex(e => e.LinkHash).IsUnique();
+            entity.HasIndex(e => new { e.NormalizedEmail })
+                .IsUnique()
+                .HasFilter("\"ConsumedAtUtc\" IS NULL AND \"RevokedAtUtc\" IS NULL");
+            entity.HasIndex(e => e.ExpiresAtUtc);
         });
     }
 }

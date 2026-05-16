@@ -200,8 +200,12 @@ To perform a clean rebuild of Docker images:
   - Returns: `OAuth2TokenResponse` with `accessToken`, `refreshToken`, `expiresIn` (seconds), `tokenType`
   - **Refresh grant:** `grant_type=refresh_token` rotates stored refresh tokens (see `OAuthRefreshTokenStore`); details in monorepo [**acl-and-capabilities**](../../docs/guides/acl-and-capabilities.md).
 
-- `POST /api/oauth2/register` - Register new user via OAuth2 flow
-  - Request body: `OAuth2RegisterModel` (email, password, firstName, lastName)
+- **Registration (email + code):** see monorepo [**email-code-registration**](../../docs/guides/email-code-registration.md).
+  - `POST /api/oauth2/register/request` — start signup (generic OK; mail via `account_registration_code`)
+  - `POST /api/oauth2/register/resend` — resend mail (rate limited)
+  - `GET /api/oauth2/register/prefill?hash=` — prefill when link valid
+  - `POST /api/oauth2/register/complete` — `hash` + `code` + `password` → user + OAuth tokens
+  - `POST /api/oauth2/register` — **deprecated** (`registration_flow_deprecated`)
 
 ### Users
 

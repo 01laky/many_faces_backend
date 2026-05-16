@@ -16,10 +16,18 @@ yarn test
 Tests cover:
 
 - Authentication and authorization
-- OAuth2 flows
+- OAuth2 flows (including **email-code registration**: `RegistrationInviteEdgeCaseTests`, `OAuth2EdgeCaseTests`, `AdminRegistrationInvitesControllerTests`)
 - Edge cases and security scenarios
 - SignalR hubs
 - Performance tests
+
+**Registration invite tests** use `RegistrationInviteWebApplicationFactory` with a fake **`CapturingMailerWorkerClient`** (`Mail:Enabled=true`). Run:
+
+```bash
+dotnet test --filter "FullyQualifiedName~RegistrationInvite"
+```
+
+See monorepo **[email-code-registration.md](../../../docs/guides/email-code-registration.md)**.
 
 ## Integration with Root Project
 
