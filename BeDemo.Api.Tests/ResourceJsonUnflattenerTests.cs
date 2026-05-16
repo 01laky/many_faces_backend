@@ -3,6 +3,12 @@ using BeDemo.Api.Localization;
 
 namespace BeDemo.Api.Tests;
 
+/// <summary>
+/// Unit tests for <see cref="ResourceJsonUnflattener"/> nesting rules (§4.2 centralized-static-i18n prompt).
+/// </summary>
+/// <remarks>
+/// Ambiguous prefix detection for real <c>.resx</c> files lives in <see cref="ResxLocalizationKeyAmbiguityTests"/>.
+/// </remarks>
 public class ResourceJsonUnflattenerTests
 {
     [Fact]
@@ -20,6 +26,29 @@ public class ResourceJsonUnflattenerTests
             ["pages.login.title"] = "Login",
         });
         Assert.Equal("Login", obj["pages"]?["login"]?["title"]?.GetValue<string>());
+    }
+
+    /// <summary>
+    /// §4.2 requires at least three nesting levels (e.g. <c>pages.section.field.label</c>).
+    /// </summary>
+    [Fact]
+    public void ToNestedObject_DeepNesting_FourLevels()
+    {
+        var obj = ResourceJsonUnflattener.ToNestedObject(new Dictionary<string, string>
+        {
+            ["pages.register.validation.passwordMinLength"] = "Password must be at least 4 characters",
+        });
+
+        Assert.Equal(
+            "Password must be at least 4 characters",
+            obj["pages"]?["register"]?["validation"]?["passwordMinLength"]?.GetValue<string>());
+    }
+
+    [Fact]
+    public void FindAmbiguousFlatKeys_ReturnsEmpty_ForCompatibleSet()
+    {
+        var keys = new[] { "welcome", "pages.login.title", "pages.register.title" };
+        Assert.Empty(ResourceJsonUnflattener.FindAmbiguousFlatKeys(keys));
     }
 
     [Fact]

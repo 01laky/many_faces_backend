@@ -5,8 +5,45 @@ namespace BeDemo.Api.Localization;
 /// <summary>
 /// Converts flat dotted resource keys into nested JSON objects for i18next.
 /// </summary>
+/// <remarks>
+/// Flat keys must not use one entry as both a leaf and a branch prefix (e.g. <c>pages.login</c> and
+/// <c>pages.login.title</c>). <see cref="FindAmbiguousFlatKeys"/> detects that at build/CI time;
+/// <see cref="ToNestedObject"/> throws at runtime if ambiguous pairs slip through.
+/// </remarks>
 public static class ResourceJsonUnflattener
 {
+    /// <summary>
+    /// Finds pairs of flat keys where <paramref name="parent"/> is a strict dotted prefix of <paramref name="child"/>,
+    /// which would make <see cref="ToNestedObject"/> fail or produce inconsistent trees.
+    /// </summary>
+    /// <param name="keys">Dotted resource names from <c>.resx</c> (e.g. <c>pages.login.title</c>).</param>
+    /// <returns>Ordered list of conflicting (<c>parent</c>, <c>child</c>) pairs; empty when the set is safe.</returns>
+    public static IReadOnlyList<(string Parent, string Child)> FindAmbiguousFlatKeys(IEnumerable<string> keys)
+    {
+        var sorted = keys
+            .Where(k => !string.IsNullOrWhiteSpace(k))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(k => k, StringComparer.Ordinal)
+            .ToList();
+
+        var conflicts = new List<(string Parent, string Child)>();
+        for (var i = 0; i < sorted.Count; i++)
+        {
+            var parent = sorted[i];
+            var prefix = parent + ".";
+            for (var j = i + 1; j < sorted.Count; j++)
+            {
+                var child = sorted[j];
+                if (!child.StartsWith(prefix, StringComparison.Ordinal))
+                    break;
+
+                conflicts.Add((parent, child));
+            }
+        }
+
+        return conflicts;
+    }
+
     /// <summary>
     /// Builds a nested <see cref="JsonObject"/> from flat key/value pairs.
     /// </summary>
