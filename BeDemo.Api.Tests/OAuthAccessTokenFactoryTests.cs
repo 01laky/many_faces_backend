@@ -7,10 +7,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.IdentityModel.Tokens;
 using Moq;
 using Xunit;
+using BeDemo.Api.Configuration;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Security;
 using BeDemo.Api.Services;
+using Microsoft.Extensions.Options;
 
 namespace BeDemo.Api.Tests;
 
@@ -73,13 +75,27 @@ public sealed class OAuthAccessTokenFactoryTests
         return (db, user, mockKeys, config);
     }
 
+    private static IOptions<JwtTokenLifetimeOptions> JwtOptionsFromConfig(IConfiguration config) =>
+        Options.Create(new JwtTokenLifetimeOptions
+        {
+            ExpiresInMinutes = config.GetValue("Jwt:ExpiresInMinutes", 60),
+            ExpiresInMinutesRememberMe = config.GetValue(
+                "Jwt:ExpiresInMinutesRememberMe",
+                JwtTokenLifetimeOptions.RecommendedRememberMeAccessMinutes),
+        });
+
     [Fact]
     public async Task CreateAsync_IncludesRoleAtvAndUsesSessionTtl_WhenRememberMeFalse()
     {
         var (db, user, keys, config) = CreateSutContext();
         await using (db)
         {
-            var sut = new OAuthAccessTokenFactory(keys.Object, config, db, NullLogger<OAuthAccessTokenFactory>.Instance);
+            var sut = new OAuthAccessTokenFactory(
+                keys.Object,
+                config,
+                JwtOptionsFromConfig(config),
+                db,
+                NullLogger<OAuthAccessTokenFactory>.Instance);
 
             var (jwt, minutes) = await sut.CreateAsync(user, useRememberMeAccessLifetime: false);
 
@@ -101,7 +117,12 @@ public sealed class OAuthAccessTokenFactoryTests
         var (db, user, keys, config) = CreateSutContext();
         await using (db)
         {
-            var sut = new OAuthAccessTokenFactory(keys.Object, config, db, NullLogger<OAuthAccessTokenFactory>.Instance);
+            var sut = new OAuthAccessTokenFactory(
+                keys.Object,
+                config,
+                JwtOptionsFromConfig(config),
+                db,
+                NullLogger<OAuthAccessTokenFactory>.Instance);
 
             var (_, minutes) = await sut.CreateAsync(user, useRememberMeAccessLifetime: true);
 
@@ -115,7 +136,12 @@ public sealed class OAuthAccessTokenFactoryTests
         var (db, user, keys, config) = CreateSutContext();
         await using (db)
         {
-            var sut = new OAuthAccessTokenFactory(keys.Object, config, db, NullLogger<OAuthAccessTokenFactory>.Instance);
+            var sut = new OAuthAccessTokenFactory(
+                keys.Object,
+                config,
+                JwtOptionsFromConfig(config),
+                db,
+                NullLogger<OAuthAccessTokenFactory>.Instance);
             var (access, _) = await sut.CreateAsync(user, false);
 
             sut.IsValidAccessTokenMisusedAsRefresh(access).Should().BeTrue();
@@ -128,7 +154,12 @@ public sealed class OAuthAccessTokenFactoryTests
         var (db, user, keys, config) = CreateSutContext();
         using (db)
         {
-            var sut = new OAuthAccessTokenFactory(keys.Object, config, db, NullLogger<OAuthAccessTokenFactory>.Instance);
+            var sut = new OAuthAccessTokenFactory(
+                keys.Object,
+                config,
+                JwtOptionsFromConfig(config),
+                db,
+                NullLogger<OAuthAccessTokenFactory>.Instance);
 
             sut.IsValidAccessTokenMisusedAsRefresh(Convert.ToBase64String(Guid.NewGuid().ToByteArray())).Should().BeFalse();
         }

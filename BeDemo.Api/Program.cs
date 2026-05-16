@@ -342,6 +342,21 @@ builder.Services.AddSingleton<IECDSAKeyService>(ecdsaKeyService);
 builder.Services.AddScoped<IPasswordHasher<OAuthClient>, PasswordHasher<OAuthClient>>();
 
 builder.Services.AddSingleton<IClock, SystemUtcClock>();
+
+// SHV2 BE-A2: cap remember-me access JWT at 7 days; reject legacy multi-year ExpiresInMinutesRememberMe at startup.
+builder.Services.AddOptions<BeDemo.Api.Configuration.JwtTokenLifetimeOptions>()
+    .BindConfiguration(BeDemo.Api.Configuration.JwtTokenLifetimeOptions.SectionName)
+    .Validate(
+        o => o.ExpiresInMinutes > 0 &&
+             o.ExpiresInMinutesRememberMe > 0 &&
+             o.ExpiresInMinutesRememberMe <= BeDemo.Api.Configuration.JwtTokenLifetimeOptions.MaxRememberMeAccessMinutes &&
+             o.ExpiresInMinutesRememberMe >= o.ExpiresInMinutes,
+        $"Jwt:{nameof(BeDemo.Api.Configuration.JwtTokenLifetimeOptions.ExpiresInMinutesRememberMe)} must be " +
+        $"{BeDemo.Api.Configuration.JwtTokenLifetimeOptions.RecommendedRememberMeAccessMinutes} minutes (7 days) or less, " +
+        "and not less than Jwt:ExpiresInMinutes. Remove legacy values like " +
+        $"{BeDemo.Api.Configuration.JwtTokenLifetimeOptions.LegacyMisconfiguredRememberMeMinutes}.")
+    .ValidateOnStart();
+
 builder.Services.AddScoped<IOAuthClientValidator, OAuthClientValidator>();
 builder.Services.AddScoped<IOAuthTokenRequestSignatureVerifier, OAuthTokenRequestSignatureVerifier>();
 builder.Services.AddScoped<IOAuthAccessTokenFactory, OAuthAccessTokenFactory>();

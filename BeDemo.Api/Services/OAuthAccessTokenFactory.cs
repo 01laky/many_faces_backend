@@ -4,9 +4,11 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using BeDemo.Api.Configuration;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Security;
+using Microsoft.Extensions.Options;
 
 namespace BeDemo.Api.Services;
 
@@ -33,10 +35,12 @@ public interface IOAuthAccessTokenFactory
 }
 
 /// <inheritdoc cref="IOAuthAccessTokenFactory" />
+/// <remarks>SHV2 BE-A2: uses validated <see cref="JwtTokenLifetimeOptions"/> for access-token TTL selection.</remarks>
 public sealed class OAuthAccessTokenFactory : IOAuthAccessTokenFactory
 {
     private readonly IECDSAKeyService _keyService;
     private readonly IConfiguration _configuration;
+    private readonly JwtTokenLifetimeOptions _jwtLifetimes;
     private readonly ApplicationDbContext _db;
     private readonly ILogger<OAuthAccessTokenFactory> _logger;
 
@@ -44,11 +48,13 @@ public sealed class OAuthAccessTokenFactory : IOAuthAccessTokenFactory
     public OAuthAccessTokenFactory(
         IECDSAKeyService keyService,
         IConfiguration configuration,
+        IOptions<JwtTokenLifetimeOptions> jwtLifetimes,
         ApplicationDbContext db,
         ILogger<OAuthAccessTokenFactory> logger)
     {
         _keyService = keyService;
         _configuration = configuration;
+        _jwtLifetimes = jwtLifetimes.Value;
         _db = db;
         _logger = logger;
     }
@@ -84,9 +90,8 @@ public sealed class OAuthAccessTokenFactory : IOAuthAccessTokenFactory
         claims.Add(new Claim(BeDemoClaimTypes.AccessTokenVersion, row.AccessTokenVersion.ToString(), ClaimValueTypes.Integer32));
 
         var signingKey = _keyService.GetSigningKey();
-        var sessionMinutes = _configuration.GetValue("Jwt:ExpiresInMinutes", 60);
-        var rememberMinutes = _configuration.GetValue("Jwt:ExpiresInMinutesRememberMe", 10080);
-        var expiresInMinutes = useRememberMeAccessLifetime ? rememberMinutes : sessionMinutes;
+        // BE-A2: bound + validated JwtTokenLifetimeOptions — never issue multi-year access JWTs from stale config.
+        var expiresInMinutes = _jwtLifetimes.ResolveAccessTokenMinutes(useRememberMeAccessLifetime);
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {

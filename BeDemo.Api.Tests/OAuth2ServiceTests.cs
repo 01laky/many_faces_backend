@@ -74,6 +74,13 @@ public class OAuth2ServiceTests
         var accessFactory = new OAuthAccessTokenFactory(
             _mockKeyService.Object,
             _configuration,
+            Microsoft.Extensions.Options.Options.Create(new BeDemo.Api.Configuration.JwtTokenLifetimeOptions
+            {
+                ExpiresInMinutes = _configuration.GetValue("Jwt:ExpiresInMinutes", 60),
+                ExpiresInMinutesRememberMe = _configuration.GetValue(
+                    "Jwt:ExpiresInMinutesRememberMe",
+                    BeDemo.Api.Configuration.JwtTokenLifetimeOptions.RecommendedRememberMeAccessMinutes),
+            }),
             _db,
             NullLogger<OAuthAccessTokenFactory>.Instance);
         var clientValidator = new OAuthClientValidator(_db, _oauthClientHasher, NullLogger<OAuthClientValidator>.Instance);

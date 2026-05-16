@@ -4,6 +4,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Xunit;
+using BeDemo.Api.Configuration;
 using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Tests;
@@ -114,6 +115,19 @@ public class OAuth2RememberMeTests
 
         token.Should().NotBeNull();
         token!.ExpiresIn.Should().Be(rememberMin * 60);
+    }
+
+    [Fact]
+    public async Task Default_appsettings_remember_me_uses_seven_day_access_token()
+    {
+        using var factory = new CustomWebApplicationFactory<Program>();
+        using var client = factory.CreateClient();
+        var email = await RegisterUniqueUserAsync(client, factory);
+
+        var token = await LoginAsync(client, email, "Test123!@#", rememberMe: true);
+
+        token.Should().NotBeNull();
+        token!.ExpiresIn.Should().Be(JwtTokenLifetimeOptions.RecommendedRememberMeAccessMinutes * 60);
     }
 
     [Fact]
