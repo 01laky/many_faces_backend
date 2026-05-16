@@ -46,5 +46,7 @@ public sealed class ContentModerationCiGateTests
         [typeof(ContentModerationTrustBoundaryTests)],
         [typeof(ContentModerationPayloadLogRedactionTests)],
         [typeof(ContentModerationCiGateTests)],
+        [typeof(ContentModerationPreviewTextTests)],
+        [typeof(ContentModerationProductionPathTests)],
     ];
 }

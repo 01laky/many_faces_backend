@@ -16,6 +16,16 @@ public static class ContentModerationPromptInjectionHeuristic
     public const string InstructionLikeFlag = "instruction_like_text";
 
     /// <summary>
+    /// Canonical alias used by some AI models / future classifiers; treated like <see cref="InstructionLikeFlag"/> for policy (SHV2 PI-3).
+    /// </summary>
+    public const string PromptInjectionSuspectedFlag = "prompt_injection_suspected";
+
+    /// <summary>True when the flag blocks auto-<see cref="AiReviewStatus.RecommendedApprove"/> with an approve decision.</summary>
+    public static bool IsPromptInjectionPolicyFlag(string? flag) =>
+        string.Equals(flag, InstructionLikeFlag, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(flag, PromptInjectionSuspectedFlag, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Lower-case substrings observed in real prompt-injection attempts (English + SK/CZ samples + delimiter smuggling).
     /// High recall is intentional; false positives route to human review, never to auto-approve.
     /// </summary>

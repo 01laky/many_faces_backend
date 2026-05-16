@@ -72,7 +72,7 @@ public sealed class ContentModerationController : ControllerBase
 
         if (contentType is null or ModeratedContentType.Album)
         {
-            var albums = await _context.Albums
+            var albumRows = await _context.Albums
                 .Include(a => a.Creator)
                 .Include(a => a.AlbumFaces).ThenInclude(af => af.Face)
                 .Where(a => approvalStatus == null || a.ApprovalStatus == approvalStatus)
@@ -90,32 +90,14 @@ public sealed class ContentModerationController : ControllerBase
                 .Where(a => string.IsNullOrWhiteSpace(reviewedByUserId) || a.HumanReviewedByUserId == reviewedByUserId)
                 .Where(a => !minQueueAgeHours.HasValue ||
                     (a.SubmittedAtUtc != null && a.SubmittedAtUtc <= DateTime.UtcNow.AddHours(-minQueueAgeHours.Value)))
-                .Select(a => new ModerationItemDto(
-                    ModeratedContentType.Album,
-                    a.Id,
-                    a.Title,
-                    a.AlbumFaces.Select(af => af.FaceId).FirstOrDefault(),
-                    a.AlbumFaces.Select(af => af.Face.Title).FirstOrDefault() ?? string.Empty,
-                    a.CreatorId,
-                    (a.Creator.FirstName ?? "") + " " + (a.Creator.LastName ?? ""),
-                    a.ApprovalStatus,
-                    a.AiReviewStatus,
-                    a.AiReviewDecision,
-                    a.AiReviewConfidence,
-                    a.AiReviewRiskLevel,
-                    a.AiReviewFlagsJson,
-                    a.AiReviewReason,
-                    a.AiReviewUserMessage,
-                    a.AiReviewModelVersion,
-                    a.AiReviewTraceId,
-                    a.SubmittedAtUtc,
-                    a.HumanReviewedAtUtc,
-                    a.HumanDecisionReason,
-                    a.RemovedAtUtc,
-                    a.RemovalReason,
-                    a.CreatedAt))
+                .Select(a => new
+                {
+                    Entity = a,
+                    FaceId = a.AlbumFaces.Select(af => af.FaceId).FirstOrDefault(),
+                    FaceTitle = a.AlbumFaces.Select(af => af.Face.Title).FirstOrDefault() ?? string.Empty,
+                })
                 .ToListAsync();
-            items.AddRange(albums);
+            items.AddRange(albumRows.Select(row => MapAlbum(row.Entity, row.FaceId, row.FaceTitle)));
         }
 
         if (contentType is null or ModeratedContentType.Blog)
@@ -138,37 +120,13 @@ public sealed class ContentModerationController : ControllerBase
                 .Where(b => string.IsNullOrWhiteSpace(reviewedByUserId) || b.HumanReviewedByUserId == reviewedByUserId)
                 .Where(b => !minQueueAgeHours.HasValue ||
                     (b.SubmittedAtUtc != null && b.SubmittedAtUtc <= DateTime.UtcNow.AddHours(-minQueueAgeHours.Value)))
-                .Select(b => new ModerationItemDto(
-                    ModeratedContentType.Blog,
-                    b.Id,
-                    b.Title,
-                    b.FaceId,
-                    b.Face.Title,
-                    b.CreatorId,
-                    (b.Creator.FirstName ?? "") + " " + (b.Creator.LastName ?? ""),
-                    b.ApprovalStatus,
-                    b.AiReviewStatus,
-                    b.AiReviewDecision,
-                    b.AiReviewConfidence,
-                    b.AiReviewRiskLevel,
-                    b.AiReviewFlagsJson,
-                    b.AiReviewReason,
-                    b.AiReviewUserMessage,
-                    b.AiReviewModelVersion,
-                    b.AiReviewTraceId,
-                    b.SubmittedAtUtc,
-                    b.HumanReviewedAtUtc,
-                    b.HumanDecisionReason,
-                    b.RemovedAtUtc,
-                    b.RemovalReason,
-                    b.CreatedAt))
                 .ToListAsync();
-            items.AddRange(blogs);
+            items.AddRange(blogs.Select(MapBlog));
         }
 
         if (contentType is null or ModeratedContentType.Reel)
         {
-            var reels = await _context.Reels
+            var reelRows = await _context.Reels
                 .Include(r => r.Creator)
                 .Include(r => r.ReelFaces).ThenInclude(rf => rf.Face)
                 .Where(r => approvalStatus == null || r.ApprovalStatus == approvalStatus)
@@ -186,36 +144,106 @@ public sealed class ContentModerationController : ControllerBase
                 .Where(r => string.IsNullOrWhiteSpace(reviewedByUserId) || r.HumanReviewedByUserId == reviewedByUserId)
                 .Where(r => !minQueueAgeHours.HasValue ||
                     (r.SubmittedAtUtc != null && r.SubmittedAtUtc <= DateTime.UtcNow.AddHours(-minQueueAgeHours.Value)))
-                .Select(r => new ModerationItemDto(
-                    ModeratedContentType.Reel,
-                    r.Id,
-                    r.Title,
-                    r.ReelFaces.Select(rf => rf.FaceId).FirstOrDefault(),
-                    r.ReelFaces.Select(rf => rf.Face.Title).FirstOrDefault() ?? string.Empty,
-                    r.CreatorId,
-                    (r.Creator.FirstName ?? "") + " " + (r.Creator.LastName ?? ""),
-                    r.ApprovalStatus,
-                    r.AiReviewStatus,
-                    r.AiReviewDecision,
-                    r.AiReviewConfidence,
-                    r.AiReviewRiskLevel,
-                    r.AiReviewFlagsJson,
-                    r.AiReviewReason,
-                    r.AiReviewUserMessage,
-                    r.AiReviewModelVersion,
-                    r.AiReviewTraceId,
-                    r.SubmittedAtUtc,
-                    r.HumanReviewedAtUtc,
-                    r.HumanDecisionReason,
-                    r.RemovedAtUtc,
-                    r.RemovalReason,
-                    r.CreatedAt))
+                .Select(r => new
+                {
+                    Entity = r,
+                    FaceId = r.ReelFaces.Select(rf => rf.FaceId).FirstOrDefault(),
+                    FaceTitle = r.ReelFaces.Select(rf => rf.Face.Title).FirstOrDefault() ?? string.Empty,
+                })
                 .ToListAsync();
-            items.AddRange(reels);
+            items.AddRange(reelRows.Select(row => MapReel(row.Entity, row.FaceId, row.FaceTitle)));
         }
 
         return Ok(items.OrderByDescending(i => i.SubmittedAtUtc ?? i.CreatedAt));
     }
+
+    /// <summary>Maps album entity to queue DTO with PI-8 plain-text preview fields (no raw HTML).</summary>
+    private static ModerationItemDto MapAlbum(Album album, int faceId, string faceTitle) =>
+        new(
+            ModeratedContentType.Album,
+            album.Id,
+            album.Title,
+            faceId,
+            faceTitle,
+            album.CreatorId,
+            CreatorDisplayName(album.Creator),
+            album.ApprovalStatus,
+            album.AiReviewStatus,
+            album.AiReviewDecision,
+            album.AiReviewConfidence,
+            album.AiReviewRiskLevel,
+            album.AiReviewFlagsJson,
+            album.AiReviewReason,
+            album.AiReviewUserMessage,
+            album.AiReviewModelVersion,
+            album.AiReviewTraceId,
+            album.SubmittedAtUtc,
+            album.HumanReviewedAtUtc,
+            album.HumanDecisionReason,
+            album.RemovedAtUtc,
+            album.RemovalReason,
+            album.CreatedAt,
+            ContentModerationPreviewText.ToPlainTextPreview(album.Description),
+            null);
+
+    private static ModerationItemDto MapBlog(Blog blog) =>
+        new(
+            ModeratedContentType.Blog,
+            blog.Id,
+            blog.Title,
+            blog.FaceId,
+            blog.Face.Title,
+            blog.CreatorId,
+            CreatorDisplayName(blog.Creator),
+            blog.ApprovalStatus,
+            blog.AiReviewStatus,
+            blog.AiReviewDecision,
+            blog.AiReviewConfidence,
+            blog.AiReviewRiskLevel,
+            blog.AiReviewFlagsJson,
+            blog.AiReviewReason,
+            blog.AiReviewUserMessage,
+            blog.AiReviewModelVersion,
+            blog.AiReviewTraceId,
+            blog.SubmittedAtUtc,
+            blog.HumanReviewedAtUtc,
+            blog.HumanDecisionReason,
+            blog.RemovedAtUtc,
+            blog.RemovalReason,
+            blog.CreatedAt,
+            ContentModerationPreviewText.ToPlainTextPreview(blog.Content),
+            null);
+
+    private static ModerationItemDto MapReel(Reel reel, int faceId, string faceTitle) =>
+        new(
+            ModeratedContentType.Reel,
+            reel.Id,
+            reel.Title,
+            faceId,
+            faceTitle,
+            reel.CreatorId,
+            CreatorDisplayName(reel.Creator),
+            reel.ApprovalStatus,
+            reel.AiReviewStatus,
+            reel.AiReviewDecision,
+            reel.AiReviewConfidence,
+            reel.AiReviewRiskLevel,
+            reel.AiReviewFlagsJson,
+            reel.AiReviewReason,
+            reel.AiReviewUserMessage,
+            reel.AiReviewModelVersion,
+            reel.AiReviewTraceId,
+            reel.SubmittedAtUtc,
+            reel.HumanReviewedAtUtc,
+            reel.HumanDecisionReason,
+            reel.RemovedAtUtc,
+            reel.RemovalReason,
+            reel.CreatedAt,
+            ContentModerationPreviewText.ToPlainTextPreview(reel.Description),
+            ContentModerationPreviewText.ToMediaUrlPreview(reel.VideoUrl));
+
+    private static string CreatorDisplayName(ApplicationUser creator) =>
+        $"{creator.FirstName ?? ""} {creator.LastName ?? ""}".Trim();
 
     /// <summary>Immutable audit trail for a single moderated entity (newest first).</summary>
     [HttpGet("{contentType}/{contentId:int}/events")]
@@ -725,6 +753,8 @@ internal sealed record ModerationActionResult(
         new(false, statusCode, message, null, null);
 }
 
+/// <param name="BodyPreviewPlainText">SHV2 PI-8: stripped HTML / plain description for operator preview (never raw HTML).</param>
+/// <param name="MediaUrlPreview">Optional reel media URL preview (plain string).</param>
 public sealed record ModerationItemDto(
     ModeratedContentType ContentType,
     int ContentId,
@@ -748,7 +778,9 @@ public sealed record ModerationItemDto(
     string? HumanDecisionReason,
     DateTime? RemovedAtUtc,
     string? RemovalReason,
-    DateTime CreatedAt);
+    DateTime CreatedAt,
+    string BodyPreviewPlainText,
+    string? MediaUrlPreview);
 
 public sealed record ModerationMetricsWithAlerts(
     ContentModerationMetricsSnapshot Metrics,

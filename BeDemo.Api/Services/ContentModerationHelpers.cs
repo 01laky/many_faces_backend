@@ -122,9 +122,9 @@ public static class ContentModerationHelpers
         if (rec.Decision == AiReviewDecision.Reject && string.IsNullOrWhiteSpace(rec.Reason))
             return AiRecommendationValidationResult.NeedsHumanReview("Reject recommendations require a reason.");
         if (rec.Decision == AiReviewDecision.Approve &&
-            rec.Flags.Any(f => string.Equals(f, ContentModerationPromptInjectionHeuristic.InstructionLikeFlag, StringComparison.Ordinal)))
+            rec.Flags.Any(ContentModerationPromptInjectionHeuristic.IsPromptInjectionPolicyFlag))
             return AiRecommendationValidationResult.NeedsHumanReview(
-                "Instruction-like text requires human review before approval.");
+                "Instruction-like or suspected prompt-injection content requires human review before approval.");
 
         return AiRecommendationValidationResult.Valid();
     }
@@ -147,6 +147,7 @@ public static class ContentModerationHelpers
         "image_analysis_boundary",
         "video_analysis_boundary",
         ContentModerationPromptInjectionHeuristic.InstructionLikeFlag,
+        ContentModerationPromptInjectionHeuristic.PromptInjectionSuspectedFlag,
     };
 
     /// <summary>Factory for consistent audit rows across albums, blogs, and reels.</summary>

@@ -39,5 +39,7 @@ public static class ContentModerationCiGate
         "ContentModerationTrustBoundaryTests",
         "ContentModerationPayloadLogRedactionTests",
         "ContentModerationCiGateTests",
+        "ContentModerationPreviewTextTests",
+        "ContentModerationProductionPathTests",
     ];
 }

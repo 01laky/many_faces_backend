@@ -73,6 +73,63 @@ public sealed class ContentModerationSecurityEdgeTests
         ContentModerationPromptInjectionHeuristic.IsInstructionLike(title, null, null).Should().BeTrue();
     }
 
+    /// <summary>SHV2 PI-5: every corpus attack line must persist safe AI state through the production worker path.</summary>
+    [Theory]
+    [MemberData(nameof(CorpusMemberData))]
+    public async Task Corpus_line_full_worker_persists_safe_state_not_recommended_approve(int index, string line)
+    {
+        await using var context = CreateContext();
+        var face = new Face { Index = $"face-{Guid.NewGuid():N}", Title = "Corpus Face" };
+        var user = new ApplicationUser
+        {
+            Id = $"corpus-{index}-{Guid.NewGuid():N}",
+            UserName = $"corpus{index}@example.com",
+            Email = $"corpus{index}@example.com",
+            UserRoleId = 1,
+        };
+        context.Faces.Add(face);
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+
+        var blog = new Blog
+        {
+            CreatorId = user.Id,
+            FaceId = face.Id,
+            Title = line,
+            Content = $"<p>{line}</p>",
+            ApprovalStatus = ContentApprovalStatus.PendingApproval,
+            AiReviewStatus = AiReviewStatus.Queued,
+            SubmittedAtUtc = DateTime.UtcNow,
+            ModerationVersion = 1,
+        };
+        context.Blogs.Add(blog);
+        context.AiReviewJobs.Add(new AiReviewJob
+        {
+            ContentType = ModeratedContentType.Blog,
+            ContentId = blog.Id,
+            FaceId = face.Id,
+            CreatedByUserId = user.Id,
+            ModerationVersion = 1,
+        });
+        await context.SaveChangesAsync();
+
+        var ai = new FakeAiGrpcService(MaliciousHighConfidenceApprove);
+        var service = new ContentAiReviewService(
+            context,
+            ai,
+            new NoOpRedisJobQueue(),
+            NullLogger<ContentAiReviewService>.Instance,
+            new NullContentModerationNotifier(),
+            Options.Create(new ContentModerationSecurityOptions { InstructionHeuristicEnabled = true }));
+
+        await service.ProcessQueuedReviewAsync(
+            ContentModerationHelpers.BuildAiReviewPayload(ModeratedContentType.Blog, blog.Id, 1));
+
+        blog.AiReviewStatus.Should().NotBe(AiReviewStatus.RecommendedApprove,
+            because: $"corpus line #{index} must not persist RecommendedApprove: «{Truncate(line)}»");
+        blog.ApprovalStatus.Should().Be(ContentApprovalStatus.PendingApproval);
+    }
+
     [Fact]
     public async Task Integration_corpus_representative_line_forces_needs_human_review_not_recommended_approve()
     {
