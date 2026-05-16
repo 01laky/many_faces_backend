@@ -211,6 +211,8 @@ To perform a clean rebuild of Docker images:
 
 - `GET /api/localization/{app}` — anonymous static UI bundles for **`portal`**, **`admin`**, or **`mobile`** (embedded `.resx`, JSON for i18next). **Face-prefix exempt** (call `/api/localization/...`, not `/{face}/api/localization/...`). Rate limit policy: **`localization-read`**. See monorepo [**static-localization-and-i18n**](../../docs/guides/static-localization-and-i18n.md).
 
+**Local dev:** after editing `BeDemo.Api/Localization/**/*.resx`, restart the API (`dotnet run` / `dotnet watch run` on `BeDemo.Api`) so embedded resources reload; hard-refresh the SPA or clear the client localization cache (`localStorage` keys `mf-localization-*`) to pick up a new `version` hash.
+
 ### Users
 
 - `GET /api/users` - Get all users (admin only)
