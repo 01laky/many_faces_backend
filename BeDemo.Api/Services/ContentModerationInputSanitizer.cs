@@ -4,9 +4,16 @@ using System.Text;
 namespace BeDemo.Api.Services;
 
 /// <summary>
-/// Normalizes untrusted album/blog/reel text before it is sent to <c>ReviewContent</c> (gRPC).
-/// Complements in-process defenses in <c>many_faces_ai</c>; never weakens backend <see cref="ContentModerationHelpers.ValidateRecommendation"/>.
+/// Normalizes <b>untrusted</b> album/blog/reel text before it is sent to
+/// <see cref="ContentModerationTrustBoundary.UntrustedAiRpcName"/> (gRPC).
 /// </summary>
+/// <remarks>
+/// Security hardening v2 <b>PI-9</b>: do not use for trusted operator AI inputs
+/// (<see cref="ContentModerationTrustBoundary.TrustedOperatorAiRpcNames"/> or aggregate stats JSON from
+/// <c>GET /api/Stats/public</c>). Operator chat uses hub ACL + rate limits; moderation uses this sanitizer.
+/// Complements in-process defenses in <c>many_faces_ai</c>; never weakens
+/// <see cref="ContentModerationHelpers.ValidateRecommendation"/>.
+/// </remarks>
 public static class ContentModerationInputSanitizer
 {
     /// <summary>Matches EF <c>Blog.Title</c> / album &amp; reel titles.</summary>

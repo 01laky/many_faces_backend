@@ -7,8 +7,17 @@ namespace BeDemo.Api.Services;
 /// (sanitize → gRPC payload, heuristic on stored fields, flag merge, <see cref="ContentModerationHelpers.ValidateRecommendation"/>).
 /// </summary>
 /// <remarks>
+/// <para>
 /// Used by red-team corpus tests to assert every attack line blocks an unsafe <see cref="AiReviewStatus.RecommendedApprove"/>
 /// outcome when the AI returns a high-confidence approve recommendation.
+/// </para>
+/// <para>
+/// Security hardening v2 <b>PI-9</b>: this evaluator models only the <b>untrusted</b> moderation worker path
+/// (<see cref="ContentModerationTrustBoundary.UntrustedAiRpcName"/>). It must <b>not</b> be called for trusted
+/// operator AI stats context (<see cref="ContentModerationTrustBoundary.PublicStatsSnapshotJsonSample"/>) or
+/// SignalR <see cref="ContentModerationTrustBoundary.TrustedOperatorHubPath"/> chat — see
+/// <see cref="ContentModerationTrustBoundaryTests"/>.
+/// </para>
 /// </remarks>
 public static class ContentModerationUntrustedContentEvaluator
 {

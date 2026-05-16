@@ -204,7 +204,7 @@ Implemented backend pieces:
 - `IContentModerationNotifier` for in-app notifications on submit and when AI exhausts retries.
 - Optional `ContentRetentionCleanupService` + hosted worker (see `Retention` configuration) for dry-run or executed redaction of internal AI trace fields after policy delay.
 - Migration defaults that preserve existing content as `Approved`.
-- Integration tests covering visibility, bulk moderation, metrics/alerts wiring, retention behaviour, audit writes, and **moderation security edge cases** (`ContentModerationTests`, `ContentModerationSecurityEdgeTests`, `ContentModerationUnicodeSpoofingTests` for SHV2 **PI-6** Unicode spoofing, `ContentModerationPayloadLogRedactionTests` for SHV2 **PI-7** invalid-payload log redaction, red-team corpus `BeDemo.Api.Tests/Fixtures/prompt_injection_corpus.txt`).
+- Integration tests covering visibility, bulk moderation, metrics/alerts wiring, retention behaviour, audit writes, and **moderation security edge cases** (`ContentModerationTests`, `ContentModerationSecurityEdgeTests`, `ContentModerationUnicodeSpoofingTests` for SHV2 **PI-6** Unicode spoofing, `ContentModerationTrustBoundaryTests` for SHV2 **PI-9** untrusted vs operator AI boundary, `ContentModerationPayloadLogRedactionTests` for SHV2 **PI-7** invalid-payload log redaction, red-team corpus `BeDemo.Api.Tests/Fixtures/prompt_injection_corpus.txt`). Trust-boundary constants: `ContentModerationTrustBoundary.cs`.
 
 ```mermaid
 flowchart TD

@@ -103,9 +103,11 @@ public static class ContentModerationHelpers
     }
 
     /// <summary>
-    /// Backend guard-rails so invalid or unsafe AI JSON cannot auto-publish content.
+    /// Backend guard-rails so invalid or unsafe AI JSON cannot auto-publish content on the <b>untrusted</b>
+    /// <see cref="ContentModerationTrustBoundary.UntrustedAiRpcName"/> path.
     /// Returns <see cref="AiRecommendationValidationResult.NeedsHumanReview"/> when manual review is required.
     /// </summary>
+    /// <remarks>SHV2 PI-9: not invoked for trusted operator <c>Generate</c> chat responses.</remarks>
     public static AiRecommendationValidationResult ValidateRecommendation(AiReviewRecommendation recommendation)
     {
         var flags = NormalizeAiFlags(recommendation.Flags);

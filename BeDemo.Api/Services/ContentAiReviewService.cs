@@ -134,7 +134,8 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         AddEvent(item, oldAiStatus, AiReviewStatus.InProgress, ModerationActorType.System, "AI review started.");
         await _context.SaveChangesAsync(cancellationToken);
 
-        // gRPC call into many_faces_ai; sanitize untrusted fields before they enter the AI process (defense in depth).
+        // PI-9 untrusted path only: creator submission fields → ReviewContent (never operator ChatHub / Generate).
+        // Sanitize before gRPC so smuggled bidi/zero-width bytes cannot reach many_faces_ai (defense in depth).
         var baseRequest = item.ToAiRequest();
         var (sanTitle, sanBody, sanMedia) = ContentModerationInputSanitizer.SanitizeForAiReview(
             baseRequest.Title,
@@ -155,6 +156,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
 
         var merged = result.Recommendation;
         // Heuristic runs on stored entity fields (not sanitized wire copy) so smuggled bytes in DB still escalate.
+        // Not used for trusted operator stats JSON (ContentModerationTrustBoundary — PI-9).
         if (_securityOptions.Value.InstructionHeuristicEnabled &&
             ContentModerationPromptInjectionHeuristic.IsInstructionLike(item.Title, item.Body, item.MediaUrl))
         {

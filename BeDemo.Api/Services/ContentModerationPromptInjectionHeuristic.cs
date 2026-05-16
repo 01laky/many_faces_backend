@@ -1,9 +1,15 @@
 namespace BeDemo.Api.Services;
 
 /// <summary>
-/// Lightweight, high-recall / low-precision detector for instruction-like phrases in user submissions.
+/// Lightweight, high-recall / low-precision detector for instruction-like phrases in <b>untrusted</b> creator submissions.
 /// A positive match must never auto-approve: <see cref="ContentModerationHelpers.ValidateRecommendation"/> forces human review when combined with <see cref="AiReviewDecision.Approve"/>.
 /// </summary>
+/// <remarks>
+/// Security hardening v2 <b>PI-9</b>: scoped to album/blog/reel fields on the
+/// <see cref="ContentModerationTrustBoundary.UntrustedAiRpcName"/> path only. Trusted operator aggregate stats JSON
+/// and admin <see cref="ContentModerationTrustBoundary.TrustedOperatorHubPath"/> chat are out of scope — see
+/// <see cref="ContentModerationTrustBoundary.IsTrustedOperatorStatsContext"/>.
+/// </remarks>
 public static class ContentModerationPromptInjectionHeuristic
 {
     /// <summary>Stored on <c>AiReviewFlagsJson</c> when the heuristic fires (also whitelisted in <see cref="ContentModerationHelpers"/>).</summary>
