@@ -21,6 +21,7 @@ public static class Routing
     /// <list type="bullet">
     /// <item><description><c>/api/oauth2/*</c> — token and registration must be callable before any face context exists.</description></item>
     /// <item><description><c>/api/auth/*</c> — legacy Identity cookie endpoints (if used).</description></item>
+    /// <item><description><c>/api/localization/*</c> — static UI i18n bundles before login.</description></item>
     /// <item><description>Swagger / OpenAPI — developer tooling; not tenant data.</description></item>
     /// <item><description><c>/uploads/*</c> — static files under wwwroot (avatars, story images).</description></item>
     /// </list>
@@ -29,6 +30,7 @@ public static class Routing
     {
         "/api/oauth2",
         "/api/auth",
+        "/api/localization",
         "/swagger",
         "/openapi",
         "/favicon",

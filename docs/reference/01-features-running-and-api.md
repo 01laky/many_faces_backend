@@ -207,6 +207,10 @@ To perform a clean rebuild of Docker images:
   - `POST /api/oauth2/register/complete` — `hash` + `code` + `password` → user + OAuth tokens
   - `POST /api/oauth2/register` — **deprecated** (`registration_flow_deprecated`)
 
+### Static UI localization
+
+- `GET /api/localization/{app}` — anonymous static UI bundles for **`portal`**, **`admin`**, or **`mobile`** (embedded `.resx`, JSON for i18next). **Face-prefix exempt** (call `/api/localization/...`, not `/{face}/api/localization/...`). Rate limit policy: **`localization-read`**. See monorepo [**static-localization-and-i18n**](../../docs/guides/static-localization-and-i18n.md).
+
 ### Users
 
 - `GET /api/users` - Get all users (admin only)

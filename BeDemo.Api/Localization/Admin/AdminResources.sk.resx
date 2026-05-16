@@ -1,0 +1,1489 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="clickLogos" xml:space="preserve">
+    <value>Kliknite na logá Vite a React, aby ste sa dozvedeli viac</value>
+  </data>
+  <data name="common.actions" xml:space="preserve">
+    <value>Akcie</value>
+  </data>
+  <data name="common.back" xml:space="preserve">
+    <value>Späť</value>
+  </data>
+  <data name="common.cancel" xml:space="preserve">
+    <value>Zrušiť</value>
+  </data>
+  <data name="common.delete" xml:space="preserve">
+    <value>Vymazať</value>
+  </data>
+  <data name="common.edit" xml:space="preserve">
+    <value>Upraviť</value>
+  </data>
+  <data name="common.first" xml:space="preserve">
+    <value>Prvá</value>
+  </data>
+  <data name="common.last" xml:space="preserve">
+    <value>Posledná</value>
+  </data>
+  <data name="common.loading" xml:space="preserve">
+    <value>Načítava sa…</value>
+  </data>
+  <data name="common.next" xml:space="preserve">
+    <value>Ďalšia</value>
+  </data>
+  <data name="common.of" xml:space="preserve">
+    <value>z</value>
+  </data>
+  <data name="common.page" xml:space="preserve">
+    <value>Strana</value>
+  </data>
+  <data name="common.previous" xml:space="preserve">
+    <value>Predchádzajúca</value>
+  </data>
+  <data name="common.refresh" xml:space="preserve">
+    <value>Obnoviť</value>
+  </data>
+  <data name="common.retry" xml:space="preserve">
+    <value>Skúsiť znova</value>
+  </data>
+  <data name="common.showing" xml:space="preserve">
+    <value>Zobrazuje sa</value>
+  </data>
+  <data name="common.to" xml:space="preserve">
+    <value>do</value>
+  </data>
+  <data name="count" xml:space="preserve">
+    <value>počet je {{count}}</value>
+  </data>
+  <data name="edit" xml:space="preserve">
+    <value>Upraviť</value>
+  </data>
+  <data name="language.cz" xml:space="preserve">
+    <value>Čeština</value>
+  </data>
+  <data name="language.en" xml:space="preserve">
+    <value>Angličtina</value>
+  </data>
+  <data name="language.select" xml:space="preserve">
+    <value>Vyberte jazyk</value>
+  </data>
+  <data name="language.sk" xml:space="preserve">
+    <value>Slovenčina</value>
+  </data>
+  <data name="pages.chat.ai" xml:space="preserve">
+    <value>AI</value>
+  </data>
+  <data name="pages.chat.connected" xml:space="preserve">
+    <value>Pripojený</value>
+  </data>
+  <data name="pages.chat.connecting" xml:space="preserve">
+    <value>Pripájanie...</value>
+  </data>
+  <data name="pages.chat.disconnected" xml:space="preserve">
+    <value>Odpojený</value>
+  </data>
+  <data name="pages.chat.placeholder" xml:space="preserve">
+    <value>Napíšte správu...</value>
+  </data>
+  <data name="pages.chat.send" xml:space="preserve">
+    <value>Odoslať</value>
+  </data>
+  <data name="pages.chat.timeoutError" xml:space="preserve">
+    <value>Vypršal čas požiadavky. AI sa ešte môže načítavať. Skúste znova o minútu.</value>
+  </data>
+  <data name="pages.chat.title" xml:space="preserve">
+    <value>AI Chat</value>
+  </data>
+  <data name="pages.chat.you" xml:space="preserve">
+    <value>Vy</value>
+  </data>
+  <data name="pages.createFace.description" xml:space="preserve">
+    <value>Popis</value>
+  </data>
+  <data name="pages.createFace.descriptionPlaceholder" xml:space="preserve">
+    <value>Zadajte popis</value>
+  </data>
+  <data name="pages.createFace.error" xml:space="preserve">
+    <value>Chyba pri vytváraní tvárí</value>
+  </data>
+  <data name="pages.createFace.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.createFace.indexPlaceholder" xml:space="preserve">
+    <value>Zadajte index</value>
+  </data>
+  <data name="pages.createFace.isPublic" xml:space="preserve">
+    <value>Verejný prístup</value>
+  </data>
+  <data name="pages.createFace.isPublicHelp" xml:space="preserve">
+    <value>Prístupná bez prihlásenia</value>
+  </data>
+  <data name="pages.createFace.submit" xml:space="preserve">
+    <value>Vytvoriť tvár</value>
+  </data>
+  <data name="pages.createFace.submitting" xml:space="preserve">
+    <value>Vytváram...</value>
+  </data>
+  <data name="pages.createFace.success" xml:space="preserve">
+    <value>Tvár bola úspešne vytvorená!</value>
+  </data>
+  <data name="pages.createFace.title" xml:space="preserve">
+    <value>Názov</value>
+  </data>
+  <data name="pages.createFace.titlePlaceholder" xml:space="preserve">
+    <value>Zadajte názov</value>
+  </data>
+  <data name="pages.createFace.validation.descriptionMaxLength" xml:space="preserve">
+    <value>Popis musí mať najviac 1000 znakov</value>
+  </data>
+  <data name="pages.createFace.validation.indexMaxLength" xml:space="preserve">
+    <value>Index musí mať najviac 100 znakov</value>
+  </data>
+  <data name="pages.createFace.validation.indexRequired" xml:space="preserve">
+    <value>Index je povinný</value>
+  </data>
+  <data name="pages.createFace.validation.titleMaxLength" xml:space="preserve">
+    <value>Názov musí mať najviac 200 znakov</value>
+  </data>
+  <data name="pages.createFace.validation.titleRequired" xml:space="preserve">
+    <value>Názov je povinný</value>
+  </data>
+  <data name="pages.createPage.description" xml:space="preserve">
+    <value>Popis</value>
+  </data>
+  <data name="pages.createPage.descriptionPlaceholder" xml:space="preserve">
+    <value>Zadajte popis</value>
+  </data>
+  <data name="pages.createPage.error" xml:space="preserve">
+    <value>Chyba pri vytváraní stránky</value>
+  </data>
+  <data name="pages.createPage.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.createPage.indexPlaceholder" xml:space="preserve">
+    <value>Zadajte index (0, 1, 2...)</value>
+  </data>
+  <data name="pages.createPage.name" xml:space="preserve">
+    <value>Názov</value>
+  </data>
+  <data name="pages.createPage.namePlaceholder" xml:space="preserve">
+    <value>Zadajte názov stránky</value>
+  </data>
+  <data name="pages.createPage.pageType" xml:space="preserve">
+    <value>Typ stránky</value>
+  </data>
+  <data name="pages.createPage.path" xml:space="preserve">
+    <value>Cesta</value>
+  </data>
+  <data name="pages.createPage.pathPlaceholder" xml:space="preserve">
+    <value>Zadajte cestu (napr. /home)</value>
+  </data>
+  <data name="pages.createPage.routeTranslationPlaceholder" xml:space="preserve">
+    <value>napr. domov</value>
+  </data>
+  <data name="pages.createPage.routeTranslations" xml:space="preserve">
+    <value>Preklady trás</value>
+  </data>
+  <data name="pages.createPage.routeTranslationsHelp" xml:space="preserve">
+    <value>Definujte preložené názvy trás pre každý podporovaný jazyk.</value>
+  </data>
+  <data name="pages.createPage.submit" xml:space="preserve">
+    <value>Vytvoriť stránku</value>
+  </data>
+  <data name="pages.createPage.submitting" xml:space="preserve">
+    <value>Vytváram...</value>
+  </data>
+  <data name="pages.createPage.success" xml:space="preserve">
+    <value>Stránka bola úspešne vytvorená!</value>
+  </data>
+  <data name="pages.createPage.title" xml:space="preserve">
+    <value>Vytvoriť stránku</value>
+  </data>
+  <data name="pages.createPage.translationsError" xml:space="preserve">
+    <value>Chyba pri ukladaní prekladov trás</value>
+  </data>
+  <data name="pages.createPage.validation.descriptionMaxLength" xml:space="preserve">
+    <value>Popis musí mať najviac 1000 znakov</value>
+  </data>
+  <data name="pages.createPage.validation.indexMin" xml:space="preserve">
+    <value>Index musí byť 0 alebo väčší</value>
+  </data>
+  <data name="pages.createPage.validation.indexRequired" xml:space="preserve">
+    <value>Index je povinný</value>
+  </data>
+  <data name="pages.createPage.validation.nameMaxLength" xml:space="preserve">
+    <value>Názov musí mať najviac 200 znakov</value>
+  </data>
+  <data name="pages.createPage.validation.nameRequired" xml:space="preserve">
+    <value>Názov je povinný</value>
+  </data>
+  <data name="pages.createPage.validation.pageTypeIdRequired" xml:space="preserve">
+    <value>Typ stránky je povinný</value>
+  </data>
+  <data name="pages.createPage.validation.pathMaxLength" xml:space="preserve">
+    <value>Cesta musí mať najviac 500 znakov</value>
+  </data>
+  <data name="pages.createPage.validation.pathRequired" xml:space="preserve">
+    <value>Cesta je povinná</value>
+  </data>
+  <data name="pages.createUser.confirmPassword" xml:space="preserve">
+    <value>Potvrďte heslo</value>
+  </data>
+  <data name="pages.createUser.confirmPasswordPlaceholder" xml:space="preserve">
+    <value>Potvrďte heslo</value>
+  </data>
+  <data name="pages.createUser.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.createUser.emailPlaceholder" xml:space="preserve">
+    <value>Zadajte emailovú adresu</value>
+  </data>
+  <data name="pages.createUser.error" xml:space="preserve">
+    <value>Chyba pri vytváraní používateľa</value>
+  </data>
+  <data name="pages.createUser.firstName" xml:space="preserve">
+    <value>Meno</value>
+  </data>
+  <data name="pages.createUser.firstNamePlaceholder" xml:space="preserve">
+    <value>Zadajte meno</value>
+  </data>
+  <data name="pages.createUser.lastName" xml:space="preserve">
+    <value>Priezvisko</value>
+  </data>
+  <data name="pages.createUser.lastNamePlaceholder" xml:space="preserve">
+    <value>Zadajte priezvisko</value>
+  </data>
+  <data name="pages.createUser.password" xml:space="preserve">
+    <value>Heslo</value>
+  </data>
+  <data name="pages.createUser.passwordPlaceholder" xml:space="preserve">
+    <value>Zadajte heslo</value>
+  </data>
+  <data name="pages.createUser.submit" xml:space="preserve">
+    <value>Vytvoriť používateľa</value>
+  </data>
+  <data name="pages.createUser.submitting" xml:space="preserve">
+    <value>Vytváram...</value>
+  </data>
+  <data name="pages.createUser.success" xml:space="preserve">
+    <value>Používateľ bol úspešne vytvorený!</value>
+  </data>
+  <data name="pages.createUser.title" xml:space="preserve">
+    <value>Vytvoriť používateľa</value>
+  </data>
+  <data name="pages.createUser.validation.confirmPasswordRequired" xml:space="preserve">
+    <value>Prosím potvrďte heslo</value>
+  </data>
+  <data name="pages.createUser.validation.emailInvalid" xml:space="preserve">
+    <value>Zadajte platnú emailovú adresu</value>
+  </data>
+  <data name="pages.createUser.validation.emailRequired" xml:space="preserve">
+    <value>Email je povinný</value>
+  </data>
+  <data name="pages.createUser.validation.passwordMinLength" xml:space="preserve">
+    <value>Heslo musí mať aspoň 4 znaky</value>
+  </data>
+  <data name="pages.createUser.validation.passwordRequired" xml:space="preserve">
+    <value>Heslo je povinné</value>
+  </data>
+  <data name="pages.createUser.validation.passwordsMatch" xml:space="preserve">
+    <value>Heslá sa musia zhodovať</value>
+  </data>
+  <data name="pages.dashboard.aiStats.fields.faces" xml:space="preserve">
+    <value>Tváre</value>
+  </data>
+  <data name="pages.dashboard.aiStats.fields.messages" xml:space="preserve">
+    <value>Správy</value>
+  </data>
+  <data name="pages.dashboard.aiStats.fields.stories" xml:space="preserve">
+    <value>Príbehy</value>
+  </data>
+  <data name="pages.dashboard.aiStats.fields.users" xml:space="preserve">
+    <value>Používatelia</value>
+  </data>
+  <data name="pages.dashboard.aiStats.loadError" xml:space="preserve">
+    <value>Nepodarilo sa načítať anonymné verejné štatistiky.</value>
+  </data>
+  <data name="pages.dashboard.aiStats.loading" xml:space="preserve">
+    <value>Načítavam verejný agregovaný snímok…</value>
+  </data>
+  <data name="pages.dashboard.aiStats.modeLabel" xml:space="preserve">
+    <value>Štatistiky v AI chate</value>
+  </data>
+  <data name="pages.dashboard.aiStats.offHint" xml:space="preserve">
+    <value>V nastaveniach zapnite inline alebo live režim, aby sa k operátorskému AI chatu pripojili anonymné súčty platformy.</value>
+  </data>
+  <data name="pages.dashboard.aiStats.openSettings" xml:space="preserve">
+    <value>Nastavenia</value>
+  </data>
+  <data name="pages.dashboard.aiStats.title" xml:space="preserve">
+    <value>AI a verejné agregáty</value>
+  </data>
+  <data name="pages.dashboard.charts.barAria" xml:space="preserve">
+    <value>Stĺpcový graf čakajúcich, prijatých a zamietnutých žiadostí</value>
+  </data>
+  <data name="pages.dashboard.charts.barTitle" xml:space="preserve">
+    <value>Žiadosti o priateľstvo podľa výsledku</value>
+  </data>
+  <data name="pages.dashboard.charts.barValue" xml:space="preserve">
+    <value>Počet</value>
+  </data>
+  <data name="pages.dashboard.charts.contentSlices.albums" xml:space="preserve">
+    <value>Albumy</value>
+  </data>
+  <data name="pages.dashboard.charts.contentSlices.blogs" xml:space="preserve">
+    <value>Blogy</value>
+  </data>
+  <data name="pages.dashboard.charts.contentSlices.reels" xml:space="preserve">
+    <value>Reely</value>
+  </data>
+  <data name="pages.dashboard.charts.contentSlices.stories" xml:space="preserve">
+    <value>Príbehy</value>
+  </data>
+  <data name="pages.dashboard.charts.empty" xml:space="preserve">
+    <value>V tomto intervale nie sú dáta.</value>
+  </data>
+  <data name="pages.dashboard.charts.friendRequests.accepted" xml:space="preserve">
+    <value>Prijaté</value>
+  </data>
+  <data name="pages.dashboard.charts.friendRequests.pending" xml:space="preserve">
+    <value>Čakajúce</value>
+  </data>
+  <data name="pages.dashboard.charts.friendRequests.rejected" xml:space="preserve">
+    <value>Zamietnuté</value>
+  </data>
+  <data name="pages.dashboard.charts.lineAria" xml:space="preserve">
+    <value>Čiarový graf registrácií a počtu správ za deň</value>
+  </data>
+  <data name="pages.dashboard.charts.lineTitle" xml:space="preserve">
+    <value>Noví používatelia vs správy</value>
+  </data>
+  <data name="pages.dashboard.charts.loadError" xml:space="preserve">
+    <value>Nepodarilo sa načítať dáta grafu.</value>
+  </data>
+  <data name="pages.dashboard.charts.loading" xml:space="preserve">
+    <value>Načítavam dáta grafu…</value>
+  </data>
+  <data name="pages.dashboard.charts.pieAria" xml:space="preserve">
+    <value>Donut graf albumov, blogov, reelov a príbehov</value>
+  </data>
+  <data name="pages.dashboard.charts.pieTitle" xml:space="preserve">
+    <value>Mix obsahu (celkové počty)</value>
+  </data>
+  <data name="pages.dashboard.charts.sectionTitle" xml:space="preserve">
+    <value>Grafy (posledných 30 dní, UTC)</value>
+  </data>
+  <data name="pages.dashboard.charts.seriesMessages" xml:space="preserve">
+    <value>Správy</value>
+  </data>
+  <data name="pages.dashboard.charts.seriesNewUsers" xml:space="preserve">
+    <value>Noví používatelia</value>
+  </data>
+  <data name="pages.dashboard.description" xml:space="preserve">
+    <value>Prehľad admin panela. Spravujte používateľov, tvare a obsah.</value>
+  </data>
+  <data name="pages.dashboard.friendRequests" xml:space="preserve">
+    <value>Žiadosti o priateľstvo (čakajúce)</value>
+  </data>
+  <data name="pages.dashboard.manageFaces" xml:space="preserve">
+    <value>Správa tvárí</value>
+  </data>
+  <data name="pages.dashboard.managePagesHint" xml:space="preserve">
+    <value>Stránky — vytvorenie a úprava pod každou tvárou</value>
+  </data>
+  <data name="pages.dashboard.manageUsers" xml:space="preserve">
+    <value>Správa používateľov</value>
+  </data>
+  <data name="pages.dashboard.messages" xml:space="preserve">
+    <value>Správy</value>
+  </data>
+  <data name="pages.dashboard.metrics.loading" xml:space="preserve">
+    <value>Načítavam metriky…</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.aiReviewJobsCount" xml:space="preserve">
+    <value>AI kontrolné úlohy</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.albumCommentsCount" xml:space="preserve">
+    <value>Komentáre albumov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.albumLikesCount" xml:space="preserve">
+    <value>Lajky albumov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.albumsCount" xml:space="preserve">
+    <value>Albumy</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.blogCommentsCount" xml:space="preserve">
+    <value>Komentáre blogov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.blogLikesCount" xml:space="preserve">
+    <value>Lajky blogov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.blogsCount" xml:space="preserve">
+    <value>Blogy</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.contentModerationEventsCount" xml:space="preserve">
+    <value>Udalosti moderácie obsahu</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceChatRoomJoinRequestsPendingCount" xml:space="preserve">
+    <value>Žiadosti o vstup do chatu (čakajúce)</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceChatRoomMembersCount" xml:space="preserve">
+    <value>Členovia chatu</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceChatRoomMessagesCount" xml:space="preserve">
+    <value>Správy v chate</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceChatRoomsCount" xml:space="preserve">
+    <value>Chat miestnosti tváre</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceWallTicketCommentsCount" xml:space="preserve">
+    <value>Komentáre wall ticketov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceWallTicketLikesCount" xml:space="preserve">
+    <value>Lajky wall ticketov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceWallTicketsCount" xml:space="preserve">
+    <value>Wall tickety</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.facesCount" xml:space="preserve">
+    <value>Tváre</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.friendRequestsAccepted" xml:space="preserve">
+    <value>Žiadosti o priateľstvo (prijaté)</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.friendRequestsPending" xml:space="preserve">
+    <value>Žiadosti o priateľstvo (čakajúce)</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.friendRequestsRejected" xml:space="preserve">
+    <value>Žiadosti o priateľstvo (zamietnuté)</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.friendshipsCount" xml:space="preserve">
+    <value>Priateľstvá</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.messagesCount" xml:space="preserve">
+    <value>Správy</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.messagesPendingRequestCount" xml:space="preserve">
+    <value>Žiadosti o správu (čakajúce)</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.notificationsCount" xml:space="preserve">
+    <value>Notifikácie</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.oauthClientsCount" xml:space="preserve">
+    <value>OAuth klienti</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.pageComponentsCount" xml:space="preserve">
+    <value>Komponenty stránok</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.pageRouteTranslationsCount" xml:space="preserve">
+    <value>Preklady ciest stránok</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.pagesCount" xml:space="preserve">
+    <value>Stránky</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.reelCommentsCount" xml:space="preserve">
+    <value>Komentáre reelov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.reelLikesCount" xml:space="preserve">
+    <value>Lajky reelov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.reelsCount" xml:space="preserve">
+    <value>Reely</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.storiesCount" xml:space="preserve">
+    <value>Príbehy</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.storyCommentsCount" xml:space="preserve">
+    <value>Komentáre príbehov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.storyLikesCount" xml:space="preserve">
+    <value>Lajky príbehov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.storyViewsCount" xml:space="preserve">
+    <value>Zobrazenia príbehov</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userBlocksCount" xml:space="preserve">
+    <value>Blokovania</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userFaceProfileCommentsCount" xml:space="preserve">
+    <value>Komentáre profilu</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userFaceProfileLikesCount" xml:space="preserve">
+    <value>Lajky profilu</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userFaceProfileReviewsCount" xml:space="preserve">
+    <value>Recenzie profilu</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userFaceProfilesCount" xml:space="preserve">
+    <value>Profily používateľa na tvári</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userFollowsCount" xml:space="preserve">
+    <value>Sledovania</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.usersCount" xml:space="preserve">
+    <value>Používatelia</value>
+  </data>
+  <data name="pages.dashboard.metrics.sectionTitle" xml:space="preserve">
+    <value>Všetky metriky platformy</value>
+  </data>
+  <data name="pages.dashboard.metrics.wallByStatus" xml:space="preserve">
+    <value>Wall tickety podľa stavu</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.aiFailed" xml:space="preserve">
+    <value>Zlyhané AI úlohy</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.error" xml:space="preserve">
+    <value>Nepodarilo sa načítať metriky moderácie.</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.loading" xml:space="preserve">
+    <value>Načítavam metriky moderácie…</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.needsHuman" xml:space="preserve">
+    <value>Vyžaduje ľudskú kontrolu</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.openConsole" xml:space="preserve">
+    <value>Otvoriť konzolu moderácie →</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.pending" xml:space="preserve">
+    <value>Čakajúce podania</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.title" xml:space="preserve">
+    <value>Stav moderácie (super admin)</value>
+  </data>
+  <data name="pages.dashboard.primary.notifications" xml:space="preserve">
+    <value>Notifikácie</value>
+  </data>
+  <data name="pages.dashboard.primary.pages" xml:space="preserve">
+    <value>Stránky</value>
+  </data>
+  <data name="pages.dashboard.quickActions" xml:space="preserve">
+    <value>Rýchle akcie</value>
+  </data>
+  <data name="pages.dashboard.statsError" xml:space="preserve">
+    <value>Nepodarilo sa načítať štatistiky nástenky. Skúste znova alebo skontrolujte API.</value>
+  </data>
+  <data name="pages.dashboard.statsForbidden" xml:space="preserve">
+    <value>Štatistiky sú dostupné len pri URL prefixe admin tváre a účte operátora platformy. Otvorte admin aplikáciu nakonfigurovanú pre admin tvár a prihláste sa ako globálny administrátor.</value>
+  </data>
+  <data name="pages.dashboard.title" xml:space="preserve">
+    <value>Nástenka</value>
+  </data>
+  <data name="pages.dashboard.welcome" xml:space="preserve">
+    <value>Vitajte</value>
+  </data>
+  <data name="pages.editFace.description" xml:space="preserve">
+    <value>Popis</value>
+  </data>
+  <data name="pages.editFace.descriptionPlaceholder" xml:space="preserve">
+    <value>Zadajte popis</value>
+  </data>
+  <data name="pages.editFace.error" xml:space="preserve">
+    <value>Chyba pri aktualizácii tvárí</value>
+  </data>
+  <data name="pages.editFace.gradient.addColor" xml:space="preserve">
+    <value>Pridať farbu</value>
+  </data>
+  <data name="pages.editFace.gradient.angle" xml:space="preserve">
+    <value>Uhol</value>
+  </data>
+  <data name="pages.editFace.gradient.animNone" xml:space="preserve">
+    <value>Žiadna</value>
+  </data>
+  <data name="pages.editFace.gradient.animPulse" xml:space="preserve">
+    <value>Pulz</value>
+  </data>
+  <data name="pages.editFace.gradient.animRotate" xml:space="preserve">
+    <value>Rotácia</value>
+  </data>
+  <data name="pages.editFace.gradient.animShift" xml:space="preserve">
+    <value>Posun</value>
+  </data>
+  <data name="pages.editFace.gradient.animation" xml:space="preserve">
+    <value>Animácia</value>
+  </data>
+  <data name="pages.editFace.gradient.colors" xml:space="preserve">
+    <value>Farby</value>
+  </data>
+  <data name="pages.editFace.gradient.linear" xml:space="preserve">
+    <value>Lineárny</value>
+  </data>
+  <data name="pages.editFace.gradient.radial" xml:space="preserve">
+    <value>Radiálny</value>
+  </data>
+  <data name="pages.editFace.gradient.removeColor" xml:space="preserve">
+    <value>Odstrániť farbu</value>
+  </data>
+  <data name="pages.editFace.gradient.speed" xml:space="preserve">
+    <value>Rýchlosť animácie</value>
+  </data>
+  <data name="pages.editFace.gradient.title" xml:space="preserve">
+    <value>Nastavenia gradientu</value>
+  </data>
+  <data name="pages.editFace.gradient.type" xml:space="preserve">
+    <value>Typ gradientu</value>
+  </data>
+  <data name="pages.editFace.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.editFace.indexPlaceholder" xml:space="preserve">
+    <value>Zadajte index</value>
+  </data>
+  <data name="pages.editFace.isPublic" xml:space="preserve">
+    <value>Verejný prístup</value>
+  </data>
+  <data name="pages.editFace.isPublicHelp" xml:space="preserve">
+    <value>Prístupná bez prihlásenia</value>
+  </data>
+  <data name="pages.editFace.loading" xml:space="preserve">
+    <value>Načítavam tvár...</value>
+  </data>
+  <data name="pages.editFace.submit" xml:space="preserve">
+    <value>Aktualizovať tvár</value>
+  </data>
+  <data name="pages.editFace.submitting" xml:space="preserve">
+    <value>Aktualizujem...</value>
+  </data>
+  <data name="pages.editFace.success" xml:space="preserve">
+    <value>Tvár bola úspešne aktualizovaná!</value>
+  </data>
+  <data name="pages.editFace.title" xml:space="preserve">
+    <value>Názov</value>
+  </data>
+  <data name="pages.editFace.titlePlaceholder" xml:space="preserve">
+    <value>Zadajte názov</value>
+  </data>
+  <data name="pages.editFace.validation.descriptionMaxLength" xml:space="preserve">
+    <value>Popis musí mať najviac 1000 znakov</value>
+  </data>
+  <data name="pages.editFace.validation.indexMaxLength" xml:space="preserve">
+    <value>Index musí mať najviac 100 znakov</value>
+  </data>
+  <data name="pages.editFace.validation.indexRequired" xml:space="preserve">
+    <value>Index je povinný</value>
+  </data>
+  <data name="pages.editFace.validation.titleMaxLength" xml:space="preserve">
+    <value>Názov musí mať najviac 200 znakov</value>
+  </data>
+  <data name="pages.editFace.validation.titleRequired" xml:space="preserve">
+    <value>Názov je povinný</value>
+  </data>
+  <data name="pages.editPage.description" xml:space="preserve">
+    <value>Popis</value>
+  </data>
+  <data name="pages.editPage.descriptionPlaceholder" xml:space="preserve">
+    <value>Zadajte popis</value>
+  </data>
+  <data name="pages.editPage.error" xml:space="preserve">
+    <value>Chyba pri aktualizácii stránky</value>
+  </data>
+  <data name="pages.editPage.gridLayout.addItem" xml:space="preserve">
+    <value>Pridať blok</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.ads" xml:space="preserve">
+    <value>Inzercia</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.albums" xml:space="preserve">
+    <value>Albumy</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.blog" xml:space="preserve">
+    <value>Blog</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.chatRooms" xml:space="preserve">
+    <value>Chat miestnosti</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.reels" xml:space="preserve">
+    <value>Reels</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.stories" xml:space="preserve">
+    <value>Stories</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.userProfiles" xml:space="preserve">
+    <value>Profily</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.ad" xml:space="preserve">
+    <value>Inzerát</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.adCarousel" xml:space="preserve">
+    <value>Kolotoč inzerátov</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.adCarouselDesc" xml:space="preserve">
+    <value>Stránkovaný kolotoč inzerátov. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.adDesc" xml:space="preserve">
+    <value>Jeden inzerát s obrázkom, cenou a popisom.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.adGrid" xml:space="preserve">
+    <value>Mriežka inzerátov</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.adGridDesc" xml:space="preserve">
+    <value>Stránkovaná mriežka inzerátov. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.album" xml:space="preserve">
+    <value>Album</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.albumCarousel" xml:space="preserve">
+    <value>Album kolotoč</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.albumCarouselDesc" xml:space="preserve">
+    <value>Stránkovaný kolotoč albumov. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.albumDesc" xml:space="preserve">
+    <value>Hlavná fotka s 3 malými náhľadmi v pravom dolnom rohu.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.albumGrid" xml:space="preserve">
+    <value>Album mriežka</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.albumGridDesc" xml:space="preserve">
+    <value>Stránkovaná mriežka albumov. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.assign" xml:space="preserve">
+    <value>Komponent</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blog" xml:space="preserve">
+    <value>Blog príspevok</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blogCarousel" xml:space="preserve">
+    <value>Blog kolotoč</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blogCarouselDesc" xml:space="preserve">
+    <value>Stránkovaný kolotoč blog príspevkov. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blogDesc" xml:space="preserve">
+    <value>Jeden blog príspevok s obrázkom, titulkom a úryvkom.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blogGrid" xml:space="preserve">
+    <value>Blog mriežka</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blogGridDesc" xml:space="preserve">
+    <value>Stránkovaná mriežka blog príspevkov. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoom" xml:space="preserve">
+    <value>Chat miestnosť</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoomCarousel" xml:space="preserve">
+    <value>Kolotoč chat miestností</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoomCarouselDesc" xml:space="preserve">
+    <value>Stránkovaný kolotoč chat miestností. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoomDesc" xml:space="preserve">
+    <value>Jedna chat miestnosť s názvom, počtom členov a poslednou správou.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoomGrid" xml:space="preserve">
+    <value>Mriežka chat miestností</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoomGridDesc" xml:space="preserve">
+    <value>Stránkovaná mriežka chat miestností. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.clear" xml:space="preserve">
+    <value>Odstrániť komponent</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.clickToAssign" xml:space="preserve">
+    <value>Kliknite pre priradenie komponentu</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.description" xml:space="preserve">
+    <value>Vyberte komponent, ktorý bude tento blok zobrazovať.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reel" xml:space="preserve">
+    <value>Reel</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reelCarousel" xml:space="preserve">
+    <value>Kolotoč reels</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reelCarouselDesc" xml:space="preserve">
+    <value>Stránkovaný kolotoč video reels. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reelDesc" xml:space="preserve">
+    <value>Jedno vertikálne video s prehrávaním a štatistikami.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reelGrid" xml:space="preserve">
+    <value>Mriežka reels</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reelGridDesc" xml:space="preserve">
+    <value>Stránkovaná mriežka video reels. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.story" xml:space="preserve">
+    <value>Story</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.storyCarousel" xml:space="preserve">
+    <value>Kolotoč stories</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.storyCarouselDesc" xml:space="preserve">
+    <value>Stránkovaný kolotoč stories. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.storyDesc" xml:space="preserve">
+    <value>Jeden story kruh s avatarom a menom používateľa.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.storyGrid" xml:space="preserve">
+    <value>Mriežka stories</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.storyGridDesc" xml:space="preserve">
+    <value>Stránkovaná mriežka stories. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.title" xml:space="preserve">
+    <value>Vybrať komponent</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfile" xml:space="preserve">
+    <value>Používateľský profil</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfileCarousel" xml:space="preserve">
+    <value>Kolotoč profilov</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfileCarouselDesc" xml:space="preserve">
+    <value>Stránkovaný kolotoč profilov. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfileDesc" xml:space="preserve">
+    <value>Jeden profil s avatarom, menom a biografiá.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfileGrid" xml:space="preserve">
+    <value>Mriežka profilov</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfileGridDesc" xml:space="preserve">
+    <value>Stránkovaná mriežka profilov. Počet prvkov sa prispôsobí veľkosti bloku.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.doubleClickToEdit" xml:space="preserve">
+    <value>Dvojklik pre premenovanie</value>
+  </data>
+  <data name="pages.editPage.gridLayout.empty" xml:space="preserve">
+    <value>Zatiaľ žiadne bloky. Kliknite 'Pridať blok' pre začatie návrhu rozloženia.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.help" xml:space="preserve">
+    <value>Navrhnite responzívne rozloženie mriežky pre túto stránku. Ťahajte na presun, zmeňte veľkosť z rohov. Dvojklik na meno pre premenovanie.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.items" xml:space="preserve">
+    <value>blokov</value>
+  </data>
+  <data name="pages.editPage.gridLayout.removeItem" xml:space="preserve">
+    <value>Odstrániť</value>
+  </data>
+  <data name="pages.editPage.gridLayout.title" xml:space="preserve">
+    <value>Rozloženie mriežky</value>
+  </data>
+  <data name="pages.editPage.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.editPage.indexPlaceholder" xml:space="preserve">
+    <value>Zadajte index (0, 1, 2...)</value>
+  </data>
+  <data name="pages.editPage.loading" xml:space="preserve">
+    <value>Načítavam stránku...</value>
+  </data>
+  <data name="pages.editPage.name" xml:space="preserve">
+    <value>Názov</value>
+  </data>
+  <data name="pages.editPage.namePlaceholder" xml:space="preserve">
+    <value>Zadajte názov stránky</value>
+  </data>
+  <data name="pages.editPage.pageType" xml:space="preserve">
+    <value>Typ stránky</value>
+  </data>
+  <data name="pages.editPage.path" xml:space="preserve">
+    <value>Cesta</value>
+  </data>
+  <data name="pages.editPage.pathPlaceholder" xml:space="preserve">
+    <value>Zadajte cestu (napr. /home)</value>
+  </data>
+  <data name="pages.editPage.routeTranslationPlaceholder" xml:space="preserve">
+    <value>napr. domov</value>
+  </data>
+  <data name="pages.editPage.routeTranslations" xml:space="preserve">
+    <value>Preklady trás</value>
+  </data>
+  <data name="pages.editPage.routeTranslationsHelp" xml:space="preserve">
+    <value>Definujte preložené názvy trás pre každý podporovaný jazyk.</value>
+  </data>
+  <data name="pages.editPage.submit" xml:space="preserve">
+    <value>Aktualizovať stránku</value>
+  </data>
+  <data name="pages.editPage.submitting" xml:space="preserve">
+    <value>Aktualizujem...</value>
+  </data>
+  <data name="pages.editPage.success" xml:space="preserve">
+    <value>Stránka bola úspešne aktualizovaná!</value>
+  </data>
+  <data name="pages.editPage.title" xml:space="preserve">
+    <value>Upraviť stránku</value>
+  </data>
+  <data name="pages.editPage.translationsError" xml:space="preserve">
+    <value>Chyba pri ukladaní prekladov trás</value>
+  </data>
+  <data name="pages.editPage.validation.descriptionMaxLength" xml:space="preserve">
+    <value>Popis musí mať najviac 1000 znakov</value>
+  </data>
+  <data name="pages.editPage.validation.indexMin" xml:space="preserve">
+    <value>Index musí byť 0 alebo väčší</value>
+  </data>
+  <data name="pages.editPage.validation.indexRequired" xml:space="preserve">
+    <value>Index je povinný</value>
+  </data>
+  <data name="pages.editPage.validation.nameMaxLength" xml:space="preserve">
+    <value>Názov musí mať najviac 200 znakov</value>
+  </data>
+  <data name="pages.editPage.validation.nameRequired" xml:space="preserve">
+    <value>Názov je povinný</value>
+  </data>
+  <data name="pages.editPage.validation.pageTypeIdRequired" xml:space="preserve">
+    <value>Typ stránky je povinný</value>
+  </data>
+  <data name="pages.editPage.validation.pathMaxLength" xml:space="preserve">
+    <value>Cesta musí mať najviac 500 znakov</value>
+  </data>
+  <data name="pages.editPage.validation.pathRequired" xml:space="preserve">
+    <value>Cesta je povinná</value>
+  </data>
+  <data name="pages.editUser.confirmPassword" xml:space="preserve">
+    <value>Potvrďte heslo</value>
+  </data>
+  <data name="pages.editUser.confirmPasswordPlaceholder" xml:space="preserve">
+    <value>Potvrďte nové heslo</value>
+  </data>
+  <data name="pages.editUser.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.editUser.emailPlaceholder" xml:space="preserve">
+    <value>Zadajte emailovú adresu</value>
+  </data>
+  <data name="pages.editUser.error" xml:space="preserve">
+    <value>Chyba pri aktualizácii používateľa</value>
+  </data>
+  <data name="pages.editUser.firstName" xml:space="preserve">
+    <value>Meno</value>
+  </data>
+  <data name="pages.editUser.firstNamePlaceholder" xml:space="preserve">
+    <value>Zadajte meno</value>
+  </data>
+  <data name="pages.editUser.lastName" xml:space="preserve">
+    <value>Priezvisko</value>
+  </data>
+  <data name="pages.editUser.lastNamePlaceholder" xml:space="preserve">
+    <value>Zadajte priezvisko</value>
+  </data>
+  <data name="pages.editUser.loading" xml:space="preserve">
+    <value>Načítavam používateľa...</value>
+  </data>
+  <data name="pages.editUser.password" xml:space="preserve">
+    <value>Heslo</value>
+  </data>
+  <data name="pages.editUser.passwordHelp" xml:space="preserve">
+    <value>Ponechajte prázdne pre zachovanie aktuálneho hesla</value>
+  </data>
+  <data name="pages.editUser.passwordPlaceholder" xml:space="preserve">
+    <value>Ponechajte prázdne pre zachovanie aktuálneho hesla</value>
+  </data>
+  <data name="pages.editUser.submit" xml:space="preserve">
+    <value>Aktualizovať používateľa</value>
+  </data>
+  <data name="pages.editUser.submitting" xml:space="preserve">
+    <value>Aktualizujem...</value>
+  </data>
+  <data name="pages.editUser.success" xml:space="preserve">
+    <value>Používateľ bol úspešne aktualizovaný!</value>
+  </data>
+  <data name="pages.editUser.title" xml:space="preserve">
+    <value>Upraviť používateľa</value>
+  </data>
+  <data name="pages.editUser.validation.confirmPasswordRequired" xml:space="preserve">
+    <value>Prosím potvrďte heslo</value>
+  </data>
+  <data name="pages.editUser.validation.emailInvalid" xml:space="preserve">
+    <value>Zadajte platnú emailovú adresu</value>
+  </data>
+  <data name="pages.editUser.validation.emailRequired" xml:space="preserve">
+    <value>Email je povinný</value>
+  </data>
+  <data name="pages.editUser.validation.passwordMinLength" xml:space="preserve">
+    <value>Heslo musí mať aspoň 4 znaky</value>
+  </data>
+  <data name="pages.editUser.validation.passwordsMatch" xml:space="preserve">
+    <value>Heslá sa musia zhodovať</value>
+  </data>
+  <data name="pages.faceDetail.allowRecensions" xml:space="preserve">
+    <value>Povoliť recenzie</value>
+  </data>
+  <data name="pages.faceDetail.createdAt" xml:space="preserve">
+    <value>Vytvorená</value>
+  </data>
+  <data name="pages.faceDetail.description" xml:space="preserve">
+    <value>Popis</value>
+  </data>
+  <data name="pages.faceDetail.error" xml:space="preserve">
+    <value>Chyba pri načítaní detailu tvárí</value>
+  </data>
+  <data name="pages.faceDetail.faceTitle" xml:space="preserve">
+    <value>Názov</value>
+  </data>
+  <data name="pages.faceDetail.faceVisibility" xml:space="preserve">
+    <value>Viditeľnosť adresára profilov</value>
+  </data>
+  <data name="pages.faceDetail.gradient" xml:space="preserve">
+    <value>Gradient</value>
+  </data>
+  <data name="pages.faceDetail.id" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.faceDetail.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.faceDetail.isPublic" xml:space="preserve">
+    <value>Viditeľnosť</value>
+  </data>
+  <data name="pages.faceDetail.loading" xml:space="preserve">
+    <value>Načítavam detail tvárí...</value>
+  </data>
+  <data name="pages.faceDetail.no" xml:space="preserve">
+    <value>Nie</value>
+  </data>
+  <data name="pages.faceDetail.notFound" xml:space="preserve">
+    <value>Tvár nenájdená</value>
+  </data>
+  <data name="pages.faceDetail.pageHeading" xml:space="preserve">
+    <value>Detail face</value>
+  </data>
+  <data name="pages.faceDetail.private" xml:space="preserve">
+    <value>Súkromná</value>
+  </data>
+  <data name="pages.faceDetail.public" xml:space="preserve">
+    <value>Verejná</value>
+  </data>
+  <data name="pages.faceDetail.updatedAt" xml:space="preserve">
+    <value>Aktualizovaná</value>
+  </data>
+  <data name="pages.faceDetail.wallTickets" xml:space="preserve">
+    <value>Wall tickety (moderácia)</value>
+  </data>
+  <data name="pages.faceDetail.yes" xml:space="preserve">
+    <value>Áno</value>
+  </data>
+  <data name="pages.faceWallTickets.actionError" xml:space="preserve">
+    <value>Akcia zlyhala</value>
+  </data>
+  <data name="pages.faceWallTickets.approve" xml:space="preserve">
+    <value>Schváliť</value>
+  </data>
+  <data name="pages.faceWallTickets.approved" xml:space="preserve">
+    <value>Ticket schválený</value>
+  </data>
+  <data name="pages.faceWallTickets.badFace" xml:space="preserve">
+    <value>Neplatný face</value>
+  </data>
+  <data name="pages.faceWallTickets.closeDetail" xml:space="preserve">
+    <value>Zavrieť detail</value>
+  </data>
+  <data name="pages.faceWallTickets.colActions" xml:space="preserve">
+    <value>Akcie</value>
+  </data>
+  <data name="pages.faceWallTickets.colCounts" xml:space="preserve">
+    <value>Páči sa / komentáre</value>
+  </data>
+  <data name="pages.faceWallTickets.colCreator" xml:space="preserve">
+    <value>Autor</value>
+  </data>
+  <data name="pages.faceWallTickets.colId" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.faceWallTickets.colStatus" xml:space="preserve">
+    <value>Stav</value>
+  </data>
+  <data name="pages.faceWallTickets.colTitle" xml:space="preserve">
+    <value>Názov</value>
+  </data>
+  <data name="pages.faceWallTickets.comments" xml:space="preserve">
+    <value>Komentáre</value>
+  </data>
+  <data name="pages.faceWallTickets.confirmDeleteComment" xml:space="preserve">
+    <value>Zmazať tento komentár?</value>
+  </data>
+  <data name="pages.faceWallTickets.confirmDeleteTicket" xml:space="preserve">
+    <value>Natrvalo zmazať ticket a všetky súvisiace údaje?</value>
+  </data>
+  <data name="pages.faceWallTickets.deleteComment" xml:space="preserve">
+    <value>Zmazať komentár</value>
+  </data>
+  <data name="pages.faceWallTickets.deleteTicket" xml:space="preserve">
+    <value>Zmazať</value>
+  </data>
+  <data name="pages.faceWallTickets.deletedComment" xml:space="preserve">
+    <value>Komentár zmazaný</value>
+  </data>
+  <data name="pages.faceWallTickets.deletedTicket" xml:space="preserve">
+    <value>Ticket zmazaný</value>
+  </data>
+  <data name="pages.faceWallTickets.denied" xml:space="preserve">
+    <value>Ticket zamietnutý</value>
+  </data>
+  <data name="pages.faceWallTickets.deny" xml:space="preserve">
+    <value>Zamietnuť</value>
+  </data>
+  <data name="pages.faceWallTickets.detailLoading" xml:space="preserve">
+    <value>Načítavam detail…</value>
+  </data>
+  <data name="pages.faceWallTickets.loadError" xml:space="preserve">
+    <value>Nepodarilo sa načítať wall tickety</value>
+  </data>
+  <data name="pages.faceWallTickets.loading" xml:space="preserve">
+    <value>Načítavam tickety…</value>
+  </data>
+  <data name="pages.faceWallTickets.next" xml:space="preserve">
+    <value>Ďalšia</value>
+  </data>
+  <data name="pages.faceWallTickets.prev" xml:space="preserve">
+    <value>Predchádzajúca</value>
+  </data>
+  <data name="pages.faceWallTickets.title" xml:space="preserve">
+    <value>Wall tickety</value>
+  </data>
+  <data name="pages.faces.create" xml:space="preserve">
+    <value>Vytvoriť tvár</value>
+  </data>
+  <data name="pages.faces.error" xml:space="preserve">
+    <value>Chyba pri načítaní tvárí</value>
+  </data>
+  <data name="pages.faces.faces" xml:space="preserve">
+    <value>tvárí</value>
+  </data>
+  <data name="pages.faces.loading" xml:space="preserve">
+    <value>Načítavam tvare...</value>
+  </data>
+  <data name="pages.faces.noFaces" xml:space="preserve">
+    <value>Žiadne tvare nenájdené</value>
+  </data>
+  <data name="pages.faces.searchPlaceholder" xml:space="preserve">
+    <value>Hľadať tvare...</value>
+  </data>
+  <data name="pages.faces.title" xml:space="preserve">
+    <value>Tvare</value>
+  </data>
+  <data name="pages.homepage.description" xml:space="preserve">
+    <value>Toto je chránená stránka. Iba prihlásení používatelia k nej majú prístup.</value>
+  </data>
+  <data name="pages.homepage.title" xml:space="preserve">
+    <value>Vitajte vo Vašom Dashboarde</value>
+  </data>
+  <data name="pages.homepage.welcome" xml:space="preserve">
+    <value>Vitajte</value>
+  </data>
+  <data name="pages.login.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.login.error" xml:space="preserve">
+    <value>Prihlásenie zlyhalo. Skontrolujte svoje prihlasovacie údaje.</value>
+  </data>
+  <data name="pages.login.password" xml:space="preserve">
+    <value>Heslo</value>
+  </data>
+  <data name="pages.login.rememberMe" xml:space="preserve">
+    <value>Zostať trvalo prihlásený</value>
+  </data>
+  <data name="pages.login.submit" xml:space="preserve">
+    <value>Prihlásiť sa</value>
+  </data>
+  <data name="pages.login.submitting" xml:space="preserve">
+    <value>Prihlasujem...</value>
+  </data>
+  <data name="pages.login.success" xml:space="preserve">
+    <value>Prihlásenie úspešné!</value>
+  </data>
+  <data name="pages.login.title" xml:space="preserve">
+    <value>Prihlásenie</value>
+  </data>
+  <data name="pages.login.validation.emailInvalid" xml:space="preserve">
+    <value>Zadajte platnú emailovú adresu</value>
+  </data>
+  <data name="pages.login.validation.emailRequired" xml:space="preserve">
+    <value>Email je povinný</value>
+  </data>
+  <data name="pages.login.validation.passwordMinLength" xml:space="preserve">
+    <value>Heslo musí mať aspoň 4 znaky</value>
+  </data>
+  <data name="pages.login.validation.passwordRequired" xml:space="preserve">
+    <value>Heslo je povinné</value>
+  </data>
+  <data name="pages.logout.errorMessage" xml:space="preserve">
+    <value>Odhlásenie zlyhalo. Skúste to znova.</value>
+  </data>
+  <data name="pages.logout.sessionExpired" xml:space="preserve">
+    <value>Vaša relácia vypršala. Prihláste sa znova.</value>
+  </data>
+  <data name="pages.logout.successMessage" xml:space="preserve">
+    <value>Odhlásenie úspešné</value>
+  </data>
+  <data name="pages.logout.title" xml:space="preserve">
+    <value>Odhlásiť</value>
+  </data>
+  <data name="pages.moderation.title" xml:space="preserve">
+    <value>Moderácia</value>
+  </data>
+  <data name="pages.pageDetail.createdAt" xml:space="preserve">
+    <value>Vytvorená</value>
+  </data>
+  <data name="pages.pageDetail.description" xml:space="preserve">
+    <value>Popis</value>
+  </data>
+  <data name="pages.pageDetail.error" xml:space="preserve">
+    <value>Chyba pri načítaní detailu stránky</value>
+  </data>
+  <data name="pages.pageDetail.id" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.pageDetail.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.pageDetail.loading" xml:space="preserve">
+    <value>Načítavam detail stránky...</value>
+  </data>
+  <data name="pages.pageDetail.name" xml:space="preserve">
+    <value>Názov</value>
+  </data>
+  <data name="pages.pageDetail.notFound" xml:space="preserve">
+    <value>Stránka nenájdená</value>
+  </data>
+  <data name="pages.pageDetail.path" xml:space="preserve">
+    <value>Cesta</value>
+  </data>
+  <data name="pages.pageDetail.title" xml:space="preserve">
+    <value>Detail stránky</value>
+  </data>
+  <data name="pages.pageDetail.updatedAt" xml:space="preserve">
+    <value>Aktualizovaná</value>
+  </data>
+  <data name="pages.pagesTable.confirmDelete" xml:space="preserve">
+    <value>Naozaj chcete vymazať túto stránku?</value>
+  </data>
+  <data name="pages.pagesTable.create" xml:space="preserve">
+    <value>Vytvoriť stránku</value>
+  </data>
+  <data name="pages.pagesTable.deleteError" xml:space="preserve">
+    <value>Chyba pri vymazávaní stránky</value>
+  </data>
+  <data name="pages.pagesTable.deleteSuccess" xml:space="preserve">
+    <value>Stránka bola úspešne vymazaná!</value>
+  </data>
+  <data name="pages.pagesTable.error" xml:space="preserve">
+    <value>Chyba pri načítaní stránok</value>
+  </data>
+  <data name="pages.pagesTable.loading" xml:space="preserve">
+    <value>Načítavam stránky...</value>
+  </data>
+  <data name="pages.pagesTable.noPages" xml:space="preserve">
+    <value>Žiadne stránky nenájdené</value>
+  </data>
+  <data name="pages.pagesTable.title" xml:space="preserve">
+    <value>Stránky</value>
+  </data>
+  <data name="pages.registrationInvites.create" xml:space="preserve">
+    <value>Vytvoriť pozvánku</value>
+  </data>
+  <data name="pages.registrationInvites.createError" xml:space="preserve">
+    <value>Nepodarilo sa vytvoriť pozvánku.</value>
+  </data>
+  <data name="pages.registrationInvites.created" xml:space="preserve">
+    <value>Pozvánka vytvorená.</value>
+  </data>
+  <data name="pages.registrationInvites.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.registrationInvites.expires" xml:space="preserve">
+    <value>Platnosť do</value>
+  </data>
+  <data name="pages.registrationInvites.firstName" xml:space="preserve">
+    <value>Meno</value>
+  </data>
+  <data name="pages.registrationInvites.lastName" xml:space="preserve">
+    <value>Priezvisko</value>
+  </data>
+  <data name="pages.registrationInvites.loadError" xml:space="preserve">
+    <value>Nepodarilo sa načítať pozvánky.</value>
+  </data>
+  <data name="pages.registrationInvites.loading" xml:space="preserve">
+    <value>Načítavam…</value>
+  </data>
+  <data name="pages.registrationInvites.resend" xml:space="preserve">
+    <value>Poslať znova</value>
+  </data>
+  <data name="pages.registrationInvites.resendError" xml:space="preserve">
+    <value>Nepodarilo sa odoslať email znova.</value>
+  </data>
+  <data name="pages.registrationInvites.resent" xml:space="preserve">
+    <value>Registračný email bol odoslaný znova.</value>
+  </data>
+  <data name="pages.registrationInvites.revoke" xml:space="preserve">
+    <value>Zrušiť</value>
+  </data>
+  <data name="pages.registrationInvites.revokeError" xml:space="preserve">
+    <value>Nepodarilo sa zrušiť pozvánku.</value>
+  </data>
+  <data name="pages.registrationInvites.revoked" xml:space="preserve">
+    <value>Pozvánka zrušená.</value>
+  </data>
+  <data name="pages.registrationInvites.status" xml:space="preserve">
+    <value>Stav</value>
+  </data>
+  <data name="pages.registrationInvites.subtitle" xml:space="preserve">
+    <value>Operátorské pozvánky a čakajúce registrácie.</value>
+  </data>
+  <data name="pages.registrationInvites.title" xml:space="preserve">
+    <value>Registračné pozvánky</value>
+  </data>
+  <data name="pages.settings.aiStats.description" xml:space="preserve">
+    <value>Určuje, či operátorský AI chat dostane anonymné agregované počty (používatelia, tváre, správy, …). Neposielajú sa texty správ ani audit moderácie.</value>
+  </data>
+  <data name="pages.settings.aiStats.hints.inline" xml:space="preserve">
+    <value>API vloží čerstvý JSON snímok do kontextu modelu pri každej požiadavke.</value>
+  </data>
+  <data name="pages.settings.aiStats.hints.live" xml:space="preserve">
+    <value>Python worker pred odpoveďou spraví HTTP GET na nakonfigurovanú verejnú URL štatistík.</value>
+  </data>
+  <data name="pages.settings.aiStats.hints.off" xml:space="preserve">
+    <value>AI vidí len váš dialóg.</value>
+  </data>
+  <data name="pages.settings.aiStats.modes.inline" xml:space="preserve">
+    <value>Inline (z API servera)</value>
+  </data>
+  <data name="pages.settings.aiStats.modes.live" xml:space="preserve">
+    <value>Live (AI worker stiahne verejný JSON)</value>
+  </data>
+  <data name="pages.settings.aiStats.modes.off" xml:space="preserve">
+    <value>Vypnuté</value>
+  </data>
+  <data name="pages.settings.aiStats.sectionTitle" xml:space="preserve">
+    <value>AI chat — verejné štatistiky</value>
+  </data>
+  <data name="pages.settings.lead" xml:space="preserve">
+    <value>Predvoľby len pre tento prehliadač (uložené v localStorage).</value>
+  </data>
+  <data name="pages.settings.save" xml:space="preserve">
+    <value>Uložiť</value>
+  </data>
+  <data name="pages.settings.saved" xml:space="preserve">
+    <value>Uložené.</value>
+  </data>
+  <data name="pages.settings.title" xml:space="preserve">
+    <value>Nastavenia</value>
+  </data>
+  <data name="pages.userDetail.createdAt" xml:space="preserve">
+    <value>Vytvorený</value>
+  </data>
+  <data name="pages.userDetail.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.userDetail.error" xml:space="preserve">
+    <value>Chyba pri načítaní detailu používateľa</value>
+  </data>
+  <data name="pages.userDetail.firstName" xml:space="preserve">
+    <value>Meno</value>
+  </data>
+  <data name="pages.userDetail.id" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.userDetail.lastName" xml:space="preserve">
+    <value>Priezvisko</value>
+  </data>
+  <data name="pages.userDetail.loading" xml:space="preserve">
+    <value>Načítavam detail používateľa...</value>
+  </data>
+  <data name="pages.userDetail.notFound" xml:space="preserve">
+    <value>Používateľ nebol nájdený</value>
+  </data>
+  <data name="pages.userDetail.title" xml:space="preserve">
+    <value>Detail používateľa</value>
+  </data>
+  <data name="pages.users.title" xml:space="preserve">
+    <value>Používatelia</value>
+  </data>
+  <data name="reactLogo" xml:space="preserve">
+    <value>React logo</value>
+  </data>
+  <data name="routes.chat" xml:space="preserve">
+    <value>chat</value>
+  </data>
+  <data name="routes.dashboard" xml:space="preserve">
+    <value>nastenka</value>
+  </data>
+  <data name="routes.faces" xml:space="preserve">
+    <value>tvare</value>
+  </data>
+  <data name="routes.homepage" xml:space="preserve">
+    <value>domov</value>
+  </data>
+  <data name="routes.login" xml:space="preserve">
+    <value>prihlasenie</value>
+  </data>
+  <data name="routes.moderation" xml:space="preserve">
+    <value>moderacia</value>
+  </data>
+  <data name="routes.registrationInvites" xml:space="preserve">
+    <value>registracne-pozvanky</value>
+  </data>
+  <data name="routes.settings" xml:space="preserve">
+    <value>nastavenia</value>
+  </data>
+  <data name="routes.users" xml:space="preserve">
+    <value>pouzivatelia</value>
+  </data>
+  <data name="save" xml:space="preserve">
+    <value>uložiť na testovanie HMR</value>
+  </data>
+  <data name="viteLogo" xml:space="preserve">
+    <value>Vite logo</value>
+  </data>
+  <data name="welcome" xml:space="preserve">
+    <value>Vitajte vo Vite + React</value>
+  </data>
+</root>

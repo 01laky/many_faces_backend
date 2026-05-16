@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="common.appName" xml:space="preserve">
+    <value>The Many Faces</value>
+  </data>
+  <data name="common.authRetryLoginBody" xml:space="preserve">
+    <value>Your sign-in did not complete while offline. Submit your email and password again.</value>
+  </data>
+  <data name="common.authRetryRegisterBody" xml:space="preserve">
+    <value>Registration did not complete while offline. Submit the form again.</value>
+  </data>
+  <data name="common.authRetryTitle" xml:space="preserve">
+    <value>Back online</value>
+  </data>
+  <data name="common.configError.hint" xml:space="preserve">
+    <value>Check EXPO_PUBLIC_API_BASE_URL and that many_faces_backend is running.</value>
+  </data>
+  <data name="common.configError.title" xml:space="preserve">
+    <value>Could not load configuration</value>
+  </data>
+  <data name="common.deferred.chatAi.body" xml:space="preserve">
+    <value>Connect `buildAuthenticatedHubConnection` to `/hubs/chat` and port `ChatPage` UX in a follow-up slice.</value>
+  </data>
+  <data name="common.deferred.chatAi.navTitle" xml:space="preserve">
+    <value>AI chat</value>
+  </data>
+  <data name="common.deferred.chatAi.title" xml:space="preserve">
+    <value>AI chat hub</value>
+  </data>
+  <data name="common.deferred.chatRoom.body" xml:space="preserve">
+    <value>Room id: {{roomId}} — realtime `/hubs/chatroom` parity is not implemented yet.</value>
+  </data>
+  <data name="common.deferred.chatRoom.navTitle" xml:space="preserve">
+    <value>Chat room</value>
+  </data>
+  <data name="common.deferred.chatRoom.title" xml:space="preserve">
+    <value>Chat room</value>
+  </data>
+  <data name="common.deferred.loginRequired" xml:space="preserve">
+    <value>Sign in to open this screen.</value>
+  </data>
+  <data name="common.deferred.profileMe.body" xml:space="preserve">
+    <value>Native profile parity with the portal ProfilePage is not implemented yet — this placeholder keeps navigation + tests wired.</value>
+  </data>
+  <data name="common.deferred.profileMe.navTitle" xml:space="preserve">
+    <value>Profile</value>
+  </data>
+  <data name="common.deferred.profileMe.title" xml:space="preserve">
+    <value>Profile (me)</value>
+  </data>
+  <data name="common.facePage.emptyDescription" xml:space="preserve">
+    <value>No grid has been configured for this page yet.</value>
+  </data>
+  <data name="common.facePage.fallbackTitle" xml:space="preserve">
+    <value>Page</value>
+  </data>
+  <data name="common.facePage.notFound" xml:space="preserve">
+    <value>This page is not available for the selected face.</value>
+  </data>
+  <data name="common.facePage.welcomeUser" xml:space="preserve">
+    <value>Hello, {{name}}</value>
+  </data>
+  <data name="common.footer.rights" xml:space="preserve">
+    <value>All rights reserved.</value>
+  </data>
+  <data name="common.grid.adOnWallPage" xml:space="preserve">
+    <value>Wall tickets are listed above on wall pages — this ad block is intentionally collapsed on mobile.</value>
+  </data>
+  <data name="common.grid.blockPlaceholder" xml:space="preserve">
+    <value>Block “{{type}}” — read-only tile; full data wiring ships in later Phase 2 slices.</value>
+  </data>
+  <data name="common.grid.boundChatRoom" xml:space="preserve">
+    <value>Bound chat room id: {{id}}</value>
+  </data>
+  <data name="common.grid.emptyLayout" xml:space="preserve">
+    <value>No grid blocks to display.</value>
+  </data>
+  <data name="common.grid.unknownBlock" xml:space="preserve">
+    <value>Unsupported block type on mobile.</value>
+  </data>
+  <data name="common.guest" xml:space="preserve">
+    <value>Guest</value>
+  </data>
+  <data name="common.home.authenticatedShortcuts" xml:space="preserve">
+    <value>Account &amp; realtime (preview routes)</value>
+  </data>
+  <data name="common.home.title" xml:space="preserve">
+    <value>Home</value>
+  </data>
+  <data name="common.home.welcome" xml:space="preserve">
+    <value>Welcome to {{face}}. Open a page below to view wall + grid content where configured.</value>
+  </data>
+  <data name="common.loading.message" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="common.logoutSuccess" xml:space="preserve">
+    <value>Logged out successfully.</value>
+  </data>
+  <data name="common.mySubmissions.canDelete" xml:space="preserve">
+    <value>Deletable</value>
+  </data>
+  <data name="common.mySubmissions.canEdit" xml:space="preserve">
+    <value>Editable</value>
+  </data>
+  <data name="common.mySubmissions.empty" xml:space="preserve">
+    <value>You have no submitted content yet.</value>
+  </data>
+  <data name="common.mySubmissions.groups.aiReview" xml:space="preserve">
+    <value>AI review</value>
+  </data>
+  <data name="common.mySubmissions.groups.approved" xml:space="preserve">
+    <value>Approved</value>
+  </data>
+  <data name="common.mySubmissions.groups.needsHumanReview" xml:space="preserve">
+    <value>Needs human review</value>
+  </data>
+  <data name="common.mySubmissions.groups.other" xml:space="preserve">
+    <value>Other</value>
+  </data>
+  <data name="common.mySubmissions.groups.pending" xml:space="preserve">
+    <value>Pending approval</value>
+  </data>
+  <data name="common.mySubmissions.groups.rejected" xml:space="preserve">
+    <value>Rejected</value>
+  </data>
+  <data name="common.mySubmissions.groups.removed" xml:space="preserve">
+    <value>Removed</value>
+  </data>
+  <data name="common.mySubmissions.loadError" xml:space="preserve">
+    <value>Could not load submissions.</value>
+  </data>
+  <data name="common.mySubmissions.loading" xml:space="preserve">
+    <value>Loading submissions…</value>
+  </data>
+  <data name="common.mySubmissions.loginRequired" xml:space="preserve">
+    <value>Sign in to view your submissions.</value>
+  </data>
+  <data name="common.mySubmissions.navTitle" xml:space="preserve">
+    <value>My submissions</value>
+  </data>
+  <data name="common.mySubmissions.subtitle" xml:space="preserve">
+    <value>Grouped by moderation pipeline (creator-safe fields only).</value>
+  </data>
+  <data name="common.mySubmissions.title" xml:space="preserve">
+    <value>My submissions</value>
+  </data>
+  <data name="common.mySubmissions.untitled" xml:space="preserve">
+    <value>Untitled {{type}}</value>
+  </data>
+  <data name="common.offlineBanner" xml:space="preserve">
+    <value>You are offline. Connect to the internet to sign in, register, or refresh configuration.</value>
+  </data>
+  <data name="common.placeholder.subtitle" xml:space="preserve">
+    <value>Type index: {{type}}</value>
+  </data>
+  <data name="common.placeholder.title" xml:space="preserve">
+    <value>Page: {{name}}</value>
+  </data>
+  <data name="common.retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="common.sessionExpired" xml:space="preserve">
+    <value>Your session has expired. Please log in again.</value>
+  </data>
+  <data name="common.shell.closeDrawer" xml:space="preserve">
+    <value>Close menu</value>
+  </data>
+  <data name="common.shell.copyright" xml:space="preserve">
+    <value>© Many Faces AI</value>
+  </data>
+  <data name="common.shell.drawerLogin" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="common.shell.drawerPages" xml:space="preserve">
+    <value>Pages from config</value>
+  </data>
+  <data name="common.shell.drawerRegister" xml:space="preserve">
+    <value>Register</value>
+  </data>
+  <data name="common.shell.drawerSubtitle" xml:space="preserve">
+    <value>Choose a destination — same idea as the portal header menu.</value>
+  </data>
+  <data name="common.shell.drawerTitle" xml:space="preserve">
+    <value>Navigation</value>
+  </data>
+  <data name="common.shell.goHome" xml:space="preserve">
+    <value>Go to home</value>
+  </data>
+  <data name="common.shell.openMenu" xml:space="preserve">
+    <value>Open navigation menu</value>
+  </data>
+  <data name="common.wallTickets.empty" xml:space="preserve">
+    <value>No wall tickets yet.</value>
+  </data>
+  <data name="common.wallTickets.loadError" xml:space="preserve">
+    <value>Could not load wall tickets.</value>
+  </data>
+  <data name="common.wallTickets.loading" xml:space="preserve">
+    <value>Loading wall…</value>
+  </data>
+  <data name="common.wallTickets.loginRequired" xml:space="preserve">
+    <value>Sign in to see wall tickets.</value>
+  </data>
+  <data name="login.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="login.error" xml:space="preserve">
+    <value>Sign in failed.</value>
+  </data>
+  <data name="login.goRegister" xml:space="preserve">
+    <value>Create an account</value>
+  </data>
+  <data name="login.password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="login.rememberMe" xml:space="preserve">
+    <value>Stay signed in</value>
+  </data>
+  <data name="login.submit" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="login.success" xml:space="preserve">
+    <value>Signed in successfully.</value>
+  </data>
+  <data name="login.title" xml:space="preserve">
+    <value>Sign in</value>
+  </data>
+  <data name="login.validation.emailInvalid" xml:space="preserve">
+    <value>Enter a valid email</value>
+  </data>
+  <data name="login.validation.emailRequired" xml:space="preserve">
+    <value>Email is required</value>
+  </data>
+  <data name="login.validation.passwordMinLength" xml:space="preserve">
+    <value>Password must be at least 4 characters</value>
+  </data>
+  <data name="login.validation.passwordRequired" xml:space="preserve">
+    <value>Password is required</value>
+  </data>
+  <data name="register.code" xml:space="preserve">
+    <value>Verification code</value>
+  </data>
+  <data name="register.completeError" xml:space="preserve">
+    <value>Could not complete registration.</value>
+  </data>
+  <data name="register.completeSubmit" xml:space="preserve">
+    <value>Create account</value>
+  </data>
+  <data name="register.completeSuccess" xml:space="preserve">
+    <value>Welcome! You are signed in.</value>
+  </data>
+  <data name="register.completeTitle" xml:space="preserve">
+    <value>Finish registration</value>
+  </data>
+  <data name="register.confirmPassword" xml:space="preserve">
+    <value>Confirm password</value>
+  </data>
+  <data name="register.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="register.error" xml:space="preserve">
+    <value>Registration request failed.</value>
+  </data>
+  <data name="register.firstName" xml:space="preserve">
+    <value>First name</value>
+  </data>
+  <data name="register.goLogin" xml:space="preserve">
+    <value>Already have an account? Sign in</value>
+  </data>
+  <data name="register.lastName" xml:space="preserve">
+    <value>Last name</value>
+  </data>
+  <data name="register.missingHash" xml:space="preserve">
+    <value>Registration link is invalid. Request a new email from the register screen.</value>
+  </data>
+  <data name="register.password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="register.requestHint" xml:space="preserve">
+    <value>We will email you a code and link to finish signup.</value>
+  </data>
+  <data name="register.requestSubmit" xml:space="preserve">
+    <value>Send registration email</value>
+  </data>
+  <data name="register.requestSuccess" xml:space="preserve">
+    <value>If this email can be used, check your inbox for a code and link.</value>
+  </data>
+  <data name="register.submit" xml:space="preserve">
+    <value>Register</value>
+  </data>
+  <data name="register.success" xml:space="preserve">
+    <value>Check your email to finish registration.</value>
+  </data>
+  <data name="register.title" xml:space="preserve">
+    <value>Create account</value>
+  </data>
+  <data name="register.validation.codeRequired" xml:space="preserve">
+    <value>Verification code is required</value>
+  </data>
+  <data name="register.validation.emailInvalid" xml:space="preserve">
+    <value>Enter a valid email</value>
+  </data>
+  <data name="register.validation.emailRequired" xml:space="preserve">
+    <value>Email is required</value>
+  </data>
+  <data name="register.validation.firstNameMinLength" xml:space="preserve">
+    <value>First name must be at least 2 characters</value>
+  </data>
+  <data name="register.validation.firstNameRequired" xml:space="preserve">
+    <value>First name is required</value>
+  </data>
+  <data name="register.validation.lastNameMinLength" xml:space="preserve">
+    <value>Last name must be at least 2 characters</value>
+  </data>
+  <data name="register.validation.lastNameRequired" xml:space="preserve">
+    <value>Last name is required</value>
+  </data>
+  <data name="register.validation.passwordMinLength" xml:space="preserve">
+    <value>Password must be at least 4 characters</value>
+  </data>
+  <data name="register.validation.passwordMismatch" xml:space="preserve">
+    <value>Passwords must match</value>
+  </data>
+  <data name="register.validation.passwordPattern" xml:space="preserve">
+    <value>Password must include upper, lower, and a digit</value>
+  </data>
+  <data name="register.validation.passwordRequired" xml:space="preserve">
+    <value>Password is required</value>
+  </data>
+</root>

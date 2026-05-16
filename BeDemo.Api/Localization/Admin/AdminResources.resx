@@ -1,0 +1,1489 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="clickLogos" xml:space="preserve">
+    <value>Click on the Vite and React logos to learn more</value>
+  </data>
+  <data name="common.actions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="common.back" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="common.cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="common.delete" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="common.edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="common.first" xml:space="preserve">
+    <value>First</value>
+  </data>
+  <data name="common.last" xml:space="preserve">
+    <value>Last</value>
+  </data>
+  <data name="common.loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="common.next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="common.of" xml:space="preserve">
+    <value>of</value>
+  </data>
+  <data name="common.page" xml:space="preserve">
+    <value>Page</value>
+  </data>
+  <data name="common.previous" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="common.refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="common.retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="common.showing" xml:space="preserve">
+    <value>Showing</value>
+  </data>
+  <data name="common.to" xml:space="preserve">
+    <value>to</value>
+  </data>
+  <data name="count" xml:space="preserve">
+    <value>count is {{count}}</value>
+  </data>
+  <data name="edit" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="language.cz" xml:space="preserve">
+    <value>Czech</value>
+  </data>
+  <data name="language.en" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="language.select" xml:space="preserve">
+    <value>Select Language</value>
+  </data>
+  <data name="language.sk" xml:space="preserve">
+    <value>Slovak</value>
+  </data>
+  <data name="pages.chat.ai" xml:space="preserve">
+    <value>AI</value>
+  </data>
+  <data name="pages.chat.connected" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+  <data name="pages.chat.connecting" xml:space="preserve">
+    <value>Connecting...</value>
+  </data>
+  <data name="pages.chat.disconnected" xml:space="preserve">
+    <value>Disconnected</value>
+  </data>
+  <data name="pages.chat.placeholder" xml:space="preserve">
+    <value>Type a message...</value>
+  </data>
+  <data name="pages.chat.send" xml:space="preserve">
+    <value>Send</value>
+  </data>
+  <data name="pages.chat.timeoutError" xml:space="preserve">
+    <value>Request timed out. The AI may still be loading. Please try again in a minute.</value>
+  </data>
+  <data name="pages.chat.title" xml:space="preserve">
+    <value>AI Chat</value>
+  </data>
+  <data name="pages.chat.you" xml:space="preserve">
+    <value>You</value>
+  </data>
+  <data name="pages.createFace.description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="pages.createFace.descriptionPlaceholder" xml:space="preserve">
+    <value>Enter description</value>
+  </data>
+  <data name="pages.createFace.error" xml:space="preserve">
+    <value>Failed to create face</value>
+  </data>
+  <data name="pages.createFace.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.createFace.indexPlaceholder" xml:space="preserve">
+    <value>Enter index</value>
+  </data>
+  <data name="pages.createFace.isPublic" xml:space="preserve">
+    <value>Public Access</value>
+  </data>
+  <data name="pages.createFace.isPublicHelp" xml:space="preserve">
+    <value>Accessible without authentication</value>
+  </data>
+  <data name="pages.createFace.submit" xml:space="preserve">
+    <value>Create Face</value>
+  </data>
+  <data name="pages.createFace.submitting" xml:space="preserve">
+    <value>Creating...</value>
+  </data>
+  <data name="pages.createFace.success" xml:space="preserve">
+    <value>Face created successfully!</value>
+  </data>
+  <data name="pages.createFace.title" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="pages.createFace.titlePlaceholder" xml:space="preserve">
+    <value>Enter title</value>
+  </data>
+  <data name="pages.createFace.validation.descriptionMaxLength" xml:space="preserve">
+    <value>Description must be at most 1000 characters</value>
+  </data>
+  <data name="pages.createFace.validation.indexMaxLength" xml:space="preserve">
+    <value>Index must be at most 100 characters</value>
+  </data>
+  <data name="pages.createFace.validation.indexRequired" xml:space="preserve">
+    <value>Index is required</value>
+  </data>
+  <data name="pages.createFace.validation.titleMaxLength" xml:space="preserve">
+    <value>Title must be at most 200 characters</value>
+  </data>
+  <data name="pages.createFace.validation.titleRequired" xml:space="preserve">
+    <value>Title is required</value>
+  </data>
+  <data name="pages.createPage.description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="pages.createPage.descriptionPlaceholder" xml:space="preserve">
+    <value>Enter description</value>
+  </data>
+  <data name="pages.createPage.error" xml:space="preserve">
+    <value>Failed to create page</value>
+  </data>
+  <data name="pages.createPage.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.createPage.indexPlaceholder" xml:space="preserve">
+    <value>Enter index (0, 1, 2...)</value>
+  </data>
+  <data name="pages.createPage.name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="pages.createPage.namePlaceholder" xml:space="preserve">
+    <value>Enter page name</value>
+  </data>
+  <data name="pages.createPage.pageType" xml:space="preserve">
+    <value>Page Type</value>
+  </data>
+  <data name="pages.createPage.path" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="pages.createPage.pathPlaceholder" xml:space="preserve">
+    <value>Enter path (e.g., /home)</value>
+  </data>
+  <data name="pages.createPage.routeTranslationPlaceholder" xml:space="preserve">
+    <value>e.g., home</value>
+  </data>
+  <data name="pages.createPage.routeTranslations" xml:space="preserve">
+    <value>Route Translations</value>
+  </data>
+  <data name="pages.createPage.routeTranslationsHelp" xml:space="preserve">
+    <value>Define translated route names for each supported language.</value>
+  </data>
+  <data name="pages.createPage.submit" xml:space="preserve">
+    <value>Create Page</value>
+  </data>
+  <data name="pages.createPage.submitting" xml:space="preserve">
+    <value>Creating...</value>
+  </data>
+  <data name="pages.createPage.success" xml:space="preserve">
+    <value>Page created successfully!</value>
+  </data>
+  <data name="pages.createPage.title" xml:space="preserve">
+    <value>Create Page</value>
+  </data>
+  <data name="pages.createPage.translationsError" xml:space="preserve">
+    <value>Failed to save route translations</value>
+  </data>
+  <data name="pages.createPage.validation.descriptionMaxLength" xml:space="preserve">
+    <value>Description must be at most 1000 characters</value>
+  </data>
+  <data name="pages.createPage.validation.indexMin" xml:space="preserve">
+    <value>Index must be 0 or greater</value>
+  </data>
+  <data name="pages.createPage.validation.indexRequired" xml:space="preserve">
+    <value>Index is required</value>
+  </data>
+  <data name="pages.createPage.validation.nameMaxLength" xml:space="preserve">
+    <value>Name must be at most 200 characters</value>
+  </data>
+  <data name="pages.createPage.validation.nameRequired" xml:space="preserve">
+    <value>Name is required</value>
+  </data>
+  <data name="pages.createPage.validation.pageTypeIdRequired" xml:space="preserve">
+    <value>Page Type is required</value>
+  </data>
+  <data name="pages.createPage.validation.pathMaxLength" xml:space="preserve">
+    <value>Path must be at most 500 characters</value>
+  </data>
+  <data name="pages.createPage.validation.pathRequired" xml:space="preserve">
+    <value>Path is required</value>
+  </data>
+  <data name="pages.createUser.confirmPassword" xml:space="preserve">
+    <value>Confirm Password</value>
+  </data>
+  <data name="pages.createUser.confirmPasswordPlaceholder" xml:space="preserve">
+    <value>Confirm password</value>
+  </data>
+  <data name="pages.createUser.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.createUser.emailPlaceholder" xml:space="preserve">
+    <value>Enter email address</value>
+  </data>
+  <data name="pages.createUser.error" xml:space="preserve">
+    <value>Failed to create user</value>
+  </data>
+  <data name="pages.createUser.firstName" xml:space="preserve">
+    <value>First Name</value>
+  </data>
+  <data name="pages.createUser.firstNamePlaceholder" xml:space="preserve">
+    <value>Enter first name</value>
+  </data>
+  <data name="pages.createUser.lastName" xml:space="preserve">
+    <value>Last Name</value>
+  </data>
+  <data name="pages.createUser.lastNamePlaceholder" xml:space="preserve">
+    <value>Enter last name</value>
+  </data>
+  <data name="pages.createUser.password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="pages.createUser.passwordPlaceholder" xml:space="preserve">
+    <value>Enter password</value>
+  </data>
+  <data name="pages.createUser.submit" xml:space="preserve">
+    <value>Create User</value>
+  </data>
+  <data name="pages.createUser.submitting" xml:space="preserve">
+    <value>Creating...</value>
+  </data>
+  <data name="pages.createUser.success" xml:space="preserve">
+    <value>User created successfully!</value>
+  </data>
+  <data name="pages.createUser.title" xml:space="preserve">
+    <value>Create User</value>
+  </data>
+  <data name="pages.createUser.validation.confirmPasswordRequired" xml:space="preserve">
+    <value>Please confirm your password</value>
+  </data>
+  <data name="pages.createUser.validation.emailInvalid" xml:space="preserve">
+    <value>Please enter a valid email address</value>
+  </data>
+  <data name="pages.createUser.validation.emailRequired" xml:space="preserve">
+    <value>Email is required</value>
+  </data>
+  <data name="pages.createUser.validation.passwordMinLength" xml:space="preserve">
+    <value>Password must be at least 4 characters</value>
+  </data>
+  <data name="pages.createUser.validation.passwordRequired" xml:space="preserve">
+    <value>Password is required</value>
+  </data>
+  <data name="pages.createUser.validation.passwordsMatch" xml:space="preserve">
+    <value>Passwords must match</value>
+  </data>
+  <data name="pages.dashboard.aiStats.fields.faces" xml:space="preserve">
+    <value>Faces</value>
+  </data>
+  <data name="pages.dashboard.aiStats.fields.messages" xml:space="preserve">
+    <value>Messages</value>
+  </data>
+  <data name="pages.dashboard.aiStats.fields.stories" xml:space="preserve">
+    <value>Stories</value>
+  </data>
+  <data name="pages.dashboard.aiStats.fields.users" xml:space="preserve">
+    <value>Users</value>
+  </data>
+  <data name="pages.dashboard.aiStats.loadError" xml:space="preserve">
+    <value>Could not load anonymous public stats.</value>
+  </data>
+  <data name="pages.dashboard.aiStats.loading" xml:space="preserve">
+    <value>Loading public aggregate snapshot…</value>
+  </data>
+  <data name="pages.dashboard.aiStats.modeLabel" xml:space="preserve">
+    <value>Statistics in AI chat</value>
+  </data>
+  <data name="pages.dashboard.aiStats.offHint" xml:space="preserve">
+    <value>Enable inline or live mode in Settings to attach anonymous platform totals to operator AI chat.</value>
+  </data>
+  <data name="pages.dashboard.aiStats.openSettings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="pages.dashboard.aiStats.title" xml:space="preserve">
+    <value>AI &amp; public aggregates</value>
+  </data>
+  <data name="pages.dashboard.charts.barAria" xml:space="preserve">
+    <value>Bar chart of pending, accepted, and rejected friend requests</value>
+  </data>
+  <data name="pages.dashboard.charts.barTitle" xml:space="preserve">
+    <value>Friend requests by outcome</value>
+  </data>
+  <data name="pages.dashboard.charts.barValue" xml:space="preserve">
+    <value>Count</value>
+  </data>
+  <data name="pages.dashboard.charts.contentSlices.albums" xml:space="preserve">
+    <value>Albums</value>
+  </data>
+  <data name="pages.dashboard.charts.contentSlices.blogs" xml:space="preserve">
+    <value>Blogs</value>
+  </data>
+  <data name="pages.dashboard.charts.contentSlices.reels" xml:space="preserve">
+    <value>Reels</value>
+  </data>
+  <data name="pages.dashboard.charts.contentSlices.stories" xml:space="preserve">
+    <value>Stories</value>
+  </data>
+  <data name="pages.dashboard.charts.empty" xml:space="preserve">
+    <value>No data in this range.</value>
+  </data>
+  <data name="pages.dashboard.charts.friendRequests.accepted" xml:space="preserve">
+    <value>Accepted</value>
+  </data>
+  <data name="pages.dashboard.charts.friendRequests.pending" xml:space="preserve">
+    <value>Pending</value>
+  </data>
+  <data name="pages.dashboard.charts.friendRequests.rejected" xml:space="preserve">
+    <value>Rejected</value>
+  </data>
+  <data name="pages.dashboard.charts.lineAria" xml:space="preserve">
+    <value>Line chart of new user registrations and message volume per day</value>
+  </data>
+  <data name="pages.dashboard.charts.lineTitle" xml:space="preserve">
+    <value>New users vs messages</value>
+  </data>
+  <data name="pages.dashboard.charts.loadError" xml:space="preserve">
+    <value>Could not load chart data.</value>
+  </data>
+  <data name="pages.dashboard.charts.loading" xml:space="preserve">
+    <value>Loading chart data…</value>
+  </data>
+  <data name="pages.dashboard.charts.pieAria" xml:space="preserve">
+    <value>Donut chart of albums, blogs, reels, and stories counts</value>
+  </data>
+  <data name="pages.dashboard.charts.pieTitle" xml:space="preserve">
+    <value>Content mix (totals)</value>
+  </data>
+  <data name="pages.dashboard.charts.sectionTitle" xml:space="preserve">
+    <value>Charts (last 30 days, UTC)</value>
+  </data>
+  <data name="pages.dashboard.charts.seriesMessages" xml:space="preserve">
+    <value>Messages</value>
+  </data>
+  <data name="pages.dashboard.charts.seriesNewUsers" xml:space="preserve">
+    <value>New users</value>
+  </data>
+  <data name="pages.dashboard.description" xml:space="preserve">
+    <value>Admin panel overview. Manage your users, faces and content.</value>
+  </data>
+  <data name="pages.dashboard.friendRequests" xml:space="preserve">
+    <value>Friend requests (pending)</value>
+  </data>
+  <data name="pages.dashboard.manageFaces" xml:space="preserve">
+    <value>Manage Faces</value>
+  </data>
+  <data name="pages.dashboard.managePagesHint" xml:space="preserve">
+    <value>Pages — create or edit under each face</value>
+  </data>
+  <data name="pages.dashboard.manageUsers" xml:space="preserve">
+    <value>Manage Users</value>
+  </data>
+  <data name="pages.dashboard.messages" xml:space="preserve">
+    <value>Messages</value>
+  </data>
+  <data name="pages.dashboard.metrics.loading" xml:space="preserve">
+    <value>Loading metrics…</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.aiReviewJobsCount" xml:space="preserve">
+    <value>AI review jobs</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.albumCommentsCount" xml:space="preserve">
+    <value>Album comments</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.albumLikesCount" xml:space="preserve">
+    <value>Album likes</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.albumsCount" xml:space="preserve">
+    <value>Albums</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.blogCommentsCount" xml:space="preserve">
+    <value>Blog comments</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.blogLikesCount" xml:space="preserve">
+    <value>Blog likes</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.blogsCount" xml:space="preserve">
+    <value>Blogs</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.contentModerationEventsCount" xml:space="preserve">
+    <value>Content moderation events</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceChatRoomJoinRequestsPendingCount" xml:space="preserve">
+    <value>Chat join requests (pending)</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceChatRoomMembersCount" xml:space="preserve">
+    <value>Chat room members</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceChatRoomMessagesCount" xml:space="preserve">
+    <value>Chat room messages</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceChatRoomsCount" xml:space="preserve">
+    <value>Face chat rooms</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceWallTicketCommentsCount" xml:space="preserve">
+    <value>Wall ticket comments</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceWallTicketLikesCount" xml:space="preserve">
+    <value>Wall ticket likes</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.faceWallTicketsCount" xml:space="preserve">
+    <value>Wall tickets</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.facesCount" xml:space="preserve">
+    <value>Faces</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.friendRequestsAccepted" xml:space="preserve">
+    <value>Friend requests (accepted)</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.friendRequestsPending" xml:space="preserve">
+    <value>Friend requests (pending)</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.friendRequestsRejected" xml:space="preserve">
+    <value>Friend requests (rejected)</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.friendshipsCount" xml:space="preserve">
+    <value>Friendships</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.messagesCount" xml:space="preserve">
+    <value>Messages</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.messagesPendingRequestCount" xml:space="preserve">
+    <value>Message requests (pending)</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.notificationsCount" xml:space="preserve">
+    <value>Notifications</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.oauthClientsCount" xml:space="preserve">
+    <value>OAuth clients</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.pageComponentsCount" xml:space="preserve">
+    <value>Page components</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.pageRouteTranslationsCount" xml:space="preserve">
+    <value>Page route translations</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.pagesCount" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.reelCommentsCount" xml:space="preserve">
+    <value>Reel comments</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.reelLikesCount" xml:space="preserve">
+    <value>Reel likes</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.reelsCount" xml:space="preserve">
+    <value>Reels</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.storiesCount" xml:space="preserve">
+    <value>Stories</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.storyCommentsCount" xml:space="preserve">
+    <value>Story comments</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.storyLikesCount" xml:space="preserve">
+    <value>Story likes</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.storyViewsCount" xml:space="preserve">
+    <value>Story views</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userBlocksCount" xml:space="preserve">
+    <value>User blocks</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userFaceProfileCommentsCount" xml:space="preserve">
+    <value>Profile comments</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userFaceProfileLikesCount" xml:space="preserve">
+    <value>Profile likes</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userFaceProfileReviewsCount" xml:space="preserve">
+    <value>Profile reviews</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userFaceProfilesCount" xml:space="preserve">
+    <value>User face profiles</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.userFollowsCount" xml:space="preserve">
+    <value>User follows</value>
+  </data>
+  <data name="pages.dashboard.metrics.rows.usersCount" xml:space="preserve">
+    <value>Users</value>
+  </data>
+  <data name="pages.dashboard.metrics.sectionTitle" xml:space="preserve">
+    <value>All platform metrics</value>
+  </data>
+  <data name="pages.dashboard.metrics.wallByStatus" xml:space="preserve">
+    <value>Wall tickets by status</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.aiFailed" xml:space="preserve">
+    <value>AI failed jobs</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.error" xml:space="preserve">
+    <value>Could not load moderation metrics.</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.loading" xml:space="preserve">
+    <value>Loading moderation metrics…</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.needsHuman" xml:space="preserve">
+    <value>Needs human review</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.openConsole" xml:space="preserve">
+    <value>Open moderation console →</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.pending" xml:space="preserve">
+    <value>Pending submissions</value>
+  </data>
+  <data name="pages.dashboard.moderationWidget.title" xml:space="preserve">
+    <value>Moderation health (super admin)</value>
+  </data>
+  <data name="pages.dashboard.primary.notifications" xml:space="preserve">
+    <value>Notifications</value>
+  </data>
+  <data name="pages.dashboard.primary.pages" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="pages.dashboard.quickActions" xml:space="preserve">
+    <value>Quick Actions</value>
+  </data>
+  <data name="pages.dashboard.statsError" xml:space="preserve">
+    <value>Could not load dashboard statistics. Try again or check the API.</value>
+  </data>
+  <data name="pages.dashboard.statsForbidden" xml:space="preserve">
+    <value>Statistics are only available when you use the admin face URL prefix and a platform operator account. Open the admin app URL configured for the admin face (see README) and sign in as a global admin.</value>
+  </data>
+  <data name="pages.dashboard.title" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
+  <data name="pages.dashboard.welcome" xml:space="preserve">
+    <value>Welcome</value>
+  </data>
+  <data name="pages.editFace.description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="pages.editFace.descriptionPlaceholder" xml:space="preserve">
+    <value>Enter description</value>
+  </data>
+  <data name="pages.editFace.error" xml:space="preserve">
+    <value>Failed to update face</value>
+  </data>
+  <data name="pages.editFace.gradient.addColor" xml:space="preserve">
+    <value>Add Color</value>
+  </data>
+  <data name="pages.editFace.gradient.angle" xml:space="preserve">
+    <value>Angle</value>
+  </data>
+  <data name="pages.editFace.gradient.animNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="pages.editFace.gradient.animPulse" xml:space="preserve">
+    <value>Pulse</value>
+  </data>
+  <data name="pages.editFace.gradient.animRotate" xml:space="preserve">
+    <value>Rotate</value>
+  </data>
+  <data name="pages.editFace.gradient.animShift" xml:space="preserve">
+    <value>Shift</value>
+  </data>
+  <data name="pages.editFace.gradient.animation" xml:space="preserve">
+    <value>Animation</value>
+  </data>
+  <data name="pages.editFace.gradient.colors" xml:space="preserve">
+    <value>Colors</value>
+  </data>
+  <data name="pages.editFace.gradient.linear" xml:space="preserve">
+    <value>Linear</value>
+  </data>
+  <data name="pages.editFace.gradient.radial" xml:space="preserve">
+    <value>Radial</value>
+  </data>
+  <data name="pages.editFace.gradient.removeColor" xml:space="preserve">
+    <value>Remove Color</value>
+  </data>
+  <data name="pages.editFace.gradient.speed" xml:space="preserve">
+    <value>Animation Speed</value>
+  </data>
+  <data name="pages.editFace.gradient.title" xml:space="preserve">
+    <value>Gradient Settings</value>
+  </data>
+  <data name="pages.editFace.gradient.type" xml:space="preserve">
+    <value>Gradient Type</value>
+  </data>
+  <data name="pages.editFace.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.editFace.indexPlaceholder" xml:space="preserve">
+    <value>Enter index</value>
+  </data>
+  <data name="pages.editFace.isPublic" xml:space="preserve">
+    <value>Public Access</value>
+  </data>
+  <data name="pages.editFace.isPublicHelp" xml:space="preserve">
+    <value>Accessible without authentication</value>
+  </data>
+  <data name="pages.editFace.loading" xml:space="preserve">
+    <value>Loading face...</value>
+  </data>
+  <data name="pages.editFace.submit" xml:space="preserve">
+    <value>Update Face</value>
+  </data>
+  <data name="pages.editFace.submitting" xml:space="preserve">
+    <value>Updating...</value>
+  </data>
+  <data name="pages.editFace.success" xml:space="preserve">
+    <value>Face updated successfully!</value>
+  </data>
+  <data name="pages.editFace.title" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="pages.editFace.titlePlaceholder" xml:space="preserve">
+    <value>Enter title</value>
+  </data>
+  <data name="pages.editFace.validation.descriptionMaxLength" xml:space="preserve">
+    <value>Description must be at most 1000 characters</value>
+  </data>
+  <data name="pages.editFace.validation.indexMaxLength" xml:space="preserve">
+    <value>Index must be at most 100 characters</value>
+  </data>
+  <data name="pages.editFace.validation.indexRequired" xml:space="preserve">
+    <value>Index is required</value>
+  </data>
+  <data name="pages.editFace.validation.titleMaxLength" xml:space="preserve">
+    <value>Title must be at most 200 characters</value>
+  </data>
+  <data name="pages.editFace.validation.titleRequired" xml:space="preserve">
+    <value>Title is required</value>
+  </data>
+  <data name="pages.editPage.description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="pages.editPage.descriptionPlaceholder" xml:space="preserve">
+    <value>Enter description</value>
+  </data>
+  <data name="pages.editPage.error" xml:space="preserve">
+    <value>Failed to update page</value>
+  </data>
+  <data name="pages.editPage.gridLayout.addItem" xml:space="preserve">
+    <value>Add Block</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.ads" xml:space="preserve">
+    <value>Listings</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.albums" xml:space="preserve">
+    <value>Albums</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.blog" xml:space="preserve">
+    <value>Blog</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.chatRooms" xml:space="preserve">
+    <value>Chat Rooms</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.reels" xml:space="preserve">
+    <value>Reels</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.stories" xml:space="preserve">
+    <value>Stories</value>
+  </data>
+  <data name="pages.editPage.gridLayout.categories.userProfiles" xml:space="preserve">
+    <value>Profiles</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.ad" xml:space="preserve">
+    <value>Listing</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.adCarousel" xml:space="preserve">
+    <value>Listings Carousel</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.adCarouselDesc" xml:space="preserve">
+    <value>Paginated carousel of listings. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.adDesc" xml:space="preserve">
+    <value>Single listing card with image, price and description.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.adGrid" xml:space="preserve">
+    <value>Listings Grid</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.adGridDesc" xml:space="preserve">
+    <value>Paginated grid of listings. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.album" xml:space="preserve">
+    <value>Album</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.albumCarousel" xml:space="preserve">
+    <value>Album Carousel</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.albumCarouselDesc" xml:space="preserve">
+    <value>Paginated carousel of albums. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.albumDesc" xml:space="preserve">
+    <value>Main photo with 3 small thumbnails in the bottom-right corner.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.albumGrid" xml:space="preserve">
+    <value>Album Grid</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.albumGridDesc" xml:space="preserve">
+    <value>Paginated grid of albums. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.assign" xml:space="preserve">
+    <value>Component</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blog" xml:space="preserve">
+    <value>Blog Post</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blogCarousel" xml:space="preserve">
+    <value>Blog Carousel</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blogCarouselDesc" xml:space="preserve">
+    <value>Paginated carousel of blog posts. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blogDesc" xml:space="preserve">
+    <value>Single blog post card with image, title and excerpt.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blogGrid" xml:space="preserve">
+    <value>Blog Grid</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.blogGridDesc" xml:space="preserve">
+    <value>Paginated grid of blog posts. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoom" xml:space="preserve">
+    <value>Chat Room</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoomCarousel" xml:space="preserve">
+    <value>Chat Rooms Carousel</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoomCarouselDesc" xml:space="preserve">
+    <value>Paginated carousel of chat rooms. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoomDesc" xml:space="preserve">
+    <value>Single chat room card with name, member count and last message.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoomGrid" xml:space="preserve">
+    <value>Chat Rooms Grid</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.chatRoomGridDesc" xml:space="preserve">
+    <value>Paginated grid of chat rooms. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.clear" xml:space="preserve">
+    <value>Remove Component</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.clickToAssign" xml:space="preserve">
+    <value>Click to assign a component</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.description" xml:space="preserve">
+    <value>Select which component this grid block will display.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reel" xml:space="preserve">
+    <value>Reel</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reelCarousel" xml:space="preserve">
+    <value>Reels Carousel</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reelCarouselDesc" xml:space="preserve">
+    <value>Paginated carousel of video reels. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reelDesc" xml:space="preserve">
+    <value>Single vertical video reel with play overlay and engagement stats.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reelGrid" xml:space="preserve">
+    <value>Reels Grid</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.reelGridDesc" xml:space="preserve">
+    <value>Paginated grid of video reels. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.story" xml:space="preserve">
+    <value>Story</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.storyCarousel" xml:space="preserve">
+    <value>Stories Carousel</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.storyCarouselDesc" xml:space="preserve">
+    <value>Paginated carousel of stories. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.storyDesc" xml:space="preserve">
+    <value>Single story circle with user avatar and name.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.storyGrid" xml:space="preserve">
+    <value>Stories Grid</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.storyGridDesc" xml:space="preserve">
+    <value>Paginated grid of stories. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.title" xml:space="preserve">
+    <value>Choose Component</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfile" xml:space="preserve">
+    <value>User Profile</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfileCarousel" xml:space="preserve">
+    <value>Profiles Carousel</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfileCarouselDesc" xml:space="preserve">
+    <value>Paginated carousel of user profiles. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfileDesc" xml:space="preserve">
+    <value>Single user profile card with avatar, name and bio.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfileGrid" xml:space="preserve">
+    <value>Profiles Grid</value>
+  </data>
+  <data name="pages.editPage.gridLayout.components.userProfileGridDesc" xml:space="preserve">
+    <value>Paginated grid of user profiles. Items count adapts to block size.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.doubleClickToEdit" xml:space="preserve">
+    <value>Double-click to rename</value>
+  </data>
+  <data name="pages.editPage.gridLayout.empty" xml:space="preserve">
+    <value>No grid blocks yet. Click 'Add Block' to start designing the layout.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.help" xml:space="preserve">
+    <value>Design a responsive grid layout for this page. Drag to move, resize from corners. Double-click labels to rename.</value>
+  </data>
+  <data name="pages.editPage.gridLayout.items" xml:space="preserve">
+    <value>blocks</value>
+  </data>
+  <data name="pages.editPage.gridLayout.removeItem" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="pages.editPage.gridLayout.title" xml:space="preserve">
+    <value>Grid Layout</value>
+  </data>
+  <data name="pages.editPage.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.editPage.indexPlaceholder" xml:space="preserve">
+    <value>Enter index (0, 1, 2...)</value>
+  </data>
+  <data name="pages.editPage.loading" xml:space="preserve">
+    <value>Loading page...</value>
+  </data>
+  <data name="pages.editPage.name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="pages.editPage.namePlaceholder" xml:space="preserve">
+    <value>Enter page name</value>
+  </data>
+  <data name="pages.editPage.pageType" xml:space="preserve">
+    <value>Page Type</value>
+  </data>
+  <data name="pages.editPage.path" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="pages.editPage.pathPlaceholder" xml:space="preserve">
+    <value>Enter path (e.g., /home)</value>
+  </data>
+  <data name="pages.editPage.routeTranslationPlaceholder" xml:space="preserve">
+    <value>e.g., home</value>
+  </data>
+  <data name="pages.editPage.routeTranslations" xml:space="preserve">
+    <value>Route Translations</value>
+  </data>
+  <data name="pages.editPage.routeTranslationsHelp" xml:space="preserve">
+    <value>Define translated route names for each supported language.</value>
+  </data>
+  <data name="pages.editPage.submit" xml:space="preserve">
+    <value>Update Page</value>
+  </data>
+  <data name="pages.editPage.submitting" xml:space="preserve">
+    <value>Updating...</value>
+  </data>
+  <data name="pages.editPage.success" xml:space="preserve">
+    <value>Page updated successfully!</value>
+  </data>
+  <data name="pages.editPage.title" xml:space="preserve">
+    <value>Edit Page</value>
+  </data>
+  <data name="pages.editPage.translationsError" xml:space="preserve">
+    <value>Failed to save route translations</value>
+  </data>
+  <data name="pages.editPage.validation.descriptionMaxLength" xml:space="preserve">
+    <value>Description must be at most 1000 characters</value>
+  </data>
+  <data name="pages.editPage.validation.indexMin" xml:space="preserve">
+    <value>Index must be 0 or greater</value>
+  </data>
+  <data name="pages.editPage.validation.indexRequired" xml:space="preserve">
+    <value>Index is required</value>
+  </data>
+  <data name="pages.editPage.validation.nameMaxLength" xml:space="preserve">
+    <value>Name must be at most 200 characters</value>
+  </data>
+  <data name="pages.editPage.validation.nameRequired" xml:space="preserve">
+    <value>Name is required</value>
+  </data>
+  <data name="pages.editPage.validation.pageTypeIdRequired" xml:space="preserve">
+    <value>Page Type is required</value>
+  </data>
+  <data name="pages.editPage.validation.pathMaxLength" xml:space="preserve">
+    <value>Path must be at most 500 characters</value>
+  </data>
+  <data name="pages.editPage.validation.pathRequired" xml:space="preserve">
+    <value>Path is required</value>
+  </data>
+  <data name="pages.editUser.confirmPassword" xml:space="preserve">
+    <value>Confirm Password</value>
+  </data>
+  <data name="pages.editUser.confirmPasswordPlaceholder" xml:space="preserve">
+    <value>Confirm new password</value>
+  </data>
+  <data name="pages.editUser.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.editUser.emailPlaceholder" xml:space="preserve">
+    <value>Enter email address</value>
+  </data>
+  <data name="pages.editUser.error" xml:space="preserve">
+    <value>Failed to update user</value>
+  </data>
+  <data name="pages.editUser.firstName" xml:space="preserve">
+    <value>First Name</value>
+  </data>
+  <data name="pages.editUser.firstNamePlaceholder" xml:space="preserve">
+    <value>Enter first name</value>
+  </data>
+  <data name="pages.editUser.lastName" xml:space="preserve">
+    <value>Last Name</value>
+  </data>
+  <data name="pages.editUser.lastNamePlaceholder" xml:space="preserve">
+    <value>Enter last name</value>
+  </data>
+  <data name="pages.editUser.loading" xml:space="preserve">
+    <value>Loading user...</value>
+  </data>
+  <data name="pages.editUser.password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="pages.editUser.passwordHelp" xml:space="preserve">
+    <value>Leave blank to keep current password</value>
+  </data>
+  <data name="pages.editUser.passwordPlaceholder" xml:space="preserve">
+    <value>Leave blank to keep current password</value>
+  </data>
+  <data name="pages.editUser.submit" xml:space="preserve">
+    <value>Update User</value>
+  </data>
+  <data name="pages.editUser.submitting" xml:space="preserve">
+    <value>Updating...</value>
+  </data>
+  <data name="pages.editUser.success" xml:space="preserve">
+    <value>User updated successfully!</value>
+  </data>
+  <data name="pages.editUser.title" xml:space="preserve">
+    <value>Edit User</value>
+  </data>
+  <data name="pages.editUser.validation.confirmPasswordRequired" xml:space="preserve">
+    <value>Please confirm your password</value>
+  </data>
+  <data name="pages.editUser.validation.emailInvalid" xml:space="preserve">
+    <value>Please enter a valid email address</value>
+  </data>
+  <data name="pages.editUser.validation.emailRequired" xml:space="preserve">
+    <value>Email is required</value>
+  </data>
+  <data name="pages.editUser.validation.passwordMinLength" xml:space="preserve">
+    <value>Password must be at least 4 characters</value>
+  </data>
+  <data name="pages.editUser.validation.passwordsMatch" xml:space="preserve">
+    <value>Passwords must match</value>
+  </data>
+  <data name="pages.faceDetail.allowRecensions" xml:space="preserve">
+    <value>Allow reviews</value>
+  </data>
+  <data name="pages.faceDetail.createdAt" xml:space="preserve">
+    <value>Created At</value>
+  </data>
+  <data name="pages.faceDetail.description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="pages.faceDetail.error" xml:space="preserve">
+    <value>Error loading face details</value>
+  </data>
+  <data name="pages.faceDetail.faceTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="pages.faceDetail.faceVisibility" xml:space="preserve">
+    <value>Profile directory visibility</value>
+  </data>
+  <data name="pages.faceDetail.gradient" xml:space="preserve">
+    <value>Gradient</value>
+  </data>
+  <data name="pages.faceDetail.id" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.faceDetail.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.faceDetail.isPublic" xml:space="preserve">
+    <value>Visibility</value>
+  </data>
+  <data name="pages.faceDetail.loading" xml:space="preserve">
+    <value>Loading face details...</value>
+  </data>
+  <data name="pages.faceDetail.no" xml:space="preserve">
+    <value>No</value>
+  </data>
+  <data name="pages.faceDetail.notFound" xml:space="preserve">
+    <value>Face not found</value>
+  </data>
+  <data name="pages.faceDetail.pageHeading" xml:space="preserve">
+    <value>Face details</value>
+  </data>
+  <data name="pages.faceDetail.private" xml:space="preserve">
+    <value>Private</value>
+  </data>
+  <data name="pages.faceDetail.public" xml:space="preserve">
+    <value>Public</value>
+  </data>
+  <data name="pages.faceDetail.updatedAt" xml:space="preserve">
+    <value>Updated At</value>
+  </data>
+  <data name="pages.faceDetail.wallTickets" xml:space="preserve">
+    <value>Wall tickets (moderation)</value>
+  </data>
+  <data name="pages.faceDetail.yes" xml:space="preserve">
+    <value>Yes</value>
+  </data>
+  <data name="pages.faceWallTickets.actionError" xml:space="preserve">
+    <value>Action failed</value>
+  </data>
+  <data name="pages.faceWallTickets.approve" xml:space="preserve">
+    <value>Approve</value>
+  </data>
+  <data name="pages.faceWallTickets.approved" xml:space="preserve">
+    <value>Ticket approved</value>
+  </data>
+  <data name="pages.faceWallTickets.badFace" xml:space="preserve">
+    <value>Invalid face</value>
+  </data>
+  <data name="pages.faceWallTickets.closeDetail" xml:space="preserve">
+    <value>Close detail</value>
+  </data>
+  <data name="pages.faceWallTickets.colActions" xml:space="preserve">
+    <value>Actions</value>
+  </data>
+  <data name="pages.faceWallTickets.colCounts" xml:space="preserve">
+    <value>Likes / comments</value>
+  </data>
+  <data name="pages.faceWallTickets.colCreator" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="pages.faceWallTickets.colId" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.faceWallTickets.colStatus" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="pages.faceWallTickets.colTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="pages.faceWallTickets.comments" xml:space="preserve">
+    <value>Comments</value>
+  </data>
+  <data name="pages.faceWallTickets.confirmDeleteComment" xml:space="preserve">
+    <value>Delete this comment?</value>
+  </data>
+  <data name="pages.faceWallTickets.confirmDeleteTicket" xml:space="preserve">
+    <value>Hard-delete this ticket and all related data?</value>
+  </data>
+  <data name="pages.faceWallTickets.deleteComment" xml:space="preserve">
+    <value>Delete comment</value>
+  </data>
+  <data name="pages.faceWallTickets.deleteTicket" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="pages.faceWallTickets.deletedComment" xml:space="preserve">
+    <value>Comment deleted</value>
+  </data>
+  <data name="pages.faceWallTickets.deletedTicket" xml:space="preserve">
+    <value>Ticket deleted</value>
+  </data>
+  <data name="pages.faceWallTickets.denied" xml:space="preserve">
+    <value>Ticket denied</value>
+  </data>
+  <data name="pages.faceWallTickets.deny" xml:space="preserve">
+    <value>Deny</value>
+  </data>
+  <data name="pages.faceWallTickets.detailLoading" xml:space="preserve">
+    <value>Loading detail…</value>
+  </data>
+  <data name="pages.faceWallTickets.loadError" xml:space="preserve">
+    <value>Failed to load wall tickets</value>
+  </data>
+  <data name="pages.faceWallTickets.loading" xml:space="preserve">
+    <value>Loading tickets…</value>
+  </data>
+  <data name="pages.faceWallTickets.next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="pages.faceWallTickets.prev" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="pages.faceWallTickets.title" xml:space="preserve">
+    <value>Wall tickets</value>
+  </data>
+  <data name="pages.faces.create" xml:space="preserve">
+    <value>Create Face</value>
+  </data>
+  <data name="pages.faces.error" xml:space="preserve">
+    <value>Error loading faces</value>
+  </data>
+  <data name="pages.faces.faces" xml:space="preserve">
+    <value>faces</value>
+  </data>
+  <data name="pages.faces.loading" xml:space="preserve">
+    <value>Loading faces...</value>
+  </data>
+  <data name="pages.faces.noFaces" xml:space="preserve">
+    <value>No faces found</value>
+  </data>
+  <data name="pages.faces.searchPlaceholder" xml:space="preserve">
+    <value>Search faces...</value>
+  </data>
+  <data name="pages.faces.title" xml:space="preserve">
+    <value>Faces</value>
+  </data>
+  <data name="pages.homepage.description" xml:space="preserve">
+    <value>This is a protected page. Only authenticated users can access it.</value>
+  </data>
+  <data name="pages.homepage.title" xml:space="preserve">
+    <value>Welcome to Your Dashboard</value>
+  </data>
+  <data name="pages.homepage.welcome" xml:space="preserve">
+    <value>Welcome</value>
+  </data>
+  <data name="pages.login.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.login.error" xml:space="preserve">
+    <value>Login failed. Please check your credentials.</value>
+  </data>
+  <data name="pages.login.password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="pages.login.rememberMe" xml:space="preserve">
+    <value>Stay signed in</value>
+  </data>
+  <data name="pages.login.submit" xml:space="preserve">
+    <value>Sign In</value>
+  </data>
+  <data name="pages.login.submitting" xml:space="preserve">
+    <value>Logging in...</value>
+  </data>
+  <data name="pages.login.success" xml:space="preserve">
+    <value>Login successful!</value>
+  </data>
+  <data name="pages.login.title" xml:space="preserve">
+    <value>Login</value>
+  </data>
+  <data name="pages.login.validation.emailInvalid" xml:space="preserve">
+    <value>Please enter a valid email address</value>
+  </data>
+  <data name="pages.login.validation.emailRequired" xml:space="preserve">
+    <value>Email is required</value>
+  </data>
+  <data name="pages.login.validation.passwordMinLength" xml:space="preserve">
+    <value>Password must be at least 4 characters</value>
+  </data>
+  <data name="pages.login.validation.passwordRequired" xml:space="preserve">
+    <value>Password is required</value>
+  </data>
+  <data name="pages.logout.errorMessage" xml:space="preserve">
+    <value>Logout failed. Please try again.</value>
+  </data>
+  <data name="pages.logout.sessionExpired" xml:space="preserve">
+    <value>Your session has expired. Please sign in again.</value>
+  </data>
+  <data name="pages.logout.successMessage" xml:space="preserve">
+    <value>Logged out successfully</value>
+  </data>
+  <data name="pages.logout.title" xml:space="preserve">
+    <value>Logout</value>
+  </data>
+  <data name="pages.moderation.title" xml:space="preserve">
+    <value>Moderation</value>
+  </data>
+  <data name="pages.pageDetail.createdAt" xml:space="preserve">
+    <value>Created At</value>
+  </data>
+  <data name="pages.pageDetail.description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="pages.pageDetail.error" xml:space="preserve">
+    <value>Error loading page details</value>
+  </data>
+  <data name="pages.pageDetail.id" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.pageDetail.index" xml:space="preserve">
+    <value>Index</value>
+  </data>
+  <data name="pages.pageDetail.loading" xml:space="preserve">
+    <value>Loading page details...</value>
+  </data>
+  <data name="pages.pageDetail.name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="pages.pageDetail.notFound" xml:space="preserve">
+    <value>Page not found</value>
+  </data>
+  <data name="pages.pageDetail.path" xml:space="preserve">
+    <value>Path</value>
+  </data>
+  <data name="pages.pageDetail.title" xml:space="preserve">
+    <value>Page Details</value>
+  </data>
+  <data name="pages.pageDetail.updatedAt" xml:space="preserve">
+    <value>Updated At</value>
+  </data>
+  <data name="pages.pagesTable.confirmDelete" xml:space="preserve">
+    <value>Are you sure you want to delete this page?</value>
+  </data>
+  <data name="pages.pagesTable.create" xml:space="preserve">
+    <value>Create Page</value>
+  </data>
+  <data name="pages.pagesTable.deleteError" xml:space="preserve">
+    <value>Failed to delete page</value>
+  </data>
+  <data name="pages.pagesTable.deleteSuccess" xml:space="preserve">
+    <value>Page deleted successfully!</value>
+  </data>
+  <data name="pages.pagesTable.error" xml:space="preserve">
+    <value>Error loading pages</value>
+  </data>
+  <data name="pages.pagesTable.loading" xml:space="preserve">
+    <value>Loading pages...</value>
+  </data>
+  <data name="pages.pagesTable.noPages" xml:space="preserve">
+    <value>No pages found</value>
+  </data>
+  <data name="pages.pagesTable.title" xml:space="preserve">
+    <value>Pages</value>
+  </data>
+  <data name="pages.registrationInvites.create" xml:space="preserve">
+    <value>Create invite</value>
+  </data>
+  <data name="pages.registrationInvites.createError" xml:space="preserve">
+    <value>Could not create invite.</value>
+  </data>
+  <data name="pages.registrationInvites.created" xml:space="preserve">
+    <value>Invite created and email queued.</value>
+  </data>
+  <data name="pages.registrationInvites.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.registrationInvites.expires" xml:space="preserve">
+    <value>Expires</value>
+  </data>
+  <data name="pages.registrationInvites.firstName" xml:space="preserve">
+    <value>First name</value>
+  </data>
+  <data name="pages.registrationInvites.lastName" xml:space="preserve">
+    <value>Last name</value>
+  </data>
+  <data name="pages.registrationInvites.loadError" xml:space="preserve">
+    <value>Could not load invites.</value>
+  </data>
+  <data name="pages.registrationInvites.loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="pages.registrationInvites.resend" xml:space="preserve">
+    <value>Resend email</value>
+  </data>
+  <data name="pages.registrationInvites.resendError" xml:space="preserve">
+    <value>Could not resend email.</value>
+  </data>
+  <data name="pages.registrationInvites.resent" xml:space="preserve">
+    <value>Registration email resent.</value>
+  </data>
+  <data name="pages.registrationInvites.revoke" xml:space="preserve">
+    <value>Revoke</value>
+  </data>
+  <data name="pages.registrationInvites.revokeError" xml:space="preserve">
+    <value>Could not revoke invite.</value>
+  </data>
+  <data name="pages.registrationInvites.revoked" xml:space="preserve">
+    <value>Invite revoked.</value>
+  </data>
+  <data name="pages.registrationInvites.status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="pages.registrationInvites.subtitle" xml:space="preserve">
+    <value>Operator-created invites and pending self-service signups.</value>
+  </data>
+  <data name="pages.registrationInvites.title" xml:space="preserve">
+    <value>Registration invites</value>
+  </data>
+  <data name="pages.settings.aiStats.description" xml:space="preserve">
+    <value>Controls whether the operator AI chat receives anonymous aggregate counts (users, faces, messages, …). No private message bodies or moderation audit data are sent.</value>
+  </data>
+  <data name="pages.settings.aiStats.hints.inline" xml:space="preserve">
+    <value>The API injects a fresh JSON snapshot into the model context on each request.</value>
+  </data>
+  <data name="pages.settings.aiStats.hints.live" xml:space="preserve">
+    <value>The Python worker performs an HTTP GET of the configured public stats URL before answering (useful to validate the same path external tools would call).</value>
+  </data>
+  <data name="pages.settings.aiStats.hints.off" xml:space="preserve">
+    <value>AI sees only your typed conversation.</value>
+  </data>
+  <data name="pages.settings.aiStats.modes.inline" xml:space="preserve">
+    <value>Inline (from API server)</value>
+  </data>
+  <data name="pages.settings.aiStats.modes.live" xml:space="preserve">
+    <value>Live (AI worker fetches public JSON)</value>
+  </data>
+  <data name="pages.settings.aiStats.modes.off" xml:space="preserve">
+    <value>Off</value>
+  </data>
+  <data name="pages.settings.aiStats.sectionTitle" xml:space="preserve">
+    <value>AI chat — public statistics</value>
+  </data>
+  <data name="pages.settings.lead" xml:space="preserve">
+    <value>Preferences for this browser only (stored in localStorage).</value>
+  </data>
+  <data name="pages.settings.save" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="pages.settings.saved" xml:space="preserve">
+    <value>Saved.</value>
+  </data>
+  <data name="pages.settings.title" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="pages.userDetail.createdAt" xml:space="preserve">
+    <value>Created At</value>
+  </data>
+  <data name="pages.userDetail.email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.userDetail.error" xml:space="preserve">
+    <value>Error loading user details</value>
+  </data>
+  <data name="pages.userDetail.firstName" xml:space="preserve">
+    <value>First Name</value>
+  </data>
+  <data name="pages.userDetail.id" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.userDetail.lastName" xml:space="preserve">
+    <value>Last Name</value>
+  </data>
+  <data name="pages.userDetail.loading" xml:space="preserve">
+    <value>Loading user details...</value>
+  </data>
+  <data name="pages.userDetail.notFound" xml:space="preserve">
+    <value>User not found</value>
+  </data>
+  <data name="pages.userDetail.title" xml:space="preserve">
+    <value>User Details</value>
+  </data>
+  <data name="pages.users.title" xml:space="preserve">
+    <value>Users</value>
+  </data>
+  <data name="reactLogo" xml:space="preserve">
+    <value>React logo</value>
+  </data>
+  <data name="routes.chat" xml:space="preserve">
+    <value>chat</value>
+  </data>
+  <data name="routes.dashboard" xml:space="preserve">
+    <value>dashboard</value>
+  </data>
+  <data name="routes.faces" xml:space="preserve">
+    <value>faces</value>
+  </data>
+  <data name="routes.homepage" xml:space="preserve">
+    <value>homepage</value>
+  </data>
+  <data name="routes.login" xml:space="preserve">
+    <value>login</value>
+  </data>
+  <data name="routes.moderation" xml:space="preserve">
+    <value>moderation</value>
+  </data>
+  <data name="routes.registrationInvites" xml:space="preserve">
+    <value>registration-invites</value>
+  </data>
+  <data name="routes.settings" xml:space="preserve">
+    <value>settings</value>
+  </data>
+  <data name="routes.users" xml:space="preserve">
+    <value>users</value>
+  </data>
+  <data name="save" xml:space="preserve">
+    <value>save to test HMR</value>
+  </data>
+  <data name="viteLogo" xml:space="preserve">
+    <value>Vite logo</value>
+  </data>
+  <data name="welcome" xml:space="preserve">
+    <value>Welcome to Vite + React</value>
+  </data>
+</root>

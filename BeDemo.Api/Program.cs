@@ -180,6 +180,10 @@ var registerPermit = isTestingEnv && bypassRateLimitInTesting
     ? 1_000_000
     : builder.Configuration.GetValue("OAuth2:RegisterRateLimitPermitLimit", 30);
 var registerWindowSec = builder.Configuration.GetValue("OAuth2:RegisterRateLimitWindowSeconds", 60);
+var localizationPermit = isTestingEnv && bypassRateLimitInTesting
+    ? 1_000_000
+    : builder.Configuration.GetValue("Localization:RateLimitPermitLimit", 120);
+var localizationWindowSec = builder.Configuration.GetValue("Localization:RateLimitWindowSeconds", 60);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -212,6 +216,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0,
             }));
+    options.AddPolicy("localization-read", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? context.Connection.Id,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = localizationPermit,
+                Window = TimeSpan.FromSeconds(Math.Max(1, localizationWindowSec)),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
 });
 
 // ============================================================================
@@ -222,6 +236,8 @@ builder.Services.AddRateLimiter(options =>
 // Cache improves performance by avoiding database queries on every request
 // Faces are cached for 5 minutes and automatically refreshed
 builder.Services.AddMemoryCache();
+builder.Services.AddLocalization();
+builder.Services.AddSingleton<BeDemo.Api.Services.ILocalizationBundleService, BeDemo.Api.Services.LocalizationBundleService>();
 
 // ============================================================================
 // CORS CONFIGURATION
