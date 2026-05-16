@@ -82,7 +82,10 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         var payload = ParsePayload(payloadJson);
         if (payload == null)
         {
-            _logger.LogWarning("Dropping invalid AI review payload: {Payload}", payloadJson);
+            // PI-7: never log raw payloadJson — it may contain smuggled creator text in extra JSON properties.
+            _logger.LogWarning(
+                "Dropping invalid AI review payload. {PayloadDiagnostic}",
+                ContentModerationHelpers.FormatInvalidAiReviewPayloadForLog(payloadJson));
             return;
         }
 
@@ -192,18 +195,38 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    /// <summary>Parses the Redis payload JSON; returns null if the envelope is malformed.</summary>
+    /// <summary>
+    /// Parses the Redis payload JSON; returns null if the envelope is malformed or uses wrong JSON types.
+    /// </summary>
+    /// <remarks>
+    /// Uses explicit <see cref="JsonValueKind"/> checks so hostile payloads (e.g. string <c>moderationVersion</c>)
+    /// do not throw before PI-7 safe logging runs.
+    /// </remarks>
     private static AiReviewPayload? ParsePayload(string payloadJson)
     {
         try
         {
             using var doc = JsonDocument.Parse(payloadJson);
             var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+                return null;
+
             if (!root.TryGetProperty("contentType", out var contentTypeEl) ||
-                !Enum.TryParse<ModeratedContentType>(contentTypeEl.GetString(), true, out var contentType) ||
-                !root.TryGetProperty("contentId", out var contentIdEl) ||
-                !contentIdEl.TryGetInt32(out var contentId) ||
-                !root.TryGetProperty("moderationVersion", out var versionEl) ||
+                contentTypeEl.ValueKind != JsonValueKind.String ||
+                !Enum.TryParse<ModeratedContentType>(contentTypeEl.GetString(), true, out var contentType))
+            {
+                return null;
+            }
+
+            if (!root.TryGetProperty("contentId", out var contentIdEl) ||
+                contentIdEl.ValueKind != JsonValueKind.Number ||
+                !contentIdEl.TryGetInt32(out var contentId))
+            {
+                return null;
+            }
+
+            if (!root.TryGetProperty("moderationVersion", out var versionEl) ||
+                versionEl.ValueKind != JsonValueKind.Number ||
                 !versionEl.TryGetInt32(out var moderationVersion))
             {
                 return null;

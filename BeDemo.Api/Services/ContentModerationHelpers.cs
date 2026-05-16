@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using BeDemo.Api.Models;
 
@@ -198,6 +200,81 @@ public static class ContentModerationHelpers
 
         var trimmed = value.Trim();
         return trimmed.Length <= 2000 ? trimmed : string.Concat(trimmed.AsSpan(0, 2000), "...");
+    }
+
+    /// <summary>
+    /// Builds a PII-safe diagnostic for malformed Redis <c>content.ai-review</c> job envelopes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Valid worker payloads contain only <c>contentType</c>, <c>contentId</c>, and <c>moderationVersion</c>
+    /// (see <see cref="BuildAiReviewPayload"/>). Attackers or buggy producers may enqueue JSON with extra
+    /// string fields (smuggled title/body, prompt-injection probes). Those values must <b>never</b> be written
+    /// to application logs — only length, a short hash prefix for correlation, and parsed identifiers when safe.
+    /// </para>
+    /// <para>Security hardening v2: <b>PI-7</b>. Aligns with <see cref="RedactForAudit"/> for audit tables.</para>
+    /// </remarks>
+    /// <param name="payloadJson">Raw JSON from Redis; may be non-JSON or hostile.</param>
+    /// <returns>Single-line diagnostic safe for structured logging (no raw user content).</returns>
+    public static string FormatInvalidAiReviewPayloadForLog(string? payloadJson)
+    {
+        if (string.IsNullOrEmpty(payloadJson))
+            return "empty_payload";
+
+        var length = payloadJson.Length;
+        var hashPrefix = ComputePayloadSha256Prefix(payloadJson);
+
+        try
+        {
+            using var doc = JsonDocument.Parse(payloadJson);
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return $"invalid_envelope kind={root.ValueKind} length={length} sha256Prefix={hashPrefix}";
+            }
+
+            string? contentType = null;
+            int? contentId = null;
+            int? moderationVersion = null;
+            var extraPropertyCount = 0;
+
+            foreach (var prop in root.EnumerateObject())
+            {
+                switch (prop.Name)
+                {
+                    case "contentType" when prop.Value.ValueKind == JsonValueKind.String:
+                        contentType = prop.Value.GetString();
+                        break;
+                    case "contentId" when prop.Value.ValueKind == JsonValueKind.Number &&
+                                          prop.Value.TryGetInt32(out var id):
+                        contentId = id;
+                        break;
+                    case "moderationVersion" when prop.Value.ValueKind == JsonValueKind.Number &&
+                                                prop.Value.TryGetInt32(out var version):
+                        moderationVersion = version;
+                        break;
+                    default:
+                        extraPropertyCount++;
+                        break;
+                }
+            }
+
+            return
+                $"invalid_envelope length={length} sha256Prefix={hashPrefix} " +
+                $"contentType={contentType ?? "?"} contentId={contentId?.ToString() ?? "?"} " +
+                $"moderationVersion={moderationVersion?.ToString() ?? "?"} extraProperties={extraPropertyCount}";
+        }
+        catch (JsonException)
+        {
+            return $"invalid_json length={length} sha256Prefix={hashPrefix}";
+        }
+    }
+
+    /// <summary>First 12 hex chars of SHA-256(payload) for log correlation without storing raw bytes.</summary>
+    public static string ComputePayloadSha256Prefix(string payloadJson)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(payloadJson));
+        return Convert.ToHexString(bytes)[..12].ToLowerInvariant();
     }
 }
 
