@@ -36,13 +36,13 @@ When a request comes in with a face prefix (e.g., `/acme-corp/api/users`), the `
 
 ### Public Paths (Bypass Face Routing)
 
-Certain paths bypass face routing and are accessible without a face prefix:
+Certain paths bypass face routing and are accessible without a face prefix (see `Routing.ExemptPathPrefixes` in `BeDemo.Api/Utils/Routing.cs`):
 
-- `/api/` - Direct API access (when not prefixed with face)
-- `/swagger` - Swagger UI documentation
-- `/swagger-ui` - Swagger UI alternative
-- `/openapi` - OpenAPI specification
-- `/hubs` - SignalR hubs
+- `/api/oauth2/*` — token and registration flows
+- `/api/localization/*` — static UI i18n bundles (`GET /api/localization/{app}`) before OAuth
+- `/api/auth/*` — legacy auth helpers where applicable
+- `/swagger`, `/swagger-ui`, `/openapi` — API documentation
+- `/hubs` — SignalR hubs
 
 ### Face Matching Logic
 

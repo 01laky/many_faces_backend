@@ -31,6 +31,7 @@ For engineers, the backend is designed as a layered ASP.NET Core service: middle
 - **Worker `.proto` source:** nested **`many_faces_proto`** submodule at **`many_faces_backend/many_faces_proto`** (`..\many_faces_proto\proto\...` from `BeDemo.Api/`), including **`health.proto`** for the AI **HealthService** client. Use **`git submodule update --init --recursive`** in this repo (and in **`many_faces_main`** so nested submodules initialize).
 - Structured Serilog/Seq logging, Swagger/OpenAPI documentation, migrations, seed data, and unit/integration tests.
 - **REST input validation:** FluentValidation (**~76** schemas), `ValidationProblemDetails` on most endpoints, `IFileValidator` for avatar/story uploads — [`docs/guides/api-request-validation.md`](../../docs/guides/api-request-validation.md).
+- **Static UI localization:** embedded `.resx` per app (`BeDemo.Api/Localization/`), served as JSON via anonymous **`GET /api/localization/{app}`** (`portal` | `admin` | `mobile`); face-prefix exempt — [`docs/guides/static-localization-and-i18n.md`](../../docs/guides/static-localization-and-i18n.md).
 
 ## Technical Specification
 
