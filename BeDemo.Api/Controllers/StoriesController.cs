@@ -23,6 +23,7 @@ public class StoriesController : ControllerBase
     private readonly IFaceScopeContext _faceScope;
     private readonly IAccessEvaluator _access;
     private readonly IFileValidator _fileValidator;
+    private readonly IUploadSignedUrlService _uploadUrls;
 
     public StoriesController(
         ApplicationDbContext context,
@@ -31,7 +32,8 @@ public class StoriesController : ControllerBase
         ILogger<StoriesController> logger,
         IFaceScopeContext faceScope,
         IAccessEvaluator access,
-        IFileValidator fileValidator)
+        IFileValidator fileValidator,
+        IUploadSignedUrlService uploadUrls)
     {
         _context = context;
         _lifecycle = lifecycle;
@@ -40,9 +42,14 @@ public class StoriesController : ControllerBase
         _faceScope = faceScope;
         _access = access;
         _fileValidator = fileValidator;
+        _uploadUrls = uploadUrls;
     }
 
     private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+    /// <summary>Maps stored <c>/uploads/...</c> DB paths to HMAC-signed serve URLs for clients (BE-U3).</summary>
+    private string? SignStoredImageUrl(string? storedPath) =>
+        _uploadUrls.ToAbsoluteSignedUrl(storedPath, Request.Scheme, Request.Host.Value!);
 
     private bool CanManageAllFaces() => _access.CanManageAllFaces(User);
 
@@ -98,7 +105,7 @@ public class StoriesController : ControllerBase
             creatorId = s.CreatorId,
             creatorName = ((s.Creator.FirstName ?? "") + " " + (s.Creator.LastName ?? "")).Trim(),
             imageCount = s.Images.Count,
-            coverUrl = s.Images.OrderBy(i => i.SortOrder).Select(i => i.ImageUrl).FirstOrDefault(),
+            coverUrl = SignStoredImageUrl(s.Images.OrderBy(i => i.SortOrder).Select(i => i.ImageUrl).FirstOrDefault()),
             s.PublishedAt,
             s.ExpiresAt,
         });
@@ -185,7 +192,7 @@ public class StoriesController : ControllerBase
         var images = story.Images.OrderBy(i => i.SortOrder).Select(i => new
         {
             i.Id,
-            i.ImageUrl,
+            imageUrl = SignStoredImageUrl(i.ImageUrl),
             i.Description,
             i.SortOrder,
         }).ToList();
@@ -457,6 +464,6 @@ public class StoriesController : ControllerBase
         story.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
 
-        return Ok(new { img.Id, imageUrl = url, img.SortOrder });
+        return Ok(new { img.Id, imageUrl = SignStoredImageUrl(url), img.SortOrder });
     }
 }

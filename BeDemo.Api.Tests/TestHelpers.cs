@@ -27,6 +27,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
 
         builder.UseSetting("Mail:Enabled", "true");
         builder.UseSetting("Mail:WorkerGrpcUrl", "http://localhost:59998");
+        builder.UseSetting("Uploads:SigningSecret", "test-upload-signing-secret-fixed-32b!!");
 
         builder.ConfigureServices(services =>
         {

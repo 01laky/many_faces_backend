@@ -76,7 +76,8 @@ public sealed class UploadSecurityEdgeTests : IClassFixture<CustomWebApplication
         upload.StatusCode.Should().Be(HttpStatusCode.OK);
         var payload = await upload.Content.ReadFromJsonAsync<JsonElement>();
         var imageUrl = payload.GetProperty("imageUrl").GetString();
-        imageUrl.Should().StartWith($"/uploads/stories/{storyId}/");
+        imageUrl.Should().Contain("/api/uploads/serve");
+        imageUrl.Should().Contain($"path=%2Fuploads%2Fstories%2F{storyId}%2F");
         imageUrl.Should().NotContain("..");
     }
 }

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Faces;
+using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -19,11 +20,16 @@ public class FaceProfilesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<FaceProfilesController> _logger;
+    private readonly IUploadSignedUrlService _uploadUrls;
 
-    public FaceProfilesController(ApplicationDbContext context, ILogger<FaceProfilesController> logger)
+    public FaceProfilesController(
+        ApplicationDbContext context,
+        ILogger<FaceProfilesController> logger,
+        IUploadSignedUrlService uploadUrls)
     {
         _context = context;
         _logger = logger;
+        _uploadUrls = uploadUrls;
     }
 
     private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -104,7 +110,7 @@ public class FaceProfilesController : ControllerBase
             {
                 userId = uid,
                 displayName = display,
-                avatarUrl = avatar,
+                avatarUrl = _uploadUrls.ToAbsoluteSignedUrl(avatar, Request.Scheme, Request.Host.Value!),
             });
         }
 
@@ -160,7 +166,7 @@ public class FaceProfilesController : ControllerBase
             nickname = up.Nickname,
             age = up.Age,
             rod = up.Rod,
-            avatarUrl = avatar,
+            avatarUrl = _uploadUrls.ToAbsoluteSignedUrl(avatar, Request.Scheme, Request.Host.Value!),
             createdAt = ufp.CreatedAt,
             faceAllowsRecensions = face.AllowRecensions,
             likedByMe = liked,

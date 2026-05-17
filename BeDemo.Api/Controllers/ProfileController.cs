@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Models;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models.Requests.Profile;
+using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 using BeDemo.Api.Validation.Files;
 
@@ -21,6 +22,7 @@ public class ProfileController : ControllerBase
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<ProfileController> _logger;
     private readonly IFileValidator _fileValidator;
+    private readonly IUploadSignedUrlService _uploadUrls;
 
     private static readonly string[] AvatarDirSegments = ["uploads", "avatars"];
     private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".gif", ".webp" };
@@ -30,13 +32,15 @@ public class ProfileController : ControllerBase
         ApplicationDbContext context,
         IWebHostEnvironment env,
         ILogger<ProfileController> logger,
-        IFileValidator fileValidator)
+        IFileValidator fileValidator,
+        IUploadSignedUrlService uploadUrls)
     {
         _userManager = userManager;
         _context = context;
         _env = env;
         _logger = logger;
         _fileValidator = fileValidator;
+        _uploadUrls = uploadUrls;
     }
 
     /// <summary>
@@ -74,14 +78,13 @@ public class ProfileController : ControllerBase
             faceAvatarUrl = faceProfile?.AvatarUrl;
         }
 
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
         return Ok(new
         {
             firstName = user.FirstName,
             lastName = user.LastName,
             email = user.Email,
-            globalAvatarUrl = profile.AvatarUrl != null ? baseUrl + profile.AvatarUrl : (string?)null,
-            faceAvatarUrl = faceAvatarUrl != null ? baseUrl + faceAvatarUrl : (string?)null,
+            globalAvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(profile.AvatarUrl, Request.Scheme, Request.Host.Value!),
+            faceAvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(faceAvatarUrl, Request.Scheme, Request.Host.Value!),
         });
     }
 
@@ -135,8 +138,10 @@ public class ProfileController : ControllerBase
         profile.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        return Ok(new { avatarUrl = baseUrl + path });
+        return Ok(new
+        {
+            avatarUrl = _uploadUrls.ToAbsoluteSignedUrl(path, Request.Scheme, Request.Host.Value!),
+        });
     }
 
     /// <summary>
@@ -187,8 +192,10 @@ public class ProfileController : ControllerBase
 
         await _context.SaveChangesAsync();
 
-        var baseUrl = $"{Request.Scheme}://{Request.Host}";
-        return Ok(new { avatarUrl = baseUrl + path });
+        return Ok(new
+        {
+            avatarUrl = _uploadUrls.ToAbsoluteSignedUrl(path, Request.Scheme, Request.Host.Value!),
+        });
     }
 
     /// <summary>

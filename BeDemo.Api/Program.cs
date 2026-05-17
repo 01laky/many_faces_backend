@@ -384,6 +384,15 @@ builder.Services.AddScoped<IOAuthTokenRequestSignatureVerifier, OAuthTokenReques
 builder.Services.AddScoped<IOAuthAccessTokenFactory, OAuthAccessTokenFactory>();
 builder.Services.AddScoped<IOAuth2Service, OAuth2Service>();
 
+// SHV2 BE-U3 — HMAC-signed URLs for wwwroot/uploads (replaces public static /uploads/*).
+builder.Services.AddOptions<BeDemo.Api.Configuration.UploadsOptions>()
+    .BindConfiguration(BeDemo.Api.Configuration.UploadsOptions.SectionName)
+    .Validate(
+        o => !string.IsNullOrWhiteSpace(o.SigningSecret) && o.SigningSecret.Length >= 32,
+        $"Uploads:{nameof(BeDemo.Api.Configuration.UploadsOptions.SigningSecret)} must be at least 32 characters.")
+    .ValidateOnStart();
+builder.Services.AddSingleton<IUploadSignedUrlService, UploadSignedUrlService>();
+
 // AI gRPC client - singleton to reuse the HTTP/2 channel across requests
 builder.Services.AddSingleton<IAiGrpcService, AiGrpcService>();
 
@@ -681,8 +690,18 @@ app.UseRouting();
 // This middleware executes after routing, before authentication
 app.UseMiddleware<OAuth2Middleware>();
 
-// Serve static files (e.g. uploaded avatars from wwwroot/uploads)
-app.UseStaticFiles();
+// Static files for wwwroot assets; /uploads/* is blocked — use signed /api/uploads/serve (BE-U3).
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        if (ctx.Context.Request.Path.StartsWithSegments("/uploads", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.StatusCode = StatusCodes.Status404NotFound;
+            ctx.Context.Response.ContentLength = 0;
+        }
+    },
+});
 
 // Adds authentication middleware - extracts and validates JWT tokens from requests
 app.UseAuthentication();

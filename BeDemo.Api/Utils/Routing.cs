@@ -23,7 +23,7 @@ public static class Routing
     /// <item><description><c>/api/auth/*</c> — legacy Identity cookie endpoints (if used).</description></item>
     /// <item><description><c>/api/localization/*</c> — static UI i18n bundles before login.</description></item>
     /// <item><description>Swagger / OpenAPI — developer tooling; not tenant data.</description></item>
-    /// <item><description><c>/uploads/*</c> — static files under wwwroot (avatars, story images).</description></item>
+    /// <item><description><c>/api/uploads/*</c> — HMAC-signed serve endpoint (SHV2 BE-U3); bare <c>/uploads/*</c> is not served anonymously.</description></item>
     /// </list>
     /// </remarks>
     private static readonly string[] ExemptPathPrefixes =
@@ -34,7 +34,7 @@ public static class Routing
         "/swagger",
         "/openapi",
         "/favicon",
-        "/uploads/",
+        "/api/uploads",
     };
 
     /// <summary>

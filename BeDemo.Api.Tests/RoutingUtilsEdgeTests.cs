@@ -11,7 +11,8 @@ public sealed class RoutingUtilsEdgeTests
     [InlineData("/api/oauth2/token", true)]
     [InlineData("/api/auth/login", true)]
     [InlineData("/swagger/index.html", true)]
-    [InlineData("/uploads/avatar.png", true)]
+    [InlineData("/api/uploads/serve", true)]
+    [InlineData("/uploads/avatar.png", false)]
     [InlineData("/basic/api/albums", false)]
     public void IsExemptFromFaceScope_ShouldMatchExpected(string? path, bool expected)
     {
