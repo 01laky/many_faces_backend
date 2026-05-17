@@ -1,25 +1,8 @@
 /*
  * ChatHub.cs - SignalR Hub for real-time chat communication
- * 
- * This hub provides WebSocket endpoint for real-time communication.
- * All methods require authentication ([Authorize] attribute).
- * 
- * Endpoint (must run after <c>RoutingMiddleware</c>): <c>wss://host/{face-kebab}/hubs/chat?access_token=&lt;JWT&gt;</c> — same face-prefix rule as REST (ACL A11).
- * 
- * Methods:
- * - SendMessage: Sends message to all connected clients
- * - SendPrivateMessage: Sends private message to specific user
- * - SendToAi: Sends user message to AI service via gRPC, returns AI response to caller (ReceiveAiMessage)
- * - SendToAiWithOperatorStats: Operator-only; optional public aggregate stats (off / inline / live) then same ReceiveAiMessage callback
- * 
- * Events:
- * - OnConnectedAsync: Invoked when client connects
- * - OnDisconnectedAsync: Invoked when client disconnects
- * 
- * Callbacks (client can listen):
- * - ReceiveMessage: Receives message from all clients
- * - ReceivePrivateMessage: Receives private message
- * - ReceiveAiMessage: Receives AI response (userMessage, aiResponse) after SendToAi
+ *
+ * Operator AI: shared support inbox via SendToAiWithOperatorStats(conversationId, message, statsMode)
+ * with DB persistence and operator_ai_operators group broadcasts.
  */
 
 using System.Text;
@@ -27,17 +10,16 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Options;
+using BeDemo.Api.Configuration;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Models.DTOs.OperatorAi;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Hubs;
 
-/// <summary>
-/// SignalR Hub for chat communication
-/// [Authorize] ensures that only authenticated users can access the hub
-/// </summary>
 [Authorize]
 public class ChatHub : Hub
 {
@@ -54,6 +36,8 @@ public class ChatHub : Hub
     private readonly IFaceScopeContext _faceScope;
     private readonly IPlatformStatsQueryService _platformStats;
     private readonly IConfiguration _configuration;
+    private readonly IOperatorAiConversationService _operatorAi;
+    private readonly OperatorAiOptions _operatorAiOptions;
 
     public ChatHub(
         ILogger<ChatHub> logger,
@@ -62,7 +46,9 @@ public class ChatHub : Hub
         ApplicationDbContext context,
         IFaceScopeContext faceScope,
         IPlatformStatsQueryService platformStats,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IOperatorAiConversationService operatorAi,
+        IOptions<OperatorAiOptions> operatorAiOptions)
     {
         _logger = logger;
         _aiGrpcService = aiGrpcService;
@@ -71,6 +57,8 @@ public class ChatHub : Hub
         _faceScope = faceScope;
         _platformStats = platformStats;
         _configuration = configuration;
+        _operatorAi = operatorAi;
+        _operatorAiOptions = operatorAiOptions.Value;
     }
 
     private static string FaceChatBroadcastGroup(int faceId) => $"hubchat_face_{faceId}";
@@ -78,9 +66,6 @@ public class ChatHub : Hub
     private bool CanManageAllFaces() =>
         Context.User != null && PlatformAccessRules.CanManageAllFaces(_faceScope, Context.User);
 
-    /// <summary>
-    /// Invoked automatically when client connects to the hub
-    /// </summary>
     public override async Task OnConnectedAsync()
     {
         if (!_faceScope.IsAvailable)
@@ -90,45 +75,31 @@ public class ChatHub : Hub
             return;
         }
 
-        // Gets User ID from JWT token
-        // Context.UserIdentifier contains value from ClaimTypes.NameIdentifier claim in JWT token
-        // If UserIdentifier is not available, tries to get it directly from claims
         var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
         _logger.LogInformation("User {UserId} connected to SignalR hub", userId);
 
-        // Adds user to group "user_{userId}"
-        // Groups allow sending messages to specific users or groups of users
         if (!string.IsNullOrEmpty(userId))
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
             await Groups.AddToGroupAsync(Context.ConnectionId, FaceChatBroadcastGroup(_faceScope.FaceId));
         }
 
-        // Calls base implementation
+        if (CanManageAllFaces())
+            await Groups.AddToGroupAsync(Context.ConnectionId, OperatorAiHubGroups.Operators);
+
         await base.OnConnectedAsync();
     }
 
-    /// <summary>
-    /// Invoked automatically when client disconnects from the hub
-    /// </summary>
-    /// <param name="exception">Exception if disconnection was caused by error, otherwise null</param>
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        // Gets User ID
         var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
-        // Logs disconnection (with error information if exists)
         if (exception != null)
-        {
             _logger.LogWarning(exception, "User {UserId} disconnected from SignalR hub with error", userId);
-        }
         else
-        {
             _logger.LogInformation("User {UserId} disconnected from SignalR hub", userId);
-        }
 
-        // Removes user from group
         if (!string.IsNullOrEmpty(userId))
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{userId}");
@@ -136,44 +107,27 @@ public class ChatHub : Hub
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, FaceChatBroadcastGroup(_faceScope.FaceId));
         }
 
-        // Calls base implementation
+        if (CanManageAllFaces())
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, OperatorAiHubGroups.Operators);
+
         await base.OnDisconnectedAsync(exception);
     }
 
-    /// <summary>
-    /// Sends message to all connected clients
-    /// 
-    /// This method can be called from client using:
-    /// await connection.InvokeAsync("SendMessage", "Username", "Message text");
-    /// </summary>
-    /// <param name="user">Name of user sending the message</param>
-    /// <param name="message">Message text</param>
     public async Task SendMessage(string user, string message)
     {
         if (!_faceScope.IsAvailable)
             return;
 
-        // Gets sender User ID
         var userId = Context.User?.Identity?.Name ?? Context.UserIdentifier;
 
-        // BE-L3: broadcast path — log metadata only, not message body (may contain PII or secrets).
         _logger.LogInformation(
             "User {UserId} sent hub message ({MessageMeta})",
             userId,
             PiiLogRedaction.FormatChatMessageForLog(message));
 
-        // Tenant-scoped broadcast (ACL G14): never fan out across URL face prefixes.
         await Clients.Group(FaceChatBroadcastGroup(_faceScope.FaceId)).SendAsync("ReceiveMessage", user, message);
     }
 
-    /// <summary>
-    /// Sends private message to specific user
-    /// 
-    /// This method can be called from client using:
-    /// await connection.InvokeAsync("SendPrivateMessage", "targetUserId", "Message text");
-    /// </summary>
-    /// <param name="targetUserId">User ID of message recipient (from JWT token - ClaimTypes.NameIdentifier)</param>
-    /// <param name="message">Message text</param>
     public async Task SendPrivateMessage(string targetUserId, string message)
     {
         if (!_faceScope.IsAvailable)
@@ -189,31 +143,17 @@ public class ChatHub : Hub
 
         _logger.LogInformation("User {UserId} sent private message to {TargetUserId}", senderId, targetUserId);
 
-        // Sends message only to specific user
-        // Clients.User() finds all connections of given user and sends message to all of them
-        // Client can listen on "ReceivePrivateMessage" callback:
-        // connection.On("ReceivePrivateMessage", (string sender, string message) => { ... });
         await Clients.User(targetUserId).SendAsync("ReceivePrivateMessage", senderId, message);
     }
 
-    /// <summary>
-    /// Sends user message to AI service (Python) via gRPC Generate RPC and returns AI response to caller.
-    /// Optional history builds conversation context so the model can "remember" previous messages in this session.
-    /// Client can call: await connection.InvokeAsync("SendToAi", "user message", historyArray);
-    /// Client listens: connection.On("ReceiveAiMessage", (string userMessage, string aiResponse) => { ... });
-    /// </summary>
-    /// <param name="message">User message (prompt) to send to the AI.</param>
-    /// <param name="history">Optional list of previous user/AI message pairs for conversation context.</param>
     public async Task SendToAi(string message, ChatHistoryEntry[]? history = null)
     {
         var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        // BE-L3: operator/user AI prompts are untrusted input — never log raw text (PI-9 trust boundary).
         _logger.LogInformation(
             "User {UserId} sent message to AI ({MessageMeta})",
             userId,
             PiiLogRedaction.FormatChatMessageForLog(message));
 
-        // ACL A20: bound gRPC cost per user; authenticated hub only — still need abuse limits for shared AI backend.
         if (!_aiRateLimiter.TryAllow(userId))
         {
             await Clients.Caller.SendAsync(
@@ -242,15 +182,15 @@ public class ChatHub : Hub
     }
 
     /// <summary>
-    /// Platform-operator AI chat with optional public aggregate statistics (<paramref name="statsMode"/>:
-    /// <c>off</c>, <c>inline</c> — JSON from DB, <c>live</c> — Python HTTP-fetches configured public URL).
+    /// Operator shared inbox: persists turns to DB, loads history server-side, broadcasts to <see cref="OperatorAiHubGroups.Operators"/>.
     /// </summary>
-    public async Task SendToAiWithOperatorStats(string message, ChatHistoryEntry[]? history, string? statsMode)
+    public async Task SendToAiWithOperatorStats(int conversationId, string message, string? statsMode)
     {
         var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         _logger.LogInformation(
-            "User {UserId} sent operator stats AI message (mode {Mode})",
+            "User {UserId} sent operator stats AI message (conversation {ConversationId}, mode {Mode})",
             userId,
+            conversationId,
             statsMode ?? "off");
 
         if (!CanManageAllFaces())
@@ -262,11 +202,37 @@ public class ChatHub : Hub
             return;
         }
 
+        if (string.IsNullOrEmpty(userId))
+            return;
+
+        var trimmed = (message ?? string.Empty).Trim();
+        if (trimmed.Length == 0)
+            return;
+
+        if (trimmed.Length > _operatorAiOptions.MaxMessageLength)
+        {
+            await Clients.Caller.SendAsync(
+                "ReceiveAiMessage",
+                trimmed,
+                $"Message exceeds maximum length ({_operatorAiOptions.MaxMessageLength} characters).");
+            return;
+        }
+
+        var conversation = await _operatorAi.GetConversationAsync(conversationId, Context.ConnectionAborted);
+        if (conversation == null)
+        {
+            await Clients.Caller.SendAsync(
+                "ReceiveAiMessage",
+                trimmed,
+                "Conversation not found. Start a new chat or refresh the list.");
+            return;
+        }
+
         if (!_aiRateLimiter.TryAllow(userId))
         {
             await Clients.Caller.SendAsync(
                 "ReceiveAiMessage",
-                message ?? string.Empty,
+                trimmed,
                 "You are sending too many AI requests. Please wait a moment and try again.");
             return;
         }
@@ -275,17 +241,23 @@ public class ChatHub : Hub
         if (mode is not ("off" or "inline" or "live"))
             mode = "off";
 
+        var history = await _operatorAi.GetRecentHistoryPairsAsync(
+            conversationId,
+            _operatorAiOptions.MaxHistoryPairs,
+            Context.ConnectionAborted);
+
+        var maxTokens = _operatorAiOptions.MaxNewTokens;
         string aiResponse;
         try
         {
-            var prompt = BuildPromptWithHistory(message ?? string.Empty, history);
+            var prompt = BuildPromptWithHistory(trimmed, history.ToArray());
             if (mode == "inline")
             {
                 var snapshot = await _platformStats.GetPublicSnapshotAsync(Context.ConnectionAborted);
                 var json = JsonSerializer.Serialize(snapshot, PublicStatsJsonOptions);
                 aiResponse = await _aiGrpcService.GenerateAsync(
                     prompt,
-                    maxNewTokens: 150,
+                    maxNewTokens: maxTokens,
                     statsContextJson: json,
                     cancellationToken: Context.ConnectionAborted);
             }
@@ -299,18 +271,18 @@ public class ChatHub : Hub
                 }
                 else
                 {
-                    var historyText = BuildHistoryPlainText(history);
+                    var historyText = BuildHistoryPlainText(history.ToArray());
                     aiResponse = await _aiGrpcService.OperatorStatsChatAsync(
-                        message ?? string.Empty,
+                        trimmed,
                         historyText,
                         fetchLivePublicSnapshot: true,
                         publicStatsAbsoluteUrl: liveUrl,
-                        maxNewTokens: 150,
+                        maxNewTokens: maxTokens,
                         cancellationToken: Context.ConnectionAborted);
                 }
             }
             else
-                aiResponse = await _aiGrpcService.GenerateAsync(prompt, maxNewTokens: 150, cancellationToken: Context.ConnectionAborted);
+                aiResponse = await _aiGrpcService.GenerateAsync(prompt, maxNewTokens: maxTokens, cancellationToken: Context.ConnectionAborted);
 
             if (string.IsNullOrWhiteSpace(aiResponse))
                 aiResponse = "...";
@@ -321,15 +293,34 @@ public class ChatHub : Hub
             aiResponse = "Error: AI service is currently unavailable. Please try again later.";
         }
 
-        await Clients.Caller.SendAsync("ReceiveAiMessage", message ?? string.Empty, aiResponse);
+        var (userDto, assistantDto) = await _operatorAi.AppendExchangeAsync(
+            conversationId,
+            userId,
+            trimmed,
+            aiResponse,
+            mode,
+            Context.ConnectionAborted);
+
+        var updatedConversation = await _operatorAi.GetConversationAsync(conversationId, Context.ConnectionAborted)
+            ?? conversation;
+
+        await Clients.Caller.SendAsync("ReceiveAiMessage", trimmed, aiResponse);
+
+        var appended = new OperatorAiMessageAppendedEventDto
+        {
+            ConversationId = conversationId,
+            UserMessage = userDto,
+            AssistantMessage = assistantDto,
+            Conversation = updatedConversation,
+        };
+
+        await Clients.Group(OperatorAiHubGroups.Operators).SendAsync("OperatorAiMessageAppended", appended);
+        await Clients.Group(OperatorAiHubGroups.Operators).SendAsync("OperatorAiConversationListChanged", updatedConversation);
     }
 
-    /// <summary>
-    /// Builds prompt string from optional history and current user message so the model sees conversation context.
-    /// </summary>
     private static string BuildPromptWithHistory(string message, ChatHistoryEntry[]? history)
     {
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         if (history != null && history.Length > 0)
         {
             foreach (var entry in history)
@@ -340,6 +331,7 @@ public class ChatHub : Hub
                 sb.Append("AI: ").AppendLine(a);
             }
         }
+
         sb.Append("User: ").AppendLine(message);
         sb.Append("AI:");
         return sb.ToString();

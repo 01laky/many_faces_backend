@@ -154,6 +154,30 @@
   <data name="pages.chat.you" xml:space="preserve">
     <value>Vy</value>
   </data>
+  <data name="pages.chat.newChat" xml:space="preserve">
+    <value>Nový chat</value>
+  </data>
+  <data name="pages.chat.deleteChat" xml:space="preserve">
+    <value>Smazat</value>
+  </data>
+  <data name="pages.chat.confirmDelete" xml:space="preserve">
+    <value>Smazat tuto konverzaci pro všechny operátory?</value>
+  </data>
+  <data name="pages.chat.sidebarEmpty" xml:space="preserve">
+    <value>Zatím žádné konverzace. Začněte nový chat.</value>
+  </data>
+  <data name="pages.chat.loadOlder" xml:space="preserve">
+    <value>Načíst starší zprávy</value>
+  </data>
+  <data name="pages.chat.loadingOlder" xml:space="preserve">
+    <value>Načítání…</value>
+  </data>
+  <data name="pages.chat.unnamedThread" xml:space="preserve">
+    <value>Nová konverzace</value>
+  </data>
+  <data name="pages.chat.selectOrNew" xml:space="preserve">
+    <value>Vyberte konverzaci nebo začněte nový chat.</value>
+  </data>
   <data name="pages.createFace.description" xml:space="preserve">
     <value>Popis</value>
   </data>

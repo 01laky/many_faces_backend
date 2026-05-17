@@ -99,6 +99,9 @@ if (builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("T
 }
 
 builder.Services.AddScoped<IPlatformStatsQueryService, PlatformStatsQueryService>();
+builder.Services.AddOptions<BeDemo.Api.Configuration.OperatorAiOptions>()
+    .BindConfiguration(BeDemo.Api.Configuration.OperatorAiOptions.SectionName);
+builder.Services.AddScoped<IOperatorAiConversationService, OperatorAiConversationService>();
 builder.Services.AddScoped<IChatRoomLifecycleService, ChatRoomLifecycleService>();
 // User-generated content moderation: AI job worker, dashboard metrics, in-app notifications, and optional retention cleanup.
 builder.Services.AddScoped<IContentAiReviewService, ContentAiReviewService>();

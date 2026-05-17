@@ -154,6 +154,30 @@
   <data name="pages.chat.you" xml:space="preserve">
     <value>You</value>
   </data>
+  <data name="pages.chat.newChat" xml:space="preserve">
+    <value>New chat</value>
+  </data>
+  <data name="pages.chat.deleteChat" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="pages.chat.confirmDelete" xml:space="preserve">
+    <value>Delete this conversation for all operators?</value>
+  </data>
+  <data name="pages.chat.sidebarEmpty" xml:space="preserve">
+    <value>No conversations yet. Start a new chat.</value>
+  </data>
+  <data name="pages.chat.loadOlder" xml:space="preserve">
+    <value>Load older messages</value>
+  </data>
+  <data name="pages.chat.loadingOlder" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="pages.chat.unnamedThread" xml:space="preserve">
+    <value>New conversation</value>
+  </data>
+  <data name="pages.chat.selectOrNew" xml:space="preserve">
+    <value>Select a conversation or start a new chat.</value>
+  </data>
   <data name="pages.createFace.description" xml:space="preserve">
     <value>Description</value>
   </data>

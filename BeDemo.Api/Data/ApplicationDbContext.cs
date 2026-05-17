@@ -71,6 +71,12 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     /// <summary>Pending email-code signups (<c>POST /api/oauth2/register/request</c>).</summary>
     public DbSet<RegistrationInvite> RegistrationInvites { get; set; } = null!;
 
+    /// <summary>Shared operator AI support threads (admin chat).</summary>
+    public DbSet<OperatorAiConversation> OperatorAiConversations { get; set; } = null!;
+
+    /// <summary>Messages within <see cref="OperatorAiConversation"/>.</summary>
+    public DbSet<OperatorAiMessage> OperatorAiMessages { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -1083,6 +1089,35 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .IsUnique()
                 .HasFilter("\"ConsumedAtUtc\" IS NULL AND \"RevokedAtUtc\" IS NULL");
             entity.HasIndex(e => e.ExpiresAtUtc);
+        });
+
+        builder.Entity<OperatorAiConversation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.CreatedByUserId).IsRequired().HasMaxLength(450);
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.Property(e => e.UpdatedAt).IsRequired();
+            entity.HasIndex(e => e.UpdatedAt);
+            entity.HasOne(e => e.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<OperatorAiMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Role).IsRequired().HasMaxLength(32);
+            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.StatsMode).HasMaxLength(16);
+            entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+            entity.Property(e => e.CreatedAt).IsRequired();
+            entity.HasIndex(e => new { e.ConversationId, e.Id });
+            entity.HasOne(e => e.Conversation)
+                .WithMany(c => c.Messages)
+                .HasForeignKey(e => e.ConversationId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
