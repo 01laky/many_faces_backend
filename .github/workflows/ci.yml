@@ -10,7 +10,13 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
     steps:
+      # BeDemo.Api.csproj compiles protos from nested submodule many_faces_proto/ (see .gitmodules).
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify proto submodule (gRPC client codegen)
+        run: test -f many_faces_proto/proto/health.proto
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
