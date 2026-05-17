@@ -261,18 +261,15 @@ public class ChatHub : Hub
         try
         {
             var prompt = BuildPromptWithHistory(trimmed, history.ToArray());
-            if (mode is "inline" or "live")
-            {
-                // Full operator dashboard counts from EF (same as GET /api/Stats) — max statistics for the local model.
-                var statsJson = await BuildOperatorStatsContextJsonAsync(Context.ConnectionAborted);
-                aiResponse = await _aiGrpcService.GenerateAsync(
-                    prompt,
-                    maxNewTokens: maxTokens,
-                    statsContextJson: statsJson,
-                    cancellationToken: Context.ConnectionAborted);
-            }
-            else
-                aiResponse = await _aiGrpcService.GenerateAsync(prompt, maxNewTokens: maxTokens, cancellationToken: Context.ConnectionAborted);
+            string? statsJson = null;
+            if (mode is "inline" or "live" && ShouldAttachStatsContext(trimmed))
+                statsJson = await BuildOperatorStatsContextJsonAsync(trimmed, Context.ConnectionAborted);
+
+            aiResponse = await _aiGrpcService.GenerateAsync(
+                prompt,
+                maxNewTokens: maxTokens,
+                statsContextJson: statsJson,
+                cancellationToken: Context.ConnectionAborted);
 
             if (string.IsNullOrWhiteSpace(aiResponse))
                 aiResponse = "...";
@@ -323,13 +320,30 @@ public class ChatHub : Hub
         await Clients.Group(OperatorAiHubGroups.Operators).SendAsync("OperatorAiConversationListChanged", updatedConversation);
     }
 
-    private async Task<string> BuildOperatorStatsContextJsonAsync(CancellationToken cancellationToken)
+    private bool ShouldAttachStatsContext(string userMessage)
+    {
+        if (!_operatorAiOptions.AttachStatsOnlyForMetricsQuestions)
+            return true;
+        return OperatorAiStatsIntent.IsMetricsQuestion(userMessage);
+    }
+
+    private async Task<string> BuildOperatorStatsContextJsonAsync(
+        string userMessage,
+        CancellationToken cancellationToken)
     {
         var dashboard = await _platformStats.GetOperatorDashboardSummaryAsync(cancellationToken);
+        OperatorAiTimeseriesHintsDto? timeseries = null;
+        if (_operatorAiOptions.IncludeTimeseriesInStatsContext
+            && OperatorAiStatsIntent.IsMetricsQuestion(userMessage))
+        {
+            timeseries = await _platformStats.GetOperatorAiTimeseriesHintsAsync(cancellationToken);
+        }
+
         var payload = new OperatorAiStatsContextDto
         {
             SnapshotUtc = DateTime.UtcNow,
             Dashboard = dashboard,
+            TimeseriesLast7Days = timeseries,
         };
         return JsonSerializer.Serialize(payload, PublicStatsJsonOptions);
     }

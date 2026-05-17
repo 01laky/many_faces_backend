@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Models.DTOs.OperatorAi;
+using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Services;
 
@@ -14,6 +16,9 @@ public interface IPlatformStatsQueryService
     Task<AdminDashboardSummaryDto> GetOperatorDashboardSummaryAsync(CancellationToken cancellationToken = default);
 
     Task<PublicStatsSnapshotDto> GetPublicSnapshotAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Last 7 UTC days of daily counts for key metrics (operator AI context).</summary>
+    Task<OperatorAiTimeseriesHintsDto> GetOperatorAiTimeseriesHintsAsync(CancellationToken cancellationToken = default);
 }
 
 /// <inheritdoc />
@@ -109,6 +114,53 @@ public sealed class PlatformStatsQueryService : IPlatformStatsQueryService
             ContentModerationEventsCount = await _context.ContentModerationEvents.AsNoTracking().CountAsync(cancellationToken),
 
             OAuthClientsCount = await _context.OAuthClients.AsNoTracking().CountAsync(cancellationToken),
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<OperatorAiTimeseriesHintsDto> GetOperatorAiTimeseriesHintsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var toUtc = DateTime.UtcNow;
+        var fromUtc = toUtc.Date.AddDays(-6);
+        const string bucket = "day";
+
+        async Task<IReadOnlyList<OperatorAiTimeseriesBucketDto>> SeriesAsync(
+            IQueryable<DateTime> query)
+        {
+            var timestamps = await query.ToListAsync(cancellationToken);
+            return StatsTimeseriesBucketing
+                .BucketizeUtc(timestamps, fromUtc, toUtc, bucket)
+                .Select(b => new OperatorAiTimeseriesBucketDto
+                {
+                    PeriodStartUtc = b.PeriodStartUtc,
+                    Count = b.Count,
+                })
+                .ToList();
+        }
+
+        var series = new Dictionary<string, IReadOnlyList<OperatorAiTimeseriesBucketDto>>
+        {
+            ["users"] = await SeriesAsync(
+                _context.Users.AsNoTracking()
+                    .Where(u => u.CreatedAt >= fromUtc && u.CreatedAt <= toUtc)
+                    .Select(u => u.CreatedAt)),
+            ["messages"] = await SeriesAsync(
+                _context.Messages.AsNoTracking()
+                    .Where(m => m.SentAt >= fromUtc && m.SentAt <= toUtc)
+                    .Select(m => m.SentAt)),
+            ["stories"] = await SeriesAsync(
+                _context.Stories.AsNoTracking()
+                    .Where(s => s.CreatedAt >= fromUtc && s.CreatedAt <= toUtc)
+                    .Select(s => s.CreatedAt)),
+        };
+
+        return new OperatorAiTimeseriesHintsDto
+        {
+            FromUtc = fromUtc,
+            ToUtc = toUtc,
+            Bucket = bucket,
+            Series = series,
         };
     }
 
