@@ -12,6 +12,7 @@ using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Services;
 
@@ -81,7 +82,10 @@ public sealed class OAuth2Service : IOAuth2Service
                     ?? await userManager.FindByNameAsync(request.Username).ConfigureAwait(false);
                 if (userByCreds == null || !await userManager.CheckPasswordAsync(userByCreds, request.Password).ConfigureAwait(false))
                 {
-                    _logger.LogWarning("Invalid username/email or password for user: {Username}", request.Username);
+                    // BE-L1: never log raw username/email on failed password grant (credential stuffing forensics use hash only).
+                    _logger.LogWarning(
+                        "Invalid username/email or password ({CredentialHint})",
+                        PiiLogRedaction.FormatCredentialIdentifierForLog(request.Username));
                     return null;
                 }
 

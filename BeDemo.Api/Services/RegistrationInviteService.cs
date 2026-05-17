@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Utils;
 using ManyFaces.Mailer.V1;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -402,7 +403,10 @@ public sealed class RegistrationInviteService : IRegistrationInviteService
     {
         if (!_mailOptions.Value.IsEnabled)
         {
-            _logger.LogWarning("Mail worker disabled; registration invite created but email not sent for {Email}", invite.Email);
+            // BE-L2: log invite id + email domain only — not the full mailbox (PII).
+            _logger.LogWarning(
+                "Mail worker disabled; registration invite created but email not sent ({EmailHint})",
+                PiiLogRedaction.FormatEmailForLog(invite.Email, invite.Id));
             return;
         }
 

@@ -7,6 +7,7 @@ using BeDemo.Api.Models;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models.Requests.Users;
 using BeDemo.Api.Services;
+using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
 
@@ -251,7 +252,10 @@ public class UsersController : ControllerBase
                 return CreatedAtAction(nameof(GetUser), new { id = user.Id }, userDto);
             }
 
-            _logger.LogWarning("User creation failed: {Email}, Errors: {Errors}", model.Email, string.Join(", ", result.Errors.Select(e => e.Description)));
+            _logger.LogWarning(
+                "User creation failed ({EmailHint}), Errors: {Errors}",
+                PiiLogRedaction.FormatEmailForLog(model.Email),
+                string.Join(", ", result.Errors.Select(e => e.Description)));
             return BadRequest(result.Errors);
         }
         catch (Exception ex)

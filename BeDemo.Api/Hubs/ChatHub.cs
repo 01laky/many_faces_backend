@@ -156,7 +156,11 @@ public class ChatHub : Hub
         // Gets sender User ID
         var userId = Context.User?.Identity?.Name ?? Context.UserIdentifier;
 
-        _logger.LogInformation("User {UserId} sent message: {Message}", userId, message);
+        // BE-L3: broadcast path — log metadata only, not message body (may contain PII or secrets).
+        _logger.LogInformation(
+            "User {UserId} sent hub message ({MessageMeta})",
+            userId,
+            PiiLogRedaction.FormatChatMessageForLog(message));
 
         // Tenant-scoped broadcast (ACL G14): never fan out across URL face prefixes.
         await Clients.Group(FaceChatBroadcastGroup(_faceScope.FaceId)).SendAsync("ReceiveMessage", user, message);
@@ -203,7 +207,11 @@ public class ChatHub : Hub
     public async Task SendToAi(string message, ChatHistoryEntry[]? history = null)
     {
         var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        _logger.LogInformation("User {UserId} sent message to AI: {Message}", userId, message);
+        // BE-L3: operator/user AI prompts are untrusted input — never log raw text (PI-9 trust boundary).
+        _logger.LogInformation(
+            "User {UserId} sent message to AI ({MessageMeta})",
+            userId,
+            PiiLogRedaction.FormatChatMessageForLog(message));
 
         // ACL A20: bound gRPC cost per user; authenticated hub only — still need abuse limits for shared AI backend.
         if (!_aiRateLimiter.TryAllow(userId))

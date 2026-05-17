@@ -181,6 +181,64 @@ public class OAuth2ServiceTests
     }
 
     [Fact]
+    public async Task GenerateTokenAsync_WhenPasswordInvalid_LogsRedactedCredentialHintNotRawUsername()
+    {
+        const string username = "never-log-raw@example.com";
+        var userStore = new Mock<IUserStore<ApplicationUser>>();
+        var userManager = new Mock<UserManager<ApplicationUser>>(
+            userStore.Object,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!,
+            null!);
+
+        userManager
+            .Setup(m => m.FindByEmailAsync(username))
+            .ReturnsAsync((ApplicationUser?)null);
+        userManager
+            .Setup(m => m.FindByNameAsync(username))
+            .ReturnsAsync((ApplicationUser?)null);
+
+        var service = CreateService();
+        var request = new OAuth2TokenRequest
+        {
+            GrantType = "password",
+            ClientId = "test-client",
+            ClientSecret = "test-secret",
+            Username = username,
+            Password = "WrongPassword1!",
+        };
+
+        _mockLogger.Setup(x => x.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+        var loggedRedacted = false;
+        _mockLogger
+            .Setup(x => x.Log(
+                It.IsAny<LogLevel>(),
+                It.IsAny<EventId>(),
+                It.IsAny<It.IsAnyType>(),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+            .Callback(new InvocationAction(invocation =>
+            {
+                if (invocation.Arguments[0] is not LogLevel.Warning)
+                    return;
+                var text = invocation.Arguments[2]?.ToString() ?? string.Empty;
+                if (text.Contains("credentialHintSha256Prefix=", StringComparison.Ordinal)
+                    && !text.Contains(username, StringComparison.Ordinal))
+                    loggedRedacted = true;
+            }));
+
+        var token = await service.GenerateTokenAsync(request, userManager.Object);
+
+        token.Should().BeNull();
+        loggedRedacted.Should().BeTrue("failed password grant must log redacted credential hint only");
+    }
+
+    [Fact]
     public void ValidateRequestSignature_ShouldReturnFalse_WhenAlgorithmIsMissing()
     {
         // Arrange
