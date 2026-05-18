@@ -37,7 +37,7 @@ public class MessagesController : ControllerBase
 
     /// <summary>GET /api/messages/conversations - List conversations with last message</summary>
     [HttpGet("conversations")]
-    public async Task<IActionResult> GetConversations()
+    public async Task<IActionResult> GetConversations(CancellationToken cancellationToken)
     {
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
@@ -79,7 +79,19 @@ public class MessagesController : ControllerBase
             .OrderByDescending(c => c.lastMessageAt)
             .ToList();
 
-        return Ok(byOther);
+        var callerFaceBanned = await IsCallerFaceBannedInScopeAsync(cancellationToken);
+        var superAdminIds = await MessengerModerationHelper.GetSuperAdminUserIdsAsync(
+            _context,
+            byOther.Select(c => c.otherUserId),
+            cancellationToken);
+        var filtered = byOther
+            .Where(c => !MessengerModerationHelper.ShouldHidePeerConversation(
+                callerFaceBanned,
+                c.otherUserId,
+                superAdminIds))
+            .ToList();
+
+        return Ok(filtered);
     }
 
     /// <summary>GET /api/messages/requests - Message requests from non-friends</summary>

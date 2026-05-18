@@ -23,4 +23,27 @@ public class OperatorModerationGuardTests
         OperatorModerationGuard.CanBanTarget("operator", superTarget).Should().BeFalse();
         OperatorModerationGuard.CanBanTarget("operator", target).Should().BeTrue();
     }
+
+    [Fact]
+    public void CanChangeFaceRole_ShouldRejectSuperAdminTarget()
+    {
+        var super = new ApplicationUser
+        {
+            UserRole = new UserRole { Name = UserRole.GlobalRoleNames.SuperAdmin },
+        };
+        var user = new ApplicationUser
+        {
+            UserRole = new UserRole { Name = UserRole.GlobalRoleNames.User },
+        };
+        OperatorModerationGuard.CanChangeFaceRole(super).Should().BeFalse();
+        OperatorModerationGuard.CanChangeFaceRole(user).Should().BeTrue();
+    }
+
+    [Fact]
+    public void IsGlobalSuperAdminRole_ShouldMatchCaseInsensitive()
+    {
+        OperatorModerationGuard.IsGlobalSuperAdminRole("SUPER_ADMIN").Should().BeTrue();
+        OperatorModerationGuard.IsGlobalSuperAdminRole("super_admin").Should().BeTrue();
+        OperatorModerationGuard.IsGlobalSuperAdminRole("ADMIN").Should().BeFalse();
+    }
 }

@@ -17,7 +17,9 @@ public sealed class FaceModerationService : IFaceModerationService
                 cancellationToken);
 
     public bool IsUserGloballyBanned(ApplicationUser user) =>
-        user.LockoutEnabled && (user.LockoutEnd == null || user.LockoutEnd > DateTimeOffset.UtcNow);
+        user.LockoutEnabled
+        && user.LockoutEnd.HasValue
+        && user.LockoutEnd > DateTimeOffset.UtcNow;
 
     public Task<bool> ShouldBlockPeerActivityInFaceAsync(string userId, int faceId, CancellationToken cancellationToken = default) =>
         IsUserBannedFromFaceAsync(userId, faceId, cancellationToken);

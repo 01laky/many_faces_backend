@@ -201,10 +201,16 @@ public sealed class OperatorUserModerationService : IOperatorUserModerationServi
         if (_faceModeration.IsUserGloballyBanned(target))
             return (true, null, StatusCodes.Status200OK, true);
 
-        target.LockoutEnabled = true;
-        target.LockoutEnd = GlobalBanLockoutEnd;
-        target.AccessTokenVersion++;
-        await _userManager.UpdateAsync(target);
+        var managed = await _userManager.FindByIdAsync(targetUserId);
+        if (managed == null)
+            return (false, "User not found", StatusCodes.Status404NotFound, false);
+
+        await _userManager.SetLockoutEnabledAsync(managed, true);
+        await _userManager.SetLockoutEndDateAsync(managed, GlobalBanLockoutEnd);
+        managed.AccessTokenVersion++;
+        var updateResult = await _userManager.UpdateAsync(managed);
+        if (!updateResult.Succeeded)
+            return (false, "Failed to apply global ban", StatusCodes.Status500InternalServerError, false);
         await _refreshTokens.RevokeAllActiveForUserAsync(targetUserId, cancellationToken);
         SecurityAuditLog.OperatorGlobalBan(_logger, operatorUserId, targetUserId, reason.Length, correlationId);
         return (true, null, StatusCodes.Status200OK, false);
@@ -223,9 +229,11 @@ public sealed class OperatorUserModerationService : IOperatorUserModerationServi
         if (!_faceModeration.IsUserGloballyBanned(target))
             return (true, null, StatusCodes.Status204NoContent);
 
-        target.LockoutEnabled = false;
-        target.LockoutEnd = null;
-        await _userManager.UpdateAsync(target);
+        await _userManager.SetLockoutEndDateAsync(target, null);
+        await _userManager.SetLockoutEnabledAsync(target, false);
+        var updateResult = await _userManager.UpdateAsync(target);
+        if (!updateResult.Succeeded)
+            return (false, "Failed to remove global ban", StatusCodes.Status500InternalServerError);
         SecurityAuditLog.OperatorGlobalUnban(_logger, operatorUserId, targetUserId, correlationId);
         return (true, null, StatusCodes.Status200OK);
     }
