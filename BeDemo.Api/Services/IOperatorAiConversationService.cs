@@ -32,6 +32,8 @@ public interface IOperatorAiConversationService
     Task<(OperatorAiMessageDto User, OperatorAiMessageDto Assistant)> AppendExchangeAsync(
         int conversationId,
         string userId,
+        string operatorEmail,
+        string responseLocale,
         string userContent,
         string assistantContent,
         string? statsMode,

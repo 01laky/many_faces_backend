@@ -70,6 +70,7 @@ public class AiGrpcService : IAiGrpcService, IDisposable
         string prompt,
         int maxNewTokens = 50,
         string? statsContextJson = null,
+        string? responseLocale = null,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(prompt))
@@ -82,6 +83,8 @@ public class AiGrpcService : IAiGrpcService, IDisposable
         };
         if (!string.IsNullOrWhiteSpace(statsContextJson))
             request.StatsContextJson = statsContextJson.Trim();
+        if (!string.IsNullOrWhiteSpace(responseLocale))
+            request.ResponseLocale = responseLocale.Trim();
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(_deadline);
         var callOptions = new CallOptions(deadline: DateTime.UtcNow.Add(_deadline), cancellationToken: cts.Token);

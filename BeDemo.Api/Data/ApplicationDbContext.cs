@@ -1115,6 +1115,8 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Content).IsRequired();
             entity.Property(e => e.StatsMode).HasMaxLength(16);
             entity.Property(e => e.CreatedByUserId).HasMaxLength(450);
+            entity.Property(e => e.AuthorEmail).HasMaxLength(256);
+            entity.Property(e => e.ResponseLocale).HasMaxLength(8);
             entity.Property(e => e.CreatedAt).IsRequired();
             entity.HasIndex(e => new { e.ConversationId, e.Id });
             entity.HasOne(e => e.Conversation)

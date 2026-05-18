@@ -17,6 +17,8 @@ public sealed class OperatorAiMessageDto
     public string Content { get; set; } = string.Empty;
     public string? StatsMode { get; set; }
     public string? CreatedByUserId { get; set; }
+    public string? AuthorEmail { get; set; }
+    public string? ResponseLocale { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 

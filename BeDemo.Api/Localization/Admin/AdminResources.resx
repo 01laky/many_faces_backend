@@ -181,6 +181,45 @@
   <data name="pages.chat.errorGeneric" xml:space="preserve">
     <value>Could not get an AI response. Please try again.</value>
   </data>
+  <data name="pages.chat.localeUnknown" xml:space="preserve">
+    <value>—</value>
+  </data>
+  <data name="pages.chat.localeBadge.en" xml:space="preserve">
+    <value>EN</value>
+  </data>
+  <data name="pages.chat.localeBadge.sk" xml:space="preserve">
+    <value>SK</value>
+  </data>
+  <data name="pages.chat.localeBadge.cz" xml:space="preserve">
+    <value>CZ</value>
+  </data>
+  <data name="pages.chat.hub.errors.invalid_locale" xml:space="preserve">
+    <value>Invalid language selection. Switch admin language to English, Slovak, or Czech and try again.</value>
+  </data>
+  <data name="pages.chat.hub.errors.not_operator" xml:space="preserve">
+    <value>Statistics-aware AI is only available to platform operators.</value>
+  </data>
+  <data name="pages.chat.hub.errors.conversation_not_found" xml:space="preserve">
+    <value>Conversation not found. Start a new chat or refresh the list.</value>
+  </data>
+  <data name="pages.chat.hub.errors.message_too_long" xml:space="preserve">
+    <value>Message is too long.</value>
+  </data>
+  <data name="pages.chat.hub.errors.rate_limited" xml:space="preserve">
+    <value>Too many AI requests. Please wait a moment and try again.</value>
+  </data>
+  <data name="pages.chat.hub.errors.model_loading" xml:space="preserve">
+    <value>AI model is still loading. Please wait and try again.</value>
+  </data>
+  <data name="pages.chat.hub.errors.ai_unavailable" xml:space="preserve">
+    <value>AI service is unavailable. Please try again later.</value>
+  </data>
+  <data name="pages.chat.hub.errors.ai_generation_failed" xml:space="preserve">
+    <value>AI generation failed. Please try again.</value>
+  </data>
+  <data name="pages.chat.hub.errors.ai_guard_rejected" xml:space="preserve">
+    <value>Could not process this request (AI service or statistics context). Try again or switch statistics mode to inline.</value>
+  </data>
   <data name="pages.chat.send" xml:space="preserve">
     <value>Send</value>
   </data>

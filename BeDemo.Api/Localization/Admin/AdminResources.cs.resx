@@ -181,6 +181,45 @@
   <data name="pages.chat.errorGeneric" xml:space="preserve">
     <value>Nepodařilo se získat odpověď AI. Zkuste to znovu.</value>
   </data>
+  <data name="pages.chat.localeUnknown" xml:space="preserve">
+    <value>—</value>
+  </data>
+  <data name="pages.chat.localeBadge.en" xml:space="preserve">
+    <value>EN</value>
+  </data>
+  <data name="pages.chat.localeBadge.sk" xml:space="preserve">
+    <value>SK</value>
+  </data>
+  <data name="pages.chat.localeBadge.cz" xml:space="preserve">
+    <value>CZ</value>
+  </data>
+  <data name="pages.chat.hub.errors.invalid_locale" xml:space="preserve">
+    <value>Neplatný jazyk. Přepněte admin jazyk na angličtinu, slovenštinu nebo češtinu a zkuste to znovu.</value>
+  </data>
+  <data name="pages.chat.hub.errors.not_operator" xml:space="preserve">
+    <value>AI se statistikami je dostupné pouze pro operátory platformy.</value>
+  </data>
+  <data name="pages.chat.hub.errors.conversation_not_found" xml:space="preserve">
+    <value>Konverzace nenalezena. Zahajte nový chat nebo obnovte seznam.</value>
+  </data>
+  <data name="pages.chat.hub.errors.message_too_long" xml:space="preserve">
+    <value>Zpráva je příliš dlouhá.</value>
+  </data>
+  <data name="pages.chat.hub.errors.rate_limited" xml:space="preserve">
+    <value>Příliš mnoho požadavků na AI. Chvíli počkejte a zkuste to znovu.</value>
+  </data>
+  <data name="pages.chat.hub.errors.model_loading" xml:space="preserve">
+    <value>AI model se stále načítá. Počkejte a zkuste to znovu.</value>
+  </data>
+  <data name="pages.chat.hub.errors.ai_unavailable" xml:space="preserve">
+    <value>AI služba není dostupná. Zkuste to později.</value>
+  </data>
+  <data name="pages.chat.hub.errors.ai_generation_failed" xml:space="preserve">
+    <value>Generování AI selhalo. Zkuste to znovu.</value>
+  </data>
+  <data name="pages.chat.hub.errors.ai_guard_rejected" xml:space="preserve">
+    <value>Požadavek se nepodařilo zpracovat (AI nebo kontext statistik). Zkuste to znovu nebo přepněte statistiky na inline.</value>
+  </data>
   <data name="pages.chat.send" xml:space="preserve">
     <value>Odeslat</value>
   </data>

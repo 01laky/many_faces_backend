@@ -1179,6 +1179,7 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
             string prompt,
             int maxNewTokens = 50,
             string? statsContextJson = null,
+            string? responseLocale = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult(string.Empty);
 

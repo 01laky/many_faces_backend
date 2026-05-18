@@ -6,6 +6,7 @@ using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.DTOs.OperatorAi;
 using BeDemo.Api.Models.Requests.OperatorAi;
+using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Services;
 
@@ -123,11 +124,18 @@ public sealed class OperatorAiConversationService : IOperatorAiConversationServi
     public async Task<(OperatorAiMessageDto User, OperatorAiMessageDto Assistant)> AppendExchangeAsync(
         int conversationId,
         string userId,
+        string operatorEmail,
+        string responseLocale,
         string userContent,
         string assistantContent,
         string? statsMode,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(operatorEmail))
+            throw new ArgumentException("Operator email is required.", nameof(operatorEmail));
+        if (!OperatorAiLocaleValidator.TryNormalize(responseLocale, out var normalizedLocale))
+            throw new ArgumentException("Invalid response locale.", nameof(responseLocale));
+
         var conversation = await _context.OperatorAiConversations
             .FirstOrDefaultAsync(c => c.Id == conversationId, cancellationToken)
             ?? throw new InvalidOperationException($"Conversation {conversationId} not found.");
@@ -140,6 +148,8 @@ public sealed class OperatorAiConversationService : IOperatorAiConversationServi
             Content = userContent,
             StatsMode = statsMode,
             CreatedByUserId = userId,
+            AuthorEmail = operatorEmail.Trim(),
+            ResponseLocale = normalizedLocale,
             CreatedAt = now,
         };
         var assistantMsg = new OperatorAiMessage
@@ -147,6 +157,7 @@ public sealed class OperatorAiConversationService : IOperatorAiConversationServi
             ConversationId = conversationId,
             Role = OperatorAiMessage.RoleAssistant,
             Content = assistantContent,
+            ResponseLocale = normalizedLocale,
             CreatedAt = now.AddMilliseconds(1),
         };
 
@@ -234,6 +245,8 @@ public sealed class OperatorAiConversationService : IOperatorAiConversationServi
             Content = m.Content,
             StatsMode = m.StatsMode,
             CreatedByUserId = m.CreatedByUserId,
+            AuthorEmail = m.AuthorEmail,
+            ResponseLocale = m.ResponseLocale,
             CreatedAt = m.CreatedAt,
         };
 }

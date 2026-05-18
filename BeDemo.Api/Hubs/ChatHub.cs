@@ -1,15 +1,17 @@
 /*
  * ChatHub.cs - SignalR Hub for real-time chat communication
  *
- * Operator AI: shared support inbox via SendToAiWithOperatorStats(conversationId, message, statsMode)
+ * Operator AI: shared support inbox via SendToAiWithOperatorStats(conversationId, message, statsMode, responseLocale)
  * with DB persistence and operator_ai_operators group broadcasts.
  */
 
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using BeDemo.Api.Configuration;
 using BeDemo.Api.Data;
@@ -184,66 +186,73 @@ public class ChatHub : Hub
     /// <summary>
     /// Operator shared inbox: persists turns to DB, loads history server-side, broadcasts to <see cref="OperatorAiHubGroups.Operators"/>.
     /// </summary>
-    public async Task SendToAiWithOperatorStats(int conversationId, string message, string? statsMode)
+    public async Task SendToAiWithOperatorStats(
+        int conversationId,
+        string message,
+        string? statsMode,
+        string? responseLocale)
     {
-        var userId = Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var userId = Context.UserIdentifier ?? Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         _logger.LogInformation(
-            "User {UserId} sent operator stats AI message (conversation {ConversationId}, mode {Mode})",
+            "User {UserId} sent operator stats AI message (conversation {ConversationId}, mode {Mode}, locale {Locale})",
             userId,
             conversationId,
-            statsMode ?? "off");
+            statsMode ?? "off",
+            responseLocale ?? "(missing)");
+
+        var trimmed = (message ?? string.Empty).Trim();
 
         if (!CanManageAllFaces())
         {
-            await Clients.Caller.SendAsync(
-                "ReceiveAiMessage",
-                message ?? string.Empty,
-                "Statistics-aware AI is only available to platform operators (admin face scope + manage-all-faces capability).");
+            await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.NotOperator);
             return;
         }
 
         if (string.IsNullOrEmpty(userId))
             return;
 
-        var trimmed = (message ?? string.Empty).Trim();
+        if (!OperatorAiLocaleValidator.TryNormalize(responseLocale, out var locale))
+        {
+            await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.InvalidLocale);
+            return;
+        }
+
         if (trimmed.Length == 0)
             return;
 
         if (trimmed.Length > _operatorAiOptions.MaxMessageLength)
         {
-            await Clients.Caller.SendAsync(
-                "ReceiveAiMessage",
-                trimmed,
-                $"Message exceeds maximum length ({_operatorAiOptions.MaxMessageLength} characters).");
+            await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.MessageTooLong);
             return;
         }
 
         var conversation = await _operatorAi.GetConversationAsync(conversationId, Context.ConnectionAborted);
         if (conversation == null)
         {
-            await Clients.Caller.SendAsync(
-                "ReceiveAiMessage",
-                trimmed,
-                "Conversation not found. Start a new chat or refresh the list.");
+            await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.ConversationNotFound);
             return;
         }
 
         if (!_aiRateLimiter.TryAllow(userId))
         {
-            await Clients.Caller.SendAsync(
-                "ReceiveAiMessage",
-                trimmed,
-                "You are sending too many AI requests. Please wait a moment and try again.");
+            await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.RateLimited);
             return;
         }
 
         var modelStatus = await _aiGrpcService.GetModelStatusAsync(Context.ConnectionAborted);
         if (!modelStatus.Ready)
         {
-            var waitMessage = modelStatus.Unavailable
-                ? "AI služba nie je dostupná. Skúste to prosím neskôr."
-                : "⏳ AI model sa stále načítava. Počkajte prosím chvíľu a skúste znova.";
-            await Clients.Caller.SendAsync("ReceiveAiMessage", trimmed, waitMessage);
+            var code = modelStatus.Unavailable
+                ? OperatorAiHubErrorCodes.AiUnavailable
+                : OperatorAiHubErrorCodes.ModelLoading;
+            await SendOperatorAiEphemeralAsync(trimmed, code);
+            return;
+        }
+
+        var operatorEmail = await ResolveOperatorEmailAsync(userId, Context.ConnectionAborted);
+        if (string.IsNullOrWhiteSpace(operatorEmail))
+        {
+            await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.NotOperator);
             return;
         }
 
@@ -269,6 +278,7 @@ public class ChatHub : Hub
                 prompt,
                 maxNewTokens: maxTokens,
                 statsContextJson: statsJson,
+                responseLocale: locale,
                 cancellationToken: Context.ConnectionAborted);
 
             if (string.IsNullOrWhiteSpace(aiResponse))
@@ -277,8 +287,8 @@ public class ChatHub : Hub
         catch (Exception ex)
         {
             _logger.LogError(ex, "SendToAiWithOperatorStats failed for user {UserId}", userId);
-            aiResponse =
-                "Ospravedlňujem sa, AI služba momentálne nie je dostupná. Skúste to prosím neskôr.";
+            await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.AiGenerationFailed);
+            return;
         }
 
         if (OperatorAiResponseGuard.ShouldNotPersist(aiResponse))
@@ -286,10 +296,7 @@ public class ChatHub : Hub
             _logger.LogWarning(
                 "Non-chat AI status returned for conversation {ConversationId}, not persisting.",
                 conversationId);
-            await Clients.Caller.SendAsync(
-                "ReceiveAiMessage",
-                trimmed,
-                OperatorAiResponseGuard.ToUserFacingMessage(aiResponse));
+            await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.AiGuardRejected);
             return;
         }
 
@@ -298,6 +305,8 @@ public class ChatHub : Hub
         var (userDto, assistantDto) = await _operatorAi.AppendExchangeAsync(
             conversationId,
             userId,
+            operatorEmail,
+            locale,
             trimmed,
             aiResponse,
             mode,
@@ -305,8 +314,6 @@ public class ChatHub : Hub
 
         var updatedConversation = await _operatorAi.GetConversationAsync(conversationId, Context.ConnectionAborted)
             ?? conversation;
-
-        await Clients.Caller.SendAsync("ReceiveAiMessage", trimmed, aiResponse);
 
         var appended = new OperatorAiMessageAppendedEventDto
         {
@@ -318,6 +325,24 @@ public class ChatHub : Hub
 
         await Clients.Group(OperatorAiHubGroups.Operators).SendAsync("OperatorAiMessageAppended", appended);
         await Clients.Group(OperatorAiHubGroups.Operators).SendAsync("OperatorAiConversationListChanged", updatedConversation);
+    }
+
+    private async Task SendOperatorAiEphemeralAsync(string userText, string hubErrorCode)
+    {
+        await Clients.Caller.SendAsync("ReceiveAiMessage", userText ?? string.Empty, string.Empty, hubErrorCode);
+    }
+
+    private async Task<string?> ResolveOperatorEmailAsync(string userId, CancellationToken cancellationToken)
+    {
+        var email = await _context.Users.AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => u.Email)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(email))
+            return email.Trim();
+
+        return Context.User?.FindFirstValue(ClaimTypes.Email)?.Trim();
     }
 
     private bool ShouldAttachStatsContext(string userMessage)
