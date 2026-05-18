@@ -62,15 +62,6 @@ public class AlbumsControllerTests : IClassFixture<RegistrationInviteWebApplicat
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
 
-    private static async Task<int> GetScopedFaceIdFromConfigAsync(HttpClient faceScopedClient, string bearerToken)
-    {
-        faceScopedClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
-        var cfg = await faceScopedClient.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
-        cfg.Should().NotBeNull();
-        cfg!.Length.Should().Be(1);
-        return cfg[0].GetProperty("id").GetInt32();
-    }
-
     private async Task<int> CreateTestAlbumAsync(
         AlbumTypeEnum albumType = AlbumTypeEnum.Public,
         MediaTypeEnum mediaType = MediaTypeEnum.Image,
@@ -218,7 +209,7 @@ public class AlbumsControllerTests : IClassFixture<RegistrationInviteWebApplicat
     {
         var token = await GetAuthTokenAsync();
         SetAuth(token);
-        var faceId = await GetScopedFaceIdFromConfigAsync(_client, token);
+        var faceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
 
         var response = await _client.PostAsJsonAsync("/api/albums", new
         {
@@ -281,10 +272,10 @@ public class AlbumsControllerTests : IClassFixture<RegistrationInviteWebApplicat
     {
         var token = await GetAuthTokenAsync();
         SetAuth(token);
-        var publicFaceId = await GetScopedFaceIdFromConfigAsync(_client, token);
+        var publicFaceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
 
         using var basicClient = _factory.CreateFaceClient("basic");
-        var basicFaceId = await GetScopedFaceIdFromConfigAsync(basicClient, token);
+        var basicFaceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(basicClient, token, "basic");
 
         var albumId = await CreateTestAlbumAsync(faceIds: new List<int> { publicFaceId });
 

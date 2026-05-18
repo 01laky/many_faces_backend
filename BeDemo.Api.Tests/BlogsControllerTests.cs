@@ -126,9 +126,9 @@ public class BlogsControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     [Fact]
     public async Task CreateBlog_ShouldNotAppearInPublicList_UntilApproved()
     {
-        SetAuth(await GetAuthTokenAsync());
-        var cfg = await _client.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
-        var faceId = cfg![0].GetProperty("id").GetInt32();
+        var token = await GetAuthTokenAsync();
+        SetAuth(token);
+        var faceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
 
         var response = await _client.PostAsJsonAsync("/api/blogs", new
         {
@@ -273,9 +273,9 @@ public class BlogsControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     [Fact]
     public async Task GetBlogs_ShouldFilterByTenantScopedFaceId_FromMiddleware()
     {
-        SetAuth(await GetAuthTokenAsync());
-        var cfg = await _client.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
-        var scopedFaceId = cfg![0].GetProperty("id").GetInt32();
+        var token = await GetAuthTokenAsync();
+        SetAuth(token);
+        var scopedFaceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
         var first = await CreateTestBlogAsync(faceId: scopedFaceId);
         var second = await CreateTestBlogAsync(faceId: scopedFaceId);
         await ApproveAsSuperAdminAsync(ModeratedContentType.Blog, first);

@@ -87,13 +87,8 @@ public class FaceChatRoomsControllerTests : IClassFixture<CustomWebApplicationFa
         return token;
     }
 
-    private static async Task<int> GetAnyFaceIdAsync(HttpClient client, string token)
-    {
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        var cfg = await client.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
-        cfg.Should().NotBeNullOrEmpty();
-        return cfg![0].GetProperty("id").GetInt32();
-    }
+    private static async Task<int> GetAnyFaceIdAsync(HttpClient client, string token) =>
+        await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(client, token, "public");
 
     private static async Task<int> GetFaceRoleIdAsync(HttpClient client, string token, string exactName)
     {

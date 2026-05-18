@@ -1106,9 +1106,11 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
 
     private static async Task<int> GetPublicFaceIdAsync(HttpClient client)
     {
-        var cfg = await client.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
-        cfg.Should().NotBeNull();
-        return cfg![0].GetProperty("id").GetInt32();
+        var auth = client.DefaultRequestHeaders.Authorization;
+        auth.Should().NotBeNull();
+        auth!.Scheme.Should().Be("Bearer");
+        auth.Parameter.Should().NotBeNullOrEmpty();
+        return await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(client, auth.Parameter!, "public");
     }
 
     private static ApplicationDbContext CreateContext()

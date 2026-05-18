@@ -25,14 +25,8 @@ public class FaceProfilesControllerTests : IClassFixture<CustomWebApplicationFac
         return (token, userId);
     }
 
-    private static async Task<int> GetAnyFaceIdAsync(HttpClient client, string token)
-    {
-        client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        var cfg = await client.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
-        cfg.Should().NotBeNullOrEmpty();
-        return cfg![0].GetProperty("id").GetInt32();
-    }
+    private static async Task<int> GetAnyFaceIdAsync(HttpClient client, string token) =>
+        await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(client, token, "public");
 
     private static async Task<int> GetFaceRoleIdAsync(HttpClient client, string token, string roleNameSubstring)
     {

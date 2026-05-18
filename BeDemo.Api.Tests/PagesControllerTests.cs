@@ -61,10 +61,7 @@ public class PagesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     private async Task<int> GetScopedFaceIdAsync()
     {
         var token = await GetAuthTokenAsync();
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        var cfg = await _client.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
-        cfg.Should().NotBeNull();
-        return cfg![0].GetProperty("id").GetInt32();
+        return await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
     }
 
     /// <summary>

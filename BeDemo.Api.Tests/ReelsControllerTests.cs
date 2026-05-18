@@ -39,13 +39,10 @@ public class ReelsControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     private static void SetAuth(HttpClient client, string token) =>
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-    private static async Task<int> GetScopedFaceIdAsync(HttpClient faceClient, string token)
+    private static async Task<int> GetScopedFaceIdAsync(HttpClient faceClient, string token, string scopedFaceIndex)
     {
         SetAuth(faceClient, token);
-        var cfg = await faceClient.GetFromJsonAsync<JsonElement[]>("/api/faces/config");
-        cfg.Should().NotBeNull();
-        cfg!.Length.Should().Be(1);
-        return cfg[0].GetProperty("id").GetInt32();
+        return await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(faceClient, token, scopedFaceIndex);
     }
 
     private async Task ApproveAsSuperAdminAsync(ModeratedContentType contentType, int contentId)
@@ -159,7 +156,7 @@ public class ReelsControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         var token = await GetAuthTokenAsync();
         using var publicClient = _factory.CreateFaceClient("public");
         using var basicClient = _factory.CreateFaceClient("basic");
-        var publicFaceId = await GetScopedFaceIdAsync(publicClient, token);
+        var publicFaceId = await GetScopedFaceIdAsync(publicClient, token, "public");
 
         var scopedId = await CreateTestReelAsync(publicClient, new List<int> { publicFaceId });
         await CreateTestReelAsync(publicClient, null);
@@ -181,7 +178,7 @@ public class ReelsControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         var token = await GetAuthTokenAsync();
         using var basicClient = _factory.CreateFaceClient("basic");
         using var publicClient = _factory.CreateFaceClient("public");
-        var basicFaceId = await GetScopedFaceIdAsync(basicClient, token);
+        var basicFaceId = await GetScopedFaceIdAsync(basicClient, token, "basic");
         var reelId = await CreateTestReelAsync(basicClient, new List<int> { basicFaceId });
 
         SetAuth(publicClient, token);
@@ -194,7 +191,7 @@ public class ReelsControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     {
         var token = await GetAuthTokenAsync();
         using var basicClient = _factory.CreateFaceClient("basic");
-        var basicFaceId = await GetScopedFaceIdAsync(basicClient, token);
+        var basicFaceId = await GetScopedFaceIdAsync(basicClient, token, "basic");
         var reelId = await CreateTestReelAsync(basicClient, new List<int> { basicFaceId });
 
         var response = await basicClient.GetAsync($"/api/reels/{reelId}");
@@ -207,7 +204,7 @@ public class ReelsControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         var token = await GetAuthTokenAsync();
         using var basicClient = _factory.CreateFaceClient("basic");
         using var publicClient = _factory.CreateFaceClient("public");
-        var basicFaceId = await GetScopedFaceIdAsync(basicClient, token);
+        var basicFaceId = await GetScopedFaceIdAsync(basicClient, token, "basic");
         var reelId = await CreateTestReelAsync(basicClient, new List<int> { basicFaceId });
 
         SetAuth(publicClient, token);
@@ -224,7 +221,7 @@ public class ReelsControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     {
         var token = await GetAuthTokenAsync();
         using var basicClient = _factory.CreateFaceClient("basic");
-        var basicFaceId = await GetScopedFaceIdAsync(basicClient, token);
+        var basicFaceId = await GetScopedFaceIdAsync(basicClient, token, "basic");
         var reelId = await CreateTestReelAsync(basicClient, new List<int> { basicFaceId });
 
         SetAuth(basicClient, token);
