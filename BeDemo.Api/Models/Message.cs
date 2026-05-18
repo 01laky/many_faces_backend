@@ -13,6 +13,9 @@ public class Message
     /// <summary>If IsMessageRequest, status of the request.</summary>
     public MessageRequestStatus? MessageRequestStatus { get; set; }
 
+    /// <summary>True for super-admin platform DMs (not peer social chat).</summary>
+    public bool IsPlatformDirectMessage { get; set; }
+
     public ApplicationUser Sender { get; set; } = null!;
     public ApplicationUser Receiver { get; set; } = null!;
 }

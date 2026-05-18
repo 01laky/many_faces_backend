@@ -1684,6 +1684,96 @@
   <data name="routes.login" xml:space="preserve">
     <value>login</value>
   </data>
+  <data name="pages.userChat.title" xml:space="preserve">
+    <value>User chat</value>
+  </data>
+  <data name="pages.userChat.subtitle" xml:space="preserve">
+    <value>Direct messages with end users</value>
+  </data>
+  <data name="pages.userChat.emptyConversations" xml:space="preserve">
+    <value>No conversations yet. Open a user from User detail to start.</value>
+  </data>
+  <data name="pages.userChat.emptySelection" xml:space="preserve">
+    <value>Select a conversation or open chat from a user profile.</value>
+  </data>
+  <data name="pages.userChat.emptyThread" xml:space="preserve">
+    <value>No messages yet. Send the first message below.</value>
+  </data>
+  <data name="pages.userChat.composerPlaceholder" xml:space="preserve">
+    <value>Type a message…</value>
+  </data>
+  <data name="pages.userChat.send" xml:space="preserve">
+    <value>Send</value>
+  </data>
+  <data name="pages.userChat.connecting" xml:space="preserve">
+    <value>Connecting…</value>
+  </data>
+  <data name="pages.userChat.connected" xml:space="preserve">
+    <value>Connected</value>
+  </data>
+  <data name="pages.userChat.disconnected" xml:space="preserve">
+    <value>Disconnected</value>
+  </data>
+  <data name="pages.userChat.loading" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
+  <data name="pages.userChat.viewUserDetail" xml:space="preserve">
+    <value>View user detail</value>
+  </data>
+  <data name="pages.userChat.platformBadge" xml:space="preserve">
+    <value>Platform</value>
+  </data>
+  <data name="pages.userChat.searchPlaceholder" xml:space="preserve">
+    <value>Search by name or email</value>
+  </data>
+  <data name="pages.userChat.charCount" xml:space="preserve">
+    <value>{count} / {max} characters</value>
+  </data>
+  <data name="pages.userChat.loadOlder" xml:space="preserve">
+    <value>Load older messages</value>
+  </data>
+  <data name="pages.userChat.targetGloballyBanned" xml:space="preserve">
+    <value>This user is globally banned. You can still send platform messages.</value>
+  </data>
+  <data name="pages.userChat.forbidden" xml:space="preserve">
+    <value>User chat is available to super-admins only.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.unknown" xml:space="preserve">
+    <value>Message could not be sent. Try again.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.not_super_admin" xml:space="preserve">
+    <value>Only super-admins can send platform messages.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.target_not_found" xml:space="preserve">
+    <value>User not found.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.cannot_message_super_admin" xml:space="preserve">
+    <value>You cannot message another super-admin.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.cannot_message_self" xml:space="preserve">
+    <value>You cannot message yourself.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.message_too_long" xml:space="preserve">
+    <value>Message is too long.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.rate_limited" xml:space="preserve">
+    <value>Too many messages. Please wait a moment.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.empty_content" xml:space="preserve">
+    <value>Message cannot be empty.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.no_platform_thread" xml:space="preserve">
+    <value>No platform conversation exists with this user.</value>
+  </data>
+  <data name="pages.userDetail.openChat" xml:space="preserve">
+    <value>Open chat</value>
+  </data>
+  <data name="pages.userDetail.startChat" xml:space="preserve">
+    <value>Start chat</value>
+  </data>
+  <data name="routes.userChat" xml:space="preserve">
+    <value>user-chat</value>
+  </data>
   <data name="routes.moderation" xml:space="preserve">
     <value>moderation</value>
   </data>

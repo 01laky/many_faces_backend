@@ -1,16 +1,18 @@
 /*
  * MessengerHub.cs - SignalR Hub for friend requests and real-time messaging
  *
- * Endpoint (after RoutingMiddleware): /{face-kebab}/hubs/messenger?access_token=<JWT> — same face-prefix rule as REST (ACL A11).
+ * Endpoint (after RoutingMiddleware): /{face-kebab}/hubs/messenger?access_token=<JWT>
  *
  * Methods:
- * - SendChatMessage(receiverId, content)
+ * - SendChatMessage(receiverId, content) — peer / message-request flow
+ * - SendPlatformDirectMessage(receiverId, content) — super-admin platform DMs only
  * - AcceptMessageRequest(senderId)
  * - RejectMessageRequest(senderId)
  *
  * Callbacks:
- * - ReceiveChatMessage(senderId, content, sentAt, messageId)
- * - ReceiveMessageRequest(senderId, content, sentAt)
+ * - ReceiveChatMessage(senderId, senderName, content, sentAt, messageId) — five arguments
+ * - ReceiveMessageRequest(senderId, senderName, content, sentAt)
+ * - ReceivePlatformChatError(code)
  * - ReceiveFriendRequest(senderId, senderName)
  */
 
@@ -31,17 +33,23 @@ public class MessengerHub : Hub
     private readonly ILogger<MessengerHub> _logger;
     private readonly IFaceScopeContext _faceScope;
     private readonly IFaceModerationService _faceModeration;
+    private readonly IPlatformDirectMessageService _platformDirectMessages;
+    private readonly IPlatformChatRateLimiter _platformChatRateLimiter;
 
     public MessengerHub(
         ApplicationDbContext context,
         ILogger<MessengerHub> logger,
         IFaceScopeContext faceScope,
-        IFaceModerationService faceModeration)
+        IFaceModerationService faceModeration,
+        IPlatformDirectMessageService platformDirectMessages,
+        IPlatformChatRateLimiter platformChatRateLimiter)
     {
         _context = context;
         _logger = logger;
         _faceScope = faceScope;
         _faceModeration = faceModeration;
+        _platformDirectMessages = platformDirectMessages;
+        _platformChatRateLimiter = platformChatRateLimiter;
     }
 
     private string? UserId => Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -60,20 +68,28 @@ public class MessengerHub : Hub
         return await TenantSocialScopeRules.BothUsersParticipateInFaceAsync(_context, _faceScope.FaceId, UserId, otherUserId);
     }
 
-    public override async Task OnConnectedAsync()
+    /// <summary>Super-admin platform DM — bypasses friendship / message-request (admin face only).</summary>
+    public async Task SendPlatformDirectMessage(string receiverId, string content)
     {
-        var userId = UserId;
-        if (!string.IsNullOrEmpty(userId))
-            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
-        await base.OnConnectedAsync();
-    }
+        if (string.IsNullOrEmpty(UserId))
+            return;
 
-    public override async Task OnDisconnectedAsync(Exception? exception)
-    {
-        var userId = UserId;
-        if (!string.IsNullOrEmpty(userId))
-            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{userId}");
-        await base.OnDisconnectedAsync(exception);
+        if (!_platformChatRateLimiter.TryAllow(UserId))
+        {
+            await Clients.Caller.SendAsync("ReceivePlatformChatError", OperatorUserChatHubErrorCodes.RateLimited);
+            return;
+        }
+
+        var sender = await _context.Users.Include(u => u.UserRole).FirstOrDefaultAsync(u => u.Id == UserId);
+        if (sender == null || !OperatorModerationGuard.IsGlobalSuperAdminRole(sender.UserRole?.Name))
+        {
+            await Clients.Caller.SendAsync("ReceivePlatformChatError", OperatorUserChatHubErrorCodes.NotSuperAdmin);
+            return;
+        }
+
+        var (errorCode, _) = await _platformDirectMessages.SendAsync(UserId, receiverId, content, Context.ConnectionAborted);
+        if (errorCode != null)
+            await Clients.Caller.SendAsync("ReceivePlatformChatError", errorCode);
     }
 
     public async Task SendChatMessage(string receiverId, string content)
@@ -87,9 +103,40 @@ public class MessengerHub : Hub
         if (_faceScope.IsAvailable && await _faceModeration.ShouldBlockPeerActivityInFaceAsync(UserId, _faceScope.FaceId))
             return;
 
-        var sender = await _context.Users.FindAsync(UserId);
-        var receiver = await _context.Users.FindAsync(receiverId);
+        var sender = await _context.Users.Include(u => u.UserRole).FirstOrDefaultAsync(u => u.Id == UserId);
+        var receiver = await _context.Users.Include(u => u.UserRole).FirstOrDefaultAsync(u => u.Id == receiverId);
         if (sender == null || receiver == null)
+            return;
+
+        var senderIsSuper = OperatorModerationGuard.IsGlobalSuperAdminRole(sender.UserRole?.Name);
+        var receiverIsSuper = OperatorModerationGuard.IsGlobalSuperAdminRole(receiver.UserRole?.Name);
+
+        // Super-admin → end user: platform DM channel (also used from admin User chat UI).
+        if (senderIsSuper && !receiverIsSuper)
+        {
+            if (!_platformChatRateLimiter.TryAllow(UserId))
+            {
+                await Clients.Caller.SendAsync("ReceivePlatformChatError", OperatorUserChatHubErrorCodes.RateLimited);
+                return;
+            }
+
+            var (code, _) = await _platformDirectMessages.SendAsync(UserId, receiverId, content, Context.ConnectionAborted);
+            if (code != null)
+                await Clients.Caller.SendAsync("ReceivePlatformChatError", code);
+            return;
+        }
+
+        // End user → super-admin: allowed only when a platform thread already exists.
+        if (receiverIsSuper && !senderIsSuper)
+        {
+            var (code, _) = await _platformDirectMessages.SendAsync(UserId, receiverId, content, Context.ConnectionAborted);
+            if (code == null)
+                return;
+            if (code != OperatorUserChatHubErrorCodes.NoPlatformThread)
+                return;
+        }
+
+        if (senderIsSuper && receiverIsSuper)
             return;
 
         var areFriends = await _context.Friendships

@@ -104,6 +104,9 @@ builder.Services.AddOptions<BeDemo.Api.Configuration.OperatorAiOptions>()
 builder.Services.AddScoped<IOperatorAiConversationService, OperatorAiConversationService>();
 builder.Services.AddScoped<IFaceModerationService, FaceModerationService>();
 builder.Services.AddScoped<IOperatorUserModerationService, OperatorUserModerationService>();
+builder.Services.AddScoped<IPlatformDirectMessageService, PlatformDirectMessageService>();
+builder.Services.AddScoped<IOperatorUserChatService, OperatorUserChatService>();
+builder.Services.AddSingleton<IPlatformChatRateLimiter, PlatformChatRateLimiter>();
 builder.Services.AddScoped<IChatRoomLifecycleService, ChatRoomLifecycleService>();
 // User-generated content moderation: AI job worker, dashboard metrics, in-app notifications, and optional retention cleanup.
 builder.Services.AddScoped<IContentAiReviewService, ContentAiReviewService>();

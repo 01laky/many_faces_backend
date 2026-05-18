@@ -1684,6 +1684,96 @@
   <data name="routes.login" xml:space="preserve">
     <value>prihlasenie</value>
   </data>
+  <data name="pages.userChat.title" xml:space="preserve">
+    <value>Chat s používateľmi</value>
+  </data>
+  <data name="pages.userChat.subtitle" xml:space="preserve">
+    <value>Priama správa s koncovými používateľmi</value>
+  </data>
+  <data name="pages.userChat.emptyConversations" xml:space="preserve">
+    <value>Zatiaľ žiadne konverzácie.</value>
+  </data>
+  <data name="pages.userChat.emptySelection" xml:space="preserve">
+    <value>Vyberte konverzáciu.</value>
+  </data>
+  <data name="pages.userChat.emptyThread" xml:space="preserve">
+    <value>Zatiaľ žiadne správy.</value>
+  </data>
+  <data name="pages.userChat.composerPlaceholder" xml:space="preserve">
+    <value>Napíšte správu…</value>
+  </data>
+  <data name="pages.userChat.send" xml:space="preserve">
+    <value>Odoslať</value>
+  </data>
+  <data name="pages.userChat.connecting" xml:space="preserve">
+    <value>Pripája sa…</value>
+  </data>
+  <data name="pages.userChat.connected" xml:space="preserve">
+    <value>Pripojené</value>
+  </data>
+  <data name="pages.userChat.disconnected" xml:space="preserve">
+    <value>Odpojené</value>
+  </data>
+  <data name="pages.userChat.loading" xml:space="preserve">
+    <value>Načítava sa…</value>
+  </data>
+  <data name="pages.userChat.viewUserDetail" xml:space="preserve">
+    <value>Detail používateľa</value>
+  </data>
+  <data name="pages.userChat.platformBadge" xml:space="preserve">
+    <value>Platforma</value>
+  </data>
+  <data name="pages.userChat.searchPlaceholder" xml:space="preserve">
+    <value>Hľadať podľa mena alebo e-mailu</value>
+  </data>
+  <data name="pages.userChat.charCount" xml:space="preserve">
+    <value>{count} / {max} znakov</value>
+  </data>
+  <data name="pages.userChat.loadOlder" xml:space="preserve">
+    <value>Načítať staršie správy</value>
+  </data>
+  <data name="pages.userChat.targetGloballyBanned" xml:space="preserve">
+    <value>Používateľ je globálne zabanovaný. Platformové správy môžete stále posielať.</value>
+  </data>
+  <data name="pages.userChat.forbidden" xml:space="preserve">
+    <value>Len pre super-adminov.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.unknown" xml:space="preserve">
+    <value>Správu sa nepodarilo odoslať.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.not_super_admin" xml:space="preserve">
+    <value>Len super-admin.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.target_not_found" xml:space="preserve">
+    <value>Používateľ nebol nájdený.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.cannot_message_super_admin" xml:space="preserve">
+    <value>Nemôžete písať super-adminovi.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.cannot_message_self" xml:space="preserve">
+    <value>Nemôžete písať sami sebe.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.message_too_long" xml:space="preserve">
+    <value>Správa je príliš dlhá.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.rate_limited" xml:space="preserve">
+    <value>Príliš veľa správ.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.empty_content" xml:space="preserve">
+    <value>Prázdna správa.</value>
+  </data>
+  <data name="pages.userChat.hub.errors.no_platform_thread" xml:space="preserve">
+    <value>Žiadna platformová konverzácia.</value>
+  </data>
+  <data name="pages.userDetail.openChat" xml:space="preserve">
+    <value>Otvoriť chat</value>
+  </data>
+  <data name="pages.userDetail.startChat" xml:space="preserve">
+    <value>Začať chat</value>
+  </data>
+  <data name="routes.userChat" xml:space="preserve">
+    <value>chat-pouzivatelia</value>
+  </data>
   <data name="routes.moderation" xml:space="preserve">
     <value>moderacia</value>
   </data>

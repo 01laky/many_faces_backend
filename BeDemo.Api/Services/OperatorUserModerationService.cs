@@ -1,5 +1,4 @@
 using BeDemo.Api.Data;
-using BeDemo.Api.Hubs;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs.OperatorUsers;
 using BeDemo.Api.Utils;
@@ -17,7 +16,7 @@ public sealed class OperatorUserModerationService : IOperatorUserModerationServi
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IOAuthRefreshTokenStore _refreshTokens;
     private readonly IFaceModerationService _faceModeration;
-    private readonly IHubContext<MessengerHub> _messengerHub;
+    private readonly IPlatformDirectMessageService _platformDirectMessages;
     private readonly ILogger<OperatorUserModerationService> _logger;
 
     public OperatorUserModerationService(
@@ -25,14 +24,14 @@ public sealed class OperatorUserModerationService : IOperatorUserModerationServi
         UserManager<ApplicationUser> userManager,
         IOAuthRefreshTokenStore refreshTokens,
         IFaceModerationService faceModeration,
-        IHubContext<MessengerHub> messengerHub,
+        IPlatformDirectMessageService platformDirectMessages,
         ILogger<OperatorUserModerationService> logger)
     {
         _context = context;
         _userManager = userManager;
         _refreshTokens = refreshTokens;
         _faceModeration = faceModeration;
-        _messengerHub = messengerHub;
+        _platformDirectMessages = platformDirectMessages;
         _logger = logger;
     }
 
@@ -298,55 +297,29 @@ public sealed class OperatorUserModerationService : IOperatorUserModerationServi
         string correlationId,
         CancellationToken cancellationToken = default)
     {
-        if (string.Equals(operatorUserId, targetUserId, StringComparison.Ordinal))
-            return (false, "Cannot message yourself", StatusCodes.Status400BadRequest, null);
-
-        var sender = await _context.Users.FindAsync(new object[] { operatorUserId }, cancellationToken);
-        var receiver = await _context.Users.FindAsync(new object[] { targetUserId }, cancellationToken);
-        if (sender == null || receiver == null)
-            return (false, "User not found", StatusCodes.Status404NotFound, null);
-
-        await _context.Entry(sender).Reference(u => u.UserRole).LoadAsync(cancellationToken);
-        if (!OperatorModerationGuard.IsGlobalSuperAdminRole(sender.UserRole?.Name))
-            return (false, "Only super-admins can send platform messages", StatusCodes.Status403Forbidden, null);
-
-        var trimmed = content.Trim();
-        var message = new Message
-        {
-            SenderId = operatorUserId,
-            ReceiverId = targetUserId,
-            Content = trimmed,
-            IsMessageRequest = false,
-            MessageRequestStatus = null,
-        };
-        _context.Messages.Add(message);
-
-        var notification = new Notification
-        {
-            UserId = targetUserId,
-            Title = "Platform administrator",
-            Message = trimmed.Length > 120 ? trimmed[..120] + "…" : trimmed,
-            Type = "super_admin_message",
-        };
-        _context.Notifications.Add(notification);
-
-        await _context.SaveChangesAsync(cancellationToken);
-
-        var senderName = ((sender.FirstName ?? "") + " " + (sender.LastName ?? "")).Trim();
-        if (string.IsNullOrEmpty(senderName))
-            senderName = sender.Email ?? "Platform";
-
-        await _messengerHub.Clients.User(targetUserId).SendAsync(
-            "ReceiveChatMessage",
+        var (hubError, messageId) = await _platformDirectMessages.SendAsync(
             operatorUserId,
-            senderName,
-            trimmed,
-            message.SentAt,
-            message.Id,
+            targetUserId,
+            content,
             cancellationToken);
 
-        SecurityAuditLog.OperatorPlatformMessage(_logger, operatorUserId, targetUserId, trimmed.Length, correlationId);
-        return (true, null, StatusCodes.Status200OK, message.Id);
+        if (hubError == OperatorUserChatHubErrorCodes.CannotMessageSelf)
+            return (false, "Cannot message yourself", StatusCodes.Status400BadRequest, null);
+        if (hubError == OperatorUserChatHubErrorCodes.TargetNotFound)
+            return (false, "User not found", StatusCodes.Status404NotFound, null);
+        if (hubError == OperatorUserChatHubErrorCodes.NotSuperAdmin)
+            return (false, "Only super-admins can send platform messages", StatusCodes.Status403Forbidden, null);
+        if (hubError == OperatorUserChatHubErrorCodes.CannotMessageSuperAdmin)
+            return (false, "Cannot message a super-admin", StatusCodes.Status400BadRequest, null);
+        if (hubError == OperatorUserChatHubErrorCodes.MessageTooLong)
+            return (false, "Message too long", StatusCodes.Status400BadRequest, null);
+        if (hubError == OperatorUserChatHubErrorCodes.EmptyContent)
+            return (false, "Content is required", StatusCodes.Status400BadRequest, null);
+        if (hubError != null)
+            return (false, hubError, StatusCodes.Status400BadRequest, null);
+
+        SecurityAuditLog.OperatorPlatformMessage(_logger, operatorUserId, targetUserId, content.Trim().Length, correlationId);
+        return (true, null, StatusCodes.Status200OK, messageId);
     }
 
     private async Task<ApplicationUser?> LoadTargetWithRoleAsync(string targetUserId, CancellationToken cancellationToken) =>
