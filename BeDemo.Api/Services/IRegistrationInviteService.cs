@@ -1,4 +1,5 @@
 using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Models.Requests.OAuth;
 
 namespace BeDemo.Api.Services;
 
@@ -24,9 +25,8 @@ public interface IRegistrationInviteService
         string operatorUserId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<RegistrationInviteListItemDto>> ListAdminInvitesAsync(
-        int skip,
-        int take,
+    Task<AdminInviteListResponseDto> ListAdminInvitesAsync(
+        AdminInviteListQuery query,
         CancellationToken cancellationToken = default);
 
     Task<bool> RevokeAdminInviteAsync(Guid id, CancellationToken cancellationToken = default);

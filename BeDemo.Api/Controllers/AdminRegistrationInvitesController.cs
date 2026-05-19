@@ -31,8 +31,15 @@ public sealed class AdminRegistrationInvitesController : ControllerBase
             return Forbid();
         }
 
-        var items = await _invites.ListAdminInvitesAsync(query.Skip, query.Take, cancellationToken).ConfigureAwait(false);
-        return Ok(items);
+        var result = await _invites.ListAdminInvitesAsync(query, cancellationToken).ConfigureAwait(false);
+        return Ok(new
+        {
+            items = result.Items,
+            page = result.Page,
+            pageSize = result.PageSize,
+            totalCount = result.TotalCount,
+            totalPages = result.TotalPages,
+        });
     }
 
     [HttpPost]

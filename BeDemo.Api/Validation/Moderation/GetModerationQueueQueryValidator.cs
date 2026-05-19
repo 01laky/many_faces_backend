@@ -16,5 +16,16 @@ public sealed class GetModerationQueueQueryValidator : AbstractValidator<BeDemo.
         RuleFor(x => x).Must(q => !q.MinConfidence.HasValue || !q.MaxConfidence.HasValue || q.MinConfidence <= q.MaxConfidence)
             .WithErrorCode("val_confidence_range");
         RuleFor(x => x.MinQueueAgeHours).GreaterThanOrEqualTo(0).When(x => x.MinQueueAgeHours.HasValue);
+        RuleFor(x => x.SubmittedFromUtc)
+            .LessThanOrEqualTo(x => x.SubmittedToUtc)
+            .When(x => x.SubmittedFromUtc.HasValue && x.SubmittedToUtc.HasValue)
+            .WithErrorCode("val_utc_range");
+
+        this.ApplyPaginationRules(x => x.Page, x => x.PageSize);
+        this.ApplyListSortRules(
+            x => x.SortBy,
+            x => x.SortDir,
+            "submittedAtUtc", "createdAt", "contentType", "contentId", "faceId", "title",
+            "approvalStatus", "aiReviewStatus", "aiReviewConfidence", "riskLevel");
     }
 }

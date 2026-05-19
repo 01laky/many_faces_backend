@@ -104,9 +104,10 @@ public class PagesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var pages = await response.Content.ReadFromJsonAsync<List<object>>();
-        pages.Should().NotBeNull();
-        pages!.Should().BeAssignableTo<IEnumerable<object>>();
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body.Should().NotBeNull();
+        body!.GetProperty("items").ValueKind.Should().Be(JsonValueKind.Array);
+        body.GetProperty("totalCount").GetInt32().Should().BeGreaterThanOrEqualTo(0);
     }
 
     [Fact]

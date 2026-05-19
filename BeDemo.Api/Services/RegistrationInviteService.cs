@@ -3,7 +3,9 @@ using System.Security.Cryptography;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Models.Requests.OAuth;
 using BeDemo.Api.Utils;
+using BeDemo.Api.Validation.Rules;
 using ManyFaces.Mailer.V1;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -307,21 +309,76 @@ public sealed class RegistrationInviteService : IRegistrationInviteService
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<RegistrationInviteListItemDto>> ListAdminInvitesAsync(
-        int skip,
-        int take,
+    public async Task<AdminInviteListResponseDto> ListAdminInvitesAsync(
+        AdminInviteListQuery query,
         CancellationToken cancellationToken = default)
     {
-        take = Math.Clamp(take, 1, 100);
-        var rows = await _context.RegistrationInvites
-            .AsNoTracking()
-            .OrderByDescending(i => i.CreatedAtUtc)
-            .Skip(skip)
-            .Take(take)
+        var page = query.Page;
+        var pageSize = query.PageSize;
+        // Legacy admin hook sent skip/take; map to page/pageSize until FE fully migrates (see AdminInviteListQueryValidator).
+        if (query.Skip.HasValue || query.Take.HasValue)
+        {
+            var take = Math.Clamp(query.Take ?? 50, 1, 100);
+            var skip = Math.Max(0, query.Skip ?? 0);
+            page = skip / take + 1;
+            pageSize = take;
+        }
+
+        IQueryable<RegistrationInvite> q = _context.RegistrationInvites.AsNoTracking();
+        var now = DateTime.UtcNow;
+
+        if (!string.IsNullOrWhiteSpace(query.EmailContains))
+        {
+            var pattern = $"%{query.EmailContains.Trim()}%";
+            q = q.Where(i => EF.Functions.ILike(i.Email, pattern));
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            q = query.Status.ToLowerInvariant() switch
+            {
+                "completed" => q.Where(i => i.ConsumedAtUtc != null),
+                "revoked" => q.Where(i => i.RevokedAtUtc != null),
+                "expired" => q.Where(i =>
+                    i.ConsumedAtUtc == null && i.RevokedAtUtc == null && i.ExpiresAtUtc <= now),
+                "pending" => q.Where(i =>
+                    i.ConsumedAtUtc == null && i.RevokedAtUtc == null && i.ExpiresAtUtc > now),
+                _ => q,
+            };
+        }
+
+        var totalCount = await q.CountAsync(cancellationToken).ConfigureAwait(false);
+        var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+        page = clampedPage;
+
+        var desc = SortRules.IsDescending(query.SortDir);
+        q = (query.SortBy?.ToLowerInvariant()) switch
+        {
+            "email" => desc ? q.OrderByDescending(i => i.Email) : q.OrderBy(i => i.Email),
+            "status" => desc
+                ? q.OrderByDescending(i => i.ConsumedAtUtc != null)
+                    .ThenByDescending(i => i.RevokedAtUtc != null)
+                : q.OrderBy(i => i.ConsumedAtUtc != null).ThenBy(i => i.RevokedAtUtc != null),
+            "expiresatutc" => desc
+                ? q.OrderByDescending(i => i.ExpiresAtUtc)
+                : q.OrderBy(i => i.ExpiresAtUtc),
+            _ => desc ? q.OrderByDescending(i => i.CreatedAtUtc) : q.OrderBy(i => i.CreatedAtUtc),
+        };
+
+        var rows = await q
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 
-        return rows.Select(ToListItem).ToList();
+        return new AdminInviteListResponseDto
+        {
+            Items = rows.Select(ToListItem).ToList(),
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = totalPages,
+        };
     }
 
     /// <inheritdoc />

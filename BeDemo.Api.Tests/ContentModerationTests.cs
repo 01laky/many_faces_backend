@@ -1058,12 +1058,14 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
             "Bearer",
             await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(superAdmin));
 
-        var miss = await superAdmin.GetFromJsonAsync<JsonElement[]>(
+        var missDoc = await superAdmin.GetFromJsonAsync<JsonElement>(
             "/api/contentmoderation?contentType=Blog&flagContains=nomatch999");
+        var miss = missDoc!.GetProperty("items").EnumerateArray().ToArray();
         miss.Should().NotContain(b => b.GetProperty("contentId").GetInt32() == blogId);
 
-        var hit = await superAdmin.GetFromJsonAsync<JsonElement[]>(
+        var hitDoc = await superAdmin.GetFromJsonAsync<JsonElement>(
             "/api/contentmoderation?contentType=Blog&flagContains=spam_token_xyz");
+        var hit = hitDoc!.GetProperty("items").EnumerateArray().ToArray();
         hit.Should().ContainSingle(b => b.GetProperty("contentId").GetInt32() == blogId);
     }
 

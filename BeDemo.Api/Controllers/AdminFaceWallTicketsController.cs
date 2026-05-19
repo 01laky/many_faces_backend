@@ -7,6 +7,7 @@ using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
+using BeDemo.Api.Validation.Rules;
 
 namespace BeDemo.Api.Controllers;
 
@@ -123,36 +124,61 @@ public class AdminFaceWallTicketsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List(
         int faceId,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
-        [FromQuery] string? status = null,
+        [FromQuery] WallTicketListQuery listQuery,
         CancellationToken cancellationToken = default)
     {
         var denied = await RequireGlobalAdminAsync(cancellationToken);
         if (denied != null)
             return denied;
 
-        if (!TryParseStatusFilter(status, out var statusFilter))
+        if (!TryParseStatusFilter(listQuery.Status, out var statusFilter))
             return BadRequest(new { error = "Invalid status filter; use active, approved, or denied" });
 
         var faceExists = await _context.Faces.AsNoTracking().AnyAsync(f => f.Id == faceId, cancellationToken);
         if (!faceExists)
             return NotFound(new { error = "Face not found" });
 
-        pageSize = Math.Clamp(pageSize, 1, 100);
-        page = Math.Max(1, page);
+        var page = listQuery.Page;
+        var pageSize = listQuery.PageSize;
 
         IQueryable<FaceWallTicket> query = _context.FaceWallTickets
             .AsNoTracking()
             .Include(t => t.Creator)
+            .Include(t => t.Likes)
+            .Include(t => t.Comments)
             .Where(t => t.FaceId == faceId);
 
         if (statusFilter.HasValue)
             query = query.Where(t => t.Status == statusFilter.Value);
 
+        if (!string.IsNullOrWhiteSpace(listQuery.Search))
+        {
+            var pattern = $"%{listQuery.Search.Trim()}%";
+            query = query.Where(t =>
+                EF.Functions.ILike(t.Title, pattern) ||
+                EF.Functions.ILike(t.Description, pattern));
+        }
+
         var total = await query.CountAsync(cancellationToken);
+        var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, total);
+        page = clampedPage;
+
+        var desc = SortRules.IsDescending(listQuery.SortDir);
+        query = (listQuery.SortBy?.ToLowerInvariant()) switch
+        {
+            "id" => desc ? query.OrderByDescending(t => t.Id) : query.OrderBy(t => t.Id),
+            "title" => desc ? query.OrderByDescending(t => t.Title) : query.OrderBy(t => t.Title),
+            "status" => desc ? query.OrderByDescending(t => t.Status) : query.OrderBy(t => t.Status),
+            "likescount" => desc
+                ? query.OrderByDescending(t => t.Likes.Count)
+                : query.OrderBy(t => t.Likes.Count),
+            "commentscount" => desc
+                ? query.OrderByDescending(t => t.Comments.Count)
+                : query.OrderBy(t => t.Comments.Count),
+            _ => desc ? query.OrderByDescending(t => t.CreatedAt) : query.OrderBy(t => t.CreatedAt),
+        };
+
         var items = await query
-            .OrderByDescending(t => t.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .Select(t => new
@@ -169,14 +195,7 @@ public class AdminFaceWallTicketsController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
-        return Ok(new
-        {
-            items,
-            page,
-            pageSize,
-            totalCount = total,
-            totalPages = (int)Math.Ceiling(total / (double)pageSize),
-        });
+        return Ok(ListPaginationHelper.BuildEnvelope(items, page, pageSize, total, totalPages));
     }
 
     [HttpGet("{ticketId:int}")]

@@ -18,6 +18,34 @@ public static class BeDemoValidationExtensions
             .WithMessage("URL must be absolute http or https.")
             .WithErrorCode("val_url_unsafe");
 
+    /// <summary>sortBy whitelist (case-insensitive) + safe token; sortDir asc|desc when sortBy set.</summary>
+    public static void ApplyListSortRules<T>(
+        this AbstractValidator<T> validator,
+        System.Linq.Expressions.Expression<Func<T, string?>> sortBy,
+        System.Linq.Expressions.Expression<Func<T, string?>> sortDir,
+        params string[] whitelist)
+    {
+        validator.RuleFor(sortBy)
+            .Must(v => SortRules.IsWhitelistedSortBy(v, whitelist))
+            .WithMessage("sortBy is not allowed for this endpoint.")
+            .WithErrorCode("val_sort_field_invalid");
+
+        validator.RuleFor(sortDir)
+            .Must(SortRules.IsValidSortDirection)
+            .WithMessage("sortDir must be 'asc' or 'desc'.")
+            .WithErrorCode("val_sort_dir_invalid");
+
+        validator.RuleFor(x => x)
+            .Must(m =>
+            {
+                var by = sortBy.Compile()(m);
+                var dir = sortDir.Compile()(m);
+                return string.IsNullOrWhiteSpace(by) || !string.IsNullOrWhiteSpace(dir);
+            })
+            .WithMessage("sortDir is required when sortBy is set.")
+            .WithErrorCode("val_sort_dir_invalid");
+    }
+
     /// <summary>page ≥ 1, pageSize in 1..100.</summary>
     public static void ApplyPaginationRules<T>(this AbstractValidator<T> validator,
         System.Linq.Expressions.Expression<Func<T, int>> page,

@@ -1288,6 +1288,9 @@
   <data name="pages.faceWallTickets.prev" xml:space="preserve">
     <value>Previous</value>
   </data>
+  <data name="pages.faceWallTickets.ticketsLabel" xml:space="preserve">
+    <value>tickets</value>
+  </data>
   <data name="pages.faceWallTickets.title" xml:space="preserve">
     <value>Wall tickets</value>
   </data>

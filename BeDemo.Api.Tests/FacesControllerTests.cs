@@ -74,9 +74,10 @@ public class FacesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
         var response = await _client.GetAsync("/api/faces");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var faces = await response.Content.ReadFromJsonAsync<JsonElement>();
-        faces!.ValueKind.Should().Be(JsonValueKind.Array);
-        faces.GetArrayLength().Should().Be(1);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        body!.ValueKind.Should().Be(JsonValueKind.Object);
+        body.GetProperty("items").GetArrayLength().Should().Be(1);
+        body.GetProperty("totalCount").GetInt32().Should().Be(1);
     }
 
     [Fact]

@@ -5,6 +5,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Moderation;
 using BeDemo.Api.Services;
+using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
 
@@ -141,7 +142,15 @@ public sealed class ContentModerationController : ControllerBase
             items.AddRange(reelRows.Select(row => MapReel(row.Entity, row.FaceId, row.FaceTitle)));
         }
 
-        return Ok(items.OrderByDescending(i => i.SubmittedAtUtc ?? i.CreatedAt));
+        var sorted = ModerationQueueSorter.ApplySort(items, q.SortBy, q.SortDir).ToList();
+        var totalCount = sorted.Count;
+        var page = q.Page;
+        var pageSize = q.PageSize;
+        var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+        page = clampedPage;
+
+        var pageItems = sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return Ok(ListPaginationHelper.BuildEnvelope(pageItems, page, pageSize, totalCount, totalPages));
     }
 
     /// <summary>Maps album entity to queue DTO with PI-8 plain-text preview fields (no raw HTML).</summary>

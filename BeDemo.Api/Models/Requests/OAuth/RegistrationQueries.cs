@@ -9,8 +9,18 @@ public sealed class RegisterPrefillQuery
 /// <summary>GET /api/admin/registration-invites list query.</summary>
 public sealed class AdminInviteListQuery
 {
-    public int Skip { get; set; }
-    public int Take { get; set; } = 50;
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+    public string? SortBy { get; set; }
+    public string? SortDir { get; set; }
+    public string? Status { get; set; }
+    public string? EmailContains { get; set; }
+
+    /// <summary>Deprecated — use <see cref="Page"/> / <see cref="PageSize"/>.</summary>
+    public int? Skip { get; set; }
+
+    /// <summary>Deprecated — use <see cref="Page"/> / <see cref="PageSize"/>.</summary>
+    public int? Take { get; set; }
 }
 
 /// <summary>GET /api/localization/{app} bundle query.</summary>

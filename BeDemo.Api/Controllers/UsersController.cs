@@ -119,10 +119,13 @@ public class UsersController : ControllerBase
                             ufp.UserProfileId == up.Id && ufp.FaceId == scopeFaceId)));
             }
 
+            // Server-driven admin table: count → clamp page when filters shrink result set → sort → page slice.
             var totalCount = await query.CountAsync();
+            var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+            page = clampedPage;
 
-            var users = await query
-                .OrderBy(u => u.Email)
+            var users = await ListSortApplicators
+                .ApplyUsersSort(query, listQuery.SortBy, listQuery.SortDir)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -144,7 +147,7 @@ public class UsersController : ControllerBase
                 totalCount,
                 page,
                 pageSize,
-                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+                totalPages,
             });
         }
         catch (Exception ex)

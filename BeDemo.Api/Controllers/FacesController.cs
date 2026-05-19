@@ -8,6 +8,7 @@ using Npgsql;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Services;
+using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -57,7 +58,7 @@ public class FacesController : ControllerBase
     /// Get list of all faces
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> GetFaces()
+    public async Task<IActionResult> GetFaces([FromQuery] GetFacesQuery listQuery)
     {
         try
         {
@@ -65,13 +66,43 @@ public class FacesController : ControllerBase
             if (_faceScope.IsAdminFaceScope && !IsGlobalAdmin())
                 return Forbid();
 
-            IQueryable<Face> q = _context.Faces;
+            var page = listQuery.Page;
+            var pageSize = listQuery.PageSize;
+
+            IQueryable<Face> q = _context.Faces.AsNoTracking();
             if (!CanManageAllFaces())
                 q = q.Where(f => f.Id == _faceScope.FaceId);
 
-            var faces = await q.OrderBy(f => f.Index).ToListAsync();
+            if (!string.IsNullOrWhiteSpace(listQuery.Search))
+            {
+                var pattern = $"%{listQuery.Search.Trim()}%";
+                q = q.Where(f =>
+                    EF.Functions.ILike(f.Index, pattern) ||
+                    EF.Functions.ILike(f.Title, pattern) ||
+                    (f.Description != null && EF.Functions.ILike(f.Description, pattern)));
+            }
 
-            var faceDtos = faces.Select(f => new
+            if (!string.IsNullOrWhiteSpace(listQuery.Visibility) &&
+                Enum.TryParse<FaceVisibility>(listQuery.Visibility, true, out var vis))
+            {
+                q = q.Where(f => f.Visibility == vis);
+            }
+
+            if (listQuery.IsPublic.HasValue)
+                q = q.Where(f => f.IsPublic == listQuery.IsPublic.Value);
+
+            // Paginated envelope replaces bare array (breaking change for admin; portal may still expect array on tenant routes).
+            var totalCount = await q.CountAsync();
+            var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+            page = clampedPage;
+
+            var faces = await ListSortApplicators
+                .ApplyFacesSort(q, listQuery.SortBy, listQuery.SortDir)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var items = faces.Select(f => new
             {
                 id = f.Id,
                 index = f.Index,
@@ -86,8 +117,8 @@ public class FacesController : ControllerBase
                 updatedAt = f.UpdatedAt,
             }).ToList();
 
-            _logger.LogInformation("Retrieved {Count} faces", faceDtos.Count);
-            return Ok(faceDtos);
+            _logger.LogInformation("Retrieved {Count} faces (page {Page})", items.Count, page);
+            return Ok(ListPaginationHelper.BuildEnvelope(items, page, pageSize, totalCount, totalPages));
         }
         catch (Exception ex)
         {

@@ -6,6 +6,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Pages;
 using BeDemo.Api.Services;
+using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
 
@@ -54,26 +55,40 @@ public class PagesController : ControllerBase
         try
         {
             var faceId = pagesQuery.FaceId;
-            IQueryable<Page> query = _context.Pages;
+            var page = pagesQuery.Page;
+            var pageSize = pagesQuery.PageSize;
+            IQueryable<Page> query = _context.Pages.AsNoTracking();
 
             if (CanManageAllFaces())
             {
-                // Optional filter when admin passes ?faceId= for a specific tenant.
                 if (faceId.HasValue)
                     query = query.Where(p => p.FaceId == faceId.Value);
             }
             else
             {
-                // Tenants always see only their scoped face's pages (ignore spoofed query).
                 query = query.Where(p => p.FaceId == _faceScope.FaceId);
             }
 
-            var pages = await query
-                .OrderBy(p => p.Index)
-                .ThenBy(p => p.Name)
+            if (!string.IsNullOrWhiteSpace(pagesQuery.Search))
+            {
+                var pattern = $"%{pagesQuery.Search.Trim()}%";
+                query = query.Where(p =>
+                    EF.Functions.ILike(p.Name, pattern) ||
+                    EF.Functions.ILike(p.Path, pattern) ||
+                    (p.Description != null && EF.Functions.ILike(p.Description, pattern)));
+            }
+
+            var totalCount = await query.CountAsync();
+            var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+            page = clampedPage;
+
+            var pages = await ListSortApplicators
+                .ApplyPagesSort(query, pagesQuery.SortBy, pagesQuery.SortDir)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
 
-            var pageDtos = pages.Select(p => new
+            var items = pages.Select(p => new
             {
                 id = p.Id,
                 faceId = p.FaceId,
@@ -87,8 +102,8 @@ public class PagesController : ControllerBase
                 updatedAt = p.UpdatedAt,
             }).ToList();
 
-            _logger.LogInformation("Retrieved {Count} pages", pageDtos.Count);
-            return Ok(pageDtos);
+            _logger.LogInformation("Retrieved {Count} pages", items.Count);
+            return Ok(ListPaginationHelper.BuildEnvelope(items, page, pageSize, totalCount, totalPages));
         }
         catch (Exception ex)
         {

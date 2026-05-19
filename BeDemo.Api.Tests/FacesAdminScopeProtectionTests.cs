@@ -23,9 +23,10 @@ public class FacesAdminScopeProtectionTests : IClassFixture<CustomWebApplication
         _adminFace.DefaultRequestHeaders.Authorization =
             new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var faces = await _adminFace.GetFromJsonAsync<JsonElement[]>("/api/faces");
-        faces.Should().NotBeNull();
-        var admin = faces!.FirstOrDefault(f =>
+        var doc = await _adminFace.GetFromJsonAsync<JsonElement>("/api/faces");
+        doc.Should().NotBeNull();
+        var faces = doc!.GetProperty("items").EnumerateArray().ToArray();
+        var admin = faces.FirstOrDefault(f =>
             f.TryGetProperty("index", out var idx) &&
             string.Equals(idx.GetString(), "admin", StringComparison.OrdinalIgnoreCase));
         admin.ValueKind.Should().NotBe(JsonValueKind.Undefined);

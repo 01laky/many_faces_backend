@@ -18,4 +18,8 @@ public sealed class GetModerationQueueQuery
     public DateTime? SubmittedToUtc { get; set; }
     public string? ReviewedByUserId { get; set; }
     public double? MinQueueAgeHours { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+    public string? SortBy { get; set; }
+    public string? SortDir { get; set; }
 }
