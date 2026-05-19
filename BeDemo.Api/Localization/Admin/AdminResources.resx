@@ -1909,6 +1909,15 @@
   <data name="pages.userDetail.facesTitle" xml:space="preserve">
     <value>Face memberships</value>
   </data>
+  <data name="pages.userDetail.albumsTitle" xml:space="preserve">
+    <value>Albums</value>
+  </data>
+  <data name="pages.userDetail.albumsEmpty" xml:space="preserve">
+    <value>This user has no albums.</value>
+  </data>
+  <data name="pages.userDetail.albumsColFaces" xml:space="preserve">
+    <value>Faces</value>
+  </data>
   <data name="pages.userDetail.faceColumnTitle" xml:space="preserve">
     <value>Face</value>
   </data>

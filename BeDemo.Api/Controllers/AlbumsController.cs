@@ -58,8 +58,21 @@ public class AlbumsController : ControllerBase
         IQueryable<Album> query = _context.Albums.AsNoTracking();
         query = OperatorContentListFilters.ApplyAlbumPortalVisibility(query, operatorInventory, UserId);
 
-        var effectiveFaceId = _faceScope.ResolveDataFaceId(listQuery.FaceId);
-        query = query.Where(a => a.AlbumFaces.Any(af => af.FaceId == effectiveFaceId));
+        if (!string.IsNullOrWhiteSpace(listQuery.CreatorId))
+        {
+            var creatorId = listQuery.CreatorId.Trim();
+            query = query.Where(a => a.CreatorId == creatorId);
+            if (listQuery.FaceId is > 0)
+            {
+                var scopedFaceId = _faceScope.ResolveDataFaceId(listQuery.FaceId);
+                query = query.Where(a => a.AlbumFaces.Any(af => af.FaceId == scopedFaceId));
+            }
+        }
+        else
+        {
+            var effectiveFaceId = _faceScope.ResolveDataFaceId(listQuery.FaceId);
+            query = query.Where(a => a.AlbumFaces.Any(af => af.FaceId == effectiveFaceId));
+        }
 
         if (!string.IsNullOrWhiteSpace(listQuery.Search))
         {

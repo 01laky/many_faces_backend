@@ -742,72 +742,58 @@ public static class DatabaseSeeder
         var have = await context.Albums.CountAsync(a =>
             a.CreatorId == userId && a.AlbumFaces.Any(af => af.FaceId == faceId));
         var toAdd = GridDemoItemsPerUserPerFace - have;
-        if (toAdd <= 0)
-            return;
 
-        var albums = new List<Album>();
-        for (var k = 0; k < toAdd; k++)
+        if (toAdd > 0)
         {
-            albums.Add(new Album
+            var albums = new List<Album>();
+            for (var k = 0; k < toAdd; k++)
             {
-                CreatorId = userId,
-                Title = $"Album {have + k + 1} · face {faceId}",
-                Description = "Seeded album for grid demo.",
-                AlbumType = AlbumTypeEnum.Public,
-                MediaType = MediaTypeEnum.Image,
-                CreatedAt = DateTime.UtcNow,
-            });
+                albums.Add(new Album
+                {
+                    CreatorId = userId,
+                    Title = $"Album {have + k + 1} · face {faceId}",
+                    Description = AlbumDemoMediaSeedHelper.DemoAlbumDescription,
+                    AlbumType = AlbumTypeEnum.Public,
+                    MediaType = MediaTypeEnum.Image,
+                    CreatedAt = DateTime.UtcNow,
+                });
+            }
+
+            context.Albums.AddRange(albums);
+            await context.SaveChangesAsync();
+
+            foreach (var a in albums)
+            {
+                context.AlbumFaces.Add(new AlbumFace
+                {
+                    AlbumId = a.Id,
+                    FaceId = faceId,
+                    CreatedAt = DateTime.UtcNow,
+                });
+            }
+
+            await context.SaveChangesAsync();
         }
 
-        context.Albums.AddRange(albums);
-        await context.SaveChangesAsync();
+        // Same seed pass: attach 5–20 picsum images + 2 videos to every demo album on this face.
+        var demoAlbumIds = await context.Albums
+            .AsNoTracking()
+            .Where(a =>
+                a.CreatorId == userId
+                && a.Description == AlbumDemoMediaSeedHelper.DemoAlbumDescription
+                && a.AlbumFaces.Any(af => af.FaceId == faceId))
+            .Select(a => a.Id)
+            .ToListAsync();
 
-        foreach (var a in albums)
+        var mediaRefreshed = 0;
+        foreach (var albumId in demoAlbumIds)
         {
-            context.AlbumFaces.Add(new AlbumFace
-            {
-                AlbumId = a.Id,
-                FaceId = faceId,
-                CreatedAt = DateTime.UtcNow,
-            });
+            if (await AlbumDemoMediaSeedHelper.EnsureDemoMediaForAlbumAsync(context, albumId))
+                mediaRefreshed++;
         }
 
-        await context.SaveChangesAsync();
-
-        // Demo media: two images + one video poster for operator album detail grid.
-        foreach (var a in albums)
-        {
-            context.AlbumMedia.Add(new AlbumMedia
-            {
-                AlbumId = a.Id,
-                MediaType = MediaTypeEnum.Image,
-                ImageUrl = "https://picsum.photos/seed/mf-album-img/800/600",
-                SortOrder = 0,
-                Title = "Seeded photo 1",
-                CreatedAt = DateTime.UtcNow,
-            });
-            context.AlbumMedia.Add(new AlbumMedia
-            {
-                AlbumId = a.Id,
-                MediaType = MediaTypeEnum.Image,
-                ImageUrl = "https://picsum.photos/seed/mf-album-img2/800/600",
-                SortOrder = 1,
-                Title = "Seeded photo 2",
-                CreatedAt = DateTime.UtcNow,
-            });
-            context.AlbumMedia.Add(new AlbumMedia
-            {
-                AlbumId = a.Id,
-                MediaType = MediaTypeEnum.Video,
-                ImageUrl = "https://picsum.photos/seed/mf-album-vid/800/600",
-                VideoUrl = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
-                SortOrder = 2,
-                Title = "Seeded clip",
-                CreatedAt = DateTime.UtcNow,
-            });
-        }
-
-        await context.SaveChangesAsync();
+        if (mediaRefreshed > 0)
+            await context.SaveChangesAsync();
     }
 
     private static async Task EnsureBlogsForUserFaceAsync(ApplicationDbContext context, string userId, int faceId)
