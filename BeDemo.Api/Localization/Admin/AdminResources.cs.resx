@@ -1291,6 +1291,78 @@
   <data name="pages.faceWallTickets.title" xml:space="preserve">
     <value>Wall tickety</value>
   </data>
+  <data name="pages.faceWallTickets.createTicket" xml:space="preserve">
+    <value>Nový nápad (ticket)</value>
+  </data>
+  <data name="pages.faceWallTickets.createTitle" xml:space="preserve">
+    <value>Vytvořit nápad</value>
+  </data>
+  <data name="pages.faceWallTickets.fieldTitle" xml:space="preserve">
+    <value>Název</value>
+  </data>
+  <data name="pages.faceWallTickets.fieldDescription" xml:space="preserve">
+    <value>Popis</value>
+  </data>
+  <data name="pages.faceWallTickets.created" xml:space="preserve">
+    <value>Ticket vytvořen</value>
+  </data>
+  <data name="pages.faceWallTickets.addComment" xml:space="preserve">
+    <value>Přidat komentář týmu…</value>
+  </data>
+  <data name="pages.faceWallTickets.sendComment" xml:space="preserve">
+    <value>Odeslat</value>
+  </data>
+  <data name="pages.faceWallTickets.commentPosted" xml:space="preserve">
+    <value>Komentář přidán</value>
+  </data>
+  <data name="pages.faceWallTickets.confirmDeny" xml:space="preserve">
+    <value>Zamítnout tento ticket? Za cca 2 dny bude trvale smazán.</value>
+  </data>
+  <data name="pages.faceWallTickets.confirmDenyTitle" xml:space="preserve">
+    <value>Zamítnout ticket</value>
+  </data>
+  <data name="pages.faceWallTickets.confirmDeleteTitle" xml:space="preserve">
+    <value>Smazat ticket</value>
+  </data>
+  <data name="pages.faceWallTickets.faceContext" xml:space="preserve">
+    <value>Tvář: {{name}} ({{id}})</value>
+  </data>
+  <data name="pages.faceWallTickets.filterAll" xml:space="preserve">
+    <value>Vše</value>
+  </data>
+  <data name="pages.faceWallTickets.filterActive" xml:space="preserve">
+    <value>Aktivní</value>
+  </data>
+  <data name="pages.faceWallTickets.filterApproved" xml:space="preserve">
+    <value>Schválené</value>
+  </data>
+  <data name="pages.faceWallTickets.filterDenied" xml:space="preserve">
+    <value>Zamítnuté</value>
+  </data>
+  <data name="pages.faceWallTickets.statusActive" xml:space="preserve">
+    <value>Aktivní</value>
+  </data>
+  <data name="pages.faceWallTickets.statusApproved" xml:space="preserve">
+    <value>Schválený</value>
+  </data>
+  <data name="pages.faceWallTickets.statusDenied" xml:space="preserve">
+    <value>Zamítnutý</value>
+  </data>
+  <data name="pages.faceWallTickets.emptyTitle" xml:space="preserve">
+    <value>Zatím žádné tickety</value>
+  </data>
+  <data name="pages.faceWallTickets.emptyHint" xml:space="preserve">
+    <value>Vytvořte první nápad pro tuto tvář nebo počkejte na komunitu.</value>
+  </data>
+  <data name="pages.faceWallTickets.deniedScheduledHint" xml:space="preserve">
+    <value>Ticket byl zamítnut a za cca 2 dny bude trvale smazán.</value>
+  </data>
+  <data name="pages.faceWallTickets.approvedFrozenHint" xml:space="preserve">
+    <value>Schváleno — lajky a komentáře na portálu jsou zmrazeny.</value>
+  </data>
+  <data name="pages.faceWallTickets.forbidden" xml:space="preserve">
+    <value>Pro moderaci wall ticketů potřebujete globálního Admina nebo Super Admina.</value>
+  </data>
   <data name="pages.faces.create" xml:space="preserve">
     <value>Vytvořit tvář</value>
   </data>

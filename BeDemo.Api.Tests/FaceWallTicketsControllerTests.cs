@@ -383,4 +383,207 @@ public class FaceWallTicketsControllerTests : IClassFixture<CustomWebApplication
         var again = await clientAdmin.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/approve", null);
         again.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
+
+    private async Task<(HttpClient Client, string Token, int FaceId)> NewAdminWithPublicFaceAsync()
+    {
+        var client = _factory.CreateClient();
+        var (token, userId, email) = await RegisterAndLoginAsync(client);
+        var faceId = await GetAnyFaceIdAsync(client, token);
+        var roleId = await GetFaceRoleIdAsync(client, token, "FACE_USER");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        (await client.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId = roleId })).EnsureSuccessStatusCode();
+        token = await PromoteUserToGlobalAdminAsync(_factory, client, userId, email);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return (client, token, faceId);
+    }
+
+    [Fact]
+    public async Task AdminCreate_ShouldReturn201_WithActiveStatus()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var res = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = "Operator idea", description = "Backlog body" });
+        res.StatusCode.Should().Be(HttpStatusCode.Created);
+        var body = await res.Content.ReadFromJsonAsync<JsonElement>();
+        body!.GetProperty("status").GetString().Should().Be("active");
+        body.GetProperty("title").GetString().Should().Be("Operator idea");
+    }
+
+    [Fact]
+    public async Task AdminCreate_ManyTickets_ShouldNotHitUserCap()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        for (var i = 0; i < 25; i++)
+        {
+            var res = await client.PostAsJsonAsync(
+                $"/api/admin/faces/{faceId}/wall-tickets",
+                new { title = $"Op{i}", description = "D" });
+            res.StatusCode.Should().Be(HttpStatusCode.Created);
+        }
+    }
+
+    [Fact]
+    public async Task AdminCreate_OnMissingFace_ShouldReturn404()
+    {
+        var (client, _, _) = await NewAdminWithPublicFaceAsync();
+        var res = await client.PostAsJsonAsync(
+            "/api/admin/faces/999999999/wall-tickets",
+            new { title = "T", description = "D" });
+        res.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task AdminCreate_NonAdmin_ShouldReturn403()
+    {
+        using var client = _factory.CreateClient();
+        var (token, _, _) = await RegisterAndLoginAsync(client);
+        var faceId = await GetAnyFaceIdAsync(client, token);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var res = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        res.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task AdminCreate_EmptyFields_ShouldReturn400()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var res = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = "", description = "" });
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task AdminCreate_TitleTooLong_ShouldReturn400()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var res = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = new string('x', 201), description = "D" });
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task AdminComment_OnActive_ShouldReturn201_AndAppearInDetail()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var create = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+        var comment = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/comments",
+            new { content = "Staff note" });
+        comment.StatusCode.Should().Be(HttpStatusCode.Created);
+        var detail = await client.GetFromJsonAsync<JsonElement>($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}");
+        detail!.GetProperty("comments").EnumerateArray()
+            .Any(c => c.GetProperty("content").GetString() == "Staff note")
+            .Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task AdminComment_OnApproved_ShouldReturn400()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var create = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+        (await client.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/approve", null)).EnsureSuccessStatusCode();
+        var comment = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/comments",
+            new { content = "nope" });
+        comment.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task AdminComment_WrongFaceId_ShouldReturn404()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var create = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+        var comment = await client.PostAsJsonAsync(
+            $"/api/admin/faces/999999999/wall-tickets/{ticketId}/comments",
+            new { content = "x" });
+        comment.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task AdminComment_NonAdmin_ShouldReturn403()
+    {
+        using var client = _factory.CreateClient();
+        var (token, _, _) = await RegisterAndLoginAsync(client);
+        var faceId = await GetAnyFaceIdAsync(client, token);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var res = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets/1/comments",
+            new { content = "x" });
+        res.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task AdminComment_TooLong_ShouldReturn400()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var create = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+        var res = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/comments",
+            new { content = new string('c', 256) });
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task AdminGetTicket_WrongFaceId_ShouldReturn404()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var create = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+        var res = await client.GetAsync($"/api/admin/faces/999999999/wall-tickets/{ticketId}");
+        res.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task AdminList_InvalidStatusFilter_ShouldReturn400()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var res = await client.GetAsync($"/api/admin/faces/{faceId}/wall-tickets?status=notastatus");
+        res.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task AdminList_StatusApproved_ShouldReturnOnlyApproved()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var create = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+        (await client.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/approve", null)).EnsureSuccessStatusCode();
+        var list = await client.GetFromJsonAsync<JsonElement>($"/api/admin/faces/{faceId}/wall-tickets?status=approved");
+        foreach (var item in list!.GetProperty("items").EnumerateArray())
+            item.GetProperty("status").GetString().Should().Be("approved");
+    }
+
+    [Fact]
+    public async Task DenyThenApprove_ShouldReturn400()
+    {
+        var (client, _, faceId) = await NewAdminWithPublicFaceAsync();
+        var create = await client.PostAsJsonAsync(
+            $"/api/admin/faces/{faceId}/wall-tickets",
+            new { title = "T", description = "D" });
+        var ticketId = (await create.Content.ReadFromJsonAsync<JsonElement>())!.GetProperty("id").GetInt32();
+        (await client.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/deny", null)).EnsureSuccessStatusCode();
+        var approve = await client.PostAsync($"/api/admin/faces/{faceId}/wall-tickets/{ticketId}/approve", null);
+        approve.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }

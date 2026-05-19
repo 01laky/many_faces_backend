@@ -1291,6 +1291,78 @@
   <data name="pages.faceWallTickets.title" xml:space="preserve">
     <value>Wall tickets</value>
   </data>
+  <data name="pages.faceWallTickets.createTicket" xml:space="preserve">
+    <value>New idea ticket</value>
+  </data>
+  <data name="pages.faceWallTickets.createTitle" xml:space="preserve">
+    <value>Create idea ticket</value>
+  </data>
+  <data name="pages.faceWallTickets.fieldTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="pages.faceWallTickets.fieldDescription" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="pages.faceWallTickets.created" xml:space="preserve">
+    <value>Idea ticket created</value>
+  </data>
+  <data name="pages.faceWallTickets.addComment" xml:space="preserve">
+    <value>Add staff comment…</value>
+  </data>
+  <data name="pages.faceWallTickets.sendComment" xml:space="preserve">
+    <value>Send</value>
+  </data>
+  <data name="pages.faceWallTickets.commentPosted" xml:space="preserve">
+    <value>Comment posted</value>
+  </data>
+  <data name="pages.faceWallTickets.confirmDeny" xml:space="preserve">
+    <value>Deny this ticket? It will be scheduled for hard deletion in about 2 days.</value>
+  </data>
+  <data name="pages.faceWallTickets.confirmDenyTitle" xml:space="preserve">
+    <value>Deny ticket</value>
+  </data>
+  <data name="pages.faceWallTickets.confirmDeleteTitle" xml:space="preserve">
+    <value>Delete ticket</value>
+  </data>
+  <data name="pages.faceWallTickets.faceContext" xml:space="preserve">
+    <value>Face: {{name}} ({{id}})</value>
+  </data>
+  <data name="pages.faceWallTickets.filterAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="pages.faceWallTickets.filterActive" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="pages.faceWallTickets.filterApproved" xml:space="preserve">
+    <value>Approved</value>
+  </data>
+  <data name="pages.faceWallTickets.filterDenied" xml:space="preserve">
+    <value>Denied</value>
+  </data>
+  <data name="pages.faceWallTickets.statusActive" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="pages.faceWallTickets.statusApproved" xml:space="preserve">
+    <value>Approved</value>
+  </data>
+  <data name="pages.faceWallTickets.statusDenied" xml:space="preserve">
+    <value>Denied</value>
+  </data>
+  <data name="pages.faceWallTickets.emptyTitle" xml:space="preserve">
+    <value>No wall tickets yet</value>
+  </data>
+  <data name="pages.faceWallTickets.emptyHint" xml:space="preserve">
+    <value>Create the first idea for this face or wait for community submissions.</value>
+  </data>
+  <data name="pages.faceWallTickets.deniedScheduledHint" xml:space="preserve">
+    <value>This ticket was denied and will be hard-deleted automatically after about 2 days.</value>
+  </data>
+  <data name="pages.faceWallTickets.approvedFrozenHint" xml:space="preserve">
+    <value>Approved — likes and comments are frozen on the portal wall.</value>
+  </data>
+  <data name="pages.faceWallTickets.forbidden" xml:space="preserve">
+    <value>You need global Admin or Super Admin access to moderate wall tickets.</value>
+  </data>
   <data name="pages.faces.create" xml:space="preserve">
     <value>Create Face</value>
   </data>
