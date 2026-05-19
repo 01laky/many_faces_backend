@@ -204,18 +204,24 @@ public class StoriesController : ControllerBase
         if (story == null)
             return NotFound(new { error = "Story not found" });
 
+        var operatorInventory = CanManageAllFaces();
+
+        if (!StoryVisibility.IsTargetedForFace(story, effectiveFaceId))
+            return NotFound(new { error = "Story not found" });
+
         var isCreator = story.CreatorId == UserId;
         var now = DateTime.UtcNow;
         var isLive = story.State == StoryState.Published &&
                      story.PublishedAt.HasValue && story.PublishedAt <= now &&
                      story.ExpiresAt.HasValue && story.ExpiresAt > now;
 
-        if (!isCreator)
+        // Portal viewers: membership + live window only. Operators: full inventory (§1.1), same as ListForFace.
+        if (!operatorInventory && !isCreator)
         {
             if (!await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, effectiveFaceId, cancellationToken))
                 return NotFound(new { error = "Story not found" });
 
-            if (!isLive || !StoryVisibility.IsTargetedForFace(story, effectiveFaceId))
+            if (!isLive)
                 return NotFound(new { error = "Story not found" });
         }
 
@@ -229,7 +235,7 @@ public class StoriesController : ControllerBase
 
         var creatorName = ((story.Creator.FirstName ?? "") + " " + (story.Creator.LastName ?? "")).Trim();
 
-        if (isCreator)
+        if (isCreator || operatorInventory)
         {
             var viewers = story.Views
                 .OrderByDescending(v => v.ViewedAt)
