@@ -1960,8 +1960,41 @@
   <data name="pages.userDetail.successMessage" xml:space="preserve">
     <value>Správa odoslaná</value>
   </data>
+  <data name="pages.faces.adminScopeReadOnly" xml:space="preserve">
+    <value>Platformový admin rozsah (iba na čítanie)</value>
+  </data>
+  <data name="pages.users.colCreatedAt" xml:space="preserve">
+    <value>Vytvorené</value>
+  </data>
+  <data name="pages.users.colEmail" xml:space="preserve">
+    <value>E-mail</value>
+  </data>
+  <data name="pages.users.colFirstName" xml:space="preserve">
+    <value>Meno</value>
+  </data>
+  <data name="pages.users.colLastName" xml:space="preserve">
+    <value>Priezvisko</value>
+  </data>
+  <data name="pages.users.create" xml:space="preserve">
+    <value>Vytvoriť používateľa</value>
+  </data>
+  <data name="pages.users.error" xml:space="preserve">
+    <value>Chyba pri načítaní používateľov</value>
+  </data>
+  <data name="pages.users.loading" xml:space="preserve">
+    <value>Načítavanie používateľov...</value>
+  </data>
+  <data name="pages.users.noUsers" xml:space="preserve">
+    <value>Žiadni používatelia nenájdení</value>
+  </data>
+  <data name="pages.users.searchPlaceholder" xml:space="preserve">
+    <value>Hľadať používateľov...</value>
+  </data>
   <data name="pages.users.title" xml:space="preserve">
     <value>Používatelia</value>
+  </data>
+  <data name="pages.users.users" xml:space="preserve">
+    <value>používatelia</value>
   </data>
   <data name="reactLogo" xml:space="preserve">
     <value>React logo</value>

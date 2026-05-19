@@ -1960,8 +1960,41 @@
   <data name="pages.userDetail.successMessage" xml:space="preserve">
     <value>Message sent</value>
   </data>
+  <data name="pages.faces.adminScopeReadOnly" xml:space="preserve">
+    <value>Platform admin scope (read-only)</value>
+  </data>
+  <data name="pages.users.colCreatedAt" xml:space="preserve">
+    <value>Created at</value>
+  </data>
+  <data name="pages.users.colEmail" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="pages.users.colFirstName" xml:space="preserve">
+    <value>First name</value>
+  </data>
+  <data name="pages.users.colLastName" xml:space="preserve">
+    <value>Last name</value>
+  </data>
+  <data name="pages.users.create" xml:space="preserve">
+    <value>Create user</value>
+  </data>
+  <data name="pages.users.error" xml:space="preserve">
+    <value>Error loading users</value>
+  </data>
+  <data name="pages.users.loading" xml:space="preserve">
+    <value>Loading users...</value>
+  </data>
+  <data name="pages.users.noUsers" xml:space="preserve">
+    <value>No users found</value>
+  </data>
+  <data name="pages.users.searchPlaceholder" xml:space="preserve">
+    <value>Search users...</value>
+  </data>
   <data name="pages.users.title" xml:space="preserve">
     <value>Users</value>
+  </data>
+  <data name="pages.users.users" xml:space="preserve">
+    <value>users</value>
   </data>
   <data name="reactLogo" xml:space="preserve">
     <value>React logo</value>
