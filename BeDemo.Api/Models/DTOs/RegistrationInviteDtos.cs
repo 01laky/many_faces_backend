@@ -1,6 +1,6 @@
 namespace BeDemo.Api.Models.DTOs;
 
-/// <summary>HTTP contracts for email-code registration (`/api/oauth2/register/*` and admin invite APIs).</summary>
+/// <summary>HTTP contracts for email-code registration (`/api/oauth2/register/*`).</summary>
 
 public sealed class RegisterRequestDto
 {
@@ -67,30 +67,4 @@ public sealed class RegisterPrefillResponseDto
     public DateTime ExpiresAtUtc { get; set; }
 
     public bool Valid { get; set; }
-}
-
-public sealed class AdminCreateRegistrationInviteDto
-{
-    public string Email { get; set; } = string.Empty;
-
-    public string? FirstName { get; set; }
-
-    public string? LastName { get; set; }
-
-    public string? Locale { get; set; }
-}
-
-public sealed class RegistrationInviteListItemDto
-{
-    public Guid Id { get; set; }
-
-    public string Email { get; set; } = string.Empty;
-
-    public string Status { get; set; } = string.Empty;
-
-    public DateTime CreatedAtUtc { get; set; }
-
-    public DateTime ExpiresAtUtc { get; set; }
-
-    public DateTime? ConsumedAtUtc { get; set; }
 }

@@ -17,7 +17,7 @@ Tests cover:
 
 - **FluentValidation** — per-schema `*ValidatorTests`, shared `Validation/Rules/*RulesTests`, generated `ValidatorSection4MatrixTests`, integration `ValidationProblemDetailsIntegrationTests`; run `dotnet test --filter "FullyQualifiedName~Validation"` and `./scripts/verify-validator-tests-parity.sh`. Guide: monorepo [`api-request-validation.md`](../../../docs/guides/api-request-validation.md).
 - Authentication and authorization
-- OAuth2 flows (including **email-code registration**: `RegistrationInviteEdgeCaseTests`, `OAuth2EdgeCaseTests`, `AdminRegistrationInvitesControllerTests`)
+- OAuth2 flows (including **email-code registration**: `RegistrationInviteEdgeCaseTests`, `OAuth2EdgeCaseTests`)
 - Edge cases and security scenarios
 - SignalR hubs
 - Performance tests

@@ -19,15 +19,4 @@ public interface IRegistrationInviteService
 
     /// <summary>Resend mail for pending invite; rotates hash and code.</summary>
     Task<RegisterRequestResponseDto> ResendAsync(RegisterResendDto dto, CancellationToken cancellationToken = default);
-
-    Task<RegistrationInviteListItemDto> CreateAdminInviteAsync(
-        AdminCreateRegistrationInviteDto dto,
-        string operatorUserId,
-        CancellationToken cancellationToken = default);
-
-    Task<AdminInviteListResponseDto> ListAdminInvitesAsync(
-        AdminInviteListQuery query,
-        CancellationToken cancellationToken = default);
-
-    Task<bool> RevokeAdminInviteAsync(Guid id, CancellationToken cancellationToken = default);
 }

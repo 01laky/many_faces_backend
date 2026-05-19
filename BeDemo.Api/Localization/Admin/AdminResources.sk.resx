@@ -1729,60 +1729,6 @@
   <data name="pages.storyDetail.title" xml:space="preserve">
     <value>Detail príbehu</value>
   </data>
-  <data name="pages.registrationInvites.create" xml:space="preserve">
-    <value>Vytvoriť pozvánku</value>
-  </data>
-  <data name="pages.registrationInvites.createError" xml:space="preserve">
-    <value>Nepodarilo sa vytvoriť pozvánku.</value>
-  </data>
-  <data name="pages.registrationInvites.created" xml:space="preserve">
-    <value>Pozvánka vytvorená.</value>
-  </data>
-  <data name="pages.registrationInvites.email" xml:space="preserve">
-    <value>Email</value>
-  </data>
-  <data name="pages.registrationInvites.expires" xml:space="preserve">
-    <value>Platnosť do</value>
-  </data>
-  <data name="pages.registrationInvites.firstName" xml:space="preserve">
-    <value>Meno</value>
-  </data>
-  <data name="pages.registrationInvites.lastName" xml:space="preserve">
-    <value>Priezvisko</value>
-  </data>
-  <data name="pages.registrationInvites.loadError" xml:space="preserve">
-    <value>Nepodarilo sa načítať pozvánky.</value>
-  </data>
-  <data name="pages.registrationInvites.loading" xml:space="preserve">
-    <value>Načítavam…</value>
-  </data>
-  <data name="pages.registrationInvites.resend" xml:space="preserve">
-    <value>Poslať znova</value>
-  </data>
-  <data name="pages.registrationInvites.resendError" xml:space="preserve">
-    <value>Nepodarilo sa odoslať email znova.</value>
-  </data>
-  <data name="pages.registrationInvites.resent" xml:space="preserve">
-    <value>Registračný email bol odoslaný znova.</value>
-  </data>
-  <data name="pages.registrationInvites.revoke" xml:space="preserve">
-    <value>Zrušiť</value>
-  </data>
-  <data name="pages.registrationInvites.revokeError" xml:space="preserve">
-    <value>Nepodarilo sa zrušiť pozvánku.</value>
-  </data>
-  <data name="pages.registrationInvites.revoked" xml:space="preserve">
-    <value>Pozvánka zrušená.</value>
-  </data>
-  <data name="pages.registrationInvites.status" xml:space="preserve">
-    <value>Stav</value>
-  </data>
-  <data name="pages.registrationInvites.subtitle" xml:space="preserve">
-    <value>Operátorské pozvánky a čakajúce registrácie.</value>
-  </data>
-  <data name="pages.registrationInvites.title" xml:space="preserve">
-    <value>Registračné pozvánky</value>
-  </data>
   <data name="pages.settings.aiStats.description" xml:space="preserve">
     <value>Určuje, či operátorský AI chat dostane anonymné agregované počty (používatelia, tváre, správy, …). Neposielajú sa texty správ ani audit moderácie.</value>
   </data>
@@ -2106,9 +2052,6 @@
   </data>
   <data name="routes.moderation" xml:space="preserve">
     <value>moderacia</value>
-  </data>
-  <data name="routes.registrationInvites" xml:space="preserve">
-    <value>registracne-pozvanky</value>
   </data>
   <data name="routes.settings" xml:space="preserve">
     <value>nastavenia</value>

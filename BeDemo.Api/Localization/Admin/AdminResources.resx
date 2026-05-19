@@ -1729,60 +1729,6 @@
   <data name="pages.storyDetail.title" xml:space="preserve">
     <value>Story details</value>
   </data>
-  <data name="pages.registrationInvites.create" xml:space="preserve">
-    <value>Create invite</value>
-  </data>
-  <data name="pages.registrationInvites.createError" xml:space="preserve">
-    <value>Could not create invite.</value>
-  </data>
-  <data name="pages.registrationInvites.created" xml:space="preserve">
-    <value>Invite created and email queued.</value>
-  </data>
-  <data name="pages.registrationInvites.email" xml:space="preserve">
-    <value>Email</value>
-  </data>
-  <data name="pages.registrationInvites.expires" xml:space="preserve">
-    <value>Expires</value>
-  </data>
-  <data name="pages.registrationInvites.firstName" xml:space="preserve">
-    <value>First name</value>
-  </data>
-  <data name="pages.registrationInvites.lastName" xml:space="preserve">
-    <value>Last name</value>
-  </data>
-  <data name="pages.registrationInvites.loadError" xml:space="preserve">
-    <value>Could not load invites.</value>
-  </data>
-  <data name="pages.registrationInvites.loading" xml:space="preserve">
-    <value>Loading…</value>
-  </data>
-  <data name="pages.registrationInvites.resend" xml:space="preserve">
-    <value>Resend email</value>
-  </data>
-  <data name="pages.registrationInvites.resendError" xml:space="preserve">
-    <value>Could not resend email.</value>
-  </data>
-  <data name="pages.registrationInvites.resent" xml:space="preserve">
-    <value>Registration email resent.</value>
-  </data>
-  <data name="pages.registrationInvites.revoke" xml:space="preserve">
-    <value>Revoke</value>
-  </data>
-  <data name="pages.registrationInvites.revokeError" xml:space="preserve">
-    <value>Could not revoke invite.</value>
-  </data>
-  <data name="pages.registrationInvites.revoked" xml:space="preserve">
-    <value>Invite revoked.</value>
-  </data>
-  <data name="pages.registrationInvites.status" xml:space="preserve">
-    <value>Status</value>
-  </data>
-  <data name="pages.registrationInvites.subtitle" xml:space="preserve">
-    <value>Operator-created invites and pending self-service signups.</value>
-  </data>
-  <data name="pages.registrationInvites.title" xml:space="preserve">
-    <value>Registration invites</value>
-  </data>
   <data name="pages.settings.aiStats.description" xml:space="preserve">
     <value>Controls whether the operator AI chat receives anonymous aggregate counts (users, faces, messages, …). No private message bodies or moderation audit data are sent.</value>
   </data>
@@ -2106,9 +2052,6 @@
   </data>
   <data name="routes.moderation" xml:space="preserve">
     <value>moderation</value>
-  </data>
-  <data name="routes.registrationInvites" xml:space="preserve">
-    <value>registration-invites</value>
   </data>
   <data name="routes.settings" xml:space="preserve">
     <value>settings</value>
