@@ -1793,6 +1793,12 @@
   <data name="pages.userDetail.blogsEmpty" xml:space="preserve">
     <value>No blogs for this user</value>
   </data>
+  <data name="pages.userDetail.storiesTitle" xml:space="preserve">
+    <value>Príbehy</value>
+  </data>
+  <data name="pages.userDetail.storiesEmpty" xml:space="preserve">
+    <value>Pre tohto používateľa nie sú žiadne príbehy</value>
+  </data>
   <data name="pages.userDetail.blogsColFace" xml:space="preserve">
     <value>Face</value>
   </data>
@@ -2288,6 +2294,15 @@
   <data name="pages.storiesTable.colCreatedAt" xml:space="preserve">
     <value>Vytvorené</value>
   </data>
+  <data name="pages.storiesTable.colCreator" xml:space="preserve">
+    <value>Autor</value>
+  </data>
+  <data name="pages.storiesTable.colExpiresAt" xml:space="preserve">
+    <value>Platnosť do</value>
+  </data>
+  <data name="pages.storiesTable.colImageCount" xml:space="preserve">
+    <value>Snímky</value>
+  </data>
   <data name="pages.storiesTable.colPublished" xml:space="preserve">
     <value>Publikované</value>
   </data>
@@ -2312,14 +2327,119 @@
   <data name="pages.storiesTable.title" xml:space="preserve">
     <value>Príbehy</value>
   </data>
+  <data name="pages.storiesTable.filterAll" xml:space="preserve">
+    <value>Všetky príbehy</value>
+  </data>
+  <data name="pages.storiesTable.filterDraft" xml:space="preserve">
+    <value>Iba koncepty</value>
+  </data>
+  <data name="pages.storiesTable.filterPublished" xml:space="preserve">
+    <value>Iba publikované</value>
+  </data>
+  <data name="pages.storyDetail.createdAt" xml:space="preserve">
+    <value>Vytvorené</value>
+  </data>
+  <data name="pages.storyDetail.creatorLabel" xml:space="preserve">
+    <value>Autor</value>
+  </data>
+  <data name="pages.storyDetail.commentsCount" xml:space="preserve">
+    <value>Komentáre</value>
+  </data>
+  <data name="pages.storyDetail.deleteImage" xml:space="preserve">
+    <value>Odstrániť snímku</value>
+  </data>
+  <data name="pages.storyDetail.deleteStory" xml:space="preserve">
+    <value>Odstrániť príbeh</value>
+  </data>
+  <data name="pages.storyDetail.expiresAt" xml:space="preserve">
+    <value>Platnosť do</value>
+  </data>
+  <data name="pages.storyDetail.facesLabel" xml:space="preserve">
+    <value>Tváre</value>
+  </data>
+  <data name="pages.storyDetail.facesUntargeted" xml:space="preserve">
+    <value>Bez cielenia na konkrétnu tvár</value>
+  </data>
+  <data name="pages.storyDetail.imageDeleteBlockedLive" xml:space="preserve">
+    <value>Počas živého príbehu nemožno odstrániť poslednú snímku. Odstráňte celý príbeh.</value>
+  </data>
+  <data name="pages.storyDetail.imagesEmpty" xml:space="preserve">
+    <value>Žiadne snímky</value>
+  </data>
+  <data name="pages.storyDetail.imagesSection" xml:space="preserve">
+    <value>Snímky</value>
+  </data>
+  <data name="pages.storyDetail.likesCount" xml:space="preserve">
+    <value>Páči sa</value>
+  </data>
+  <data name="pages.storyDetail.liveNo" xml:space="preserve">
+    <value>Nie je aktívny</value>
+  </data>
+  <data name="pages.storyDetail.liveYes" xml:space="preserve">
+    <value>Práve aktívny</value>
+  </data>
+  <data name="pages.storyDetail.loadError" xml:space="preserve">
+    <value>Príbeh sa nepodarilo načítať</value>
+  </data>
+  <data name="pages.storyDetail.managementSection" xml:space="preserve">
+    <value>Správa</value>
+  </data>
+  <data name="pages.storyDetail.missingFaceId" xml:space="preserve">
+    <value>Otvorte príbeh z tabuľky tváre alebo používateľa, aby bol v URL parameter faceId.</value>
+  </data>
+  <data name="pages.storyDetail.notFound" xml:space="preserve">
+    <value>Príbeh pre túto tvár nebol nájdený.</value>
+  </data>
+  <data name="pages.storyDetail.openChat" xml:space="preserve">
+    <value>Otvoriť chat s autorom</value>
+  </data>
   <data name="pages.storyDetail.publishedAt" xml:space="preserve">
     <value>Publikované</value>
+  </data>
+  <data name="pages.storyDetail.scheduledPublishAt" xml:space="preserve">
+    <value>Naplánované publikovanie</value>
   </data>
   <data name="pages.storyDetail.state" xml:space="preserve">
     <value>Stav</value>
   </data>
+  <data name="pages.storyDetail.stateDraft" xml:space="preserve">
+    <value>Koncept</value>
+  </data>
+  <data name="pages.storyDetail.stateExpired" xml:space="preserve">
+    <value>Expirovaný</value>
+  </data>
+  <data name="pages.storyDetail.statePublished" xml:space="preserve">
+    <value>Publikovaný</value>
+  </data>
+  <data name="pages.storyDetail.stateScheduled" xml:space="preserve">
+    <value>Naplánovaný</value>
+  </data>
+  <data name="pages.storyDetail.storyId" xml:space="preserve">
+    <value>ID príbehu</value>
+  </data>
+  <data name="pages.storyDetail.successDeleteImage" xml:space="preserve">
+    <value>Snímka odstránená</value>
+  </data>
+  <data name="pages.storyDetail.successDeleteStory" xml:space="preserve">
+    <value>Príbeh odstránený</value>
+  </data>
   <data name="pages.storyDetail.title" xml:space="preserve">
     <value>Detail príbehu</value>
+  </data>
+  <data name="pages.storyDetail.updatedAt" xml:space="preserve">
+    <value>Upravené</value>
+  </data>
+  <data name="pages.storyDetail.viewCount" xml:space="preserve">
+    <value>Zobrazenia</value>
+  </data>
+  <data name="pages.storyDetail.viewedAt" xml:space="preserve">
+    <value>Zobrazené</value>
+  </data>
+  <data name="pages.storyDetail.viewerName" xml:space="preserve">
+    <value>Pozerajúci</value>
+  </data>
+  <data name="pages.storyDetail.viewersSection" xml:space="preserve">
+    <value>Nedávni pozerajúci (max. 100)</value>
   </data>
   <data name="pages.settings.aiStats.description" xml:space="preserve">
     <value>Určuje, či operátorský AI chat dostane anonymné agregované počty (používatelia, tváre, správy, …). Neposielajú sa texty správ ani audit moderácie.</value>

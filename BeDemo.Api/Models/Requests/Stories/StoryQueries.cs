@@ -2,7 +2,10 @@ namespace BeDemo.Api.Models.Requests.Stories;
 
 public sealed class StoryListQuery
 {
-    public int FaceId { get; set; }
+    /// <summary>Scoped face for face-detail inventory; optional when <see cref="CreatorId"/> is set.</summary>
+    public int? FaceId { get; set; }
+    /// <summary>Operator user-detail table: list stories by creator across faces.</summary>
+    public string? CreatorId { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
     public string? Search { get; set; }

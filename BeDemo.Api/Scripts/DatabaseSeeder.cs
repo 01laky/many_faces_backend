@@ -592,7 +592,75 @@ public static class DatabaseSeeder
         await context.SaveChangesAsync();
         await EnsureSecondStoryImageForDemoStoriesAsync(context, demoUserIds);
         await ReactivateDemoExpiredStoriesAsync(context, demoUserIds);
+        await EnsureOperatorStoryDetailSamplesAsync(context, demoUserIds);
         Console.WriteLine("✅ Face grid demo content seeded (idempotent)");
+    }
+
+    /// <summary>
+    /// After <see cref="ReactivateDemoExpiredStoriesAsync"/>, seed draft/expired rows for operator story detail smoke (not revived).
+    /// </summary>
+    private static async Task EnsureOperatorStoryDetailSamplesAsync(ApplicationDbContext context, List<string> demoUserIds)
+    {
+        if (demoUserIds.Count == 0) return;
+
+        var creatorId = demoUserIds[0];
+        var faceId = await context.StoryFaces
+            .Where(sf => sf.Story.CreatorId == creatorId)
+            .Select(sf => sf.FaceId)
+            .FirstOrDefaultAsync();
+        if (faceId == 0)
+        {
+            faceId = await context.Faces.Select(f => f.Id).FirstOrDefaultAsync();
+            if (faceId == 0) return;
+        }
+
+        var now = DateTime.UtcNow;
+
+        if (!await context.Stories.AnyAsync(s => s.CreatorId == creatorId && s.Title.StartsWith("Operator sample draft")))
+        {
+            var draft = new Story
+            {
+                CreatorId = creatorId,
+                Title = "Operator sample draft",
+                State = StoryState.Draft,
+                CreatedAt = now,
+            };
+            context.Stories.Add(draft);
+            await context.SaveChangesAsync();
+            context.StoryFaces.Add(new StoryFace { StoryId = draft.Id, FaceId = faceId, CreatedAt = now });
+            context.StoryImages.Add(new StoryImage
+            {
+                StoryId = draft.Id,
+                ImageUrl = $"https://picsum.photos/seed/op-draft-{draft.Id}/400/700",
+                SortOrder = 0,
+                CreatedAt = now,
+            });
+        }
+
+        if (!await context.Stories.AnyAsync(s => s.CreatorId == creatorId && s.Title.StartsWith("Operator sample expired")))
+        {
+            var expired = new Story
+            {
+                CreatorId = creatorId,
+                Title = "Operator sample expired",
+                State = StoryState.Expired,
+                PublishedAt = now.AddDays(-2),
+                ExpiresAt = now.AddDays(-1),
+                CreatedAt = now.AddDays(-3),
+            };
+            context.Stories.Add(expired);
+            await context.SaveChangesAsync();
+            context.StoryFaces.Add(new StoryFace { StoryId = expired.Id, FaceId = faceId, CreatedAt = now });
+            context.StoryImages.Add(new StoryImage
+            {
+                StoryId = expired.Id,
+                ImageUrl = $"https://picsum.photos/seed/op-expired-{expired.Id}/400/700",
+                SortOrder = 0,
+                CreatedAt = now,
+            });
+        }
+
+        await context.SaveChangesAsync();
     }
 
     /// <summary>

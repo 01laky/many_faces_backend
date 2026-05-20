@@ -8,11 +8,23 @@ public sealed class StoryListQueryValidatorTests
     private readonly StoryListQueryValidator _sut = new();
 
     [Fact]
-    public void Valid_minimal_instance_has_no_errors()
+    public void Valid_faceId_has_no_errors()
     {
-        var model = new BeDemo.Api.Models.Requests.Stories.StoryListQuery();
-        var result = _sut.TestValidate(model);
-        // Refine per §4 T1–T12 as rules are added.
-        _ = result;
+        var result = _sut.TestValidate(new BeDemo.Api.Models.Requests.Stories.StoryListQuery { FaceId = 1 });
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void Valid_creatorId_only_has_no_errors()
+    {
+        var result = _sut.TestValidate(new BeDemo.Api.Models.Requests.Stories.StoryListQuery { CreatorId = "user-1" });
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Fact]
+    public void Missing_face_and_creator_fails()
+    {
+        var result = _sut.TestValidate(new BeDemo.Api.Models.Requests.Stories.StoryListQuery());
+        result.ShouldHaveValidationErrorFor(x => x);
     }
 }

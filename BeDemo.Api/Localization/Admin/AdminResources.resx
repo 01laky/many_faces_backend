@@ -1793,6 +1793,12 @@
   <data name="pages.userDetail.blogsEmpty" xml:space="preserve">
     <value>No blogs for this user</value>
   </data>
+  <data name="pages.userDetail.storiesTitle" xml:space="preserve">
+    <value>Stories</value>
+  </data>
+  <data name="pages.userDetail.storiesEmpty" xml:space="preserve">
+    <value>No stories for this user</value>
+  </data>
   <data name="pages.userDetail.blogsColFace" xml:space="preserve">
     <value>Face</value>
   </data>
@@ -2288,11 +2294,29 @@
   <data name="pages.storiesTable.colCreatedAt" xml:space="preserve">
     <value>Created at</value>
   </data>
+  <data name="pages.storiesTable.colCreator" xml:space="preserve">
+    <value>Creator</value>
+  </data>
+  <data name="pages.storiesTable.colExpiresAt" xml:space="preserve">
+    <value>Expires at</value>
+  </data>
+  <data name="pages.storiesTable.colImageCount" xml:space="preserve">
+    <value>Slides</value>
+  </data>
   <data name="pages.storiesTable.colPublished" xml:space="preserve">
     <value>Published</value>
   </data>
   <data name="pages.storiesTable.colTitle" xml:space="preserve">
     <value>Title</value>
+  </data>
+  <data name="pages.storiesTable.filterAll" xml:space="preserve">
+    <value>All stories</value>
+  </data>
+  <data name="pages.storiesTable.filterDraft" xml:space="preserve">
+    <value>Drafts only</value>
+  </data>
+  <data name="pages.storiesTable.filterPublished" xml:space="preserve">
+    <value>Published only</value>
   </data>
   <data name="pages.storiesTable.draft" xml:space="preserve">
     <value>Draft</value>
@@ -2312,14 +2336,110 @@
   <data name="pages.storiesTable.title" xml:space="preserve">
     <value>Stories</value>
   </data>
+  <data name="pages.storyDetail.createdAt" xml:space="preserve">
+    <value>Created at</value>
+  </data>
+  <data name="pages.storyDetail.creatorLabel" xml:space="preserve">
+    <value>Creator</value>
+  </data>
+  <data name="pages.storyDetail.commentsCount" xml:space="preserve">
+    <value>Comments</value>
+  </data>
+  <data name="pages.storyDetail.deleteImage" xml:space="preserve">
+    <value>Delete slide</value>
+  </data>
+  <data name="pages.storyDetail.deleteStory" xml:space="preserve">
+    <value>Delete story</value>
+  </data>
+  <data name="pages.storyDetail.expiresAt" xml:space="preserve">
+    <value>Expires at</value>
+  </data>
+  <data name="pages.storyDetail.facesLabel" xml:space="preserve">
+    <value>Faces</value>
+  </data>
+  <data name="pages.storyDetail.facesUntargeted" xml:space="preserve">
+    <value>Not targeted to a specific face</value>
+  </data>
+  <data name="pages.storyDetail.imageDeleteBlockedLive" xml:space="preserve">
+    <value>Cannot remove the last slide while the story is live. Delete the whole story instead.</value>
+  </data>
+  <data name="pages.storyDetail.imagesEmpty" xml:space="preserve">
+    <value>No slides</value>
+  </data>
+  <data name="pages.storyDetail.imagesSection" xml:space="preserve">
+    <value>Slides</value>
+  </data>
+  <data name="pages.storyDetail.likesCount" xml:space="preserve">
+    <value>Likes</value>
+  </data>
+  <data name="pages.storyDetail.liveNo" xml:space="preserve">
+    <value>Not live</value>
+  </data>
+  <data name="pages.storyDetail.liveYes" xml:space="preserve">
+    <value>Live now</value>
+  </data>
+  <data name="pages.storyDetail.loadError" xml:space="preserve">
+    <value>Failed to load story</value>
+  </data>
+  <data name="pages.storyDetail.managementSection" xml:space="preserve">
+    <value>Management</value>
+  </data>
+  <data name="pages.storyDetail.missingFaceId" xml:space="preserve">
+    <value>Open this story from a face or user stories table so faceId is set in the URL.</value>
+  </data>
+  <data name="pages.storyDetail.notFound" xml:space="preserve">
+    <value>Story not found for this face.</value>
+  </data>
+  <data name="pages.storyDetail.openChat" xml:space="preserve">
+    <value>Open chat with creator</value>
+  </data>
   <data name="pages.storyDetail.publishedAt" xml:space="preserve">
     <value>Published at</value>
+  </data>
+  <data name="pages.storyDetail.scheduledPublishAt" xml:space="preserve">
+    <value>Scheduled publish</value>
   </data>
   <data name="pages.storyDetail.state" xml:space="preserve">
     <value>State</value>
   </data>
+  <data name="pages.storyDetail.stateDraft" xml:space="preserve">
+    <value>Draft</value>
+  </data>
+  <data name="pages.storyDetail.stateExpired" xml:space="preserve">
+    <value>Expired</value>
+  </data>
+  <data name="pages.storyDetail.statePublished" xml:space="preserve">
+    <value>Published</value>
+  </data>
+  <data name="pages.storyDetail.stateScheduled" xml:space="preserve">
+    <value>Scheduled</value>
+  </data>
+  <data name="pages.storyDetail.storyId" xml:space="preserve">
+    <value>Story ID</value>
+  </data>
+  <data name="pages.storyDetail.successDeleteImage" xml:space="preserve">
+    <value>Slide removed</value>
+  </data>
+  <data name="pages.storyDetail.successDeleteStory" xml:space="preserve">
+    <value>Story deleted</value>
+  </data>
   <data name="pages.storyDetail.title" xml:space="preserve">
     <value>Story details</value>
+  </data>
+  <data name="pages.storyDetail.updatedAt" xml:space="preserve">
+    <value>Updated at</value>
+  </data>
+  <data name="pages.storyDetail.viewCount" xml:space="preserve">
+    <value>Views</value>
+  </data>
+  <data name="pages.storyDetail.viewedAt" xml:space="preserve">
+    <value>Viewed at</value>
+  </data>
+  <data name="pages.storyDetail.viewerName" xml:space="preserve">
+    <value>Viewer</value>
+  </data>
+  <data name="pages.storyDetail.viewersSection" xml:space="preserve">
+    <value>Recent viewers (max 100)</value>
   </data>
   <data name="pages.settings.aiStats.description" xml:space="preserve">
     <value>Controls whether the operator AI chat receives anonymous aggregate counts (users, faces, messages, …). No private message bodies or moderation audit data are sent.</value>

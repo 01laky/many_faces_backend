@@ -78,15 +78,40 @@ public class StoriesController : ControllerBase
         var operatorInventory = CanManageAllFaces();
         var page = query.Page;
         var pageSize = query.PageSize;
-        var effectiveFaceId = _faceScope.ResolveDataFaceId(query.FaceId);
-
-        if (!operatorInventory &&
-            !await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, effectiveFaceId, cancellationToken))
-        {
-            return Ok(ListPaginationHelper.BuildEnvelope(Array.Empty<object>(), page, pageSize, 0, 0));
-        }
 
         IQueryable<Story> dbQuery = _context.Stories.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(query.CreatorId))
+        {
+            var creatorId = query.CreatorId.Trim();
+            dbQuery = dbQuery.Where(s => s.CreatorId == creatorId);
+            if (query.FaceId is > 0)
+            {
+                var scopedFaceId = _faceScope.ResolveDataFaceId(query.FaceId);
+                if (!operatorInventory &&
+                    !await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, scopedFaceId, cancellationToken))
+                {
+                    return Ok(ListPaginationHelper.BuildEnvelope(Array.Empty<object>(), page, pageSize, 0, 0));
+                }
+
+                dbQuery = dbQuery.Where(s =>
+                    !s.StoryFaces.Any() ||
+                    s.StoryFaces.Any(sf => sf.FaceId == scopedFaceId));
+            }
+        }
+        else
+        {
+            var effectiveFaceId = _faceScope.ResolveDataFaceId(query.FaceId);
+            if (!operatorInventory &&
+                !await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, effectiveFaceId, cancellationToken))
+            {
+                return Ok(ListPaginationHelper.BuildEnvelope(Array.Empty<object>(), page, pageSize, 0, 0));
+            }
+
+            dbQuery = dbQuery.Where(s =>
+                !s.StoryFaces.Any() ||
+                s.StoryFaces.Any(sf => sf.FaceId == effectiveFaceId));
+        }
 
         if (!operatorInventory)
         {
@@ -106,10 +131,6 @@ public class StoriesController : ControllerBase
         {
             dbQuery = dbQuery.Where(s => s.State != StoryState.Published);
         }
-
-        dbQuery = dbQuery.Where(s =>
-            !s.StoryFaces.Any() ||
-            s.StoryFaces.Any(sf => sf.FaceId == effectiveFaceId));
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
@@ -194,6 +215,7 @@ public class StoriesController : ControllerBase
         var story = await _context.Stories
             .Include(s => s.Creator)
             .Include(s => s.StoryFaces)
+            .ThenInclude(sf => sf.Face)
             .Include(s => s.Images)
             .Include(s => s.Likes)
             .Include(s => s.Comments)
@@ -234,38 +256,23 @@ public class StoriesController : ControllerBase
         }).ToList();
 
         var creatorName = ((story.Creator.FirstName ?? "") + " " + (story.Creator.LastName ?? "")).Trim();
+        var faces = story.StoryFaces
+            .Select(sf => new { faceId = sf.FaceId, title = sf.Face.Title })
+            .ToList();
 
-        if (isCreator || operatorInventory)
-        {
-            var viewers = story.Views
+        const int maxViewers = 100;
+        var viewersPayload = (isCreator || operatorInventory)
+            ? story.Views
                 .OrderByDescending(v => v.ViewedAt)
+                .Take(maxViewers)
                 .Select(v => new
                 {
                     v.ViewerUserId,
                     viewerName = ((v.Viewer.FirstName ?? "") + " " + (v.Viewer.LastName ?? "")).Trim(),
                     v.ViewedAt,
                 })
-                .ToList();
-
-            return Ok(new
-            {
-                story.Id,
-                story.Title,
-                story.State,
-                story.CreatorId,
-                creatorName,
-                images,
-                likesCount = story.Likes.Count,
-                commentsCount = story.Comments.Count,
-                isLikedByMe = story.Likes.Any(l => l.UserId == UserId),
-                story.PublishedAt,
-                story.ExpiresAt,
-                story.ScheduledPublishAt,
-                story.CreatedAt,
-                viewCount = story.Views.Count,
-                viewers,
-            });
-        }
+                .ToList()
+            : null;
 
         return Ok(new
         {
@@ -274,6 +281,7 @@ public class StoriesController : ControllerBase
             story.State,
             story.CreatorId,
             creatorName,
+            faces,
             images,
             likesCount = story.Likes.Count,
             commentsCount = story.Comments.Count,
@@ -282,7 +290,9 @@ public class StoriesController : ControllerBase
             story.ExpiresAt,
             story.ScheduledPublishAt,
             story.CreatedAt,
+            story.UpdatedAt,
             viewCount = story.Views.Count,
+            viewers = viewersPayload,
         });
     }
 

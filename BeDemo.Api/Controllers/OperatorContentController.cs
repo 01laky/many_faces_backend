@@ -18,6 +18,7 @@ public sealed class OperatorContentController : ControllerBase
     private readonly IOperatorBlogManagementService _blogs;
     private readonly IOperatorChatRoomManagementService _chatRooms;
     private readonly IOperatorProfileSocialManagementService _profiles;
+    private readonly IOperatorStoryManagementService _stories;
 
     public OperatorContentController(
         IAccessEvaluator access,
@@ -25,7 +26,8 @@ public sealed class OperatorContentController : ControllerBase
         IOperatorReelManagementService reels,
         IOperatorBlogManagementService blogs,
         IOperatorChatRoomManagementService chatRooms,
-        IOperatorProfileSocialManagementService profiles)
+        IOperatorProfileSocialManagementService profiles,
+        IOperatorStoryManagementService stories)
     {
         _access = access;
         _albums = albums;
@@ -33,6 +35,7 @@ public sealed class OperatorContentController : ControllerBase
         _blogs = blogs;
         _chatRooms = chatRooms;
         _profiles = profiles;
+        _stories = stories;
     }
 
     private string? OperatorUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -223,5 +226,60 @@ public sealed class OperatorContentController : ControllerBase
             request.UserMessage,
             cancellationToken);
         return ok ? NoContent() : NotFound(new { error = "Review not found" });
+    }
+
+    /// <summary>Hard-delete story (operator detail Delete story).</summary>
+    [HttpPost("stories/{id:int}/delete")]
+    public async Task<IActionResult> HardDeleteStory(
+        int id,
+        [FromBody] OperatorAlbumDeleteRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!RequireSuperAdmin())
+            return Forbid();
+        if (string.IsNullOrEmpty(OperatorUserId))
+            return Unauthorized();
+
+        await _stories.HardDeleteStoryAsync(
+            OperatorUserId,
+            id,
+            request.FaceId,
+            request.Reason,
+            request.UserMessage,
+            cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>Delete one story image; story row remains (no platform DM).</summary>
+    [HttpPost("stories/{storyId:int}/images/{imageId:int}/delete")]
+    public async Task<IActionResult> DeleteStoryImage(
+        int storyId,
+        int imageId,
+        [FromBody] OperatorAlbumDeleteRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!RequireSuperAdmin())
+            return Forbid();
+        if (string.IsNullOrEmpty(OperatorUserId))
+            return Unauthorized();
+
+        try
+        {
+            var ok = await _stories.DeleteStoryImageAsync(
+                OperatorUserId,
+                storyId,
+                imageId,
+                request.FaceId,
+                request.Reason,
+                request.UserMessage,
+                cancellationToken);
+
+            return ok ? NoContent() : NotFound(new { error = "Story or image not found" });
+        }
+        catch (InvalidOperationException ex) when (ex.Message == "image_delete_blocked_live")
+        {
+            return BadRequest(new { error = "image_delete_blocked_live" });
+        }
     }
 }
