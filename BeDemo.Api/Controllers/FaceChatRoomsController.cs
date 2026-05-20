@@ -9,6 +9,7 @@ using BeDemo.Api.Models;
 using BeDemo.Api.Services;
 using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.Utils;
+using BeDemo.Api.Validation.Rules;
 
 namespace BeDemo.Api.Controllers;
 
@@ -20,21 +21,26 @@ public class FaceChatRoomsController : ControllerBase
     private readonly ApplicationDbContext _context;
     private readonly IChatRoomLifecycleService _lifecycle;
     private readonly IHubContext<MessengerHub> _messengerHub;
+    private readonly IAccessEvaluator _access;
     private readonly ILogger<FaceChatRoomsController> _logger;
 
     public FaceChatRoomsController(
         ApplicationDbContext context,
         IChatRoomLifecycleService lifecycle,
         IHubContext<MessengerHub> messengerHub,
+        IAccessEvaluator access,
         ILogger<FaceChatRoomsController> logger)
     {
         _context = context;
         _lifecycle = lifecycle;
         _messengerHub = messengerHub;
+        _access = access;
         _logger = logger;
     }
 
     private string? UserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    private bool CanManageAllFaces() => _access.CanManageAllFaces(User);
 
     private async Task<ApplicationUser?> GetUserTrackedAsync(CancellationToken ct) =>
         string.IsNullOrEmpty(UserId) ? null : await _context.Users.FirstOrDefaultAsync(u => u.Id == UserId, ct);
@@ -46,7 +52,8 @@ public class FaceChatRoomsController : ControllerBase
         bool isMember,
         bool hasPendingRequest,
         int memberCount,
-        int? messageCount = null) =>
+        int messageCount,
+        int pendingJoinRequestCount) =>
         new
         {
             r.Id,
@@ -57,9 +64,11 @@ public class FaceChatRoomsController : ControllerBase
             r.IsSystemManaged,
             r.CreatorUserId,
             r.CreatedAt,
+            r.UpdatedAt,
             r.LastMessageAt,
             memberCount,
             messageCount,
+            pendingJoinRequestCount,
             isHostViewer,
             canParticipate,
             isMember,
@@ -132,7 +141,7 @@ public class FaceChatRoomsController : ControllerBase
             var mc = memberCounts.GetValueOrDefault(r.Id);
             var member = myMemberships.Contains(r.Id);
             var canPart = !isHost;
-            return RoomDto(r, isHost, canPart, member, pending.Contains(r.Id), mc);
+            return RoomDto(r, isHost, canPart, member, pending.Contains(r.Id), mc, messageCount: 0, pendingJoinRequestCount: 0);
         }).ToList();
 
         return Ok(ListPaginationHelper.BuildEnvelope(list, page, pageSize, totalCount, totalPages));
@@ -155,7 +164,12 @@ public class FaceChatRoomsController : ControllerBase
             j => j.FaceChatRoomId == roomId && j.UserId == UserId && j.Status == FaceChatRoomJoinRequestStatus.Pending,
             cancellationToken);
 
-        return Ok(RoomDto(room, isHost, canParticipate: !isHost, isMember, hasPending, memberCount));
+        var messageCount = await _context.FaceChatRoomMessages.CountAsync(m => m.FaceChatRoomId == roomId, cancellationToken);
+        var pendingJoinRequestCount = await _context.FaceChatRoomJoinRequests.CountAsync(
+            j => j.FaceChatRoomId == roomId && j.Status == FaceChatRoomJoinRequestStatus.Pending,
+            cancellationToken);
+
+        return Ok(RoomDto(room, isHost, canParticipate: !isHost, isMember, hasPending, memberCount, messageCount, pendingJoinRequestCount));
     }
 
     /// <summary>User-created room (requires face.ChatRoomsCreate, non-host).</summary>
@@ -444,11 +458,72 @@ public class FaceChatRoomsController : ControllerBase
         if (room == null)
             return NotFound();
 
-        var isHost = await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken);
-        var isMember = await _context.FaceChatRoomMembers.AnyAsync(m => m.FaceChatRoomId == roomId && m.UserId == UserId, cancellationToken);
-        if (!isHost && !isMember)
-            return Forbid();
+        var operatorInventory = CanManageAllFaces();
+        if (!operatorInventory)
+        {
+            var isHost = await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken);
+            var isMember = await _context.FaceChatRoomMembers.AnyAsync(
+                m => m.FaceChatRoomId == roomId && m.UserId == UserId,
+                cancellationToken);
+            if (!isHost && !isMember)
+                return Forbid();
+        }
 
+        // Operator admin tables: offset envelope (page >= 1, no beforeId).
+        if (messagesQuery.Page >= 1 && !beforeId.HasValue)
+        {
+            if (!operatorInventory)
+                return Forbid();
+
+            var page = messagesQuery.Page;
+            var messageQuery = _context.FaceChatRoomMessages.AsNoTracking()
+                .Where(m => m.FaceChatRoomId == roomId);
+
+            if (!string.IsNullOrWhiteSpace(messagesQuery.Search))
+            {
+                var term = messagesQuery.Search.Trim();
+                messageQuery = messageQuery.Where(m =>
+                    m.Content.Contains(term)
+                    || m.SenderUserId.Contains(term)
+                    || (m.Sender.FirstName + " " + m.Sender.LastName).Contains(term)
+                    || (m.Sender.Email != null && m.Sender.Email.Contains(term)));
+            }
+
+            var totalCount = await messageQuery.CountAsync(cancellationToken);
+            var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+            page = clampedPage;
+
+            var desc = SortRules.IsDescending(messagesQuery.SortDir);
+            var ordered = (messagesQuery.SortBy?.ToLowerInvariant()) switch
+            {
+                "sentat" => desc
+                    ? messageQuery.OrderByDescending(m => m.SentAt)
+                    : messageQuery.OrderBy(m => m.SentAt),
+                "senderuserid" => desc
+                    ? messageQuery.OrderByDescending(m => m.SenderUserId)
+                    : messageQuery.OrderBy(m => m.SenderUserId),
+                _ => desc
+                    ? messageQuery.OrderByDescending(m => m.Id)
+                    : messageQuery.OrderBy(m => m.Id),
+            };
+
+            var pageItems = await ordered
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(m => new
+                {
+                    m.Id,
+                    m.SenderUserId,
+                    SenderDisplayName = (m.Sender.FirstName + " " + m.Sender.LastName).Trim(),
+                    m.Content,
+                    m.SentAt,
+                })
+                .ToListAsync(cancellationToken);
+
+            return Ok(ListPaginationHelper.BuildEnvelope(pageItems, page, pageSize, totalCount, totalPages));
+        }
+
+        // Portal / live chat: cursor batch (newest-first slice, reversed to chronological).
         var q = _context.FaceChatRoomMessages.AsNoTracking().Where(m => m.FaceChatRoomId == roomId);
         if (beforeId.HasValue)
             q = q.Where(m => m.Id < beforeId.Value);
@@ -460,6 +535,7 @@ public class FaceChatRoomsController : ControllerBase
             {
                 m.Id,
                 m.SenderUserId,
+                SenderDisplayName = (m.Sender.FirstName + " " + m.Sender.LastName).Trim(),
                 m.Content,
                 m.SentAt,
             })
@@ -467,5 +543,149 @@ public class FaceChatRoomsController : ControllerBase
 
         items.Reverse();
         return Ok(items);
+    }
+
+    /// <summary>Operator inventory: paginated room members (joined users at query time).</summary>
+    [HttpGet("{roomId:int}/members")]
+    public async Task<IActionResult> ListMembers(
+        int faceId,
+        int roomId,
+        [FromQuery] FaceChatRoomMembersListQuery listQuery,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+        if (!CanManageAllFaces())
+            return Forbid();
+
+        var roomExists = await _context.FaceChatRooms.AsNoTracking()
+            .AnyAsync(r => r.Id == roomId && r.FaceId == faceId, cancellationToken);
+        if (!roomExists)
+            return NotFound();
+
+        var page = listQuery.Page;
+        var pageSize = listQuery.PageSize;
+        var memberQuery = _context.FaceChatRoomMembers.AsNoTracking()
+            .Where(m => m.FaceChatRoomId == roomId);
+
+        if (!string.IsNullOrWhiteSpace(listQuery.Search))
+        {
+            var term = listQuery.Search.Trim();
+            var matchingUserIds = await _context.Users.AsNoTracking()
+                .Where(u =>
+                    u.Id.Contains(term)
+                    || (u.FirstName + " " + u.LastName).Contains(term)
+                    || (u.Email != null && u.Email.Contains(term)))
+                .Select(u => u.Id)
+                .ToListAsync(cancellationToken);
+            memberQuery = memberQuery.Where(m =>
+                m.UserId.Contains(term) || matchingUserIds.Contains(m.UserId));
+        }
+
+        var totalCount = await memberQuery.CountAsync(cancellationToken);
+        var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+        page = clampedPage;
+
+        var desc = SortRules.IsDescending(listQuery.SortDir);
+        var ordered = (listQuery.SortBy?.ToLowerInvariant()) switch
+        {
+            "userid" => desc
+                ? memberQuery.OrderByDescending(m => m.UserId)
+                : memberQuery.OrderBy(m => m.UserId),
+            _ => desc
+                ? memberQuery.OrderByDescending(m => m.JoinedAt)
+                : memberQuery.OrderBy(m => m.JoinedAt),
+        };
+
+        var members = await ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(m => new { m.UserId, m.JoinedAt })
+            .ToListAsync(cancellationToken);
+
+        var userIds = members.Select(m => m.UserId).ToList();
+        var users = await _context.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Email })
+            .ToDictionaryAsync(u => u.Id, cancellationToken);
+
+        var items = members.Select(m =>
+        {
+            users.TryGetValue(m.UserId, out var u);
+            var displayName = u != null
+                ? $"{u.FirstName} {u.LastName}".Trim()
+                : m.UserId;
+            if (string.IsNullOrWhiteSpace(displayName))
+                displayName = u?.Email ?? m.UserId;
+            return new
+            {
+                userId = m.UserId,
+                displayName,
+                joinedAt = m.JoinedAt,
+            };
+        }).ToList();
+
+        return Ok(ListPaginationHelper.BuildEnvelope(items, page, pageSize, totalCount, totalPages));
+    }
+
+    /// <summary>Operator inventory: pending join requests for a private room.</summary>
+    [HttpGet("{roomId:int}/join-requests")]
+    public async Task<IActionResult> ListJoinRequests(
+        int faceId,
+        int roomId,
+        [FromQuery] FaceChatRoomJoinRequestsListQuery listQuery,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(UserId))
+            return Unauthorized();
+        if (!CanManageAllFaces())
+            return Forbid();
+
+        var roomExists = await _context.FaceChatRooms.AsNoTracking()
+            .AnyAsync(r => r.Id == roomId && r.FaceId == faceId, cancellationToken);
+        if (!roomExists)
+            return NotFound();
+
+        var page = listQuery.Page;
+        var pageSize = listQuery.PageSize;
+        var requestQuery = _context.FaceChatRoomJoinRequests.AsNoTracking()
+            .Where(j => j.FaceChatRoomId == roomId && j.Status == FaceChatRoomJoinRequestStatus.Pending);
+
+        var totalCount = await requestQuery.CountAsync(cancellationToken);
+        var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+        page = clampedPage;
+
+        var requests = await requestQuery
+            .OrderByDescending(j => j.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(j => new { j.Id, j.UserId, j.CreatedAt, j.Status })
+            .ToListAsync(cancellationToken);
+
+        var userIds = requests.Select(r => r.UserId).ToList();
+        var users = await _context.Users.AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Email })
+            .ToDictionaryAsync(u => u.Id, cancellationToken);
+
+        var items = requests.Select(r =>
+        {
+            users.TryGetValue(r.UserId, out var u);
+            var displayName = u != null
+                ? $"{u.FirstName} {u.LastName}".Trim()
+                : r.UserId;
+            if (string.IsNullOrWhiteSpace(displayName))
+                displayName = u?.Email ?? r.UserId;
+            return new
+            {
+                requestId = r.Id,
+                userId = r.UserId,
+                displayName,
+                createdAt = r.CreatedAt,
+                status = r.Status.ToString(),
+            };
+        }).ToList();
+
+        return Ok(ListPaginationHelper.BuildEnvelope(items, page, pageSize, totalCount, totalPages));
     }
 }

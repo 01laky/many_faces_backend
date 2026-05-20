@@ -16,17 +16,23 @@ public sealed class OperatorContentController : ControllerBase
     private readonly IOperatorAlbumManagementService _albums;
     private readonly IOperatorReelManagementService _reels;
     private readonly IOperatorBlogManagementService _blogs;
+    private readonly IOperatorChatRoomManagementService _chatRooms;
+    private readonly IOperatorProfileSocialManagementService _profiles;
 
     public OperatorContentController(
         IAccessEvaluator access,
         IOperatorAlbumManagementService albums,
         IOperatorReelManagementService reels,
-        IOperatorBlogManagementService blogs)
+        IOperatorBlogManagementService blogs,
+        IOperatorChatRoomManagementService chatRooms,
+        IOperatorProfileSocialManagementService profiles)
     {
         _access = access;
         _albums = albums;
         _reels = reels;
         _blogs = blogs;
+        _chatRooms = chatRooms;
+        _profiles = profiles;
     }
 
     private string? OperatorUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -150,5 +156,72 @@ public sealed class OperatorContentController : ControllerBase
             cancellationToken);
 
         return ok ? NoContent() : NotFound(new { error = "Blog or image not found" });
+    }
+
+    /// <summary>Hard-delete face chat room (operator detail Delete room).</summary>
+    [HttpPost("chat-rooms/{roomId:int}/delete")]
+    public async Task<IActionResult> HardDeleteChatRoom(
+        int roomId,
+        [FromBody] OperatorAlbumDeleteRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!RequireSuperAdmin())
+            return Forbid();
+        if (string.IsNullOrEmpty(OperatorUserId))
+            return Unauthorized();
+
+        await _chatRooms.HardDeleteRoomAsync(
+            OperatorUserId,
+            roomId,
+            request.FaceId,
+            request.Reason,
+            request.UserMessage,
+            cancellationToken);
+
+        return NoContent();
+    }
+
+    /// <summary>Remove one profile comment (operator profile detail row delete).</summary>
+    [HttpPost("profile-comments/{commentId:int}/delete")]
+    public async Task<IActionResult> DeleteProfileComment(
+        int commentId,
+        [FromBody] OperatorAlbumDeleteRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!RequireSuperAdmin())
+            return Forbid();
+        if (string.IsNullOrEmpty(OperatorUserId))
+            return Unauthorized();
+
+        var ok = await _profiles.DeleteCommentAsync(
+            OperatorUserId,
+            commentId,
+            request.FaceId,
+            request.Reason,
+            request.UserMessage,
+            cancellationToken);
+        return ok ? NoContent() : NotFound(new { error = "Comment not found" });
+    }
+
+    /// <summary>Remove one profile review (operator profile detail row delete).</summary>
+    [HttpPost("profile-reviews/{reviewId:int}/delete")]
+    public async Task<IActionResult> DeleteProfileReview(
+        int reviewId,
+        [FromBody] OperatorAlbumDeleteRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!RequireSuperAdmin())
+            return Forbid();
+        if (string.IsNullOrEmpty(OperatorUserId))
+            return Unauthorized();
+
+        var ok = await _profiles.DeleteReviewAsync(
+            OperatorUserId,
+            reviewId,
+            request.FaceId,
+            request.Reason,
+            request.UserMessage,
+            cancellationToken);
+        return ok ? NoContent() : NotFound(new { error = "Review not found" });
     }
 }

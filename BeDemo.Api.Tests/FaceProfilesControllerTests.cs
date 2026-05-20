@@ -147,4 +147,33 @@ public class FaceProfilesControllerTests : IClassFixture<CustomWebApplicationFac
         var detail = await client.GetFromJsonAsync<JsonElement>($"/api/faces/{faceId}/profiles/{userA}");
         detail.GetProperty("likedByMe").GetBoolean().Should().BeTrue();
     }
+
+    [Fact]
+    public async Task Comments_WithoutPage_ShouldReturnLegacyArray_ADPM_B3()
+    {
+        using var client = _factory.CreateClient();
+        var (tokenA, userA) = await RegisterAndLoginAsync(client);
+        var (tokenB, _) = await RegisterAndLoginAsync(client);
+        var faceId = await GetAnyFaceIdAsync(client, tokenA);
+        var userRoleId = await GetFaceRoleIdAsync(client, tokenA, "FACE_USER");
+
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenA);
+        (await client.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId })).EnsureSuccessStatusCode();
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenB);
+        (await client.PutAsJsonAsync($"/api/faces/{faceId}/my-role", new { userRoleId })).EnsureSuccessStatusCode();
+
+        (await client.PostAsJsonAsync(
+            $"/api/faces/{faceId}/profiles/{userA}/comments",
+            new { body = "Portal array" })).EnsureSuccessStatusCode();
+
+        client.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokenB);
+        var res = await client.GetAsync($"/api/faces/{faceId}/profiles/{userA}/comments");
+        res.StatusCode.Should().Be(HttpStatusCode.OK);
+        var arr = await res.Content.ReadFromJsonAsync<JsonElement[]>();
+        arr.Should().NotBeNull();
+        arr!.Length.Should().BeGreaterThan(0);
+    }
 }

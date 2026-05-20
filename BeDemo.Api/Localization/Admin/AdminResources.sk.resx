@@ -1823,14 +1823,122 @@
   <data name="pages.blogsTable.title" xml:space="preserve">
     <value>Blogy</value>
   </data>
+  <data name="pages.chatRoomDetail.colJoinRequestedAt" xml:space="preserve">
+    <value>Požiadané</value>
+  </data>
+  <data name="pages.chatRoomDetail.colJoinedAt" xml:space="preserve">
+    <value>Pripojený</value>
+  </data>
+  <data name="pages.chatRoomDetail.colMember" xml:space="preserve">
+    <value>Člen</value>
+  </data>
+  <data name="pages.chatRoomDetail.colRequestId" xml:space="preserve">
+    <value>ID žiadosti</value>
+  </data>
+  <data name="pages.chatRoomDetail.colContent" xml:space="preserve">
+    <value>Obsah</value>
+  </data>
+  <data name="pages.chatRoomDetail.colSender" xml:space="preserve">
+    <value>Odosielateľ</value>
+  </data>
+  <data name="pages.chatRoomDetail.messagesSearchPlaceholder" xml:space="preserve">
+    <value>Hľadať správy…</value>
+  </data>
+  <data name="pages.chatRoomDetail.membersSearchPlaceholder" xml:space="preserve">
+    <value>Hľadať členov…</value>
+  </data>
+  <data name="pages.chatRoomDetail.colSentAt" xml:space="preserve">
+    <value>Odoslané</value>
+  </data>
+  <data name="pages.chatRoomDetail.createdAt" xml:space="preserve">
+    <value>Vytvorené</value>
+  </data>
+  <data name="pages.chatRoomDetail.creatorLabel" xml:space="preserve">
+    <value>Tvorca</value>
+  </data>
+  <data name="pages.chatRoomDetail.deleteDialogTitle" xml:space="preserve">
+    <value>Vymazať chatovaciu miestnosť</value>
+  </data>
+  <data name="pages.chatRoomDetail.deleteRoom" xml:space="preserve">
+    <value>Vymazať miestnosť</value>
+  </data>
   <data name="pages.chatRoomDetail.description" xml:space="preserve">
     <value>Popis</value>
+  </data>
+  <data name="pages.chatRoomDetail.descriptionEmpty" xml:space="preserve">
+    <value>Bez popisu</value>
+  </data>
+  <data name="pages.chatRoomDetail.descriptionSection" xml:space="preserve">
+    <value>Popis</value>
+  </data>
+  <data name="pages.chatRoomDetail.faceLabel" xml:space="preserve">
+    <value>Tvára</value>
   </data>
   <data name="pages.chatRoomDetail.isPublic" xml:space="preserve">
     <value>Verejná</value>
   </data>
+  <data name="pages.chatRoomDetail.joinRequestsEmpty" xml:space="preserve">
+    <value>Žiadne čakajúce žiadosti</value>
+  </data>
+  <data name="pages.chatRoomDetail.joinRequestsSection" xml:space="preserve">
+    <value>Čakajúce žiadosti o pripojenie</value>
+  </data>
+  <data name="pages.chatRoomDetail.lastMessageAt" xml:space="preserve">
+    <value>Posledná správa</value>
+  </data>
+  <data name="pages.chatRoomDetail.loadOlderMessages" xml:space="preserve">
+    <value>Načítať staršie správy</value>
+  </data>
+  <data name="pages.chatRoomDetail.managementSection" xml:space="preserve">
+    <value>Správa</value>
+  </data>
+  <data name="pages.chatRoomDetail.memberCount" xml:space="preserve">
+    <value>Členovia</value>
+  </data>
+  <data name="pages.chatRoomDetail.membersEmpty" xml:space="preserve">
+    <value>Žiadni členovia</value>
+  </data>
+  <data name="pages.chatRoomDetail.membersSection" xml:space="preserve">
+    <value>Členovia</value>
+  </data>
+  <data name="pages.chatRoomDetail.messageCount" xml:space="preserve">
+    <value>Správy</value>
+  </data>
+  <data name="pages.chatRoomDetail.messagesEmpty" xml:space="preserve">
+    <value>Žiadne správy</value>
+  </data>
+  <data name="pages.chatRoomDetail.messagesSection" xml:space="preserve">
+    <value>Správy</value>
+  </data>
+  <data name="pages.chatRoomDetail.openChat" xml:space="preserve">
+    <value>Otvoriť chat</value>
+  </data>
+  <data name="pages.chatRoomDetail.pendingJoinRequests" xml:space="preserve">
+    <value>Čakajúce žiadosti</value>
+  </data>
+  <data name="pages.chatRoomDetail.roomId" xml:space="preserve">
+    <value>ID miestnosti</value>
+  </data>
+  <data name="pages.chatRoomDetail.roomTitle" xml:space="preserve">
+    <value>Názov miestnosti</value>
+  </data>
+  <data name="pages.chatRoomDetail.successDeleteRoom" xml:space="preserve">
+    <value>Chatovacia miestnosť vymazaná</value>
+  </data>
+  <data name="pages.chatRoomDetail.systemRoomNoCreator" xml:space="preserve">
+    <value>Systémová miestnosť nemá chat tvorcu</value>
+  </data>
   <data name="pages.chatRoomDetail.title" xml:space="preserve">
     <value>Detail chatovacej miestnosti</value>
+  </data>
+  <data name="pages.chatRoomDetail.updatedAt" xml:space="preserve">
+    <value>Aktualizované</value>
+  </data>
+  <data name="pages.chatRoomDetail.visibility" xml:space="preserve">
+    <value>Viditeľnosť</value>
+  </data>
+  <data name="pages.chatRoomsTable.colMembers" xml:space="preserve">
+    <value>Členovia</value>
   </data>
   <data name="pages.chatRoomsTable.colCreatedAt" xml:space="preserve">
     <value>Vytvorené</value>
@@ -1865,8 +1973,131 @@
   <data name="pages.chatRoomsTable.title" xml:space="preserve">
     <value>Chatovacie miestnosti</value>
   </data>
+  <data name="pages.profileDetail.age" xml:space="preserve">
+    <value>Vek</value>
+  </data>
+  <data name="pages.profileDetail.avatarEmpty" xml:space="preserve">
+    <value>Bez avatara</value>
+  </data>
+  <data name="pages.profileDetail.avatarSection" xml:space="preserve">
+    <value>Avatar</value>
+  </data>
+  <data name="pages.profileDetail.avatarThumb" xml:space="preserve">
+    <value>Avatar</value>
+  </data>
+  <data name="pages.profileDetail.colAuthor" xml:space="preserve">
+    <value>Autor</value>
+  </data>
+  <data name="pages.profileDetail.colBody" xml:space="preserve">
+    <value>Komentár</value>
+  </data>
+  <data name="pages.profileDetail.colCommentId" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.profileDetail.colCreatedAt" xml:space="preserve">
+    <value>Vytvorené</value>
+  </data>
+  <data name="pages.profileDetail.colReviewCreatedAt" xml:space="preserve">
+    <value>Vytvorené</value>
+  </data>
+  <data name="pages.profileDetail.colReviewId" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.profileDetail.colStars" xml:space="preserve">
+    <value>Hviezdy</value>
+  </data>
+  <data name="pages.profileDetail.colText" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="pages.profileDetail.colTitle" xml:space="preserve">
+    <value>Názov</value>
+  </data>
+  <data name="pages.profileDetail.commentsCount" xml:space="preserve">
+    <value>Komentáre</value>
+  </data>
+  <data name="pages.profileDetail.commentsEmpty" xml:space="preserve">
+    <value>Žiadne komentáre</value>
+  </data>
+  <data name="pages.profileDetail.commentsSearchPlaceholder" xml:space="preserve">
+    <value>Hľadať komentáre…</value>
+  </data>
+  <data name="pages.profileDetail.commentsSection" xml:space="preserve">
+    <value>Komentáre</value>
+  </data>
+  <data name="pages.profileDetail.createdAt" xml:space="preserve">
+    <value>Vytvorené</value>
+  </data>
+  <data name="pages.profileDetail.deleteCommentDialogTitle" xml:space="preserve">
+    <value>Zmazať komentár</value>
+  </data>
+  <data name="pages.profileDetail.deleteReviewDialogTitle" xml:space="preserve">
+    <value>Zmazať recenziu</value>
+  </data>
   <data name="pages.profileDetail.displayName" xml:space="preserve">
     <value>Zobrazované meno</value>
+  </data>
+  <data name="pages.profileDetail.faceAllowsRecensions" xml:space="preserve">
+    <value>Recenzie povolené</value>
+  </data>
+  <data name="pages.profileDetail.faceBannedBadge" xml:space="preserve">
+    <value>Zabanovaný v tomto face</value>
+  </data>
+  <data name="pages.profileDetail.faceLink" xml:space="preserve">
+    <value>Face</value>
+  </data>
+  <data name="pages.profileDetail.faceRoleName" xml:space="preserve">
+    <value>Rola vo face</value>
+  </data>
+  <data name="pages.profileDetail.faceVisibility" xml:space="preserve">
+    <value>Viditeľnosť face</value>
+  </data>
+  <data name="pages.profileDetail.isActive" xml:space="preserve">
+    <value>Aktívny v adresári</value>
+  </data>
+  <data name="pages.profileDetail.isFaceBanned" xml:space="preserve">
+    <value>Ban vo face</value>
+  </data>
+  <data name="pages.profileDetail.likesCount" xml:space="preserve">
+    <value>Páči sa</value>
+  </data>
+  <data name="pages.profileDetail.managementSection" xml:space="preserve">
+    <value>Správa</value>
+  </data>
+  <data name="pages.profileDetail.nickname" xml:space="preserve">
+    <value>Prezývka</value>
+  </data>
+  <data name="pages.profileDetail.openChat" xml:space="preserve">
+    <value>Otvoriť chat</value>
+  </data>
+  <data name="pages.profileDetail.openUser" xml:space="preserve">
+    <value>Otvoriť používateľa</value>
+  </data>
+  <data name="pages.profileDetail.reviewsCount" xml:space="preserve">
+    <value>Recenzie</value>
+  </data>
+  <data name="pages.profileDetail.reviewsEmpty" xml:space="preserve">
+    <value>Žiadne recenzie</value>
+  </data>
+  <data name="pages.profileDetail.reviewsSearchPlaceholder" xml:space="preserve">
+    <value>Hľadať recenzie…</value>
+  </data>
+  <data name="pages.profileDetail.reviewsSection" xml:space="preserve">
+    <value>Recenzie</value>
+  </data>
+  <data name="pages.profileDetail.rod" xml:space="preserve">
+    <value>Rod</value>
+  </data>
+  <data name="pages.profileDetail.successDeleteComment" xml:space="preserve">
+    <value>Komentár odstránený</value>
+  </data>
+  <data name="pages.profileDetail.successDeleteReview" xml:space="preserve">
+    <value>Recenzia odstránená</value>
+  </data>
+  <data name="pages.profileDetail.updatedAt" xml:space="preserve">
+    <value>Upravené</value>
+  </data>
+  <data name="pages.profileDetail.visited" xml:space="preserve">
+    <value>Navštívený face</value>
   </data>
   <data name="pages.profileDetail.title" xml:space="preserve">
     <value>Detail profilu</value>
@@ -1874,8 +2105,17 @@
   <data name="pages.profileDetail.userId" xml:space="preserve">
     <value>ID používateľa</value>
   </data>
+  <data name="pages.profilesTable.colComments" xml:space="preserve">
+    <value>Komentáre</value>
+  </data>
   <data name="pages.profilesTable.colDisplayName" xml:space="preserve">
     <value>Zobrazované meno</value>
+  </data>
+  <data name="pages.profilesTable.colLikes" xml:space="preserve">
+    <value>Páči sa</value>
+  </data>
+  <data name="pages.profilesTable.colReviews" xml:space="preserve">
+    <value>Recenzie</value>
   </data>
   <data name="pages.profilesTable.colUserId" xml:space="preserve">
     <value>ID používateľa</value>

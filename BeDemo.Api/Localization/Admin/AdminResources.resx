@@ -1823,14 +1823,122 @@
   <data name="pages.blogsTable.title" xml:space="preserve">
     <value>Blogs</value>
   </data>
+  <data name="pages.chatRoomDetail.colJoinRequestedAt" xml:space="preserve">
+    <value>Requested at</value>
+  </data>
+  <data name="pages.chatRoomDetail.colJoinedAt" xml:space="preserve">
+    <value>Joined at</value>
+  </data>
+  <data name="pages.chatRoomDetail.colMember" xml:space="preserve">
+    <value>Member</value>
+  </data>
+  <data name="pages.chatRoomDetail.colRequestId" xml:space="preserve">
+    <value>Request ID</value>
+  </data>
+  <data name="pages.chatRoomDetail.colContent" xml:space="preserve">
+    <value>Content</value>
+  </data>
+  <data name="pages.chatRoomDetail.colSender" xml:space="preserve">
+    <value>Sender</value>
+  </data>
+  <data name="pages.chatRoomDetail.messagesSearchPlaceholder" xml:space="preserve">
+    <value>Search messages…</value>
+  </data>
+  <data name="pages.chatRoomDetail.membersSearchPlaceholder" xml:space="preserve">
+    <value>Search members…</value>
+  </data>
+  <data name="pages.chatRoomDetail.colSentAt" xml:space="preserve">
+    <value>Sent at</value>
+  </data>
+  <data name="pages.chatRoomDetail.createdAt" xml:space="preserve">
+    <value>Created</value>
+  </data>
+  <data name="pages.chatRoomDetail.creatorLabel" xml:space="preserve">
+    <value>Creator</value>
+  </data>
+  <data name="pages.chatRoomDetail.deleteDialogTitle" xml:space="preserve">
+    <value>Delete chat room</value>
+  </data>
+  <data name="pages.chatRoomDetail.deleteRoom" xml:space="preserve">
+    <value>Delete room</value>
+  </data>
   <data name="pages.chatRoomDetail.description" xml:space="preserve">
     <value>Description</value>
+  </data>
+  <data name="pages.chatRoomDetail.descriptionEmpty" xml:space="preserve">
+    <value>No description</value>
+  </data>
+  <data name="pages.chatRoomDetail.descriptionSection" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="pages.chatRoomDetail.faceLabel" xml:space="preserve">
+    <value>Face</value>
   </data>
   <data name="pages.chatRoomDetail.isPublic" xml:space="preserve">
     <value>Public</value>
   </data>
+  <data name="pages.chatRoomDetail.joinRequestsEmpty" xml:space="preserve">
+    <value>No pending join requests</value>
+  </data>
+  <data name="pages.chatRoomDetail.joinRequestsSection" xml:space="preserve">
+    <value>Pending join requests</value>
+  </data>
+  <data name="pages.chatRoomDetail.lastMessageAt" xml:space="preserve">
+    <value>Last message</value>
+  </data>
+  <data name="pages.chatRoomDetail.loadOlderMessages" xml:space="preserve">
+    <value>Load older messages</value>
+  </data>
+  <data name="pages.chatRoomDetail.managementSection" xml:space="preserve">
+    <value>Management</value>
+  </data>
+  <data name="pages.chatRoomDetail.memberCount" xml:space="preserve">
+    <value>Members</value>
+  </data>
+  <data name="pages.chatRoomDetail.membersEmpty" xml:space="preserve">
+    <value>No members</value>
+  </data>
+  <data name="pages.chatRoomDetail.membersSection" xml:space="preserve">
+    <value>Members</value>
+  </data>
+  <data name="pages.chatRoomDetail.messageCount" xml:space="preserve">
+    <value>Messages</value>
+  </data>
+  <data name="pages.chatRoomDetail.messagesEmpty" xml:space="preserve">
+    <value>No messages</value>
+  </data>
+  <data name="pages.chatRoomDetail.messagesSection" xml:space="preserve">
+    <value>Messages</value>
+  </data>
+  <data name="pages.chatRoomDetail.openChat" xml:space="preserve">
+    <value>Open chat</value>
+  </data>
+  <data name="pages.chatRoomDetail.pendingJoinRequests" xml:space="preserve">
+    <value>Pending join requests</value>
+  </data>
+  <data name="pages.chatRoomDetail.roomId" xml:space="preserve">
+    <value>Room ID</value>
+  </data>
+  <data name="pages.chatRoomDetail.roomTitle" xml:space="preserve">
+    <value>Room title</value>
+  </data>
+  <data name="pages.chatRoomDetail.successDeleteRoom" xml:space="preserve">
+    <value>Chat room deleted</value>
+  </data>
+  <data name="pages.chatRoomDetail.systemRoomNoCreator" xml:space="preserve">
+    <value>System room has no creator chat</value>
+  </data>
   <data name="pages.chatRoomDetail.title" xml:space="preserve">
     <value>Chat room details</value>
+  </data>
+  <data name="pages.chatRoomDetail.updatedAt" xml:space="preserve">
+    <value>Updated</value>
+  </data>
+  <data name="pages.chatRoomDetail.visibility" xml:space="preserve">
+    <value>Visibility</value>
+  </data>
+  <data name="pages.chatRoomsTable.colMembers" xml:space="preserve">
+    <value>Members</value>
   </data>
   <data name="pages.chatRoomsTable.colCreatedAt" xml:space="preserve">
     <value>Created at</value>
@@ -1865,8 +1973,131 @@
   <data name="pages.chatRoomsTable.title" xml:space="preserve">
     <value>Chat rooms</value>
   </data>
+  <data name="pages.profileDetail.age" xml:space="preserve">
+    <value>Age</value>
+  </data>
+  <data name="pages.profileDetail.avatarEmpty" xml:space="preserve">
+    <value>No avatar</value>
+  </data>
+  <data name="pages.profileDetail.avatarSection" xml:space="preserve">
+    <value>Avatar</value>
+  </data>
+  <data name="pages.profileDetail.avatarThumb" xml:space="preserve">
+    <value>Avatar</value>
+  </data>
+  <data name="pages.profileDetail.colAuthor" xml:space="preserve">
+    <value>Author</value>
+  </data>
+  <data name="pages.profileDetail.colBody" xml:space="preserve">
+    <value>Comment</value>
+  </data>
+  <data name="pages.profileDetail.colCommentId" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.profileDetail.colCreatedAt" xml:space="preserve">
+    <value>Created</value>
+  </data>
+  <data name="pages.profileDetail.colReviewCreatedAt" xml:space="preserve">
+    <value>Created</value>
+  </data>
+  <data name="pages.profileDetail.colReviewId" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="pages.profileDetail.colStars" xml:space="preserve">
+    <value>Stars</value>
+  </data>
+  <data name="pages.profileDetail.colText" xml:space="preserve">
+    <value>Text</value>
+  </data>
+  <data name="pages.profileDetail.colTitle" xml:space="preserve">
+    <value>Title</value>
+  </data>
+  <data name="pages.profileDetail.commentsCount" xml:space="preserve">
+    <value>Comments</value>
+  </data>
+  <data name="pages.profileDetail.commentsEmpty" xml:space="preserve">
+    <value>No comments</value>
+  </data>
+  <data name="pages.profileDetail.commentsSearchPlaceholder" xml:space="preserve">
+    <value>Search comments…</value>
+  </data>
+  <data name="pages.profileDetail.commentsSection" xml:space="preserve">
+    <value>Comments</value>
+  </data>
+  <data name="pages.profileDetail.createdAt" xml:space="preserve">
+    <value>Created at</value>
+  </data>
+  <data name="pages.profileDetail.deleteCommentDialogTitle" xml:space="preserve">
+    <value>Delete comment</value>
+  </data>
+  <data name="pages.profileDetail.deleteReviewDialogTitle" xml:space="preserve">
+    <value>Delete review</value>
+  </data>
   <data name="pages.profileDetail.displayName" xml:space="preserve">
     <value>Display name</value>
+  </data>
+  <data name="pages.profileDetail.faceAllowsRecensions" xml:space="preserve">
+    <value>Recensions allowed</value>
+  </data>
+  <data name="pages.profileDetail.faceBannedBadge" xml:space="preserve">
+    <value>Banned on this face</value>
+  </data>
+  <data name="pages.profileDetail.faceLink" xml:space="preserve">
+    <value>Face</value>
+  </data>
+  <data name="pages.profileDetail.faceRoleName" xml:space="preserve">
+    <value>Face role</value>
+  </data>
+  <data name="pages.profileDetail.faceVisibility" xml:space="preserve">
+    <value>Face visibility</value>
+  </data>
+  <data name="pages.profileDetail.isActive" xml:space="preserve">
+    <value>Active in directory</value>
+  </data>
+  <data name="pages.profileDetail.isFaceBanned" xml:space="preserve">
+    <value>Face ban</value>
+  </data>
+  <data name="pages.profileDetail.likesCount" xml:space="preserve">
+    <value>Likes</value>
+  </data>
+  <data name="pages.profileDetail.managementSection" xml:space="preserve">
+    <value>Management</value>
+  </data>
+  <data name="pages.profileDetail.nickname" xml:space="preserve">
+    <value>Nickname</value>
+  </data>
+  <data name="pages.profileDetail.openChat" xml:space="preserve">
+    <value>Open chat</value>
+  </data>
+  <data name="pages.profileDetail.openUser" xml:space="preserve">
+    <value>Open user</value>
+  </data>
+  <data name="pages.profileDetail.reviewsCount" xml:space="preserve">
+    <value>Reviews</value>
+  </data>
+  <data name="pages.profileDetail.reviewsEmpty" xml:space="preserve">
+    <value>No reviews</value>
+  </data>
+  <data name="pages.profileDetail.reviewsSearchPlaceholder" xml:space="preserve">
+    <value>Search reviews…</value>
+  </data>
+  <data name="pages.profileDetail.reviewsSection" xml:space="preserve">
+    <value>Reviews</value>
+  </data>
+  <data name="pages.profileDetail.rod" xml:space="preserve">
+    <value>Rod</value>
+  </data>
+  <data name="pages.profileDetail.successDeleteComment" xml:space="preserve">
+    <value>Comment removed</value>
+  </data>
+  <data name="pages.profileDetail.successDeleteReview" xml:space="preserve">
+    <value>Review removed</value>
+  </data>
+  <data name="pages.profileDetail.updatedAt" xml:space="preserve">
+    <value>Updated at</value>
+  </data>
+  <data name="pages.profileDetail.visited" xml:space="preserve">
+    <value>Visited face</value>
   </data>
   <data name="pages.profileDetail.title" xml:space="preserve">
     <value>Profile details</value>
@@ -1874,8 +2105,17 @@
   <data name="pages.profileDetail.userId" xml:space="preserve">
     <value>User ID</value>
   </data>
+  <data name="pages.profilesTable.colComments" xml:space="preserve">
+    <value>Comments</value>
+  </data>
   <data name="pages.profilesTable.colDisplayName" xml:space="preserve">
     <value>Display name</value>
+  </data>
+  <data name="pages.profilesTable.colLikes" xml:space="preserve">
+    <value>Likes</value>
+  </data>
+  <data name="pages.profilesTable.colReviews" xml:space="preserve">
+    <value>Reviews</value>
   </data>
   <data name="pages.profilesTable.colUserId" xml:space="preserve">
     <value>User ID</value>

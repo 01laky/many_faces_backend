@@ -107,6 +107,8 @@ builder.Services.AddScoped<IOperatorUserModerationService, OperatorUserModeratio
 builder.Services.AddScoped<IOperatorAlbumManagementService, OperatorAlbumManagementService>();
 builder.Services.AddScoped<IOperatorReelManagementService, OperatorReelManagementService>();
 builder.Services.AddScoped<IOperatorBlogManagementService, OperatorBlogManagementService>();
+builder.Services.AddScoped<IOperatorChatRoomManagementService, OperatorChatRoomManagementService>();
+builder.Services.AddScoped<IOperatorProfileSocialManagementService, OperatorProfileSocialManagementService>();
 builder.Services.AddScoped<IPlatformDirectMessageService, PlatformDirectMessageService>();
 builder.Services.AddScoped<IOperatorUserChatService, OperatorUserChatService>();
 builder.Services.AddSingleton<IPlatformChatRateLimiter, PlatformChatRateLimiter>();

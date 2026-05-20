@@ -585,7 +585,7 @@ public static class DatabaseSeeder
                 await EnsureBlogsForUserFaceAsync(context, userId, face.Id);
                 await EnsureReelsForUserFaceAsync(context, userId, face.Id);
                 await EnsureStoriesForUserFaceAsync(context, userId, face.Id);
-                await EnsureChatRoomsForUserFaceAsync(context, userId, face.Id);
+                await EnsureChatRoomsForUserFaceAsync(context, userId, face.Id, demoUserIds);
             }
         }
 
@@ -936,21 +936,77 @@ public static class DatabaseSeeder
         }
     }
 
-    private static async Task EnsureChatRoomsForUserFaceAsync(ApplicationDbContext context, string userId, int faceId)
+    private static async Task EnsureChatRoomsForUserFaceAsync(
+        ApplicationDbContext context,
+        string userId,
+        int faceId,
+        IReadOnlyList<string> demoUserIds)
     {
         var have = await context.FaceChatRooms.CountAsync(r => r.CreatorUserId == userId && r.FaceId == faceId);
-        for (var i = have; i < GridDemoItemsPerUserPerFace; i++)
+        for (var k = 0; k < GridDemoItemsPerUserPerFace - have; k++)
         {
-            context.FaceChatRooms.Add(new FaceChatRoom
+            var index = have + k;
+            var isPublic = index % 2 == 0;
+            var isSystem = index % 4 == 0;
+            var description = index % 3 == 0 ? null : $"Seeded chat room for face {faceId}, index {index}.";
+
+            var room = new FaceChatRoom
             {
                 FaceId = faceId,
-                Title = $"Room {i + 1} (user slice)",
-                Description = $"Seeded chat room for grid demo. Face {faceId}.",
-                IsPublic = true,
-                IsSystemManaged = false,
-                CreatorUserId = userId,
+                Title = isSystem ? $"System room {index + 1}" : $"Room {index + 1} (user slice)",
+                Description = description,
+                IsPublic = isSystem || isPublic,
+                IsSystemManaged = isSystem,
+                CreatorUserId = isSystem ? null : userId,
                 CreatedAt = DateTime.UtcNow,
-            });
+            };
+            context.FaceChatRooms.Add(room);
+            await context.SaveChangesAsync();
+
+            if (!isSystem)
+            {
+                context.FaceChatRoomMembers.Add(new FaceChatRoomMember
+                {
+                    FaceChatRoomId = room.Id,
+                    UserId = userId,
+                    JoinedAt = DateTime.UtcNow,
+                });
+            }
+
+            if (index % 2 == 0 && !isSystem)
+            {
+                var messageCount = (index % 3) + 2;
+                DateTime? lastAt = null;
+                for (var m = 0; m < messageCount; m++)
+                {
+                    var sentAt = DateTime.UtcNow.AddMinutes(-messageCount + m);
+                    context.FaceChatRoomMessages.Add(new FaceChatRoomMessage
+                    {
+                        FaceChatRoomId = room.Id,
+                        SenderUserId = userId,
+                        Content = $"Seeded message {m + 1} in room {room.Id}",
+                        SentAt = sentAt,
+                    });
+                    lastAt = sentAt;
+                }
+
+                room.LastMessageAt = lastAt;
+            }
+
+            if (!isPublic && index % 3 == 1)
+            {
+                var otherUserId = demoUserIds.FirstOrDefault(id => id != userId);
+                if (!string.IsNullOrEmpty(otherUserId))
+                {
+                    context.FaceChatRoomJoinRequests.Add(new FaceChatRoomJoinRequest
+                    {
+                        FaceChatRoomId = room.Id,
+                        UserId = otherUserId,
+                        Status = FaceChatRoomJoinRequestStatus.Pending,
+                        CreatedAt = DateTime.UtcNow,
+                    });
+                }
+            }
         }
     }
 }

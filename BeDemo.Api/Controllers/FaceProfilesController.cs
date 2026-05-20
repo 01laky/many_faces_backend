@@ -8,6 +8,7 @@ using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
+using BeDemo.Api.Validation.Rules;
 
 namespace BeDemo.Api.Controllers;
 
@@ -16,23 +17,29 @@ namespace BeDemo.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/faces/{faceId:int}/profiles")]
-public class FaceProfilesController : ControllerBase
+public partial class FaceProfilesController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ILogger<FaceProfilesController> _logger;
     private readonly IUploadSignedUrlService _uploadUrls;
+    private readonly IAccessEvaluator _access;
 
     public FaceProfilesController(
         ApplicationDbContext context,
         ILogger<FaceProfilesController> logger,
-        IUploadSignedUrlService uploadUrls)
+        IUploadSignedUrlService uploadUrls,
+        IAccessEvaluator access)
     {
         _context = context;
         _logger = logger;
         _uploadUrls = uploadUrls;
+        _access = access;
     }
 
     private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    // Operator inventory reads (admin profile detail) use CanManageAllFaces, not ApprovalStatus.
+    private bool CanManageAllFaces() => _access.CanManageAllFaces(User);
 
     private IActionResult VisibilityDenied() =>
         string.IsNullOrEmpty(CurrentUserId) ? Unauthorized() : Forbid();
@@ -59,74 +66,7 @@ public class FaceProfilesController : ControllerBase
             .FirstOrDefaultAsync(ufp => ufp.FaceId == faceId && ufp.UserProfileId == up.Id, ct);
     }
 
-    /// <summary>
-    /// GET — list users with a non-host role in this face (paginated).
-    /// </summary>
-    [HttpGet]
-    [AllowAnonymous]
-    public async Task<IActionResult> ListProfiles(
-        int faceId,
-        [FromQuery] FaceProfileListQuery listQuery,
-        CancellationToken ct = default)
-    {
-        var face = await GetFaceAsync(faceId, ct);
-        if (face == null)
-            return NotFound(new { error = "Face not found" });
-
-        if (!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
-            return VisibilityDenied();
-
-        var page = listQuery.Page;
-        var pageSize = listQuery.PageSize;
-
-        var hostName = UserRole.FaceRoleNames.FaceHost;
-        var eligibleUserIds = await (
-            from ufr in _context.UserFaceRoles.AsNoTracking()
-            join ur in _context.UserRoles.AsNoTracking() on ufr.UserRoleId equals ur.Id
-            where ufr.FaceId == faceId && ur.Scope == RoleScope.Face && ur.Name != hostName
-            select ufr.UserId
-        ).Distinct().ToListAsync(ct);
-
-        var total = eligibleUserIds.Count;
-        var slice = eligibleUserIds
-            .OrderBy(x => x)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        var items = new List<object>();
-        foreach (var uid in slice)
-        {
-            var profile = await _context.UserProfiles.AsNoTracking()
-                .FirstOrDefaultAsync(p => p.UserId == uid, ct);
-            if (profile == null) continue;
-            var ufp = await _context.UserFaceProfiles.AsNoTracking()
-                .FirstOrDefaultAsync(x => x.FaceId == faceId && x.UserProfileId == profile.Id, ct);
-            var display = ufp?.DisplayName?.Trim();
-            if (string.IsNullOrEmpty(display))
-                display = profile.Nickname;
-            var avatar = !string.IsNullOrWhiteSpace(ufp?.AvatarUrl) ? ufp!.AvatarUrl : profile.AvatarUrl;
-            items.Add(new
-            {
-                userId = uid,
-                displayName = display,
-                avatarUrl = _uploadUrls.ToAbsoluteSignedUrl(avatar, Request.Scheme, Request.Host.Value!),
-            });
-        }
-
-        return Ok(new
-        {
-            items,
-            totalCount = total,
-            page,
-            pageSize,
-            totalPages = (int)Math.Ceiling(total / (double)pageSize),
-        });
-    }
-
-    /// <summary>
-    /// GET — profile card fields for a user in this face.
-    /// </summary>
+    /// <summary>GET — profile card fields for a user in this face (extended for operator inventory).</summary>
     [HttpGet("{userId}")]
     [AllowAnonymous]
     public async Task<IActionResult> GetProfile(int faceId, string userId, CancellationToken ct = default)
@@ -135,7 +75,9 @@ public class FaceProfilesController : ControllerBase
         if (face == null)
             return NotFound(new { error = "Face not found" });
 
-        if (!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
+        var operatorInventory = CanManageAllFaces();
+        if (!operatorInventory &&
+            !await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
             return VisibilityDenied();
 
         var up = await _context.UserProfiles.AsNoTracking()
@@ -159,16 +101,45 @@ public class FaceProfilesController : ControllerBase
                 .AnyAsync(l => l.UserFaceProfileId == ufp.Id && l.UserId == viewerId, ct);
         }
 
+        var commentsCount = await _context.UserFaceProfileComments.AsNoTracking()
+            .CountAsync(c => c.UserFaceProfileId == ufp.Id, ct);
+        var likesCount = await _context.UserFaceProfileLikes.AsNoTracking()
+            .CountAsync(l => l.UserFaceProfileId == ufp.Id, ct);
+        var reviewsCount = face.AllowRecensions
+            ? await _context.UserFaceProfileReviews.AsNoTracking().CountAsync(r => r.UserFaceProfileId == ufp.Id, ct)
+            : 0;
+
+        var faceRoleName = await (
+            from ufr in _context.UserFaceRoles.AsNoTracking()
+            join ur in _context.UserRoles.AsNoTracking() on ufr.UserRoleId equals ur.Id
+            where ufr.FaceId == faceId && ufr.UserId == userId
+            select ur.Name
+        ).FirstOrDefaultAsync(ct) ?? "FACE_USER";
+
+        var isFaceBanned = await _context.UserFaceModerations.AsNoTracking()
+            .AnyAsync(m => m.UserId == userId && m.FaceId == faceId && m.LiftedAt == null, ct);
+
         return Ok(new
         {
             userId,
+            userFaceProfileId = ufp.Id,
             displayName = display,
             nickname = up.Nickname,
             age = up.Age,
             rod = up.Rod,
             avatarUrl = _uploadUrls.ToAbsoluteSignedUrl(avatar, Request.Scheme, Request.Host.Value!),
             createdAt = ufp.CreatedAt,
+            updatedAt = ufp.UpdatedAt ?? ufp.CreatedAt,
             faceAllowsRecensions = face.AllowRecensions,
+            faceVisibility = face.Visibility.ToString(),
+            faceRoleName,
+            isActive = ufp.IsActive,
+            visited = ufp.Visited,
+            commentsCount,
+            likesCount,
+            reviewsCount,
+            isFaceBanned,
+            email = operatorInventory ? up.User?.Email : null,
             likedByMe = liked,
         });
     }
@@ -262,23 +233,76 @@ public class FaceProfilesController : ControllerBase
         return Ok(likers);
     }
 
-    /// <summary>
-    /// GET — comments on profile.
-    /// </summary>
+    /// <summary>GET — comments on profile (portal array or operator paginated envelope when page &gt;= 1).</summary>
     [HttpGet("{userId}/comments")]
     [AllowAnonymous]
-    public async Task<IActionResult> ListComments(int faceId, string userId, CancellationToken ct = default)
+    public async Task<IActionResult> ListComments(
+        int faceId,
+        string userId,
+        [FromQuery] FaceProfileCommentsListQuery listQuery,
+        CancellationToken ct = default)
     {
         var face = await GetFaceAsync(faceId, ct);
         if (face == null)
             return NotFound(new { error = "Face not found" });
-        if (!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
+
+        var operatorInventory = CanManageAllFaces();
+        if (!operatorInventory &&
+            !await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
             return VisibilityDenied();
 
         var ufp = await ResolveTargetProfileAsync(faceId, userId, ct);
         if (ufp == null)
             return NotFound(new { error = "Face profile not found" });
 
+        if (listQuery.Page >= 1)
+        {
+            if (!operatorInventory)
+                return Forbid();
+
+            var page = listQuery.Page;
+            var pageSize = listQuery.PageSize;
+            var q = _context.UserFaceProfileComments.AsNoTracking()
+                .Where(c => c.UserFaceProfileId == ufp.Id);
+
+            if (!string.IsNullOrWhiteSpace(listQuery.Search))
+            {
+                var term = listQuery.Search.Trim();
+                q = q.Where(c => c.Body.Contains(term) || c.UserId.Contains(term));
+            }
+
+            var totalCount = await q.CountAsync(ct);
+            var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+            page = clampedPage;
+
+            var desc = SortRules.IsDescending(listQuery.SortDir);
+            var ordered = (listQuery.SortBy?.ToLowerInvariant()) switch
+            {
+                "createdat" => desc ? q.OrderByDescending(c => c.CreatedAt) : q.OrderBy(c => c.CreatedAt),
+                "userid" => desc ? q.OrderByDescending(c => c.UserId) : q.OrderBy(c => c.UserId),
+                _ => q.OrderByDescending(c => c.CreatedAt),
+            };
+
+            var pageItems = await ordered
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.UserId,
+                    c.Body,
+                    c.CreatedAt,
+                    AuthorDisplayName = _context.UserProfiles.AsNoTracking()
+                        .Where(p => p.UserId == c.UserId)
+                        .Select(p => p.Nickname)
+                        .FirstOrDefault() ?? c.UserId,
+                })
+                .ToListAsync(ct);
+
+            return Ok(ListPaginationHelper.BuildEnvelope(pageItems, page, pageSize, totalCount, totalPages));
+        }
+
+        // Portal: legacy full array when page query omitted.
         var list = await _context.UserFaceProfileComments.AsNoTracking()
             .Where(c => c.UserFaceProfileId == ufp.Id)
             .OrderBy(c => c.CreatedAt)
@@ -345,24 +369,87 @@ public class FaceProfilesController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>
-    /// GET — reviews (hidden when face disallows recensions).
-    /// </summary>
+    /// <summary>GET — reviews (portal array or operator envelope; empty when recensions off).</summary>
     [HttpGet("{userId}/reviews")]
     [AllowAnonymous]
-    public async Task<IActionResult> ListReviews(int faceId, string userId, CancellationToken ct = default)
+    public async Task<IActionResult> ListReviews(
+        int faceId,
+        string userId,
+        [FromQuery] FaceProfileReviewsListQuery listQuery,
+        CancellationToken ct = default)
     {
         var face = await GetFaceAsync(faceId, ct);
         if (face == null)
             return NotFound(new { error = "Face not found" });
-        if (!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
+
+        var operatorInventory = CanManageAllFaces();
+        if (!operatorInventory &&
+            !await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
             return VisibilityDenied();
+
         if (!face.AllowRecensions)
+        {
+            if (listQuery.Page >= 1 && operatorInventory)
+                return Ok(ListPaginationHelper.BuildEnvelope(Array.Empty<object>(), 1, listQuery.PageSize, 0, 0));
             return Ok(Array.Empty<object>());
+        }
 
         var ufp = await ResolveTargetProfileAsync(faceId, userId, ct);
         if (ufp == null)
             return NotFound(new { error = "Face profile not found" });
+
+        if (listQuery.Page >= 1)
+        {
+            if (!operatorInventory)
+                return Forbid();
+
+            var page = listQuery.Page;
+            var pageSize = listQuery.PageSize;
+            var q = _context.UserFaceProfileReviews.AsNoTracking()
+                .Where(r => r.UserFaceProfileId == ufp.Id);
+
+            if (!string.IsNullOrWhiteSpace(listQuery.Search))
+            {
+                var term = listQuery.Search.Trim();
+                q = q.Where(r =>
+                    r.Title.Contains(term) ||
+                    r.Text.Contains(term) ||
+                    r.AuthorUserId.Contains(term));
+            }
+
+            var totalCount = await q.CountAsync(ct);
+            var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+            page = clampedPage;
+
+            var desc = SortRules.IsDescending(listQuery.SortDir);
+            var ordered = (listQuery.SortBy?.ToLowerInvariant()) switch
+            {
+                "createdat" => desc ? q.OrderByDescending(r => r.CreatedAt) : q.OrderBy(r => r.CreatedAt),
+                "stars" => desc ? q.OrderByDescending(r => r.Stars) : q.OrderBy(r => r.Stars),
+                "authoruserid" => desc ? q.OrderByDescending(r => r.AuthorUserId) : q.OrderBy(r => r.AuthorUserId),
+                _ => q.OrderByDescending(r => r.CreatedAt),
+            };
+
+            var pageItems = await ordered
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(r => new
+                {
+                    r.Id,
+                    r.AuthorUserId,
+                    r.Title,
+                    r.Text,
+                    stars = r.Stars,
+                    r.CreatedAt,
+                    AuthorDisplayName = _context.UserProfiles.AsNoTracking()
+                        .Where(p => p.UserId == r.AuthorUserId)
+                        .Select(p => p.Nickname)
+                        .FirstOrDefault() ?? r.AuthorUserId,
+                })
+                .ToListAsync(ct);
+
+            return Ok(ListPaginationHelper.BuildEnvelope(pageItems, page, pageSize, totalCount, totalPages));
+        }
 
         var list = await _context.UserFaceProfileReviews.AsNoTracking()
             .Where(r => r.UserFaceProfileId == ufp.Id)
