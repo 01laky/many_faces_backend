@@ -93,7 +93,21 @@ public sealed class PlatformDirectMessageServiceTests
     }
 
     [Fact]
-    public async Task UserReply_WithoutThread_ShouldReturnNoPlatformThread()
+    public async Task UserReply_AfterSuperAdminInitiatedThread_ShouldPersistPlatformFlag()
+    {
+        var (svc, db) = CreateService();
+        await SeedUsersAsync(db, superId: "s1", userId: "u1");
+        (await svc.SendAsync("s1", "u1", "hello platform")).HubErrorCode.Should().BeNull();
+        var (code, id) = await svc.SendAsync("u1", "s1", "reply from user");
+        code.Should().BeNull();
+        id.Should().NotBeNull();
+        var row = await db.Messages.SingleAsync(m => m.Id == id);
+        row.IsPlatformDirectMessage.Should().BeTrue();
+        row.IsMessageRequest.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task UserReply_WithoutPlatformThread_ShouldReturnNoPlatformThread()
     {
         var (svc, db) = CreateService();
         await SeedUsersAsync(db, superId: "s1", userId: "u1");

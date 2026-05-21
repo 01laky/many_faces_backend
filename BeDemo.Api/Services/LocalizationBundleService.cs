@@ -28,13 +28,16 @@ public interface ILocalizationBundleService
 /// </remarks>
 public sealed class LocalizationBundleService : ILocalizationBundleService
 {
-    private static readonly string[] ApiLanguages = ["en", "sk", "cz"];
+    private static readonly string[] ApiLanguages = ["en", "sk", "cz", "de", "fr", "it"];
     private static readonly IReadOnlyDictionary<string, CultureInfo> CultureByApiLanguage =
         new Dictionary<string, CultureInfo>(StringComparer.OrdinalIgnoreCase)
         {
             ["en"] = CultureInfo.GetCultureInfo("en"),
             ["sk"] = CultureInfo.GetCultureInfo("sk"),
             ["cz"] = CultureInfo.GetCultureInfo("cs"),
+            ["de"] = CultureInfo.GetCultureInfo("de"),
+            ["fr"] = CultureInfo.GetCultureInfo("fr"),
+            ["it"] = CultureInfo.GetCultureInfo("it"),
         };
 
     private readonly IMemoryCache _cache;

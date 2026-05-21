@@ -97,12 +97,6 @@ public class MessengerHub : Hub
         if (string.IsNullOrEmpty(UserId) || string.IsNullOrWhiteSpace(content) || string.IsNullOrEmpty(receiverId))
             return;
 
-        if (!await EnforceTenantSocialPairAsync(receiverId))
-            return;
-
-        if (_faceScope.IsAvailable && await _faceModeration.ShouldBlockPeerActivityInFaceAsync(UserId, _faceScope.FaceId))
-            return;
-
         var sender = await _context.Users.Include(u => u.UserRole).FirstOrDefaultAsync(u => u.Id == UserId);
         var receiver = await _context.Users.Include(u => u.UserRole).FirstOrDefaultAsync(u => u.Id == receiverId);
         if (sender == null || receiver == null)
@@ -110,6 +104,14 @@ public class MessengerHub : Hub
 
         var senderIsSuper = OperatorModerationGuard.IsGlobalSuperAdminRole(sender.UserRole?.Name);
         var receiverIsSuper = OperatorModerationGuard.IsGlobalSuperAdminRole(receiver.UserRole?.Name);
+        var isPlatformPair = (senderIsSuper && !receiverIsSuper) || (receiverIsSuper && !senderIsSuper);
+
+        // Platform DMs bypass tenant face membership — super-admins are not on every tenant face.
+        if (!isPlatformPair && !await EnforceTenantSocialPairAsync(receiverId))
+            return;
+
+        if (!isPlatformPair && _faceScope.IsAvailable && await _faceModeration.ShouldBlockPeerActivityInFaceAsync(UserId, _faceScope.FaceId))
+            return;
 
         // Super-admin → end user: platform DM channel (also used from admin User chat UI).
         if (senderIsSuper && !receiverIsSuper)
@@ -130,10 +132,9 @@ public class MessengerHub : Hub
         if (receiverIsSuper && !senderIsSuper)
         {
             var (code, _) = await _platformDirectMessages.SendAsync(UserId, receiverId, content, Context.ConnectionAborted);
-            if (code == null)
-                return;
-            if (code != OperatorUserChatHubErrorCodes.NoPlatformThread)
-                return;
+            if (code != null)
+                await Clients.Caller.SendAsync("ReceivePlatformChatError", code);
+            return;
         }
 
         if (senderIsSuper && receiverIsSuper)

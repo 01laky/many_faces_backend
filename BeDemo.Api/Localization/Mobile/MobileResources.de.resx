@@ -59,94 +59,94 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="common.appName" xml:space="preserve">
-    <value>The Many Faces</value>
+    <value>Die vielen Gesichter</value>
   </data>
   <data name="common.authRetryLoginBody" xml:space="preserve">
-    <value>Your sign-in did not complete while offline. Submit your email and password again.</value>
+    <value>Ihre Anmeldung konnte offline nicht abgeschlossen werden. Senden Sie Ihre E-Mail-Adresse und Ihr Passwort erneut.</value>
   </data>
   <data name="common.authRetryRegisterBody" xml:space="preserve">
-    <value>Registration did not complete while offline. Submit the form again.</value>
+    <value>Die Registrierung konnte offline nicht abgeschlossen werden. Senden Sie das Formular erneut.</value>
   </data>
   <data name="common.authRetryTitle" xml:space="preserve">
-    <value>Back online</value>
+    <value>Wieder online</value>
   </data>
   <data name="common.configError.hint" xml:space="preserve">
-    <value>Check EXPO_PUBLIC_API_BASE_URL and that many_faces_backend is running.</value>
+    <value>Überprüfen Sie EXPO_PUBLIC_API_BASE_URL und ob Many_faces_backend ausgeführt wird.</value>
   </data>
   <data name="common.configError.title" xml:space="preserve">
-    <value>Could not load configuration</value>
+    <value>Die Konfiguration konnte nicht geladen werden</value>
   </data>
   <data name="common.deferred.chatAi.body" xml:space="preserve">
-    <value>Connect `buildAuthenticatedHubConnection` to `/hubs/chat` and port `ChatPage` UX in a follow-up slice.</value>
+    <value>Verbinden Sie „buildAuthenticatedHubConnection“ mit „/hubs/chat“ und portieren Sie „ChatPage“ UX in einem Folge-Slice.</value>
   </data>
   <data name="common.deferred.chatAi.navTitle" xml:space="preserve">
-    <value>AI chat</value>
+    <value>KI-Chat</value>
   </data>
   <data name="common.deferred.chatAi.title" xml:space="preserve">
-    <value>AI chat hub</value>
+    <value>KI-Chat-Hub</value>
   </data>
   <data name="common.deferred.chatRoom.body" xml:space="preserve">
-    <value>Room id: {{roomId}} — realtime `/hubs/chatroom` parity is not implemented yet.</value>
+    <value>Raum-ID: {{roomId}} – Echtzeitparität „/hubs/chatroom“ ist noch nicht implementiert.</value>
   </data>
   <data name="common.deferred.chatRoom.navTitle" xml:space="preserve">
-    <value>Chat room</value>
+    <value>Chatraum</value>
   </data>
   <data name="common.deferred.chatRoom.title" xml:space="preserve">
-    <value>Chat room</value>
+    <value>Chatraum</value>
   </data>
   <data name="common.deferred.loginRequired" xml:space="preserve">
-    <value>Sign in to open this screen.</value>
+    <value>Melden Sie sich an, um diesen Bildschirm zu öffnen.</value>
   </data>
   <data name="common.deferred.profileMe.navTitle" xml:space="preserve">
     <value>Profile</value>
   </data>
   <data name="common.facePage.emptyDescription" xml:space="preserve">
-    <value>No grid has been configured for this page yet.</value>
+    <value>Für diese Seite wurde noch kein Raster konfiguriert.</value>
   </data>
   <data name="common.facePage.fallbackTitle" xml:space="preserve">
     <value>Page</value>
   </data>
   <data name="common.facePage.notFound" xml:space="preserve">
-    <value>This page is not available for the selected face.</value>
+    <value>Diese Seite ist für das ausgewählte Gesicht nicht verfügbar.</value>
   </data>
   <data name="common.facePage.welcomeUser" xml:space="preserve">
-    <value>Hello, {{name}}</value>
+    <value>Hallo, {{name}}</value>
   </data>
   <data name="common.footer.rights" xml:space="preserve">
-    <value>All rights reserved.</value>
+    <value>Alle Rechte vorbehalten.</value>
   </data>
   <data name="common.grid.adOnWallPage" xml:space="preserve">
-    <value>Wall tickets are listed above on wall pages — this ad block is intentionally collapsed on mobile.</value>
+    <value>Wall-Tickets sind oben auf den Wall-Seiten aufgeführt – dieser Werbeblock ist auf Mobilgeräten absichtlich ausgeblendet.</value>
   </data>
   <data name="common.grid.blockPlaceholder" xml:space="preserve">
-    <value>Block “{{type}}” — read-only tile; full data wiring ships in later Phase 2 slices.</value>
+    <value>Block „{{type}}“ – schreibgeschützte Kachel; Die vollständige Datenverkabelung wird in späteren Abschnitten der Phase 2 ausgeliefert.</value>
   </data>
   <data name="common.grid.boundChatRoom" xml:space="preserve">
-    <value>Bound chat room id: {{id}}</value>
+    <value>Gebundene Chatroom-ID: {{id}}</value>
   </data>
   <data name="common.grid.emptyLayout" xml:space="preserve">
-    <value>No grid blocks to display.</value>
+    <value>Es sind keine Rasterblöcke zum Anzeigen vorhanden.</value>
   </data>
   <data name="common.grid.unknownBlock" xml:space="preserve">
-    <value>Unsupported block type on mobile.</value>
+    <value>Nicht unterstützter Blocktyp auf Mobilgeräten.</value>
   </data>
   <data name="common.guest" xml:space="preserve">
     <value>Guest</value>
   </data>
   <data name="common.home.authenticatedShortcuts" xml:space="preserve">
-    <value>Account &amp; realtime (preview routes)</value>
+    <value>Konto &amp; Echtzeit (Routenvorschau)</value>
   </data>
   <data name="common.home.title" xml:space="preserve">
     <value>Home</value>
   </data>
   <data name="common.home.welcome" xml:space="preserve">
-    <value>Welcome to {{face}}. Open a page below to view wall + grid content where configured.</value>
+    <value>Willkommen bei {{face}}. Öffnen Sie unten eine Seite, um den Wand- und Rasterinhalt anzuzeigen, sofern konfiguriert.</value>
   </data>
   <data name="common.loading.message" xml:space="preserve">
-    <value>Loading…</value>
+    <value>Laden…</value>
   </data>
   <data name="common.logoutSuccess" xml:space="preserve">
-    <value>Logged out successfully.</value>
+    <value>Erfolgreich abgemeldet.</value>
   </data>
   <data name="common.mySubmissions.canDelete" xml:space="preserve">
     <value>Deletable</value>
@@ -155,22 +155,22 @@
     <value>Editable</value>
   </data>
   <data name="common.mySubmissions.empty" xml:space="preserve">
-    <value>You have no submitted content yet.</value>
+    <value>Sie haben noch keine Inhalte eingereicht.</value>
   </data>
   <data name="common.mySubmissions.groups.aiReview" xml:space="preserve">
-    <value>AI review</value>
+    <value>KI-Rezension</value>
   </data>
   <data name="common.mySubmissions.groups.approved" xml:space="preserve">
     <value>Approved</value>
   </data>
   <data name="common.mySubmissions.groups.needsHumanReview" xml:space="preserve">
-    <value>Needs human review</value>
+    <value>Erfordert eine menschliche Überprüfung</value>
   </data>
   <data name="common.mySubmissions.groups.other" xml:space="preserve">
     <value>Other</value>
   </data>
   <data name="common.mySubmissions.groups.pending" xml:space="preserve">
-    <value>Pending approval</value>
+    <value>Genehmigung ausstehend</value>
   </data>
   <data name="common.mySubmissions.groups.rejected" xml:space="preserve">
     <value>Rejected</value>
@@ -179,267 +179,267 @@
     <value>Removed</value>
   </data>
   <data name="common.mySubmissions.loadError" xml:space="preserve">
-    <value>Could not load submissions.</value>
+    <value>Einsendungen konnten nicht geladen werden.</value>
   </data>
   <data name="common.mySubmissions.loading" xml:space="preserve">
-    <value>Loading submissions…</value>
+    <value>Einsendungen werden geladen…</value>
   </data>
   <data name="common.mySubmissions.loginRequired" xml:space="preserve">
-    <value>Sign in to view your submissions.</value>
+    <value>Melden Sie sich an, um Ihre Einsendungen anzuzeigen.</value>
   </data>
   <data name="common.mySubmissions.navTitle" xml:space="preserve">
-    <value>My submissions</value>
+    <value>Meine Einsendungen</value>
   </data>
   <data name="common.mySubmissions.subtitle" xml:space="preserve">
-    <value>Grouped by moderation pipeline (creator-safe fields only).</value>
+    <value>Gruppiert nach Moderationspipeline (nur für Ersteller sichere Felder).</value>
   </data>
   <data name="common.mySubmissions.title" xml:space="preserve">
-    <value>My submissions</value>
+    <value>Meine Einsendungen</value>
   </data>
   <data name="common.mySubmissions.untitled" xml:space="preserve">
-    <value>Untitled {{type}}</value>
+    <value>Ohne Titel {{type}}</value>
   </data>
   <data name="common.pages.userDetail.createdAt" xml:space="preserve">
-    <value>Vytvorené</value>
+    <value>Erstellt bei</value>
   </data>
   <data name="common.pages.userDetail.email" xml:space="preserve">
     <value>Email</value>
   </data>
   <data name="common.pages.userDetail.error" xml:space="preserve">
-    <value>Nepodarilo sa načítať používateľa</value>
+    <value>Benutzer konnte nicht geladen werden</value>
   </data>
   <data name="common.pages.userDetail.firstName" xml:space="preserve">
-    <value>Meno</value>
+    <value>Vorname</value>
   </data>
   <data name="common.pages.userDetail.id" xml:space="preserve">
     <value>ID</value>
   </data>
   <data name="common.pages.userDetail.lastName" xml:space="preserve">
-    <value>Priezvisko</value>
+    <value>Nachname</value>
   </data>
   <data name="common.pages.userDetail.loading" xml:space="preserve">
-    <value>Načítavam...</value>
+    <value>Loading...</value>
   </data>
   <data name="common.pages.userDetail.notFound" xml:space="preserve">
-    <value>Používateľ nenájdený</value>
+    <value>Benutzer nicht gefunden</value>
   </data>
   <data name="common.pages.userDetail.title" xml:space="preserve">
-    <value>Profil používateľa</value>
+    <value>Benutzerprofil</value>
   </data>
   <data name="common.offlineBanner" xml:space="preserve">
-    <value>You are offline. Connect to the internet to sign in, register, or refresh configuration.</value>
+    <value>Du bist offline. Stellen Sie eine Verbindung zum Internet her, um sich anzumelden, zu registrieren oder die Konfiguration zu aktualisieren.</value>
   </data>
   <data name="common.placeholder.subtitle" xml:space="preserve">
-    <value>Type index: {{type}}</value>
+    <value>Typindex: {{type}}</value>
   </data>
   <data name="common.placeholder.title" xml:space="preserve">
-    <value>Page: {{name}}</value>
+    <value>Seite: {{name}}</value>
   </data>
   <data name="common.retry" xml:space="preserve">
     <value>Retry</value>
   </data>
   <data name="common.sessionExpired" xml:space="preserve">
-    <value>Your session has expired. Please log in again.</value>
+    <value>Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.</value>
   </data>
   <data name="common.shell.closeDrawer" xml:space="preserve">
-    <value>Close menu</value>
+    <value>Menü schließen</value>
   </data>
   <data name="common.shell.copyright" xml:space="preserve">
     <value>© Many Faces AI</value>
   </data>
   <data name="common.shell.drawerLogin" xml:space="preserve">
-    <value>Sign in</value>
+    <value>anmelden</value>
   </data>
   <data name="common.shell.drawerPages" xml:space="preserve">
-    <value>Pages from config</value>
+    <value>Seiten aus der Konfiguration</value>
   </data>
   <data name="common.shell.drawerRegister" xml:space="preserve">
     <value>Register</value>
   </data>
   <data name="common.shell.drawerSubtitle" xml:space="preserve">
-    <value>Choose a destination — same idea as the portal header menu.</value>
+    <value>Wählen Sie ein Ziel – die gleiche Idee wie im Portal-Header-Menü.</value>
   </data>
   <data name="common.shell.drawerTitle" xml:space="preserve">
     <value>Navigation</value>
   </data>
   <data name="common.shell.goHome" xml:space="preserve">
-    <value>Go to home</value>
+    <value>Geh nach Hause</value>
   </data>
   <data name="common.shell.openMenu" xml:space="preserve">
-    <value>Open navigation menu</value>
+    <value>Navigationsmenü öffnen</value>
   </data>
   <data name="common.shell.openSettings" xml:space="preserve">
-    <value>Otvoriť nastavenia</value>
+    <value>Einstellungen öffnen</value>
   </data>
   <data name="common.shell.signOut" xml:space="preserve">
-    <value>Odhlásiť sa</value>
+    <value>Abmelden</value>
   </data>
   <data name="common.shell.signOutShort" xml:space="preserve">
     <value>Out</value>
   </data>
   <data name="common.language.cz" xml:space="preserve">
-    <value>Čeština</value>
+    <value>Czech</value>
   </data>
   <data name="common.language.en" xml:space="preserve">
-    <value>Angličtina</value>
+    <value>English</value>
   </data>
   <data name="common.language.select" xml:space="preserve">
-    <value>Vyberte jazyk</value>
+    <value>Sprache auswählen</value>
   </data>
   <data name="common.language.sk" xml:space="preserve">
-    <value>Slovenčina</value>
+    <value>Slovak</value>
   </data>
   <data name="common.settings.closePanel" xml:space="preserve">
-    <value>Zavrieť nastavenia</value>
+    <value>Einstellungen schließen</value>
   </data>
   <data name="common.settings.language" xml:space="preserve">
-    <value>Jazyk</value>
+    <value>Language</value>
   </data>
   <data name="common.settings.signOut" xml:space="preserve">
-    <value>Odhlásiť sa</value>
+    <value>Abmelden</value>
   </data>
   <data name="common.settings.panelHint" xml:space="preserve">
-    <value>Profil, messenger a notifikácie dorovnáme s web portálom v ďalšej fáze.</value>
+    <value>Profil-, Messenger- und Benachrichtigungseinstellungen werden in einem späteren Abschnitt mit dem Webportal übereinstimmen.</value>
   </data>
   <data name="common.settings.panelTitle" xml:space="preserve">
-    <value>Nastavenia</value>
+    <value>Settings</value>
   </data>
   <data name="common.wallTickets.empty" xml:space="preserve">
-    <value>No wall tickets yet.</value>
+    <value>Noch keine Wandtickets.</value>
   </data>
   <data name="common.wallTickets.loadError" xml:space="preserve">
-    <value>Could not load wall tickets.</value>
+    <value>Wandtickets konnten nicht geladen werden.</value>
   </data>
   <data name="common.wallTickets.loading" xml:space="preserve">
-    <value>Loading wall…</value>
+    <value>Ladewand...</value>
   </data>
   <data name="common.wallTickets.loginRequired" xml:space="preserve">
-    <value>Sign in to see wall tickets.</value>
+    <value>Melden Sie sich an, um Wandtickets zu sehen.</value>
   </data>
-  <data name="language.de" xml:space="preserve"><value>Nemčina</value></data><data name="language.fr" xml:space="preserve"><value>Francúzština</value></data><data name="language.it" xml:space="preserve"><value>Taliančina</value></data><data name="login.email" xml:space="preserve">
+  <data name="language.de" xml:space="preserve"><value>Deutsch</value></data><data name="language.fr" xml:space="preserve"><value>Französisch</value></data><data name="language.it" xml:space="preserve"><value>Italienisch</value></data><data name="login.email" xml:space="preserve">
     <value>Email</value>
   </data>
   <data name="login.error" xml:space="preserve">
-    <value>Sign in failed.</value>
+    <value>Die Anmeldung ist fehlgeschlagen.</value>
   </data>
   <data name="login.goRegister" xml:space="preserve">
-    <value>Create an account</value>
+    <value>Ein Konto erstellen</value>
   </data>
   <data name="login.password" xml:space="preserve">
     <value>Password</value>
   </data>
   <data name="login.rememberMe" xml:space="preserve">
-    <value>Stay signed in</value>
+    <value>Bleiben Sie angemeldet</value>
   </data>
   <data name="login.submit" xml:space="preserve">
-    <value>Sign in</value>
+    <value>anmelden</value>
   </data>
   <data name="login.success" xml:space="preserve">
-    <value>Signed in successfully.</value>
+    <value>Erfolgreich angemeldet.</value>
   </data>
   <data name="login.title" xml:space="preserve">
-    <value>Sign in</value>
+    <value>anmelden</value>
   </data>
   <data name="login.validation.emailInvalid" xml:space="preserve">
-    <value>Enter a valid email</value>
+    <value>Geben Sie eine gültige E-Mail-Adresse ein</value>
   </data>
   <data name="login.validation.emailRequired" xml:space="preserve">
-    <value>Email is required</value>
+    <value>E-Mail ist erforderlich</value>
   </data>
   <data name="login.validation.passwordMinLength" xml:space="preserve">
-    <value>Password must be at least 12 characters</value>
+    <value>Das Passwort muss mindestens 12 Zeichen lang sein</value>
   </data>
   <data name="login.validation.passwordRequired" xml:space="preserve">
-    <value>Password is required</value>
+    <value>Passwort ist erforderlich</value>
   </data>
   <data name="register.code" xml:space="preserve">
-    <value>Verification code</value>
+    <value>Bestätigungscode</value>
   </data>
   <data name="register.completeError" xml:space="preserve">
-    <value>Could not complete registration.</value>
+    <value>Die Registrierung konnte nicht abgeschlossen werden.</value>
   </data>
   <data name="register.completeSubmit" xml:space="preserve">
-    <value>Create account</value>
+    <value>Benutzerkonto erstellen</value>
   </data>
   <data name="register.completeSuccess" xml:space="preserve">
-    <value>Welcome! You are signed in.</value>
+    <value>Willkommen! Sie sind angemeldet.</value>
   </data>
   <data name="register.completeTitle" xml:space="preserve">
-    <value>Finish registration</value>
+    <value>Beenden Sie die Registrierung</value>
   </data>
   <data name="register.confirmPassword" xml:space="preserve">
-    <value>Confirm password</value>
+    <value>Passwort bestätigen</value>
   </data>
   <data name="register.email" xml:space="preserve">
     <value>Email</value>
   </data>
   <data name="register.error" xml:space="preserve">
-    <value>Registration request failed.</value>
+    <value>Die Registrierungsanfrage ist fehlgeschlagen.</value>
   </data>
   <data name="register.firstName" xml:space="preserve">
-    <value>First name</value>
+    <value>Vorname</value>
   </data>
   <data name="register.goLogin" xml:space="preserve">
-    <value>Already have an account? Sign in</value>
+    <value>Sie haben bereits ein Konto? anmelden</value>
   </data>
   <data name="register.lastName" xml:space="preserve">
-    <value>Last name</value>
+    <value>Nachname</value>
   </data>
   <data name="register.missingHash" xml:space="preserve">
-    <value>Registration link is invalid. Request a new email from the register screen.</value>
+    <value>Der Registrierungslink ist ungültig. Fordern Sie über den Registrierungsbildschirm eine neue E-Mail an.</value>
   </data>
   <data name="register.password" xml:space="preserve">
     <value>Password</value>
   </data>
   <data name="register.requestHint" xml:space="preserve">
-    <value>We will email you a code and link to finish signup.</value>
+    <value>Wir senden Ihnen per E-Mail einen Code und einen Link zum Abschluss der Anmeldung.</value>
   </data>
   <data name="register.requestSubmit" xml:space="preserve">
-    <value>Send registration email</value>
+    <value>Registrierungs-E-Mail senden</value>
   </data>
   <data name="register.requestSuccess" xml:space="preserve">
-    <value>If this email can be used, check your inbox for a code and link.</value>
+    <value>Wenn diese E-Mail verwendet werden kann, überprüfen Sie Ihren Posteingang auf einen Code und einen Link.</value>
   </data>
   <data name="register.submit" xml:space="preserve">
     <value>Register</value>
   </data>
   <data name="register.success" xml:space="preserve">
-    <value>Check your email to finish registration.</value>
+    <value>Überprüfen Sie Ihre E-Mails, um die Registrierung abzuschließen.</value>
   </data>
   <data name="register.title" xml:space="preserve">
-    <value>Create account</value>
+    <value>Benutzerkonto erstellen</value>
   </data>
   <data name="register.validation.codeRequired" xml:space="preserve">
-    <value>Verification code is required</value>
+    <value>Ein Bestätigungscode ist erforderlich</value>
   </data>
   <data name="register.validation.emailInvalid" xml:space="preserve">
-    <value>Enter a valid email</value>
+    <value>Geben Sie eine gültige E-Mail-Adresse ein</value>
   </data>
   <data name="register.validation.emailRequired" xml:space="preserve">
-    <value>Email is required</value>
+    <value>E-Mail ist erforderlich</value>
   </data>
   <data name="register.validation.firstNameMinLength" xml:space="preserve">
-    <value>First name must be at least 2 characters</value>
+    <value>Der Vorname muss mindestens 2 Zeichen lang sein</value>
   </data>
   <data name="register.validation.firstNameRequired" xml:space="preserve">
-    <value>First name is required</value>
+    <value>Der Vorname ist erforderlich</value>
   </data>
   <data name="register.validation.lastNameMinLength" xml:space="preserve">
-    <value>Last name must be at least 2 characters</value>
+    <value>Der Nachname muss mindestens 2 Zeichen lang sein</value>
   </data>
   <data name="register.validation.lastNameRequired" xml:space="preserve">
-    <value>Last name is required</value>
+    <value>Nachname ist erforderlich</value>
   </data>
   <data name="register.validation.passwordMinLength" xml:space="preserve">
-    <value>Password must be at least 12 characters</value>
+    <value>Das Passwort muss mindestens 12 Zeichen lang sein</value>
   </data>
   <data name="register.validation.passwordMismatch" xml:space="preserve">
-    <value>Passwords must match</value>
+    <value>Passwörter müssen übereinstimmen</value>
   </data>
   <data name="register.validation.passwordPattern" xml:space="preserve">
-    <value>Password must include upper, lower, and a digit</value>
+    <value>Das Passwort muss einen Groß- und Kleinbuchstaben sowie eine Ziffer enthalten</value>
   </data>
   <data name="register.validation.passwordRequired" xml:space="preserve">
-    <value>Password is required</value>
+    <value>Passwort ist erforderlich</value>
   </data>
 </root>
