@@ -2787,10 +2787,10 @@
     <value>Live mode — max parallel bundle AI calls</value>
   </data>
   <data name="pages.settings.aiStats.liveParallel.hint" xml:space="preserve">
-    <value>How many bundle-level AI requests run at once (default 2). Do not exceed {{max}} on this worker.</value>
+    <value>How many bundle-level AI requests run at once (default 2, max {{max}}). You choose the value; the hardware note below is advisory.</value>
   </data>
   <data name="pages.settings.aiStats.liveParallel.recommendation" xml:space="preserve">
-    <value>Based on AI worker {{gpu}} ({{vram}} VRAM, {{ram}} RAM free): recommended {{recommended}}, upper limit {{upperBound}}.</value>
+    <value>Based on AI worker {{gpu}} ({{vram}} VRAM, {{ram}} RAM free): recommended {{recommended}}, suggested safe maximum {{upperBound}}.</value>
   </data>
   <data name="pages.settings.aiStats.liveParallel.recommendationFallback" xml:space="preserve">
     <value>Refresh AI worker host below for a hardware-based recommendation.</value>

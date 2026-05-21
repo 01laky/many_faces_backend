@@ -2787,10 +2787,10 @@
     <value>Live režim — max paralelných bundle AI volaní</value>
   </data>
   <data name="pages.settings.aiStats.liveParallel.hint" xml:space="preserve">
-    <value>Koľko bundle AI požiadaviek beží naraz (predvolene 2). Na tomto workeri neprekračujte {{max}}.</value>
+    <value>Koľko bundle AI požiadaviek beží naraz (predvolene 2, max {{max}}). Hodnotu volíte vy; hardvérové odporúčanie nižšie je len orientačné.</value>
   </data>
   <data name="pages.settings.aiStats.liveParallel.recommendation" xml:space="preserve">
-    <value>Podľa AI workera {{gpu}} ({{vram}} VRAM, {{ram}} voľná RAM): odporúčané {{recommended}}, horný limit {{upperBound}}.</value>
+    <value>Podľa AI workera {{gpu}} ({{vram}} VRAM, {{ram}} voľná RAM): odporúčané {{recommended}}, navrhované bezpečné maximum {{upperBound}}.</value>
   </data>
   <data name="pages.settings.aiStats.liveParallel.recommendationFallback" xml:space="preserve">
     <value>Obnovte profil AI workera nižšie pre odporúčanie podľa hardvéru.</value>
