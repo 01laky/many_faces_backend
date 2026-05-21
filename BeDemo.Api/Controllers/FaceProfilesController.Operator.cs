@@ -46,7 +46,9 @@ public partial class FaceProfilesController
             var guidLike = term.Length >= 8 && term.Contains('-', StringComparison.Ordinal);
             baseQuery = baseQuery.Where(x =>
                 (x.ufp.DisplayName != null && EF.Functions.ILike(x.ufp.DisplayName, $"%{term}%")) ||
-                EF.Functions.ILike(x.up.Nickname, $"%{term}%") ||
+                // Nickname is optional; guard it explicitly so the generated SQL keeps null rows
+                // searchable through the other fields without nullable-analysis warnings.
+                (x.up.Nickname != null && EF.Functions.ILike(x.up.Nickname, $"%{term}%")) ||
                 (guidLike && EF.Functions.ILike(x.up.UserId, $"%{term}%")));
         }
 

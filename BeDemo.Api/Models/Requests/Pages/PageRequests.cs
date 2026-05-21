@@ -16,6 +16,8 @@ public class CreatePageModel
     public string Path { get; set; } = string.Empty;
 
     public int Index { get; set; } = 0;
+
+    public string? GridSchema { get; set; }
 }
 
 /// <summary>

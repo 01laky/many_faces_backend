@@ -1111,6 +1111,84 @@
   <data name="pages.editPage.gridLayout.removeItem" xml:space="preserve">
     <value>Remove</value>
   </data>
+  <data name="pages.profileDetailTemplate.addSection" xml:space="preserve">
+    <value>Add section</value>
+  </data>
+  <data name="pages.profileDetailTemplate.assignSection" xml:space="preserve">
+    <value>Assign section type</value>
+  </data>
+  <data name="pages.profileDetailTemplate.banner" xml:space="preserve">
+    <value>Layout for member profile pages — not shown in the site menu.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.clearSection" xml:space="preserve">
+    <value>Clear section type</value>
+  </data>
+  <data name="pages.profileDetailTemplate.deleteDisabled" xml:space="preserve">
+    <value>The member profile layout template cannot be deleted</value>
+  </data>
+  <data name="pages.profileDetailTemplate.editCta" xml:space="preserve">
+    <value>Edit member profile layout</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sectionTitle" xml:space="preserve">
+    <value>Member profile page layout</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sectionHelp" xml:space="preserve">
+    <value>Configure how member profile detail pages look in the portal (hero, comments, reviews). This is not a public menu page.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.missingHelp" xml:space="preserve">
+    <value>Layout template is not created yet. Restart the API so startup seed can add it, or run SQL seed 056_profile_detail_template_pages.sql.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.editTitle" xml:space="preserve">
+    <value>Member profile layout</value>
+  </data>
+  <data name="pages.profileDetailTemplate.empty" xml:space="preserve">
+    <value>Add sections to build the profile detail layout.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.gridHelp" xml:space="preserve">
+    <value>Drag and resize sections. Each block maps to a profile detail area (hero, comments, reviews, etc.).</value>
+  </data>
+  <data name="pages.profileDetailTemplate.gridTitle" xml:space="preserve">
+    <value>Profile detail sections</value>
+  </data>
+  <data name="pages.profileDetailTemplate.pickerTitle" xml:space="preserve">
+    <value>Choose section type</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sectionsCount" xml:space="preserve">
+    <value>sections</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileBackNav" xml:space="preserve">
+    <value>Back navigation</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileHero" xml:space="preserve">
+    <value>Profile hero</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileMeta" xml:space="preserve">
+    <value>Profile meta</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileActions" xml:space="preserve">
+    <value>Profile actions</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileComments" xml:space="preserve">
+    <value>Comments</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileReviews" xml:space="preserve">
+    <value>Reviews</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userAlbums" xml:space="preserve">
+    <value>Member albums</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userBlogs" xml:space="preserve">
+    <value>Member blogs</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userReels" xml:space="preserve">
+    <value>Member reels</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userStories" xml:space="preserve">
+    <value>Member stories</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.spacer" xml:space="preserve">
+    <value>Spacer</value>
+  </data>
   <data name="pages.editPage.gridLayout.title" xml:space="preserve">
     <value>Grid Layout</value>
   </data>

@@ -335,6 +335,7 @@ else
 
 // FaceService for RoutingMiddleware (face-based URL routing)
 builder.Services.AddScoped<IFaceService, FaceService>();
+builder.Services.AddScoped<IProfileDetailTemplatePagesService, ProfileDetailTemplatePagesService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IFaceScopeContext, FaceScopeContext>();
 builder.Services.AddScoped<IAccessEvaluator, AccessEvaluator>();

@@ -103,12 +103,20 @@ public class ProfileController : ControllerBase
         if (user == null)
             return Unauthorized();
 
+        var nameChanged = false;
         if (model.FirstName != null)
+        {
             user.FirstName = model.FirstName.Trim().Length > 0 ? model.FirstName.Trim() : null;
+            nameChanged = true;
+        }
         if (model.LastName != null)
+        {
             user.LastName = model.LastName.Trim().Length > 0 ? model.LastName.Trim() : null;
+            nameChanged = true;
+        }
 
-        await _userManager.UpdateAsync(user);
+        if (nameChanged)
+            await _userManager.UpdateAsync(user);
 
         if (model.EnableAnimatedGradient.HasValue)
         {

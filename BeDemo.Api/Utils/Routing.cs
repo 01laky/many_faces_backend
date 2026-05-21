@@ -24,6 +24,8 @@ public static class Routing
     /// <item><description><c>/api/localization/*</c> — static UI i18n bundles before login.</description></item>
     /// <item><description>Swagger / OpenAPI — developer tooling; not tenant data.</description></item>
     /// <item><description><c>/api/uploads/*</c> — HMAC-signed serve endpoint (SHV2 BE-U3); bare <c>/uploads/*</c> is not served anonymously.</description></item>
+    /// <item><description><c>/api/profile/*</c> — account-wide user profile (not tenant-scoped).</description></item>
+    /// <item><description><c>/api/my/*</c> — caller-scoped "my content" lists (submissions, etc.).</description></item>
     /// </list>
     /// </remarks>
     private static readonly string[] ExemptPathPrefixes =
@@ -31,6 +33,8 @@ public static class Routing
         "/api/oauth2",
         "/api/auth",
         "/api/localization",
+        "/api/profile",
+        "/api/my",
         "/swagger",
         "/openapi",
         "/favicon",

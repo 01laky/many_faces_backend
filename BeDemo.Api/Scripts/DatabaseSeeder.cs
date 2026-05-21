@@ -1,5 +1,7 @@
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.ProfileDetail;
+using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +57,9 @@ public static class DatabaseSeeder
             await SeedOAuthClientsAsync(context);
         }
 
+        // Always run after external SQL reference seeds: PageType + one template page per face.
+        await EnsureProfileDetailReferenceAsync(context);
+
         await context.SaveChangesAsync();
     }
 
@@ -72,7 +77,30 @@ public static class DatabaseSeeder
 
         await SeedOAuthClientsAsync(context);
 
+        await EnsureProfileDetailReferenceAsync(context);
+
         await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Idempotent: <see cref="ProfileDetailGridDefaults.PageTypeIndex"/> PageType + template Page per face.
+    /// Runs even when reference data came from SQL seeds (docker dev).
+    /// </summary>
+    public static async Task EnsureProfileDetailReferenceAsync(ApplicationDbContext context)
+    {
+        await SeedProfileDetailPageTypeAsync(context);
+        var service = new ProfileDetailTemplatePagesService(context);
+        await service.EnsureAllFacesAsync();
+    }
+
+    private static async Task SeedProfileDetailPageTypeAsync(ApplicationDbContext context)
+    {
+        var index = ProfileDetailGridDefaults.PageTypeIndex;
+        var existing = await context.PageTypes.FirstOrDefaultAsync(pt => pt.Index == index);
+        if (existing == null)
+        {
+            context.PageTypes.Add(new PageType { Index = index, CreatedAt = DateTime.UtcNow });
+        }
     }
 
     /// <summary>Default confidential client for demos; secret must match <c>OAuth2:ClientSecret</c> in appsettings (O1).</summary>
@@ -158,8 +186,8 @@ public static class DatabaseSeeder
 
     private static async Task SeedPageTypesAsync(ApplicationDbContext context)
     {
-        // Only CMS-facing types: home, static (login/register-style), wall. List/detail/edit/create are fixed FE routes.
-        var pageTypeIndices = new[] { "home", "static", "wall" };
+        // CMS-facing types: home, static, wall, profileDetail (member profile layout template per face).
+        var pageTypeIndices = new[] { "home", "static", "wall", "profileDetail" };
 
         foreach (var index in pageTypeIndices)
         {

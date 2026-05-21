@@ -9,6 +9,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Services;
 using BeDemo.Api.Models.Requests.Faces;
+using BeDemo.Api.ProfileDetail;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -23,19 +24,22 @@ public class FacesController : ControllerBase
     private readonly IFaceScopeContext _faceScope;
     private readonly IMemoryCache _memoryCache;
     private readonly IAccessEvaluator _access;
+    private readonly IProfileDetailTemplatePagesService _profileDetailTemplates;
 
     public FacesController(
         ApplicationDbContext context,
         ILogger<FacesController> logger,
         IFaceScopeContext faceScope,
         IMemoryCache memoryCache,
-        IAccessEvaluator access)
+        IAccessEvaluator access,
+        IProfileDetailTemplatePagesService profileDetailTemplates)
     {
         _context = context;
         _logger = logger;
         _faceScope = faceScope;
         _memoryCache = memoryCache;
         _access = access;
+        _profileDetailTemplates = profileDetailTemplates;
     }
 
     private void InvalidateFacesRoutingCache()
@@ -723,6 +727,8 @@ public class FacesController : ControllerBase
             {
                 _logger.LogInformation("Face created: {FaceId} (no default PageTypes found)", face.Id);
             }
+
+            await _profileDetailTemplates.EnsureForFaceAsync(face.Id);
 
             var faceDto = new
             {

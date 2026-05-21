@@ -217,6 +217,24 @@
   <data name="face.select" xml:space="preserve">
     <value>Select Face</value>
   </data>
+  <data name="profileDetail.sectionError" xml:space="preserve">
+    <value>This profile layout could not be loaded. Contact the face administrator.</value>
+  </data>
+  <data name="profileDetail.unknownSection" xml:space="preserve">
+    <value>Unknown section: {{sectionType}}</value>
+  </data>
+  <data name="profileDetail.userAlbums.empty" xml:space="preserve">
+    <value>No albums to show for this member yet.</value>
+  </data>
+  <data name="profileDetail.userBlogs.empty" xml:space="preserve">
+    <value>No blogs to show for this member yet.</value>
+  </data>
+  <data name="profileDetail.userReels.empty" xml:space="preserve">
+    <value>No reels to show for this member yet.</value>
+  </data>
+  <data name="profileDetail.userStories.empty" xml:space="preserve">
+    <value>No stories to show for this member yet.</value>
+  </data>
   <data name="faceProfiles.age" xml:space="preserve">
     <value>Age</value>
   </data>

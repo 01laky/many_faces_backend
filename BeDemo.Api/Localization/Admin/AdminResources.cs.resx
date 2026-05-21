@@ -2201,6 +2201,84 @@
   <data name="pages.videoLoungeOperator.kickAllSuccess" xml:space="preserve">
     <value>Všichni účastníci vykopnuti</value>
   </data>
+  <data name="pages.profileDetailTemplate.addSection" xml:space="preserve">
+    <value>Přidat sekci</value>
+  </data>
+  <data name="pages.profileDetailTemplate.assignSection" xml:space="preserve">
+    <value>Přiřadit typ sekce</value>
+  </data>
+  <data name="pages.profileDetailTemplate.banner" xml:space="preserve">
+    <value>Rozložení pro profily členů — není v menu stránek.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.clearSection" xml:space="preserve">
+    <value>Vymazat typ sekce</value>
+  </data>
+  <data name="pages.profileDetailTemplate.deleteDisabled" xml:space="preserve">
+    <value>Šablonu rozložení profilu člena nelze odstranit</value>
+  </data>
+  <data name="pages.profileDetailTemplate.editCta" xml:space="preserve">
+    <value>Upravit rozložení profilu člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.editTitle" xml:space="preserve">
+    <value>Rozložení profilu člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.empty" xml:space="preserve">
+    <value>Přidejte sekce a sestavte rozložení detailu profilu.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.gridHelp" xml:space="preserve">
+    <value>Přesouvejte sekce a měňte jejich velikost. Každý blok mapuje oblast detailu profilu (hero, komentáře, recenze atd.).</value>
+  </data>
+  <data name="pages.profileDetailTemplate.gridTitle" xml:space="preserve">
+    <value>Sekce profilu</value>
+  </data>
+  <data name="pages.profileDetailTemplate.missingHelp" xml:space="preserve">
+    <value>Šablona ještě neexistuje. Restartujte API (startup seed) nebo spusťte SQL seed 056_profile_detail_template_pages.sql.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.pickerTitle" xml:space="preserve">
+    <value>Vyberte typ sekce</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sectionHelp" xml:space="preserve">
+    <value>Nastavte vzhled detailu profilu člena v portálu (hero, komentáře, recenze). Není to položka v menu.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sectionTitle" xml:space="preserve">
+    <value>Rozložení profilové stránky člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sectionsCount" xml:space="preserve">
+    <value>sekcí</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileBackNav" xml:space="preserve">
+    <value>Navigace zpět</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileHero" xml:space="preserve">
+    <value>Hero profilu</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileMeta" xml:space="preserve">
+    <value>Meta informace profilu</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileActions" xml:space="preserve">
+    <value>Akce profilu</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileComments" xml:space="preserve">
+    <value>Komentáře</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileReviews" xml:space="preserve">
+    <value>Recenze</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userAlbums" xml:space="preserve">
+    <value>Alba člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userBlogs" xml:space="preserve">
+    <value>Blogy člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userReels" xml:space="preserve">
+    <value>Reels člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userStories" xml:space="preserve">
+    <value>Příběhy člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.spacer" xml:space="preserve">
+    <value>Mezera</value>
+  </data>
   <data name="pages.profileDetail.age" xml:space="preserve">
     <value>Věk</value>
   </data>

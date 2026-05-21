@@ -217,6 +217,24 @@
   <data name="face.select" xml:space="preserve">
     <value>Vybrať face</value>
   </data>
+  <data name="profileDetail.sectionError" xml:space="preserve">
+    <value>Rozloženie profilu sa nepodarilo načítať. Kontaktujte administrátora face.</value>
+  </data>
+  <data name="profileDetail.unknownSection" xml:space="preserve">
+    <value>Neznáma sekcia: {{sectionType}}</value>
+  </data>
+  <data name="profileDetail.userAlbums.empty" xml:space="preserve">
+    <value>Tento člen zatiaľ nemá albumy na zobrazenie.</value>
+  </data>
+  <data name="profileDetail.userBlogs.empty" xml:space="preserve">
+    <value>Tento člen zatiaľ nemá blogy na zobrazenie.</value>
+  </data>
+  <data name="profileDetail.userReels.empty" xml:space="preserve">
+    <value>Tento člen zatiaľ nemá reels na zobrazenie.</value>
+  </data>
+  <data name="profileDetail.userStories.empty" xml:space="preserve">
+    <value>Tento člen zatiaľ nemá príbehy na zobrazenie.</value>
+  </data>
   <data name="faceProfiles.age" xml:space="preserve">
     <value>Vek</value>
   </data>

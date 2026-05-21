@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Pages;
+using BeDemo.Api.ProfileDetail;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 
@@ -19,17 +20,20 @@ public class PagesController : ControllerBase
     private readonly ILogger<PagesController> _logger;
     private readonly IFaceScopeContext _faceScope;
     private readonly IAccessEvaluator _access;
+    private readonly IProfileDetailTemplatePagesService _profileDetailTemplates;
 
     public PagesController(
         ApplicationDbContext context,
         ILogger<PagesController> logger,
         IFaceScopeContext faceScope,
-        IAccessEvaluator access)
+        IAccessEvaluator access,
+        IProfileDetailTemplatePagesService profileDetailTemplates)
     {
         _context = context;
         _logger = logger;
         _faceScope = faceScope;
         _access = access;
+        _profileDetailTemplates = profileDetailTemplates;
     }
 
     /// <summary>Admin SPA (/admin/) with global Admin JWT may see or move pages across faces.</summary>
@@ -182,12 +186,61 @@ public class PagesController : ControllerBase
             if (!CanManageAllFaces() && model.FaceId != _faceScope.FaceId)
                 return BadRequest(new { error = "Pages can only be created for the current face scope" });
 
-            // Verify that PageType exists
-            var pageTypeExists = await _context.PageTypes.AnyAsync(pt => pt.Id == model.PageTypeId);
-            if (!pageTypeExists)
+            var pageType = await _context.PageTypes.AsNoTracking()
+                .FirstOrDefaultAsync(pt => pt.Id == model.PageTypeId);
+            if (pageType == null)
             {
                 _logger.LogWarning("PageType not found: {PageTypeId}", model.PageTypeId);
                 return BadRequest(new { error = "PageType not found" });
+            }
+
+            if (pageType.Index == ProfileDetailGridDefaults.PageTypeIndex)
+            {
+                var duplicate = await _context.Pages.AnyAsync(p =>
+                    p.FaceId == model.FaceId && p.PageTypeId == pageType.Id);
+                if (duplicate)
+                {
+                    return Conflict(new { error = "This face already has a member profile layout page" });
+                }
+
+                var gridSchema = string.IsNullOrWhiteSpace(model.GridSchema)
+                    ? ProfileDetailGridDefaults.DefaultGridSchemaJson
+                    : model.GridSchema;
+                var validationError = _profileDetailTemplates.ValidateGridSchemaJson(gridSchema);
+                if (validationError != null)
+                    return BadRequest(new { error = validationError });
+
+                var profileTemplatePage = new Page
+                {
+                    FaceId = model.FaceId,
+                    PageTypeId = model.PageTypeId,
+                    Name = model.Name,
+                    Description = model.Description,
+                    Path = model.Path,
+                    Index = model.Index,
+                    GridSchema = gridSchema,
+                    CreatedAt = DateTime.UtcNow,
+                };
+
+                _context.Pages.Add(profileTemplatePage);
+                await _context.SaveChangesAsync();
+
+                var createdDto = new
+                {
+                    id = profileTemplatePage.Id,
+                    faceId = profileTemplatePage.FaceId,
+                    pageTypeId = profileTemplatePage.PageTypeId,
+                    name = profileTemplatePage.Name,
+                    description = profileTemplatePage.Description,
+                    path = profileTemplatePage.Path,
+                    index = profileTemplatePage.Index,
+                    gridSchema = profileTemplatePage.GridSchema,
+                    createdAt = profileTemplatePage.CreatedAt,
+                    updatedAt = profileTemplatePage.UpdatedAt,
+                };
+
+                _logger.LogInformation("Profile detail template page created: {PageId}", profileTemplatePage.Id);
+                return CreatedAtAction(nameof(GetPage), new { id = profileTemplatePage.Id }, createdDto);
             }
 
             var page = new Page
@@ -198,6 +251,7 @@ public class PagesController : ControllerBase
                 Description = model.Description,
                 Path = model.Path,
                 Index = model.Index,
+                GridSchema = model.GridSchema,
                 CreatedAt = DateTime.UtcNow,
             };
 
@@ -252,6 +306,32 @@ public class PagesController : ControllerBase
             var updateGate = EnsurePageBelongsToScope(page);
             if (updateGate != null)
                 return updateGate;
+
+            var currentPageTypeIndex = await _context.PageTypes.AsNoTracking()
+                .Where(pt => pt.Id == page.PageTypeId)
+                .Select(pt => pt.Index)
+                .FirstOrDefaultAsync();
+
+            var effectivePageTypeId = model.PageTypeId ?? page.PageTypeId;
+            var effectivePageTypeIndex = model.PageTypeId.HasValue
+                ? await _context.PageTypes.AsNoTracking()
+                    .Where(pt => pt.Id == model.PageTypeId.Value)
+                    .Select(pt => pt.Index)
+                    .FirstOrDefaultAsync()
+                : currentPageTypeIndex;
+
+            if (currentPageTypeIndex == ProfileDetailGridDefaults.PageTypeIndex
+                && effectivePageTypeIndex != ProfileDetailGridDefaults.PageTypeIndex)
+            {
+                return BadRequest(new { error = "Cannot change page type of the member profile layout template" });
+            }
+
+            if (effectivePageTypeIndex == ProfileDetailGridDefaults.PageTypeIndex && model.GridSchema != null)
+            {
+                var validationError = _profileDetailTemplates.ValidateGridSchemaJson(model.GridSchema);
+                if (validationError != null)
+                    return BadRequest(new { error = validationError });
+            }
 
             // Update page properties
             if (model.Name != null)
@@ -347,6 +427,15 @@ public class PagesController : ControllerBase
             var delGate = EnsurePageBelongsToScope(page);
             if (delGate != null)
                 return delGate;
+
+            var pageTypeIndex = await _context.PageTypes.AsNoTracking()
+                .Where(pt => pt.Id == page.PageTypeId)
+                .Select(pt => pt.Index)
+                .FirstOrDefaultAsync();
+            if (pageTypeIndex == ProfileDetailGridDefaults.PageTypeIndex)
+            {
+                return BadRequest(new { error = "The member profile layout template cannot be deleted" });
+            }
 
             _context.Pages.Remove(page);
             await _context.SaveChangesAsync();

@@ -2201,6 +2201,84 @@
   <data name="pages.videoLoungeOperator.kickAllSuccess" xml:space="preserve">
     <value>Všetci účastníci vykopnutí</value>
   </data>
+  <data name="pages.profileDetailTemplate.sectionTitle" xml:space="preserve">
+    <value>Rozloženie profilovej stránky člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sectionHelp" xml:space="preserve">
+    <value>Nastavte vzhľad detailu profilu člena v portáli (hero, komentáre, recenzie). Nie je to položka v menu.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.missingHelp" xml:space="preserve">
+    <value>Šablóna ešte neexistuje. Reštartujte API (startup seed) alebo spustite SQL seed 056_profile_detail_template_pages.sql.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.editCta" xml:space="preserve">
+    <value>Upraviť rozloženie profilu člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.editTitle" xml:space="preserve">
+    <value>Rozloženie profilu člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.banner" xml:space="preserve">
+    <value>Rozloženie pre profily členov — nie je v menu stránok.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.addSection" xml:space="preserve">
+    <value>Pridať sekciu</value>
+  </data>
+  <data name="pages.profileDetailTemplate.assignSection" xml:space="preserve">
+    <value>Priradiť typ sekcie</value>
+  </data>
+  <data name="pages.profileDetailTemplate.clearSection" xml:space="preserve">
+    <value>Vymazať typ sekcie</value>
+  </data>
+  <data name="pages.profileDetailTemplate.deleteDisabled" xml:space="preserve">
+    <value>Šablónu rozloženia profilu člena nemožno odstrániť</value>
+  </data>
+  <data name="pages.profileDetailTemplate.empty" xml:space="preserve">
+    <value>Pridajte sekcie a zostavte rozloženie detailu profilu.</value>
+  </data>
+  <data name="pages.profileDetailTemplate.gridHelp" xml:space="preserve">
+    <value>Presúvajte a meňte veľkosť sekcií. Každý blok mapuje oblasť detailu profilu (hero, komentáre, recenzie atď.).</value>
+  </data>
+  <data name="pages.profileDetailTemplate.gridTitle" xml:space="preserve">
+    <value>Sekcie profilu</value>
+  </data>
+  <data name="pages.profileDetailTemplate.pickerTitle" xml:space="preserve">
+    <value>Vyberte typ sekcie</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sectionsCount" xml:space="preserve">
+    <value>sekcií</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileBackNav" xml:space="preserve">
+    <value>Navigácia späť</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileHero" xml:space="preserve">
+    <value>Hero profilu</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileMeta" xml:space="preserve">
+    <value>Meta informácie profilu</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileActions" xml:space="preserve">
+    <value>Akcie profilu</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileComments" xml:space="preserve">
+    <value>Komentáre</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.profileReviews" xml:space="preserve">
+    <value>Recenzie</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userAlbums" xml:space="preserve">
+    <value>Albumy člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userBlogs" xml:space="preserve">
+    <value>Blogy člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userReels" xml:space="preserve">
+    <value>Reels člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.userStories" xml:space="preserve">
+    <value>Príbehy člena</value>
+  </data>
+  <data name="pages.profileDetailTemplate.sections.spacer" xml:space="preserve">
+    <value>Medzera</value>
+  </data>
   <data name="pages.profileDetail.age" xml:space="preserve">
     <value>Vek</value>
   </data>
