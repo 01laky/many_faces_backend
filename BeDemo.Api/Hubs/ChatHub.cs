@@ -1,7 +1,7 @@
 /*
  * ChatHub.cs - SignalR Hub for real-time chat communication
  *
- * Operator AI: shared support inbox via SendToAiWithOperatorStats(conversationId, message, statsMode, responseLocale)
+ * Operator AI: shared support inbox via SendToAiWithOperatorStats(conversationId, message, statsMode, responseLocale, maxParallelBundleAiCalls?)
  * with DB persistence and operator_ai_operators group broadcasts.
  */
 
@@ -18,6 +18,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.DTOs.OperatorAi;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Hubs;
@@ -39,6 +40,7 @@ public class ChatHub : Hub
     private readonly IPlatformStatsQueryService _platformStats;
     private readonly IConfiguration _configuration;
     private readonly IOperatorAiConversationService _operatorAi;
+    private readonly IOperatorAiLiveStatsOrchestrator _liveStatsOrchestrator;
     private readonly OperatorAiOptions _operatorAiOptions;
 
     public ChatHub(
@@ -50,6 +52,7 @@ public class ChatHub : Hub
         IPlatformStatsQueryService platformStats,
         IConfiguration configuration,
         IOperatorAiConversationService operatorAi,
+        IOperatorAiLiveStatsOrchestrator liveStatsOrchestrator,
         IOptions<OperatorAiOptions> operatorAiOptions)
     {
         _logger = logger;
@@ -60,6 +63,7 @@ public class ChatHub : Hub
         _platformStats = platformStats;
         _configuration = configuration;
         _operatorAi = operatorAi;
+        _liveStatsOrchestrator = liveStatsOrchestrator;
         _operatorAiOptions = operatorAiOptions.Value;
     }
 
@@ -190,7 +194,8 @@ public class ChatHub : Hub
         int conversationId,
         string message,
         string? statsMode,
-        string? responseLocale)
+        string? responseLocale,
+        int? maxParallelBundleAiCalls = null)
     {
         var userId = Context.UserIdentifier ?? Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         _logger.LogInformation(
@@ -266,20 +271,36 @@ public class ChatHub : Hub
             Context.ConnectionAborted);
 
         var maxTokens = _operatorAiOptions.MaxNewTokens;
+        var effectiveParallel = Math.Clamp(
+            maxParallelBundleAiCalls ?? 2,
+            1,
+            _operatorAiOptions.MaxParallelBundleAiCalls);
         string aiResponse;
         try
         {
-            var prompt = BuildPromptWithHistory(trimmed, history.ToArray());
-            string? statsJson = null;
-            if (mode is "inline" or "live" && ShouldAttachStatsContext(trimmed))
-                statsJson = await BuildOperatorStatsContextJsonAsync(trimmed, Context.ConnectionAborted);
+            if (mode == "live")
+            {
+                // Live map-reduce: prefetch cache → planner indices → queued per-bundle AI → stitch.
+                aiResponse = await _liveStatsOrchestrator.RunAsync(
+                    trimmed,
+                    locale,
+                    effectiveParallel,
+                    Context.ConnectionAborted);
+            }
+            else
+            {
+                var prompt = BuildPromptWithHistory(trimmed, history.ToArray());
+                string? statsJson = null;
+                if (mode == "inline" && ShouldAttachStatsContext(trimmed))
+                    statsJson = await BuildOperatorStatsContextJsonAsync(trimmed, Context.ConnectionAborted);
 
-            aiResponse = await _aiGrpcService.GenerateAsync(
-                prompt,
-                maxNewTokens: maxTokens,
-                statsContextJson: statsJson,
-                responseLocale: locale,
-                cancellationToken: Context.ConnectionAborted);
+                aiResponse = await _aiGrpcService.GenerateAsync(
+                    prompt,
+                    maxNewTokens: maxTokens,
+                    statsContextJson: statsJson,
+                    responseLocale: locale,
+                    cancellationToken: Context.ConnectionAborted);
+            }
 
             if (string.IsNullOrWhiteSpace(aiResponse))
                 aiResponse = "...";

@@ -2748,7 +2748,7 @@
     <value>The API injects a fresh JSON snapshot into the model context on each request.</value>
   </data>
   <data name="pages.settings.aiStats.hints.live" xml:space="preserve">
-    <value>The Python worker performs an HTTP GET of the configured public stats URL before answering (useful to validate the same path external tools would call).</value>
+    <value>Map-reduce: prefetch all entity bundles, planner picks indices, queued per-bundle AI (parallel cap below), one stitched reply.</value>
   </data>
   <data name="pages.settings.aiStats.hints.off" xml:space="preserve">
     <value>AI sees only your typed conversation.</value>
@@ -2757,13 +2757,22 @@
     <value>Inline (from API server)</value>
   </data>
   <data name="pages.settings.aiStats.modes.live" xml:space="preserve">
-    <value>Live (AI worker fetches public JSON)</value>
+    <value>Live (map-reduce bundles)</value>
   </data>
   <data name="pages.settings.aiStats.modes.off" xml:space="preserve">
     <value>Off</value>
   </data>
   <data name="pages.settings.aiStats.sectionTitle" xml:space="preserve">
     <value>AI chat — public statistics</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.label" xml:space="preserve">
+    <value>Live mode — max parallel bundle AI calls</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.hint" xml:space="preserve">
+    <value>How many bundle-level AI requests run at once (default 2). Higher values need stronger GPU/RAM.</value>
+  </data>
+  <data name="pages.chat.liveLoading" xml:space="preserve">
+    <value>Loading statistics and analyzing your question…</value>
   </data>
   <data name="pages.settings.lead" xml:space="preserve">
     <value>Preferences for this browser only (stored in localStorage).</value>

@@ -2748,7 +2748,7 @@
     <value>API vloží čerstvý JSON snímok do kontextu modelu pri každej požiadavke.</value>
   </data>
   <data name="pages.settings.aiStats.hints.live" xml:space="preserve">
-    <value>Python worker pred odpoveďou spraví HTTP GET na nakonfigurovanú verejnú URL štatistík.</value>
+    <value>Map-reduce: prefetch bundle-ov, planner vyberie indexy, fronta bundle AI, jedna odpoveď.</value>
   </data>
   <data name="pages.settings.aiStats.hints.off" xml:space="preserve">
     <value>AI vidí len váš dialóg.</value>
@@ -2764,6 +2764,15 @@
   </data>
   <data name="pages.settings.aiStats.sectionTitle" xml:space="preserve">
     <value>AI chat — verejné štatistiky</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.label" xml:space="preserve">
+    <value>Live režim — max paralelných bundle AI volaní</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.hint" xml:space="preserve">
+    <value>Koľko bundle AI požiadaviek beží naraz (predvolene 2).</value>
+  </data>
+  <data name="pages.chat.liveLoading" xml:space="preserve">
+    <value>Načítavam štatistiky a analyzujem otázku…</value>
   </data>
   <data name="pages.settings.lead" xml:space="preserve">
     <value>Predvoľby len pre tento prehliadač (uložené v localStorage).</value>

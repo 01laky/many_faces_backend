@@ -2765,6 +2765,15 @@
   <data name="pages.settings.aiStats.sectionTitle" xml:space="preserve">
     <value>AI chat — veřejné statistiky</value>
   </data>
+  <data name="pages.settings.aiStats.liveParallel.label" xml:space="preserve">
+    <value>Live režim — max paralelních bundle AI volání</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.hint" xml:space="preserve">
+    <value>Kolik bundle AI požadavků běží najednou (výchozí 2).</value>
+  </data>
+  <data name="pages.chat.liveLoading" xml:space="preserve">
+    <value>Načítám statistiky a analyzuji otázku…</value>
+  </data>
   <data name="pages.settings.lead" xml:space="preserve">
     <value>Předvolby jen pro tento prohlížeč (uloženo v localStorage).</value>
   </data>

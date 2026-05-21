@@ -34,6 +34,7 @@ using BeDemo.Api.Models;
 using BeDemo.Api.Security;
 using BeDemo.Api.Middlewares;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Hubs;
 using BeDemo.Api.Scripts;
 using BeDemo.Api.Swagger;
@@ -102,6 +103,9 @@ builder.Services.AddScoped<IPlatformStatsQueryService, PlatformStatsQueryService
 builder.Services.AddOptions<BeDemo.Api.Configuration.OperatorAiOptions>()
     .BindConfiguration(BeDemo.Api.Configuration.OperatorAiOptions.SectionName);
 builder.Services.AddScoped<IOperatorAiConversationService, OperatorAiConversationService>();
+builder.Services.AddScoped<IOperatorAiEntityBundleLoader, OperatorAiEntityBundleLoader>();
+builder.Services.AddScoped<IOperatorAiLiveStatsPrefetcher, OperatorAiLiveStatsPrefetcher>();
+builder.Services.AddScoped<IOperatorAiLiveStatsOrchestrator, OperatorAiLiveStatsOrchestrator>();
 builder.Services.AddScoped<IFaceModerationService, FaceModerationService>();
 builder.Services.AddScoped<IOperatorUserModerationService, OperatorUserModerationService>();
 builder.Services.AddScoped<IOperatorAlbumManagementService, OperatorAlbumManagementService>();
@@ -319,6 +323,9 @@ if (builder.Environment.IsEnvironment("Testing"))
     // In-memory database for integration tests (no PostgreSQL required)
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseInMemoryDatabase("BeDemoTestDb"));
+    builder.Services.AddDbContextFactory<ApplicationDbContext>(
+        options => options.UseInMemoryDatabase("BeDemoTestDb"),
+        ServiceLifetime.Scoped);
 }
 else
 {
@@ -331,6 +338,10 @@ else
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseNpgsql(connectionString)
             .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+    builder.Services.AddDbContextFactory<ApplicationDbContext>(
+        options => options.UseNpgsql(connectionString)
+            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)),
+        ServiceLifetime.Scoped);
 }
 
 // FaceService for RoutingMiddleware (face-based URL routing)
