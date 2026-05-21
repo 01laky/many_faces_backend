@@ -88,6 +88,7 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
     /// <summary>Global Redis TTL for operator AI live stats bundle cache (singleton Id=1).</summary>
     public DbSet<OperatorAiLiveStatsCacheSettings> OperatorAiLiveStatsCacheSettings { get; set; } = null!;
+    public DbSet<OperatorAiPublicStatsSettings> OperatorAiPublicStatsSettings { get; set; } = null!;
 
     /// <summary>Singleton refresh metadata for AI worker host profile.</summary>
     public DbSet<AiWorkerHostRefreshMeta> AiWorkerHostRefreshMetas { get; set; } = null!;
@@ -1262,6 +1263,15 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.TtlMilliseconds).IsRequired();
+            entity.Property(e => e.UpdatedAtUtc).IsRequired();
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+        });
+
+        builder.Entity<OperatorAiPublicStatsSettings>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.PublicStatsMode).IsRequired().HasMaxLength(16);
+            entity.Property(e => e.LiveMaxParallelBundleCalls).IsRequired();
             entity.Property(e => e.UpdatedAtUtc).IsRequired();
             entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
         });

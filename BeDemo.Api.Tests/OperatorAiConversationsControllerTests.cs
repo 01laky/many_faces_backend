@@ -117,6 +117,48 @@ public sealed class OperatorAiConversationsControllerTests : IClassFixture<Custo
     }
 
     [Fact]
+    public async Task Public_stats_settings_get_on_admin_face_scope()
+    {
+        var client = _factory.CreateFaceClient("admin");
+        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/operator-ai/public-stats-settings");
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var payload = await response.Content.ReadFromJsonAsync<OperatorAiPublicStatsSettingsDto>();
+        payload.Should().NotBeNull();
+        payload!.PublicStatsMode.Should().BeOneOf("off", "inline", "live");
+        payload.LiveMaxParallelBundleCalls.Should().BeInRange(1, 8);
+    }
+
+    [Fact]
+    public async Task Public_stats_settings_put_roundtrip_on_admin_face_scope()
+    {
+        var client = _factory.CreateFaceClient("admin");
+        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var put = await client.PutAsJsonAsync(
+            "/api/operator-ai/public-stats-settings",
+            new { publicStatsMode = "live", liveMaxParallelBundleCalls = 4 });
+        put.StatusCode.Should().Be(HttpStatusCode.OK);
+        var saved = await put.Content.ReadFromJsonAsync<OperatorAiPublicStatsSettingsDto>();
+        saved!.PublicStatsMode.Should().Be("live");
+        saved.LiveMaxParallelBundleCalls.Should().Be(4);
+    }
+
+    [Fact]
+    public async Task Public_stats_settings_returns_Forbidden_on_public_face_scope()
+    {
+        var client = _factory.CreateClient();
+        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/operator-ai/public-stats-settings");
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task Live_stats_cache_returns_Forbidden_on_public_face_scope()
     {
         var client = _factory.CreateClient();

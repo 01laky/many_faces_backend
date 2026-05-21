@@ -540,6 +540,7 @@ else
 }
 
 builder.Services.AddSingleton<IOperatorAiLiveStatsCacheSettingsProvider, OperatorAiLiveStatsCacheSettingsService>();
+builder.Services.AddSingleton<IOperatorAiPublicStatsSettingsProvider, OperatorAiPublicStatsSettingsService>();
 builder.Services.AddHostedService<OperatorAiLiveBundleCacheStartupWarm>();
 
 // ============================================================================

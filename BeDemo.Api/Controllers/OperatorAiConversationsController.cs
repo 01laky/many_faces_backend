@@ -21,6 +21,7 @@ public sealed class OperatorAiConversationsController : ControllerBase
     private readonly IAiGrpcService _aiGrpc;
     private readonly IAiWorkerHostProfileService _workerHost;
     private readonly IOperatorAiLiveStatsCacheSettingsProvider _liveStatsCacheSettings;
+    private readonly IOperatorAiPublicStatsSettingsProvider _publicStatsSettings;
     private readonly IHubContext<ChatHub> _hub;
     private readonly ILogger<OperatorAiConversationsController> _logger;
 
@@ -30,6 +31,7 @@ public sealed class OperatorAiConversationsController : ControllerBase
         IAiGrpcService aiGrpc,
         IAiWorkerHostProfileService workerHost,
         IOperatorAiLiveStatsCacheSettingsProvider liveStatsCacheSettings,
+        IOperatorAiPublicStatsSettingsProvider publicStatsSettings,
         IHubContext<ChatHub> hub,
         ILogger<OperatorAiConversationsController> logger)
     {
@@ -38,6 +40,7 @@ public sealed class OperatorAiConversationsController : ControllerBase
         _aiGrpc = aiGrpc;
         _workerHost = workerHost;
         _liveStatsCacheSettings = liveStatsCacheSettings;
+        _publicStatsSettings = publicStatsSettings;
         _hub = hub;
         _logger = logger;
     }
@@ -106,6 +109,39 @@ public sealed class OperatorAiConversationsController : ControllerBase
             userId,
             cancellationToken);
         return Ok(_liveStatsCacheSettings.ToDto(ttlMs));
+    }
+
+    [HttpGet("~/api/operator-ai/public-stats-settings")]
+    public async Task<ActionResult<OperatorAiPublicStatsSettingsDto>> GetPublicStatsSettings(
+        CancellationToken cancellationToken)
+    {
+        if (!RequireOperator())
+            return Forbid();
+
+        var values = await _publicStatsSettings.GetAsync(cancellationToken);
+        return Ok(_publicStatsSettings.ToDto(values));
+    }
+
+    [HttpPut("~/api/operator-ai/public-stats-settings")]
+    public async Task<ActionResult<OperatorAiPublicStatsSettingsDto>> UpdatePublicStatsSettings(
+        [FromBody] UpdateOperatorAiPublicStatsSettingsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!RequireOperator())
+            return Forbid();
+
+        var validation = new UpdateOperatorAiPublicStatsSettingsValidator().Validate(request);
+        if (!validation.IsValid)
+            return BadRequest(validation.Errors.Select(e => e.ErrorMessage));
+
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var values = await _publicStatsSettings.SetAsync(
+            new OperatorAiPublicStatsSettingsValues(
+                request.PublicStatsMode,
+                request.LiveMaxParallelBundleCalls),
+            userId,
+            cancellationToken);
+        return Ok(_publicStatsSettings.ToDto(values));
     }
 
     [HttpGet]
