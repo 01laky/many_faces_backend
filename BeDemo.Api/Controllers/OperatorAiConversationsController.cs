@@ -63,6 +63,16 @@ public sealed class OperatorAiConversationsController : ControllerBase
         return Ok(await _workerHost.GetOperatorViewAsync(cancellationToken));
     }
 
+    [HttpPost("~/api/operator-ai/worker-host/refresh")]
+    public async Task<ActionResult<OperatorAiWorkerHostDto>> RefreshWorkerHost(CancellationToken cancellationToken)
+    {
+        if (!RequireOperator())
+            return Forbid();
+
+        await _workerHost.RefreshFromWorkerAsync(cancellationToken);
+        return Ok(await _workerHost.GetOperatorViewAsync(cancellationToken));
+    }
+
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<OperatorAiConversationListItemDto>>> List(
         [FromQuery] OperatorAiConversationsListQuery query,

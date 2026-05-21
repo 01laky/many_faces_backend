@@ -2882,6 +2882,12 @@
   <data name="pages.settings.aiWorkerHost.ollamaUnreachable" xml:space="preserve">
     <value>Ollama unreachable</value>
   </data>
+  <data name="pages.settings.aiWorkerHost.refresh" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="pages.settings.aiWorkerHost.refreshing" xml:space="preserve">
+    <value>Refreshing…</value>
+  </data>
   <data name="pages.chat.liveLoading" xml:space="preserve">
     <value>Loading statistics and analyzing your question…</value>
   </data>

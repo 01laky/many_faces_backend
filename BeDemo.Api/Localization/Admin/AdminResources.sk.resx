@@ -2882,6 +2882,12 @@
   <data name="pages.settings.aiWorkerHost.ollamaUnreachable" xml:space="preserve">
     <value>Ollama nedostupná</value>
   </data>
+  <data name="pages.settings.aiWorkerHost.refresh" xml:space="preserve">
+    <value>Obnoviť</value>
+  </data>
+  <data name="pages.settings.aiWorkerHost.refreshing" xml:space="preserve">
+    <value>Obnovujem…</value>
+  </data>
   <data name="pages.chat.liveLoading" xml:space="preserve">
     <value>Načítavam štatistiky a analyzujem otázku…</value>
   </data>
