@@ -2787,7 +2787,25 @@
     <value>Live mode — max parallel bundle AI calls</value>
   </data>
   <data name="pages.settings.aiStats.liveParallel.hint" xml:space="preserve">
-    <value>How many bundle-level AI requests run at once (default 2). Higher values need stronger GPU/RAM.</value>
+    <value>How many bundle-level AI requests run at once (default 2). Do not exceed {{max}} on this worker.</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.recommendation" xml:space="preserve">
+    <value>Based on AI worker {{gpu}} ({{vram}} VRAM, {{ram}} RAM free): recommended {{recommended}}, upper limit {{upperBound}}.</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.recommendationFallback" xml:space="preserve">
+    <value>Refresh AI worker host below for a hardware-based recommendation.</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.applyRecommended" xml:space="preserve">
+    <value>Use recommended ({{value}})</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.unknownGpu" xml:space="preserve">
+    <value>unknown GPU</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.unknownVram" xml:space="preserve">
+    <value>unknown VRAM</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.unknownRam" xml:space="preserve">
+    <value>unknown RAM</value>
   </data>
   <data name="pages.settings.aiWorkerHost.sectionTitle" xml:space="preserve">
     <value>AI worker host</value>

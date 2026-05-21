@@ -2787,7 +2787,25 @@
     <value>Live režim — max paralelních bundle AI volání</value>
   </data>
   <data name="pages.settings.aiStats.liveParallel.hint" xml:space="preserve">
-    <value>Kolik bundle AI požadavků běží najednou (výchozí 2).</value>
+    <value>Kolik bundle AI požadavků běží najednou (výchozí 2). Na tomto workeru nepřekračujte {{max}}.</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.recommendation" xml:space="preserve">
+    <value>Podle AI workeru {{gpu}} ({{vram}} VRAM, {{ram}} volné RAM): doporučeno {{recommended}}, horní limit {{upperBound}}.</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.recommendationFallback" xml:space="preserve">
+    <value>Obnovte profil AI workeru níže pro doporučení podle hardwaru.</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.applyRecommended" xml:space="preserve">
+    <value>Použít doporučené ({{value}})</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.unknownGpu" xml:space="preserve">
+    <value>neznámá GPU</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.unknownVram" xml:space="preserve">
+    <value>neznámá VRAM</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.unknownRam" xml:space="preserve">
+    <value>neznámá RAM</value>
   </data>
   <data name="pages.settings.aiWorkerHost.sectionTitle" xml:space="preserve">
     <value>AI worker host</value>
