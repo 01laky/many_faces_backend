@@ -1,6 +1,24 @@
 # Many Faces API
 
-ASP.NET Core WebAPI project with Identity framework and PostgreSQL database.
+**The trust boundary for Many Faces AI.** This ASP.NET Core API owns authentication, face-scoped routing, authorization, PostgreSQL persistence, SignalR hubs, worker gRPC clients, Redis-backed jobs/cache, OpenAPI contracts, and the operator AI orchestration path.
+
+| Start here          | Link                                                                                                           |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Run in full stack   | `../scripts/start-all-dev.sh` from `many_faces_main`                                                           |
+| Swagger             | `http://localhost:8000/swagger/index.html`                                                                     |
+| Local accounts      | [`../docs/guides/local-dev-accounts.md`](../docs/guides/local-dev-accounts.md)                                 |
+| Operator AI runbook | [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md) |
+
+```mermaid
+flowchart LR
+    clients["portal / admin / mobile"] --> api["many_faces_backend<br/>REST · JWT · SignalR"]
+    api --> pg["PostgreSQL<br/>system of record"]
+    api --> redis["Redis<br/>jobs + live stats cache"]
+    api --> ai["many_faces_ai<br/>Generate / ReviewContent"]
+    api --> search["many_faces_elastic<br/>search-worker gRPC"]
+    api --> push["many_faces_push<br/>FCM gRPC"]
+    api --> mailer["many_faces_mailer<br/>SMTP gRPC"]
+```
 
 ## Overview
 
@@ -94,7 +112,7 @@ flowchart TD
 
 ## Operator statistics and admin AI chat (optional)
 
-The **admin dashboard** uses **`GET /api/Stats`** and **`GET /api/Stats/timeseries`** with a platform-operator JWT under the **admin** face prefix. **`GET /api/Stats/public`** returns **`PublicStatsSnapshotDto`** (counts only) and is **`[AllowAnonymous]`** when called under the **`public`** face prefix — used for optional **AI chat** context (**SignalR** `SendToAiWithOperatorStats`, gRPC **`Generate`** / **`OperatorStatsChat`**). Configure **`AiStats:PublicSnapshotAbsoluteUrl`** for **live** mode. Full write-up: monorepo [`docs/guides/admin-dashboard-metrics.md`](../../docs/guides/admin-dashboard-metrics.md).
+The **admin dashboard** uses **`GET /api/Stats`** and **`GET /api/Stats/timeseries`** with a platform-operator JWT under the **admin** face prefix. **`GET /api/Stats/public`** returns **`PublicStatsSnapshotDto`** (counts only) and is **`[AllowAnonymous]`** when called under the **`public`** face prefix — used by the dashboard preview and legacy stats helpers. Operator AI chat settings are server-backed through **`GET/PUT /api/operator-ai/public-stats-settings`**; **live** mode uses the backend map-reduce pipeline and Redis stage-1 cache. Full write-up: monorepo [`docs/guides/admin-dashboard-metrics.md`](../../docs/guides/admin-dashboard-metrics.md).
 
 ## OAuth2, JWT, And Session Flow
 
