@@ -5,12 +5,21 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace BeDemo.Api.Tests;
 
-public sealed class CapturingOperatorAiGrpcService : IAiGrpcService
+public sealed class CapturingOperatorAiGrpcService : IAiGrpcService, IAiModelStatusClient
 {
     public string? LastResponseLocale { get; private set; }
     public string? LastPrompt { get; private set; }
 
     public Func<string?, string>? GenerateHandler { get; set; }
+
+    /// <summary>Override model status returned by enable health probes and model-status API.</summary>
+    public Func<AiModelStatus>? ModelStatusHandler { get; set; }
+
+    private int _modelStatusPollCount;
+
+    public int ModelStatusPollCount => _modelStatusPollCount;
+
+    public void ResetModelStatusPollCount() => Interlocked.Exchange(ref _modelStatusPollCount, 0);
 
     public Task<string> GenerateAsync(
         string prompt,
@@ -39,8 +48,13 @@ public sealed class CapturingOperatorAiGrpcService : IAiGrpcService
         CancellationToken cancellationToken = default) =>
         Task.FromResult(new AiContentReviewResult(null, "not used"));
 
-    public Task<AiModelStatus> GetModelStatusAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(new AiModelStatus(true, false, false, "test-model"));
+    public Task<AiModelStatus> GetModelStatusAsync(CancellationToken cancellationToken = default)
+    {
+        _modelStatusPollCount++;
+        if (ModelStatusHandler != null)
+            return Task.FromResult(ModelStatusHandler());
+        return Task.FromResult(new AiModelStatus(true, false, false, "test-model"));
+    }
 
     public Task<AiHostProfileFetchResult> GetHostProfileAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(new AiHostProfileFetchResult(null, "Unimplemented"));
@@ -53,9 +67,13 @@ public sealed class OperatorAiGrpcMockWebApplicationFactory : CustomWebApplicati
     protected override void ConfigureWebHost(Microsoft.AspNetCore.Hosting.IWebHostBuilder builder)
     {
         base.ConfigureWebHost(builder);
+        builder.UseSetting("OperatorAi:EnableHealthLoadingWaitSeconds", "2");
+        builder.UseSetting("OperatorAi:EnableHealthPollIntervalSeconds", "1");
         builder.ConfigureServices(services =>
         {
+            services.RemoveAll<IAiModelStatusClient>();
             services.RemoveAll<IAiGrpcService>();
+            services.AddSingleton<IAiModelStatusClient>(Ai);
             services.AddSingleton<IAiGrpcService>(Ai);
         });
     }

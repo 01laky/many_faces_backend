@@ -223,6 +223,9 @@
   <data name="pages.chat.hub.errors.ai_guard_rejected" xml:space="preserve">
     <value>Impossibile elaborare questa richiesta (servizio AI o contesto statistico). Try again or switch statistics mode to inline.</value>
   </data>
+  <data name="pages.chat.hub.errors.ai_disabled" xml:space="preserve">
+    <value>Il supporto AI è disabilitato sulla piattaforma. Abilita l’AI in Impostazioni per usare la chat operatore.</value>
+  </data>
   <data name="pages.chat.send" xml:space="preserve">
     <value>Send</value>
   </data>
@@ -480,6 +483,12 @@
   </data>
   <data name="pages.dashboard.aiStats.title" xml:space="preserve">
     <value>AI e aggregati pubblici</value>
+  </data>
+  <data name="pages.dashboard.aiDisabledBanner.message" xml:space="preserve">
+    <value>Il supporto AI è attualmente disattivato. Abilita l’AI in Impostazioni per la chat IA operatore e la moderazione assistita.</value>
+  </data>
+  <data name="pages.dashboard.aiDisabledBanner.cta" xml:space="preserve">
+    <value>Apri impostazioni AI</value>
   </data>
   <data name="pages.dashboard.charts.barAria" xml:space="preserve">
     <value>Grafico a barre delle richieste di amicizia in sospeso, accettate e rifiutate</value>
@@ -2770,6 +2779,42 @@
   </data>
   <data name="pages.settings.aiConfiguration.sectionTitle" xml:space="preserve">
     <value>Configurazione dell'IA</value>
+  </data>
+  <data name="pages.settings.aiSystem.masterSwitch.label" xml:space="preserve">
+    <value>Supporto IA</value>
+  </data>
+  <data name="pages.settings.aiSystem.masterSwitch.hint" xml:space="preserve">
+    <value>Se disattivo, chat IA, moderazione IA e statistiche IA sono disattivate.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableConfirm.message" xml:space="preserve">
+    <value>Vuoi abilitare il supporto IA per Many Faces?</value>
+  </data>
+  <data name="pages.settings.aiSystem.disableConfirm.message" xml:space="preserve">
+    <value>Vuoi disabilitare il supporto IA per Many Faces?</value>
+  </data>
+  <data name="pages.settings.aiSystem.confirm.cancel" xml:space="preserve">
+    <value>Annulla</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableConfirm.confirm" xml:space="preserve">
+    <value>Attiva IA</value>
+  </data>
+  <data name="pages.settings.aiSystem.disableConfirm.confirm" xml:space="preserve">
+    <value>Disattiva IA</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableError" xml:space="preserve">
+    <value>L’IA non può essere attivata. Verifica che il worker IA sia operativo e riprova.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableErrorLoadingTimeout" xml:space="preserve">
+    <value>Il modello IA si sta ancora caricando. Attendi qualche momento e fai di nuovo clic su «Attiva IA».</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableErrorWorkerUnreachable" xml:space="preserve">
+    <value>Worker IA irraggiungibile. Verifica che il servizio IA sia avviato.</value>
+  </data>
+  <data name="pages.settings.aiSystem.disabledNavHint" xml:space="preserve">
+    <value>L’IA è disabilitata nelle Impostazioni.</value>
+  </data>
+  <data name="pages.settings.aiSystem.subSettingsLocked" xml:space="preserve">
+    <value>Abilita l’IA per modificare queste impostazioni.</value>
   </data>
   <data name="pages.settings.general.description" xml:space="preserve">
     <value>Lingua dell'interfaccia e preferenze di visualizzazione per questo browser.</value>

@@ -18,7 +18,7 @@ namespace BeDemo.Api.Services;
 /// Singleton gRPC client that calls the Python AI service Generate RPC.
 /// Recreates the channel when connection fails (e.g. AI container restarted).
 /// </summary>
-public class AiGrpcService : IAiGrpcService, IDisposable
+public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
 {
     private readonly string _grpcAddress;
     private readonly ILogger<AiGrpcService> _logger;

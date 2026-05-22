@@ -32,11 +32,15 @@ public sealed class OperatorAiLiveBundleCacheStartupWarm : BackgroundService
         if (_environment.IsEnvironment("Testing") || !_options.Value.WarmLiveBundleCacheOnStartup)
             return;
 
+        using var scope = _scopeFactory.CreateScope();
+        var systemSettings = scope.ServiceProvider.GetRequiredService<IOperatorAiSystemSettingsProvider>();
+        if (!await systemSettings.IsAiEnabledAsync(stoppingToken))
+            return;
+
         var delaySeconds = Math.Max(0, _options.Value.WarmLiveBundleCacheStartupDelaySeconds);
         if (delaySeconds > 0)
             await Task.Delay(TimeSpan.FromSeconds(delaySeconds), stoppingToken);
 
-        using var scope = _scopeFactory.CreateScope();
         var cache = scope.ServiceProvider.GetRequiredService<IOperatorAiBundleRedisCache>();
         if (!cache.IsRedisBacked)
             return;

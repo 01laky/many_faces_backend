@@ -22,6 +22,8 @@ public sealed class OperatorAiConversationsController : ControllerBase
     private readonly IAiWorkerHostProfileService _workerHost;
     private readonly IOperatorAiLiveStatsCacheSettingsProvider _liveStatsCacheSettings;
     private readonly IOperatorAiPublicStatsSettingsProvider _publicStatsSettings;
+    private readonly IOperatorAiSystemSettingsProvider _systemSettings;
+    private readonly IOperatorAiEnableService _enableService;
     private readonly IHubContext<ChatHub> _hub;
     private readonly ILogger<OperatorAiConversationsController> _logger;
 
@@ -32,6 +34,8 @@ public sealed class OperatorAiConversationsController : ControllerBase
         IAiWorkerHostProfileService workerHost,
         IOperatorAiLiveStatsCacheSettingsProvider liveStatsCacheSettings,
         IOperatorAiPublicStatsSettingsProvider publicStatsSettings,
+        IOperatorAiSystemSettingsProvider systemSettings,
+        IOperatorAiEnableService enableService,
         IHubContext<ChatHub> hub,
         ILogger<OperatorAiConversationsController> logger)
     {
@@ -41,8 +45,50 @@ public sealed class OperatorAiConversationsController : ControllerBase
         _workerHost = workerHost;
         _liveStatsCacheSettings = liveStatsCacheSettings;
         _publicStatsSettings = publicStatsSettings;
+        _systemSettings = systemSettings;
+        _enableService = enableService;
         _hub = hub;
         _logger = logger;
+    }
+
+    [HttpGet("~/api/operator-ai/system-settings")]
+    public async Task<ActionResult<OperatorAiSystemSettingsDto>> GetSystemSettings(CancellationToken cancellationToken)
+    {
+        if (!RequireOperator())
+            return Forbid();
+
+        var values = await _systemSettings.GetAsync(cancellationToken);
+        return Ok(_systemSettings.ToDto(values));
+    }
+
+    [HttpPut("~/api/operator-ai/system-settings")]
+    public async Task<ActionResult<OperatorAiSystemSettingsDto>> UpdateSystemSettings(
+        [FromBody] UpdateOperatorAiSystemSettingsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!RequireOperator())
+            return Forbid();
+
+        var validation = new UpdateOperatorAiSystemSettingsValidator().Validate(request);
+        if (!validation.IsValid)
+            return BadRequest(validation.Errors.Select(e => e.ErrorMessage));
+
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (request.AiEnabled)
+        {
+            var outcome = await _enableService.EnableAsync(userId, cancellationToken);
+            if (!outcome.Success)
+            {
+                return StatusCode(
+                    StatusCodes.Status503ServiceUnavailable,
+                    new { error = "AI could not be enabled.", errorCode = outcome.ErrorCode });
+            }
+
+            return Ok(outcome.Settings);
+        }
+
+        return Ok(await _enableService.DisableAsync(userId, cancellationToken));
     }
 
     [HttpGet("~/api/operator-ai/model-status")]
@@ -76,6 +122,9 @@ public sealed class OperatorAiConversationsController : ControllerBase
         if (!RequireOperator())
             return Forbid();
 
+        if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
+            return Conflict(new { error = "Enable AI support in Settings before refreshing the worker host." });
+
         await _workerHost.RefreshFromWorkerAsync(cancellationToken);
         return Ok(await _workerHost.GetOperatorViewAsync(cancellationToken));
     }
@@ -98,6 +147,9 @@ public sealed class OperatorAiConversationsController : ControllerBase
     {
         if (!RequireOperator())
             return Forbid();
+
+        if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
+            return Conflict(new { error = "Enable AI support in Settings before changing live stats cache TTL." });
 
         var validation = new UpdateOperatorAiLiveStatsCacheSettingsValidator().Validate(request);
         if (!validation.IsValid)
@@ -129,6 +181,9 @@ public sealed class OperatorAiConversationsController : ControllerBase
     {
         if (!RequireOperator())
             return Forbid();
+
+        if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
+            return Conflict(new { error = "Enable AI support in Settings before changing public stats mode." });
 
         var validation = new UpdateOperatorAiPublicStatsSettingsValidator().Validate(request);
         if (!validation.IsValid)
@@ -172,6 +227,9 @@ public sealed class OperatorAiConversationsController : ControllerBase
     {
         if (!RequireOperator())
             return Forbid();
+
+        if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
+            return Conflict(new { error = "Enable AI support in Settings before creating operator AI conversations." });
 
         var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? throw new InvalidOperationException("Authenticated user id missing.");

@@ -223,6 +223,9 @@
   <data name="pages.chat.hub.errors.ai_guard_rejected" xml:space="preserve">
     <value>Impossible de traiter cette demande (service AI ou contexte de statistiques). Réessayez ou passez en mode statistiques en ligne.</value>
   </data>
+  <data name="pages.chat.hub.errors.ai_disabled" xml:space="preserve">
+    <value>L’assistant IA est désactivé pour la plateforme. Activez‑le dans Réglages pour utiliser le chat opérateur.</value>
+  </data>
   <data name="pages.chat.send" xml:space="preserve">
     <value>Send</value>
   </data>
@@ -480,6 +483,12 @@
   </data>
   <data name="pages.dashboard.aiStats.title" xml:space="preserve">
     <value>IA et agrégats publics</value>
+  </data>
+  <data name="pages.dashboard.aiDisabledBanner.message" xml:space="preserve">
+    <value>L’assistant IA est actuellement désactivé. Activez‑le dans Réglages pour le chat IA opérateur et la modération assistée.</value>
+  </data>
+  <data name="pages.dashboard.aiDisabledBanner.cta" xml:space="preserve">
+    <value>Ouvrir les réglages IA</value>
   </data>
   <data name="pages.dashboard.charts.barAria" xml:space="preserve">
     <value>Graphique à barres des demandes d'amis en attente, acceptées et rejetées</value>
@@ -2770,6 +2779,42 @@
   </data>
   <data name="pages.settings.aiConfiguration.sectionTitle" xml:space="preserve">
     <value>Configuration de l'IA</value>
+  </data>
+  <data name="pages.settings.aiSystem.masterSwitch.label" xml:space="preserve">
+    <value>Prise en charge IA</value>
+  </data>
+  <data name="pages.settings.aiSystem.masterSwitch.hint" xml:space="preserve">
+    <value>Lorsque c’est désactivé, chat IA, modération IA et statistiques liées à l’IA sont inactifs.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableConfirm.message" xml:space="preserve">
+    <value>Voulez‑vous activer la prise en charge IA pour Many Faces ?</value>
+  </data>
+  <data name="pages.settings.aiSystem.disableConfirm.message" xml:space="preserve">
+    <value>Voulez‑vous désactiver la prise en charge IA pour Many Faces ?</value>
+  </data>
+  <data name="pages.settings.aiSystem.confirm.cancel" xml:space="preserve">
+    <value>Annuler</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableConfirm.confirm" xml:space="preserve">
+    <value>Activer l’IA</value>
+  </data>
+  <data name="pages.settings.aiSystem.disableConfirm.confirm" xml:space="preserve">
+    <value>Désactiver l’IA</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableError" xml:space="preserve">
+    <value>L’IA n’a pas pu être activée. Vérifiez que le worker IA fonctionne puis réessayez.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableErrorLoadingTimeout" xml:space="preserve">
+    <value>Le modèle IA se charge encore. Patientez quelques secondes puis retentez « Activer l’IA ».</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableErrorWorkerUnreachable" xml:space="preserve">
+    <value>Worker IA inaccessible. Vérifiez que le service IA tourne.</value>
+  </data>
+  <data name="pages.settings.aiSystem.disabledNavHint" xml:space="preserve">
+    <value>L’IA est désactivée dans Réglages.</value>
+  </data>
+  <data name="pages.settings.aiSystem.subSettingsLocked" xml:space="preserve">
+    <value>Activez l’IA pour modifier ces paramètres.</value>
   </data>
   <data name="pages.settings.general.description" xml:space="preserve">
     <value>Langue de l'interface et préférences d'affichage pour ce navigateur.</value>

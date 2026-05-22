@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Services.OperatorAi;
 
 namespace BeDemo.Api.Services;
 
@@ -60,6 +61,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
     private readonly ILogger<ContentAiReviewService> _logger;
     private readonly IContentModerationNotifier _moderationNotifier;
     private readonly IOptions<ContentModerationSecurityOptions> _securityOptions;
+    private readonly IOperatorAiSystemSettingsProvider _systemSettings;
 
     public ContentAiReviewService(
         ApplicationDbContext context,
@@ -67,7 +69,8 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         IRedisJobQueue queue,
         ILogger<ContentAiReviewService> logger,
         IContentModerationNotifier moderationNotifier,
-        IOptions<ContentModerationSecurityOptions> securityOptions)
+        IOptions<ContentModerationSecurityOptions> securityOptions,
+        IOperatorAiSystemSettingsProvider systemSettings)
     {
         _context = context;
         _aiGrpcService = aiGrpcService;
@@ -75,6 +78,7 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         _logger = logger;
         _moderationNotifier = moderationNotifier;
         _securityOptions = securityOptions;
+        _systemSettings = systemSettings;
     }
 
     public async Task ProcessQueuedReviewAsync(string payloadJson, CancellationToken cancellationToken = default)
@@ -123,6 +127,12 @@ public sealed class ContentAiReviewService : IContentAiReviewService
         // Failed jobs may be retried until attempts reach MaxAttempts (checked after increment in the caller path).
         if (job.Status == AiReviewJobStatus.Failed && job.Attempts >= job.MaxAttempts)
             return;
+
+        if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
+        {
+            await HandleAiDisabledAsync(item, job, cancellationToken);
+            return;
+        }
 
         var oldAiStatus = item.AiReviewStatus;
         // Transition job + entity into an in-progress AI state visible to moderators.
@@ -351,6 +361,39 @@ public sealed class ContentAiReviewService : IContentAiReviewService
             job.Attempts,
             job.MaxAttempts,
             error);
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>Global AI off — terminal human review without gRPC or retries.</summary>
+    private async Task HandleAiDisabledAsync(
+        ModeratedContentSnapshot item,
+        AiReviewJob job,
+        CancellationToken cancellationToken)
+    {
+        var oldAiStatus = item.AiReviewStatus;
+        job.Status = AiReviewJobStatus.NeedsHumanReview;
+        job.CompletedAtUtc = DateTime.UtcNow;
+        job.LastError = "AI support disabled.";
+        item.AiReviewStatus = AiReviewStatus.NeedsHumanReview;
+        item.AiReviewDecision = AiReviewDecision.NeedsHumanReview;
+        item.AiReviewReason = "AI review skipped — AI support is disabled.";
+        item.AiReviewUserMessage = "Your content needs manual review.";
+        AddEvent(
+            item,
+            oldAiStatus,
+            AiReviewStatus.NeedsHumanReview,
+            ModerationActorType.System,
+            "AI review skipped — global AI support disabled.");
+        _moderationNotifier.NotifyCreator(
+            item.CreatorId,
+            "Content needs manual review",
+            "AI review is unavailable. A moderator will review your submission.",
+            "content_moderation");
+        await _moderationNotifier.NotifySuperAdminsAsync(
+            "AI review skipped (AI disabled)",
+            $"{item.ContentType} #{item.ContentId} routed to human review.",
+            "moderation_ops",
+            cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
     }
 

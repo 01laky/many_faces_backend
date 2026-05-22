@@ -6,6 +6,8 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Services;
 
+using BeDemo.Api.Tests.Testing;
+
 namespace BeDemo.Api.Tests;
 
 /// <summary>
@@ -70,7 +72,8 @@ public sealed class ContentModerationProductionPathTests
             Options.Create(new ContentModerationSecurityOptions
             {
                 InstructionHeuristicEnabled = instructionHeuristicEnabled,
-            }));
+            }),
+            new StubOperatorAiSystemSettingsProvider());
 
     private static async Task<(Face face, ApplicationUser user, Blog blog)> SeedBlogAsync(
         ApplicationDbContext context,

@@ -1,4 +1,5 @@
 using BeDemo.Api.Configuration;
+using BeDemo.Api.Services.OperatorAi;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
@@ -31,6 +32,11 @@ public sealed class AiWorkerHostProfileStartupRefresh : BackgroundService
         if (_environment.IsEnvironment("Testing") || !_options.Value.HostProfileRefreshOnStartup)
             return;
 
+        using var scope = _scopeFactory.CreateScope();
+        var systemSettings = scope.ServiceProvider.GetRequiredService<IOperatorAiSystemSettingsProvider>();
+        if (!await systemSettings.IsAiEnabledAsync(stoppingToken))
+            return;
+
         var timeoutSeconds = Math.Max(5, _options.Value.HostProfileStartupTimeoutSeconds);
         var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
         var delay = TimeSpan.FromSeconds(2);
@@ -39,8 +45,8 @@ public sealed class AiWorkerHostProfileStartupRefresh : BackgroundService
         {
             try
             {
-                using var scope = _scopeFactory.CreateScope();
-                var svc = scope.ServiceProvider.GetRequiredService<IAiWorkerHostProfileService>();
+                using var refreshScope = _scopeFactory.CreateScope();
+                var svc = refreshScope.ServiceProvider.GetRequiredService<IAiWorkerHostProfileService>();
                 await svc.RefreshFromWorkerAsync(stoppingToken);
 
                 var view = await svc.GetOperatorViewAsync(stoppingToken);

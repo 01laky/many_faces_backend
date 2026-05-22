@@ -158,6 +158,81 @@ public static class IntegrationTestSeed
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Legacy integration tests assume operator AI features are available.
+    /// Sets the singleton row to enabled without running Activate AI health/warm orchestration.
+    /// </summary>
+    public static async Task EnsureOperatorAiEnabledForIntegrationTestsAsync(
+        IServiceProvider services,
+        CancellationToken cancellationToken = default)
+    {
+        using var scope = services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var context = sp.GetRequiredService<ApplicationDbContext>();
+        var row = await context.OperatorAiSystemSettings.SingleOrDefaultAsync(e => e.Id == 1, cancellationToken);
+        var now = DateTime.UtcNow;
+        if (row == null)
+        {
+            context.OperatorAiSystemSettings.Add(new OperatorAiSystemSettings
+            {
+                Id = 1,
+                AiEnabled = true,
+                UpdatedAtUtc = now,
+                LastEnabledAtUtc = now,
+                LastEnableHealthStatus = "test_harness",
+            });
+        }
+        else
+        {
+            row.AiEnabled = true;
+            row.UpdatedAtUtc = now;
+            row.LastEnabledAtUtc ??= now;
+            row.LastEnableHealthStatus ??= "test_harness";
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        var provider = sp.GetRequiredService<BeDemo.Api.Services.OperatorAi.IOperatorAiSystemSettingsProvider>();
+        if (provider is BeDemo.Api.Services.OperatorAi.OperatorAiSystemSettingsService settingsService)
+            settingsService.InvalidateCache();
+    }
+
+    public static async Task SetOperatorAiEnabledAsync(
+        IServiceProvider services,
+        bool enabled,
+        CancellationToken cancellationToken = default)
+    {
+        using var scope = services.CreateScope();
+        var sp = scope.ServiceProvider;
+        var context = sp.GetRequiredService<ApplicationDbContext>();
+        var row = await context.OperatorAiSystemSettings.SingleOrDefaultAsync(e => e.Id == 1, cancellationToken);
+        var now = DateTime.UtcNow;
+        if (row == null)
+        {
+            context.OperatorAiSystemSettings.Add(new OperatorAiSystemSettings
+            {
+                Id = 1,
+                AiEnabled = enabled,
+                UpdatedAtUtc = now,
+                LastEnabledAtUtc = enabled ? now : null,
+                LastEnableHealthStatus = enabled ? "test" : null,
+            });
+        }
+        else
+        {
+            row.AiEnabled = enabled;
+            row.UpdatedAtUtc = now;
+            if (enabled)
+                row.LastEnabledAtUtc = now;
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        var provider = sp.GetRequiredService<BeDemo.Api.Services.OperatorAi.IOperatorAiSystemSettingsProvider>();
+        if (provider is BeDemo.Api.Services.OperatorAi.OperatorAiSystemSettingsService settingsService)
+            settingsService.InvalidateCache();
+    }
+
     public static async Task<string> GetAdminAccessTokenAsync(HttpClient oauthClient, CancellationToken cancellationToken = default)
     {
         var tokenRequest = new OAuth2TokenRequest

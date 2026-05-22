@@ -223,6 +223,9 @@
   <data name="pages.chat.hub.errors.ai_guard_rejected" xml:space="preserve">
     <value>Diese Anfrage konnte nicht verarbeitet werden (KI-Dienst oder Statistikkontext). Versuchen Sie es erneut oder wechseln Sie den Statistikmodus in den Inline-Modus.</value>
   </data>
+  <data name="pages.chat.hub.errors.ai_disabled" xml:space="preserve">
+    <value>KI-Unterstützung ist für die Plattform deaktiviert. Aktivieren Sie die KI in den Einstellungen, um den Operator-Chat zu nutzen.</value>
+  </data>
   <data name="pages.chat.send" xml:space="preserve">
     <value>Send</value>
   </data>
@@ -480,6 +483,12 @@
   </data>
   <data name="pages.dashboard.aiStats.title" xml:space="preserve">
     <value>KI und öffentliche Aggregate</value>
+  </data>
+  <data name="pages.dashboard.aiDisabledBanner.message" xml:space="preserve">
+    <value>KI-Unterstützung ist derzeit deaktiviert. Aktivieren Sie sie unter Einstellungen für Operator-KI-Chat und KI‑gestützte Moderation.</value>
+  </data>
+  <data name="pages.dashboard.aiDisabledBanner.cta" xml:space="preserve">
+    <value>KI-Einstellungen öffnen</value>
   </data>
   <data name="pages.dashboard.charts.barAria" xml:space="preserve">
     <value>Balkendiagramm der ausstehenden, angenommenen und abgelehnten Freundschaftsanfragen</value>
@@ -2770,6 +2779,42 @@
   </data>
   <data name="pages.settings.aiConfiguration.sectionTitle" xml:space="preserve">
     <value>KI-Konfiguration</value>
+  </data>
+  <data name="pages.settings.aiSystem.masterSwitch.label" xml:space="preserve">
+    <value>KI-Unterstützung</value>
+  </data>
+  <data name="pages.settings.aiSystem.masterSwitch.hint" xml:space="preserve">
+    <value>Wenn deaktiviert, sind KI-Chat, Moderation per KI und KI‑Statistikfunktionen inaktiv.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableConfirm.message" xml:space="preserve">
+    <value>Möchten Sie die KI-Unterstützung für Many Faces aktivieren?</value>
+  </data>
+  <data name="pages.settings.aiSystem.disableConfirm.message" xml:space="preserve">
+    <value>Möchten Sie die KI-Unterstützung für Many Faces deaktivieren?</value>
+  </data>
+  <data name="pages.settings.aiSystem.confirm.cancel" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableConfirm.confirm" xml:space="preserve">
+    <value>KI aktivieren</value>
+  </data>
+  <data name="pages.settings.aiSystem.disableConfirm.confirm" xml:space="preserve">
+    <value>KI deaktivieren</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableError" xml:space="preserve">
+    <value>KI konnte nicht aktiviert werden. Prüfen Sie den AI-Worker und versuchen Sie es erneut.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableErrorLoadingTimeout" xml:space="preserve">
+    <value>Das KI-Modell lädt noch. Warten Sie kurz und tippen Sie erneut auf „KI aktivieren“.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableErrorWorkerUnreachable" xml:space="preserve">
+    <value>KI‑Worker nicht erreichbar. Prüfen Sie, ob der KI‑Dienst läuft.</value>
+  </data>
+  <data name="pages.settings.aiSystem.disabledNavHint" xml:space="preserve">
+    <value>KI ist in den Einstellungen deaktiviert.</value>
+  </data>
+  <data name="pages.settings.aiSystem.subSettingsLocked" xml:space="preserve">
+    <value>KI aktivieren, um diese Einstellungen zu ändern.</value>
   </data>
   <data name="pages.settings.general.description" xml:space="preserve">
     <value>Oberflächensprache und Anzeigeeinstellungen für diesen Browser.</value>

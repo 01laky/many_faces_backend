@@ -435,7 +435,9 @@ builder.Services.AddSingleton<IUploadSignedUrlService, UploadSignedUrlService>()
 // AI gRPC client - singleton to reuse the HTTP/2 channel across requests
 builder.Services.AddOptions<BeDemo.Api.Configuration.AiServiceOptions>()
     .BindConfiguration(BeDemo.Api.Configuration.AiServiceOptions.SectionName);
-builder.Services.AddSingleton<IAiGrpcService, AiGrpcService>();
+builder.Services.AddSingleton<AiGrpcService>();
+builder.Services.AddSingleton<IAiModelStatusClient>(sp => sp.GetRequiredService<AiGrpcService>());
+builder.Services.AddSingleton<IAiGrpcService, AiAvailabilityGuardGrpcService>();
 builder.Services.AddScoped<IAiWorkerHostProfileService, AiWorkerHostProfileService>();
 builder.Services.AddHostedService<AiWorkerHostProfileStartupRefresh>();
 
@@ -541,6 +543,8 @@ else
 
 builder.Services.AddSingleton<IOperatorAiLiveStatsCacheSettingsProvider, OperatorAiLiveStatsCacheSettingsService>();
 builder.Services.AddSingleton<IOperatorAiPublicStatsSettingsProvider, OperatorAiPublicStatsSettingsService>();
+builder.Services.AddSingleton<IOperatorAiSystemSettingsProvider, OperatorAiSystemSettingsService>();
+builder.Services.AddScoped<IOperatorAiEnableService, OperatorAiEnableService>();
 builder.Services.AddHostedService<OperatorAiLiveBundleCacheStartupWarm>();
 
 // ============================================================================
@@ -654,25 +658,34 @@ if (!app.Environment.IsEnvironment("Testing"))
     // all dependencies are available before the application starts serving requests
     try
     {
-        // Get AI service gRPC address from environment variable, configuration, or use default
-        // Priority: Environment variable > Configuration > Default Docker service name
-        var aiServiceAddress = Environment.GetEnvironmentVariable("AI_SERVICE_GRPC_ADDRESS")
-            ?? builder.Configuration["AiService:GrpcAddress"]
-            ?? "http://ai-demo-dev:50051"; // Default Docker service name for development
-
-        // Perform health check with 10 second timeout
-        // This attempts to connect to the gRPC server and verify it's listening
-        var isHealthy = await CheckAiServiceHealth.CheckHealthAsync(aiServiceAddress, timeoutSeconds: 10);
-
-        if (isHealthy)
+        using var aiScope = app.Services.CreateScope();
+        var aiSettings = aiScope.ServiceProvider.GetRequiredService<IOperatorAiSystemSettingsProvider>();
+        if (!await aiSettings.IsAiEnabledAsync())
         {
-            Log.Information("AI service health check passed at {GrpcAddress}", aiServiceAddress);
+            Log.Information("AI service startup health check skipped — global AI support is disabled");
         }
         else
         {
-            // Log warning but don't fail application startup
-            // AI service may be starting up or temporarily unavailable
-            Log.Warning("AI service health check failed at {GrpcAddress}. Service may not be ready yet.", aiServiceAddress);
+            // Get AI service gRPC address from environment variable, configuration, or use default
+            // Priority: Environment variable > Configuration > Default Docker service name
+            var aiServiceAddress = Environment.GetEnvironmentVariable("AI_SERVICE_GRPC_ADDRESS")
+                ?? builder.Configuration["AiService:GrpcAddress"]
+                ?? "http://ai-demo-dev:50051"; // Default Docker service name for development
+
+            // Perform health check with 10 second timeout
+            // This attempts to connect to the gRPC server and verify it's listening
+            var isHealthy = await CheckAiServiceHealth.CheckHealthAsync(aiServiceAddress, timeoutSeconds: 10);
+
+            if (isHealthy)
+            {
+                Log.Information("AI service health check passed at {GrpcAddress}", aiServiceAddress);
+            }
+            else
+            {
+                // Log warning but don't fail application startup
+                // AI service may be starting up or temporarily unavailable
+                Log.Warning("AI service health check failed at {GrpcAddress}. Service may not be ready yet.", aiServiceAddress);
+            }
         }
     }
     catch (Exception ex)

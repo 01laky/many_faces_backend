@@ -5,6 +5,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Moderation;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -27,6 +28,7 @@ public sealed class ContentModerationController : ControllerBase
     private readonly IOperatorAlbumManagementService _operatorAlbums;
     private readonly IOperatorReelManagementService _operatorReels;
     private readonly IOperatorBlogManagementService _operatorBlogs;
+    private readonly IOperatorAiSystemSettingsProvider _systemSettings;
 
     public ContentModerationController(
         ApplicationDbContext context,
@@ -37,7 +39,8 @@ public sealed class ContentModerationController : ControllerBase
         IContentModerationNotifier moderationNotifier,
         IOperatorAlbumManagementService operatorAlbums,
         IOperatorReelManagementService operatorReels,
-        IOperatorBlogManagementService operatorBlogs)
+        IOperatorBlogManagementService operatorBlogs,
+        IOperatorAiSystemSettingsProvider systemSettings)
     {
         _context = context;
         _access = access;
@@ -48,6 +51,7 @@ public sealed class ContentModerationController : ControllerBase
         _operatorAlbums = operatorAlbums;
         _operatorReels = operatorReels;
         _operatorBlogs = operatorBlogs;
+        _systemSettings = systemSettings;
     }
 
     private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -541,6 +545,9 @@ public sealed class ContentModerationController : ControllerBase
 
     private async Task<ModerationActionResult> RequeueAiReviewAsync(ModeratedContentType contentType, int contentId)
     {
+        if (!await _systemSettings.IsAiEnabledAsync())
+            return ModerationActionResult.Fail(StatusCodes.Status409Conflict, "AI support is disabled.");
+
         var item = await LoadModeratedItemAsync(contentType, contentId);
         if (item == null)
             return ModerationActionResult.Fail(StatusCodes.Status404NotFound, "Content not found");

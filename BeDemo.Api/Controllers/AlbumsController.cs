@@ -5,6 +5,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Albums;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -22,6 +23,7 @@ public class AlbumsController : ControllerBase
     private readonly IRedisJobQueue _jobQueue;
     /// <summary>Queues in-app notifications when albums enter the moderation pipeline.</summary>
     private readonly IContentModerationNotifier _moderationNotifier;
+    private readonly IOperatorAiSystemSettingsProvider _systemSettings;
 
     public AlbumsController(
         ApplicationDbContext context,
@@ -29,7 +31,8 @@ public class AlbumsController : ControllerBase
         IFaceScopeContext faceScope,
         IAccessEvaluator access,
         IRedisJobQueue jobQueue,
-        IContentModerationNotifier moderationNotifier)
+        IContentModerationNotifier moderationNotifier,
+        IOperatorAiSystemSettingsProvider systemSettings)
     {
         _context = context;
         _logger = logger;
@@ -37,6 +40,7 @@ public class AlbumsController : ControllerBase
         _access = access;
         _jobQueue = jobQueue;
         _moderationNotifier = moderationNotifier;
+        _systemSettings = systemSettings;
     }
 
     private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -265,6 +269,9 @@ public class AlbumsController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
+        var aiEnabled = await _systemSettings.IsAiEnabledAsync();
+        var initialAiStatus = aiEnabled ? AiReviewStatus.Queued : AiReviewStatus.NeedsHumanReview;
+
         var album = new Album
         {
             CreatorId = UserId,
@@ -273,7 +280,7 @@ public class AlbumsController : ControllerBase
             AlbumType = dto.AlbumType,
             MediaType = dto.MediaType,
             ApprovalStatus = ContentApprovalStatus.PendingApproval,
-            AiReviewStatus = AiReviewStatus.Queued,
+            AiReviewStatus = initialAiStatus,
             SubmittedAtUtc = DateTime.UtcNow,
         };
 
@@ -315,10 +322,12 @@ public class AlbumsController : ControllerBase
                 ContentId = album.Id,
                 FaceId = firstFaceId,
                 CreatedByUserId = UserId,
-                Status = AiReviewJobStatus.Queued,
+                Status = aiEnabled ? AiReviewJobStatus.Queued : AiReviewJobStatus.NeedsHumanReview,
                 ModerationVersion = album.ModerationVersion,
                 MaxAttempts = ContentModerationHelpers.DefaultMaxAttempts,
                 CreatedAtUtc = DateTime.UtcNow,
+                CompletedAtUtc = aiEnabled ? null : DateTime.UtcNow,
+                LastError = aiEnabled ? null : "AI support disabled.",
             });
             _context.ContentModerationEvents.Add(ContentModerationHelpers.BuildEvent(
                 ModeratedContentType.Album,
@@ -344,7 +353,8 @@ public class AlbumsController : ControllerBase
                 "moderation_ops",
                 CancellationToken.None);
             await _context.SaveChangesAsync();
-            await EnqueueAiReviewAsync(ModeratedContentType.Album, album.Id, album.ModerationVersion);
+            if (aiEnabled)
+                await EnqueueAiReviewAsync(ModeratedContentType.Album, album.Id, album.ModerationVersion);
         }
 
         _logger.LogInformation("User {UserId} created album {AlbumId}", UserId, album.Id);
@@ -491,6 +501,9 @@ public class AlbumsController : ControllerBase
         int contentId,
         int moderationVersion)
     {
+        if (!await _systemSettings.IsAiEnabledAsync())
+            return;
+
         try
         {
             await _jobQueue.EnqueueAsync(

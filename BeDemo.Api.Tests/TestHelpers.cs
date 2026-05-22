@@ -47,6 +47,8 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                         BeDemo.Api.Scripts.DatabaseSeeder.SeedDataOnlyAsync(context).GetAwaiter().GetResult();
                         IntegrationTestSeed.EnsureAsync(scope.ServiceProvider).GetAwaiter().GetResult();
                         IntegrationTestSeed.EnsureSuperAdminAsync(scope.ServiceProvider).GetAwaiter().GetResult();
+                        IntegrationTestSeed.EnsureOperatorAiEnabledForIntegrationTestsAsync(scope.ServiceProvider)
+                            .GetAwaiter().GetResult();
                         _databaseInitialized = true;
                     }
                 }

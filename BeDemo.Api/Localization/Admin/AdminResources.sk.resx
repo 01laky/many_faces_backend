@@ -223,6 +223,9 @@
   <data name="pages.chat.hub.errors.ai_guard_rejected" xml:space="preserve">
     <value>Požiadavku sa nepodarilo spracovať (AI alebo kontext štatistík). Skúste znova alebo prepnite štatistiky na inline.</value>
   </data>
+  <data name="pages.chat.hub.errors.ai_disabled" xml:space="preserve">
+    <value>Podpora AI je na platforme vypnutá. Aktivujte AI v nastaveniach na používanie operátorského chatu.</value>
+  </data>
   <data name="pages.chat.send" xml:space="preserve">
     <value>Odoslať</value>
   </data>
@@ -480,6 +483,12 @@
   </data>
   <data name="pages.dashboard.aiStats.title" xml:space="preserve">
     <value>AI a verejné agregáty</value>
+  </data>
+  <data name="pages.dashboard.aiDisabledBanner.message" xml:space="preserve">
+    <value>Podpora AI je momentálne vypnutá. Zapnite ju v nastaveniach na používanie operátorského AI chatu a moderácie s AI.</value>
+  </data>
+  <data name="pages.dashboard.aiDisabledBanner.cta" xml:space="preserve">
+    <value>Otvoriť nastavenia AI</value>
   </data>
   <data name="pages.dashboard.charts.barAria" xml:space="preserve">
     <value>Stĺpcový graf čakajúcich, prijatých a zamietnutých žiadostí</value>
@@ -2770,6 +2779,42 @@
   </data>
   <data name="pages.settings.aiConfiguration.sectionTitle" xml:space="preserve">
     <value>Konfigurácia AI</value>
+  </data>
+  <data name="pages.settings.aiSystem.masterSwitch.label" xml:space="preserve">
+    <value>Podpora AI</value>
+  </data>
+  <data name="pages.settings.aiSystem.masterSwitch.hint" xml:space="preserve">
+    <value>Pri vypnutí sú neaktívne AI chat, moderácia cez AI a štatistiky pre AI.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableConfirm.message" xml:space="preserve">
+    <value>Prajete si zapnúť AI podporu pre systém Many Faces?</value>
+  </data>
+  <data name="pages.settings.aiSystem.disableConfirm.message" xml:space="preserve">
+    <value>Prajete si vypnúť AI podporu pre systém Many Faces?</value>
+  </data>
+  <data name="pages.settings.aiSystem.confirm.cancel" xml:space="preserve">
+    <value>Zrušiť</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableConfirm.confirm" xml:space="preserve">
+    <value>Aktivovať AI</value>
+  </data>
+  <data name="pages.settings.aiSystem.disableConfirm.confirm" xml:space="preserve">
+    <value>Deaktivovať AI</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableError" xml:space="preserve">
+    <value>AI sa nepodarilo zapnúť. Overte AI worker a skúste znova.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableErrorLoadingTimeout" xml:space="preserve">
+    <value>Model AI sa ešte načítava. Počkajte chvíľu a znova použite Aktivovať AI.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableErrorWorkerUnreachable" xml:space="preserve">
+    <value>AI worker je nedostupný. Overte či AI služba beží.</value>
+  </data>
+  <data name="pages.settings.aiSystem.disabledNavHint" xml:space="preserve">
+    <value>AI je vypnutá v nastaveniach.</value>
+  </data>
+  <data name="pages.settings.aiSystem.subSettingsLocked" xml:space="preserve">
+    <value>Zapnite AI aby ste mohli meniť tieto nastavenia.</value>
   </data>
   <data name="pages.settings.general.description" xml:space="preserve">
     <value>Jazyk rozhrania a zobrazenie pre tento prehliadač.</value>

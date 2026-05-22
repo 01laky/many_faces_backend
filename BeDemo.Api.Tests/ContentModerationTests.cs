@@ -11,6 +11,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Services;
+using BeDemo.Api.Tests.Testing;
 
 namespace BeDemo.Api.Tests;
 
@@ -211,6 +212,56 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
         blog.AiReviewModelVersion.Should().Be("test-model");
         context.AiReviewJobs.Single().Status.Should().Be(AiReviewJobStatus.Completed);
         context.ContentModerationEvents.Select(e => e.NewAiReviewStatus).Should().Contain(AiReviewStatus.RecommendedApprove);
+    }
+
+    [Fact]
+    public async Task ContentAiReviewService_WhenGlobalAiDisabled_TerminatesAsNeedsHumanReviewWithoutGrpc()
+    {
+        await using var context = CreateContext();
+        var face = new Face { Index = $"face-{Guid.NewGuid():N}", Title = "Disabled AI Face" };
+        var user = CreateUser("ai-disabled-user");
+        context.Faces.Add(face);
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        var blog = new Blog
+        {
+            CreatorId = user.Id,
+            FaceId = face.Id,
+            Title = "Needs human",
+            Content = "<p>content</p>",
+            ApprovalStatus = ContentApprovalStatus.PendingApproval,
+            AiReviewStatus = AiReviewStatus.Queued,
+            ModerationVersion = 1,
+        };
+        context.Blogs.Add(blog);
+        context.AiReviewJobs.Add(new AiReviewJob
+        {
+            ContentType = ModeratedContentType.Blog,
+            ContentId = blog.Id,
+            FaceId = face.Id,
+            CreatedByUserId = user.Id,
+            ModerationVersion = 1,
+        });
+        await context.SaveChangesAsync();
+
+        var ai = new FakeAiGrpcService(new AiReviewRecommendation(
+            AiReviewDecision.Approve,
+            0.99,
+            AiReviewRiskLevel.Low,
+            Array.Empty<string>(),
+            "ok",
+            "ok",
+            "m",
+            "t"));
+        var systemSettings = new StubOperatorAiSystemSettingsProvider(aiEnabled: false);
+        var service = CreateReviewService(context, ai, systemSettings: systemSettings);
+
+        await service.ProcessQueuedReviewAsync(
+            ContentModerationHelpers.BuildAiReviewPayload(ModeratedContentType.Blog, blog.Id, 1));
+
+        blog.AiReviewStatus.Should().Be(AiReviewStatus.NeedsHumanReview);
+        context.AiReviewJobs.Single().Status.Should().Be(AiReviewJobStatus.NeedsHumanReview);
+        ai.LastReviewRequest.Should().BeNull();
     }
 
     [Fact]
@@ -1146,14 +1197,16 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
         ApplicationDbContext context,
         IAiGrpcService ai,
         IRedisJobQueue? queue = null,
-        ContentModerationSecurityOptions? security = null) =>
+        ContentModerationSecurityOptions? security = null,
+        StubOperatorAiSystemSettingsProvider? systemSettings = null) =>
         new(
             context,
             ai,
             queue ?? new CapturingRedisJobQueue(),
             NullLogger<ContentAiReviewService>.Instance,
             new NullContentModerationNotifier(),
-            Options.Create(security ?? new ContentModerationSecurityOptions()));
+            Options.Create(security ?? new ContentModerationSecurityOptions()),
+            systemSettings ?? new StubOperatorAiSystemSettingsProvider());
 
     private sealed class NullContentModerationNotifier : IContentModerationNotifier
     {

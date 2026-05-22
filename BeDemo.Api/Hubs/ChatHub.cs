@@ -41,6 +41,7 @@ public class ChatHub : Hub
     private readonly IConfiguration _configuration;
     private readonly IOperatorAiConversationService _operatorAi;
     private readonly IOperatorAiLiveStatsOrchestrator _liveStatsOrchestrator;
+    private readonly IOperatorAiSystemSettingsProvider _systemSettings;
     private readonly OperatorAiOptions _operatorAiOptions;
 
     public ChatHub(
@@ -53,6 +54,7 @@ public class ChatHub : Hub
         IConfiguration configuration,
         IOperatorAiConversationService operatorAi,
         IOperatorAiLiveStatsOrchestrator liveStatsOrchestrator,
+        IOperatorAiSystemSettingsProvider systemSettings,
         IOptions<OperatorAiOptions> operatorAiOptions)
     {
         _logger = logger;
@@ -64,6 +66,7 @@ public class ChatHub : Hub
         _configuration = configuration;
         _operatorAi = operatorAi;
         _liveStatsOrchestrator = liveStatsOrchestrator;
+        _systemSettings = systemSettings;
         _operatorAiOptions = operatorAiOptions.Value;
     }
 
@@ -169,6 +172,15 @@ public class ChatHub : Hub
             return;
         }
 
+        if (!await _systemSettings.IsAiEnabledAsync(Context.ConnectionAborted))
+        {
+            await Clients.Caller.SendAsync(
+                "ReceiveAiMessage",
+                message ?? string.Empty,
+                "AI support is currently disabled for this system.");
+            return;
+        }
+
         string aiResponse;
         try
         {
@@ -206,6 +218,12 @@ public class ChatHub : Hub
             responseLocale ?? "(missing)");
 
         var trimmed = (message ?? string.Empty).Trim();
+
+        if (!await _systemSettings.IsAiEnabledAsync(Context.ConnectionAborted))
+        {
+            await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.AiDisabled);
+            return;
+        }
 
         if (!CanManageAllFaces())
         {

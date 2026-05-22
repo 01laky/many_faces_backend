@@ -65,4 +65,15 @@ public sealed class OperatorAiOptions
 
     /// <summary>Max wall time for startup warm prefetch (seconds).</summary>
     public int WarmLiveBundleCacheStartupTimeoutSeconds { get; set; } = 120;
+
+    // Global AI master switch — see docs/prompts/admin-global-ai-enable-switch-agent-prompt.md
+
+    /// <summary>Bootstrap default when inserting the singleton row for the first time (Testing always false).</summary>
+    public bool DefaultAiEnabled { get; set; }
+
+    /// <summary>Max seconds to poll model Loading during Activate AI before failing enable.</summary>
+    public int EnableHealthLoadingWaitSeconds { get; set; } = 30;
+
+    /// <summary>Delay between GetModelStatus polls while model is Loading during Activate AI.</summary>
+    public int EnableHealthPollIntervalSeconds { get; set; } = 2;
 }

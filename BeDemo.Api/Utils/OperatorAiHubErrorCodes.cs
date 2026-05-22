@@ -12,4 +12,5 @@ public static class OperatorAiHubErrorCodes
     public const string AiUnavailable = "ai_unavailable";
     public const string AiGenerationFailed = "ai_generation_failed";
     public const string AiGuardRejected = "ai_guard_rejected";
+    public const string AiDisabled = "ai_disabled";
 }

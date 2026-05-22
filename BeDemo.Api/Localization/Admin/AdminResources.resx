@@ -223,6 +223,9 @@
   <data name="pages.chat.hub.errors.ai_guard_rejected" xml:space="preserve">
     <value>Could not process this request (AI service or statistics context). Try again or switch statistics mode to inline.</value>
   </data>
+  <data name="pages.chat.hub.errors.ai_disabled" xml:space="preserve">
+    <value>AI support is disabled for the platform. Enable AI in Settings to use operator chat.</value>
+  </data>
   <data name="pages.chat.send" xml:space="preserve">
     <value>Send</value>
   </data>
@@ -480,6 +483,12 @@
   </data>
   <data name="pages.dashboard.aiStats.title" xml:space="preserve">
     <value>AI &amp; public aggregates</value>
+  </data>
+  <data name="pages.dashboard.aiDisabledBanner.message" xml:space="preserve">
+    <value>AI support is currently disabled. Enable it in Settings to use operator AI chat and AI-assisted moderation.</value>
+  </data>
+  <data name="pages.dashboard.aiDisabledBanner.cta" xml:space="preserve">
+    <value>Open AI settings</value>
   </data>
   <data name="pages.dashboard.charts.barAria" xml:space="preserve">
     <value>Bar chart of pending, accepted, and rejected friend requests</value>
@@ -2770,6 +2779,42 @@
   </data>
   <data name="pages.settings.aiConfiguration.sectionTitle" xml:space="preserve">
     <value>AI configuration</value>
+  </data>
+  <data name="pages.settings.aiSystem.masterSwitch.label" xml:space="preserve">
+    <value>AI support</value>
+  </data>
+  <data name="pages.settings.aiSystem.masterSwitch.hint" xml:space="preserve">
+    <value>When disabled, AI chat, AI moderation, and AI statistics features are inactive.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableConfirm.message" xml:space="preserve">
+    <value>Do you wish to enable AI support for the Many Faces system?</value>
+  </data>
+  <data name="pages.settings.aiSystem.disableConfirm.message" xml:space="preserve">
+    <value>Do you wish to disable AI support for the Many Faces system?</value>
+  </data>
+  <data name="pages.settings.aiSystem.confirm.cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableConfirm.confirm" xml:space="preserve">
+    <value>Activate AI</value>
+  </data>
+  <data name="pages.settings.aiSystem.disableConfirm.confirm" xml:space="preserve">
+    <value>Deactivate AI</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableError" xml:space="preserve">
+    <value>AI could not be enabled. Check that the AI worker is running and try again.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableErrorLoadingTimeout" xml:space="preserve">
+    <value>AI model is still loading. Wait a moment and try Activate AI again.</value>
+  </data>
+  <data name="pages.settings.aiSystem.enableErrorWorkerUnreachable" xml:space="preserve">
+    <value>AI worker is unreachable. Check that the AI service is running.</value>
+  </data>
+  <data name="pages.settings.aiSystem.disabledNavHint" xml:space="preserve">
+    <value>AI is disabled in Settings.</value>
+  </data>
+  <data name="pages.settings.aiSystem.subSettingsLocked" xml:space="preserve">
+    <value>Enable AI to change these settings.</value>
   </data>
   <data name="pages.settings.general.description" xml:space="preserve">
     <value>Interface language and display preferences for this browser.</value>

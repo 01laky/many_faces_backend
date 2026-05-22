@@ -652,6 +652,9 @@
   <data name="pages.chat.ai" xml:space="preserve">
     <value>AI</value>
   </data>
+  <data name="pages.chat.aiDisabled" xml:space="preserve">
+    <value>Die KI-Unterstützung ist derzeit nicht verfügbar. Bitte versuchen Sie es später erneut.</value>
+  </data>
   <data name="pages.chat.connected" xml:space="preserve">
     <value>Connected</value>
   </data>

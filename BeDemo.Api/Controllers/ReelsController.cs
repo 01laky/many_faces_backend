@@ -6,6 +6,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Reels;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -23,6 +24,7 @@ public class ReelsController : ControllerBase
     private readonly IAccessEvaluator _access;
     /// <summary>Queues in-app notifications when reels enter the moderation pipeline.</summary>
     private readonly IContentModerationNotifier _moderationNotifier;
+    private readonly IOperatorAiSystemSettingsProvider _systemSettings;
 
     public ReelsController(
         ApplicationDbContext context,
@@ -30,7 +32,8 @@ public class ReelsController : ControllerBase
         ILogger<ReelsController> logger,
         IFaceScopeContext faceScope,
         IAccessEvaluator access,
-        IContentModerationNotifier moderationNotifier)
+        IContentModerationNotifier moderationNotifier,
+        IOperatorAiSystemSettingsProvider systemSettings)
     {
         _context = context;
         _jobQueue = jobQueue;
@@ -38,6 +41,7 @@ public class ReelsController : ControllerBase
         _faceScope = faceScope;
         _access = access;
         _moderationNotifier = moderationNotifier;
+        _systemSettings = systemSettings;
     }
 
     private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -231,6 +235,9 @@ public class ReelsController : ControllerBase
         if (string.IsNullOrEmpty(UserId))
             return Unauthorized();
 
+        var aiEnabled = await _systemSettings.IsAiEnabledAsync();
+        var initialAiStatus = aiEnabled ? AiReviewStatus.Queued : AiReviewStatus.NeedsHumanReview;
+
         var reel = new Reel
         {
             CreatorId = UserId,
@@ -238,7 +245,7 @@ public class ReelsController : ControllerBase
             Description = dto.Description?.Trim(),
             VideoUrl = dto.VideoUrl.Trim(),
             ApprovalStatus = ContentApprovalStatus.PendingApproval,
-            AiReviewStatus = AiReviewStatus.Queued,
+            AiReviewStatus = initialAiStatus,
             SubmittedAtUtc = DateTime.UtcNow,
         };
 
@@ -269,10 +276,12 @@ public class ReelsController : ControllerBase
                 ContentId = reel.Id,
                 FaceId = firstFaceId,
                 CreatedByUserId = UserId,
-                Status = AiReviewJobStatus.Queued,
+                Status = aiEnabled ? AiReviewJobStatus.Queued : AiReviewJobStatus.NeedsHumanReview,
                 ModerationVersion = reel.ModerationVersion,
                 MaxAttempts = ContentModerationHelpers.DefaultMaxAttempts,
                 CreatedAtUtc = DateTime.UtcNow,
+                CompletedAtUtc = aiEnabled ? null : DateTime.UtcNow,
+                LastError = aiEnabled ? null : "AI support disabled.",
             });
             _context.ContentModerationEvents.Add(ContentModerationHelpers.BuildEvent(
                 ModeratedContentType.Reel,
@@ -302,10 +311,14 @@ public class ReelsController : ControllerBase
 
         try
         {
-            await _jobQueue.EnqueueAsync(
-                ContentModerationHelpers.AiReviewJobType,
-                ContentModerationHelpers.BuildAiReviewPayload(ModeratedContentType.Reel, reel.Id, reel.ModerationVersion),
-                CancellationToken.None);
+            if (aiEnabled)
+            {
+                await _jobQueue.EnqueueAsync(
+                    ContentModerationHelpers.AiReviewJobType,
+                    ContentModerationHelpers.BuildAiReviewPayload(ModeratedContentType.Reel, reel.Id, reel.ModerationVersion),
+                    CancellationToken.None);
+            }
+
             await _jobQueue.ScheduleAsync(
                 "reel.postprocess",
                 JsonSerializer.Serialize(new { reelId = reel.Id, phase = "delayed_check" }),

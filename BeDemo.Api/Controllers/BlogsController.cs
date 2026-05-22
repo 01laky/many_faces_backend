@@ -5,6 +5,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Blogs;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -22,6 +23,7 @@ public class BlogsController : ControllerBase
     private readonly IAccessEvaluator _access;
     /// <summary>Queues in-app notifications when user content enters the moderation pipeline.</summary>
     private readonly IContentModerationNotifier _moderationNotifier;
+    private readonly IOperatorAiSystemSettingsProvider _systemSettings;
 
     public BlogsController(
         ApplicationDbContext context,
@@ -29,7 +31,8 @@ public class BlogsController : ControllerBase
         IRedisJobQueue jobQueue,
         IFaceScopeContext faceScope,
         IAccessEvaluator access,
-        IContentModerationNotifier moderationNotifier)
+        IContentModerationNotifier moderationNotifier,
+        IOperatorAiSystemSettingsProvider systemSettings)
     {
         _context = context;
         _logger = logger;
@@ -37,6 +40,7 @@ public class BlogsController : ControllerBase
         _faceScope = faceScope;
         _access = access;
         _moderationNotifier = moderationNotifier;
+        _systemSettings = systemSettings;
     }
 
     private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -195,6 +199,9 @@ public class BlogsController : ControllerBase
         if (!faceExists)
             return BadRequest(new { error = "Face not found" });
 
+        var aiEnabled = await _systemSettings.IsAiEnabledAsync();
+        var initialAiStatus = aiEnabled ? AiReviewStatus.Queued : AiReviewStatus.NeedsHumanReview;
+
         var blog = new Blog
         {
             CreatorId = UserId,
@@ -202,7 +209,7 @@ public class BlogsController : ControllerBase
             Title = dto.Title.Trim(),
             Content = dto.Content.Trim(),
             ApprovalStatus = ContentApprovalStatus.PendingApproval,
-            AiReviewStatus = AiReviewStatus.Queued,
+            AiReviewStatus = initialAiStatus,
             SubmittedAtUtc = DateTime.UtcNow,
         };
 
@@ -234,10 +241,12 @@ public class BlogsController : ControllerBase
             ContentId = blog.Id,
             FaceId = blog.FaceId,
             CreatedByUserId = UserId,
-            Status = AiReviewJobStatus.Queued,
+            Status = aiEnabled ? AiReviewJobStatus.Queued : AiReviewJobStatus.NeedsHumanReview,
             ModerationVersion = blog.ModerationVersion,
             MaxAttempts = ContentModerationHelpers.DefaultMaxAttempts,
             CreatedAtUtc = DateTime.UtcNow,
+            CompletedAtUtc = aiEnabled ? null : DateTime.UtcNow,
+            LastError = aiEnabled ? null : "AI support disabled.",
         });
         _context.ContentModerationEvents.Add(ContentModerationHelpers.BuildEvent(
             ModeratedContentType.Blog,
@@ -263,7 +272,8 @@ public class BlogsController : ControllerBase
             "moderation_ops",
             CancellationToken.None);
         await _context.SaveChangesAsync();
-        await EnqueueAiReviewAsync(ModeratedContentType.Blog, blog.Id, blog.ModerationVersion);
+        if (aiEnabled)
+            await EnqueueAiReviewAsync(ModeratedContentType.Blog, blog.Id, blog.ModerationVersion);
 
         _logger.LogInformation("User {UserId} created blog {BlogId}", UserId, blog.Id);
 
@@ -334,8 +344,9 @@ public class BlogsController : ControllerBase
 
         if (blog.ApprovalStatus == ContentApprovalStatus.Rejected)
         {
+            var aiEnabled = await _systemSettings.IsAiEnabledAsync();
             blog.ApprovalStatus = ContentApprovalStatus.PendingApproval;
-            blog.AiReviewStatus = AiReviewStatus.Queued;
+            blog.AiReviewStatus = aiEnabled ? AiReviewStatus.Queued : AiReviewStatus.NeedsHumanReview;
             blog.SubmittedAtUtc = DateTime.UtcNow;
             blog.HumanReviewedAtUtc = null;
             blog.HumanReviewedByUserId = null;
@@ -345,7 +356,7 @@ public class BlogsController : ControllerBase
 
         blog.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
-        if (blog.AiReviewStatus == AiReviewStatus.Queued)
+        if (blog.AiReviewStatus == AiReviewStatus.Queued && await _systemSettings.IsAiEnabledAsync())
             await EnqueueAiReviewAsync(ModeratedContentType.Blog, blog.Id, blog.ModerationVersion);
 
         _logger.LogInformation("User {UserId} updated blog {BlogId}", UserId, blog.Id);
@@ -394,6 +405,9 @@ public class BlogsController : ControllerBase
         int contentId,
         int moderationVersion)
     {
+        if (!await _systemSettings.IsAiEnabledAsync())
+            return;
+
         try
         {
             await _jobQueue.EnqueueAsync(

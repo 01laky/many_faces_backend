@@ -79,7 +79,8 @@ public class ContentModerationPayloadLogRedactionTests
             new NoOpRedisJobQueue(),
             logger,
             new NullContentModerationNotifier(),
-            Options.Create(new ContentModerationSecurityOptions()));
+            Options.Create(new ContentModerationSecurityOptions()),
+            new StubOperatorAiSystemSettingsProvider());
 
         var hostilePayload = $$"""
             {
@@ -136,7 +137,8 @@ public class ContentModerationPayloadLogRedactionTests
             new NoOpRedisJobQueue(),
             logger,
             new NullContentModerationNotifier(),
-            Options.Create(new ContentModerationSecurityOptions { InstructionHeuristicEnabled = false }));
+            Options.Create(new ContentModerationSecurityOptions { InstructionHeuristicEnabled = false }),
+            new StubOperatorAiSystemSettingsProvider());
 
         var validPayload = ContentModerationHelpers.BuildAiReviewPayload(
             ModeratedContentType.Blog,

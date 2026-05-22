@@ -652,6 +652,9 @@
   <data name="pages.chat.ai" xml:space="preserve">
     <value>AI</value>
   </data>
+  <data name="pages.chat.aiDisabled" xml:space="preserve">
+    <value>Podpora AI momentálne nie je k dispozícii. Skúste to neskôr.</value>
+  </data>
   <data name="pages.chat.connected" xml:space="preserve">
     <value>Pripojené</value>
   </data>

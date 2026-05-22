@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
+using BeDemo.Api.Tests.Testing;
+
 namespace BeDemo.Api.Tests;
 
 /// <summary>
@@ -120,7 +122,8 @@ public sealed class ContentModerationSecurityEdgeTests
             new NoOpRedisJobQueue(),
             NullLogger<ContentAiReviewService>.Instance,
             new NullContentModerationNotifier(),
-            Options.Create(new ContentModerationSecurityOptions { InstructionHeuristicEnabled = true }));
+            Options.Create(new ContentModerationSecurityOptions { InstructionHeuristicEnabled = true }),
+            new StubOperatorAiSystemSettingsProvider());
 
         await service.ProcessQueuedReviewAsync(
             ContentModerationHelpers.BuildAiReviewPayload(ModeratedContentType.Blog, blog.Id, 1));
@@ -176,7 +179,8 @@ public sealed class ContentModerationSecurityEdgeTests
             new NoOpRedisJobQueue(),
             NullLogger<ContentAiReviewService>.Instance,
             new NullContentModerationNotifier(),
-            Options.Create(new ContentModerationSecurityOptions { InstructionHeuristicEnabled = true }));
+            Options.Create(new ContentModerationSecurityOptions { InstructionHeuristicEnabled = true }),
+            new StubOperatorAiSystemSettingsProvider());
 
         await service.ProcessQueuedReviewAsync(
             ContentModerationHelpers.BuildAiReviewPayload(ModeratedContentType.Blog, blog.Id, 1));
