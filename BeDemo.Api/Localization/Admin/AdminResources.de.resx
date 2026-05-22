@@ -2816,6 +2816,132 @@
   <data name="pages.settings.aiSystem.subSettingsLocked" xml:space="preserve">
     <value>KI aktivieren, um diese Einstellungen zu ändern.</value>
   </data>
+  <data name="pages.settings.infra.sectionTitle" xml:space="preserve">
+    <value>Infrastructure &amp; workers</value>
+  </data>
+  <data name="pages.settings.infra.description" xml:space="preserve">
+    <value>Smoke-test optional mail, push, and search workers from the admin panel.</value>
+  </data>
+  <data name="pages.settings.infra.mail.title" xml:space="preserve">
+    <value>Mail worker</value>
+  </data>
+  <data name="pages.settings.infra.mail.description" xml:space="preserve">
+    <value>Send a templated pilot email to your account.</value>
+  </data>
+  <data name="pages.settings.infra.mail.send" xml:space="preserve">
+    <value>Send test email to me</value>
+  </data>
+  <data name="pages.settings.infra.mail.confirm" xml:space="preserve">
+    <value>Send a pilot templated email to your account email address?</value>
+  </data>
+  <data name="pages.settings.infra.mail.success" xml:space="preserve">
+    <value>Test email queued. Check Mailpit or your inbox.</value>
+  </data>
+  <data name="pages.settings.infra.mail.hint" xml:space="preserve">
+    <value>Requires Mail:Enabled and a running mailer worker.</value>
+  </data>
+  <data name="pages.settings.infra.push.title" xml:space="preserve">
+    <value>Push worker</value>
+  </data>
+  <data name="pages.settings.infra.push.description" xml:space="preserve">
+    <value>Send a test notification to devices registered for your account.</value>
+  </data>
+  <data name="pages.settings.infra.push.send" xml:space="preserve">
+    <value>Send test push to my devices</value>
+  </data>
+  <data name="pages.settings.infra.push.confirm" xml:space="preserve">
+    <value>Send a test push notification to all devices registered for your account?</value>
+  </data>
+  <data name="pages.settings.infra.push.success" xml:space="preserve">
+    <value>Push test completed.</value>
+  </data>
+  <data name="pages.settings.infra.push.hint" xml:space="preserve">
+    <value>Register a device via the mobile app first. Requires Push:Enabled.</value>
+  </data>
+  <data name="pages.settings.infra.push.deviceCount" xml:space="preserve">
+    <value>{{count}} registered device(s)</value>
+  </data>
+  <data name="pages.settings.infra.search.title" xml:space="preserve">
+    <value>Search worker</value>
+  </data>
+  <data name="pages.settings.infra.search.description" xml:space="preserve">
+    <value>Read-only health from the Go search-worker (Elasticsearch reachability).</value>
+  </data>
+  <data name="pages.settings.infra.search.refresh" xml:space="preserve">
+    <value>Check search health</value>
+  </data>
+  <data name="pages.settings.infra.search.hint" xml:space="preserve">
+    <value>Requires Search:Enabled. Elasticsearch is checked inside the worker.</value>
+  </data>
+  <data name="pages.settings.infra.status.disabled" xml:space="preserve">
+    <value>Disabled</value>
+  </data>
+  <data name="pages.settings.infra.status.notConfigured" xml:space="preserve">
+    <value>Not configured</value>
+  </data>
+  <data name="pages.settings.infra.status.configured" xml:space="preserve">
+    <value>Configured</value>
+  </data>
+  <data name="pages.settings.infra.status.notTestedYet" xml:space="preserve">
+    <value>Not tested yet</value>
+  </data>
+  <data name="pages.settings.infra.status.lastTestSuccess" xml:space="preserve">
+    <value>Last test: success</value>
+  </data>
+  <data name="pages.settings.infra.status.lastTestFailed" xml:space="preserve">
+    <value>Last test failed</value>
+  </data>
+  <data name="pages.settings.infra.status.unreachable" xml:space="preserve">
+    <value>Unreachable</value>
+  </data>
+  <data name="pages.settings.infra.status.healthy" xml:space="preserve">
+    <value>Healthy</value>
+  </data>
+  <data name="pages.settings.infra.links.mailpit" xml:space="preserve">
+    <value>Open Mailpit</value>
+  </data>
+  <data name="pages.settings.infra.links.mailerGuide" xml:space="preserve">
+    <value>Mailer local dev guide</value>
+  </data>
+  <data name="pages.settings.infra.links.pushGuide" xml:space="preserve">
+    <value>Push local dev guide</value>
+  </data>
+  <data name="pages.settings.infra.links.searchGuide" xml:space="preserve">
+    <value>Elasticsearch local dev guide</value>
+  </data>
+  <data name="pages.settings.infra.errors.forbidden" xml:space="preserve">
+    <value>You do not have permission to run infrastructure tests.</value>
+  </data>
+  <data name="pages.settings.infra.errors.generic" xml:space="preserve">
+    <value>Request failed. Check worker configuration and try again.</value>
+  </data>
+  <data name="pages.settings.infra.errors.mailDisabled" xml:space="preserve">
+    <value>Mail worker is disabled or misconfigured.</value>
+  </data>
+  <data name="pages.settings.infra.errors.noEmail" xml:space="preserve">
+    <value>Your account has no email address.</value>
+  </data>
+  <data name="pages.settings.infra.errors.pushDisabled" xml:space="preserve">
+    <value>Push worker is disabled or misconfigured.</value>
+  </data>
+  <data name="pages.settings.infra.errors.noPushDevices" xml:space="preserve">
+    <value>No push devices registered for your account.</value>
+  </data>
+  <data name="pages.settings.infra.result.correlationId" xml:space="preserve">
+    <value>Correlation ID</value>
+  </data>
+  <data name="pages.settings.infra.result.smtpMessageId" xml:space="preserve">
+    <value>SMTP message ID</value>
+  </data>
+  <data name="pages.settings.infra.result.sent" xml:space="preserve">
+    <value>Sent</value>
+  </data>
+  <data name="pages.settings.infra.result.failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="pages.settings.infra.result.prunedInvalidTokens" xml:space="preserve">
+    <value>Pruned invalid tokens</value>
+  </data>
   <data name="pages.settings.general.description" xml:space="preserve">
     <value>Oberflächensprache und Anzeigeeinstellungen für diesen Browser.</value>
   </data>

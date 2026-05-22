@@ -2816,6 +2816,132 @@
   <data name="pages.settings.aiSystem.subSettingsLocked" xml:space="preserve">
     <value>Zapnite AI aby ste mohli meniť tieto nastavenia.</value>
   </data>
+  <data name="pages.settings.infra.sectionTitle" xml:space="preserve">
+    <value>Infraštruktúra a workery</value>
+  </data>
+  <data name="pages.settings.infra.description" xml:space="preserve">
+    <value>Otestujte voliteľné mail, push a search workery priamo z admin panelu.</value>
+  </data>
+  <data name="pages.settings.infra.mail.title" xml:space="preserve">
+    <value>Mail worker</value>
+  </data>
+  <data name="pages.settings.infra.mail.description" xml:space="preserve">
+    <value>Pošle pilotný šablónový email na váš účet.</value>
+  </data>
+  <data name="pages.settings.infra.mail.send" xml:space="preserve">
+    <value>Poslať test email mne</value>
+  </data>
+  <data name="pages.settings.infra.mail.confirm" xml:space="preserve">
+    <value>Poslať pilotný šablónový email na emailovú adresu vášho účtu?</value>
+  </data>
+  <data name="pages.settings.infra.mail.success" xml:space="preserve">
+    <value>Test email zaradený do fronty. Skontrolujte Mailpit alebo doručenú poštu.</value>
+  </data>
+  <data name="pages.settings.infra.mail.hint" xml:space="preserve">
+    <value>Vyžaduje Mail:Enabled a bežiaci mailer worker.</value>
+  </data>
+  <data name="pages.settings.infra.push.title" xml:space="preserve">
+    <value>Push worker</value>
+  </data>
+  <data name="pages.settings.infra.push.description" xml:space="preserve">
+    <value>Pošle testovaciu notifikáciu na zariadenia registrované pre váš účet.</value>
+  </data>
+  <data name="pages.settings.infra.push.send" xml:space="preserve">
+    <value>Poslať test push na moje zariadenia</value>
+  </data>
+  <data name="pages.settings.infra.push.confirm" xml:space="preserve">
+    <value>Poslať test push notifikáciu na všetky zariadenia registrované pre váš účet?</value>
+  </data>
+  <data name="pages.settings.infra.push.success" xml:space="preserve">
+    <value>Push test dokončený.</value>
+  </data>
+  <data name="pages.settings.infra.push.hint" xml:space="preserve">
+    <value>Najprv zaregistrujte zariadenie cez mobilnú app. Vyžaduje Push:Enabled.</value>
+  </data>
+  <data name="pages.settings.infra.push.deviceCount" xml:space="preserve">
+    <value>{{count}} registrovaných zariadení</value>
+  </data>
+  <data name="pages.settings.infra.search.title" xml:space="preserve">
+    <value>Search worker</value>
+  </data>
+  <data name="pages.settings.infra.search.description" xml:space="preserve">
+    <value>Read-only stav Go search-workera (dostupnosť Elasticsearch).</value>
+  </data>
+  <data name="pages.settings.infra.search.refresh" xml:space="preserve">
+    <value>Skontrolovať search health</value>
+  </data>
+  <data name="pages.settings.infra.search.hint" xml:space="preserve">
+    <value>Vyžaduje Search:Enabled. Elasticsearch sa kontroluje vo workeri.</value>
+  </data>
+  <data name="pages.settings.infra.status.disabled" xml:space="preserve">
+    <value>Vypnuté</value>
+  </data>
+  <data name="pages.settings.infra.status.notConfigured" xml:space="preserve">
+    <value>Nenakonfigurované</value>
+  </data>
+  <data name="pages.settings.infra.status.configured" xml:space="preserve">
+    <value>Nakonfigurované</value>
+  </data>
+  <data name="pages.settings.infra.status.notTestedYet" xml:space="preserve">
+    <value>Ešte netestované</value>
+  </data>
+  <data name="pages.settings.infra.status.lastTestSuccess" xml:space="preserve">
+    <value>Posledný test: úspech</value>
+  </data>
+  <data name="pages.settings.infra.status.lastTestFailed" xml:space="preserve">
+    <value>Posledný test zlyhal</value>
+  </data>
+  <data name="pages.settings.infra.status.unreachable" xml:space="preserve">
+    <value>Nedostupné</value>
+  </data>
+  <data name="pages.settings.infra.status.healthy" xml:space="preserve">
+    <value>Zdravé</value>
+  </data>
+  <data name="pages.settings.infra.links.mailpit" xml:space="preserve">
+    <value>Otvoriť Mailpit</value>
+  </data>
+  <data name="pages.settings.infra.links.mailerGuide" xml:space="preserve">
+    <value>Mailer local dev guide</value>
+  </data>
+  <data name="pages.settings.infra.links.pushGuide" xml:space="preserve">
+    <value>Push local dev guide</value>
+  </data>
+  <data name="pages.settings.infra.links.searchGuide" xml:space="preserve">
+    <value>Elasticsearch local dev guide</value>
+  </data>
+  <data name="pages.settings.infra.errors.forbidden" xml:space="preserve">
+    <value>Nemáte oprávnenie spúšťať infra testy.</value>
+  </data>
+  <data name="pages.settings.infra.errors.generic" xml:space="preserve">
+    <value>Požiadavka zlyhala. Skontrolujte konfiguráciu workerov a skúste znova.</value>
+  </data>
+  <data name="pages.settings.infra.errors.mailDisabled" xml:space="preserve">
+    <value>Mail worker je vypnutý alebo nesprávne nakonfigurovaný.</value>
+  </data>
+  <data name="pages.settings.infra.errors.noEmail" xml:space="preserve">
+    <value>Váš účet nemá emailovú adresu.</value>
+  </data>
+  <data name="pages.settings.infra.errors.pushDisabled" xml:space="preserve">
+    <value>Push worker je vypnutý alebo nesprávne nakonfigurovaný.</value>
+  </data>
+  <data name="pages.settings.infra.errors.noPushDevices" xml:space="preserve">
+    <value>Pre váš účet nie sú registrované push zariadenia.</value>
+  </data>
+  <data name="pages.settings.infra.result.correlationId" xml:space="preserve">
+    <value>Correlation ID</value>
+  </data>
+  <data name="pages.settings.infra.result.smtpMessageId" xml:space="preserve">
+    <value>SMTP message ID</value>
+  </data>
+  <data name="pages.settings.infra.result.sent" xml:space="preserve">
+    <value>Odoslané</value>
+  </data>
+  <data name="pages.settings.infra.result.failed" xml:space="preserve">
+    <value>Zlyhalo</value>
+  </data>
+  <data name="pages.settings.infra.result.prunedInvalidTokens" xml:space="preserve">
+    <value>Odstránené neplatné tokeny</value>
+  </data>
   <data name="pages.settings.general.description" xml:space="preserve">
     <value>Jazyk rozhrania a zobrazenie pre tento prehliadač.</value>
   </data>

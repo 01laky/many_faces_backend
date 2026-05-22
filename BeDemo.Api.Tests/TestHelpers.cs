@@ -27,6 +27,8 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
 
         builder.UseSetting("Mail:Enabled", "true");
         builder.UseSetting("Mail:WorkerGrpcUrl", "http://localhost:59998");
+        builder.UseSetting("Push:Enabled", "true");
+        builder.UseSetting("Push:WorkerGrpcUrl", "http://localhost:59997");
         builder.UseSetting("Uploads:SigningSecret", "test-upload-signing-secret-fixed-32b!!");
 
         builder.ConfigureServices(services =>
@@ -93,6 +95,23 @@ public sealed class MailDisabledWebApplicationFactory : CustomWebApplicationFact
         {
             services.RemoveAll<IMailerWorkerClient>();
             services.AddSingleton<IMailerWorkerClient, DisabledMailerWorkerClient>();
+        });
+    }
+}
+
+/// <summary>
+/// Testing host with push worker disabled (admin push test-self should return 400).
+/// </summary>
+public sealed class PushDisabledWebApplicationFactory : CustomWebApplicationFactory<Program>
+{
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        builder.UseSetting("Push:Enabled", "false");
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IPushWorkerClient>();
+            services.AddSingleton<IPushWorkerClient, DisabledPushWorkerClient>();
         });
     }
 }
