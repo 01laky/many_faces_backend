@@ -1600,6 +1600,9 @@
   <data name="pages.login.success" xml:space="preserve">
     <value>Anmeldung erfolgreich!</value>
   </data>
+  <data name="pages.login.superAdminRequired" xml:space="preserve">
+    <value>Diese Konsole ist nur für Plattform-Super-Administratoren. Melden Sie sich mit einem Super-Admin-Konto an oder nutzen Sie das Kundenportal.</value>
+  </data>
   <data name="pages.login.title" xml:space="preserve">
     <value>Login</value>
   </data>

@@ -7,7 +7,7 @@ public static class AclPermissionKeys
 {
     public const string PlatformSuper = "platform:super";
 
-    /// <summary>Admin scope + global admin: users, faces CRUD, cross-tenant.</summary>
+    /// <summary>Admin face scope + global SuperAdmin: platform operator APIs.</summary>
     public const string PlatformAdmin = "platform:admin";
 
     /// <summary>Create/update/delete <see cref="Models.PageType"/> rows.</summary>

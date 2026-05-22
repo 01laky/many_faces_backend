@@ -33,7 +33,7 @@ public sealed class OperatorUserChatControllerTests : IClassFixture<CustomWebApp
     [Fact]
     public async Task ListConversations_Should403_ForPlatformAdmin()
     {
-        var adminToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
+        var adminToken = await AclTestClients.GetGlobalAdminTokenAsync(_oauth);
         var req = new HttpRequestMessage(HttpMethod.Get, "/api/operator-user-chat/conversations");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
         var res = await _adminFace.SendAsync(req);

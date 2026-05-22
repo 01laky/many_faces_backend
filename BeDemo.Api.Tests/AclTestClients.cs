@@ -32,7 +32,12 @@ public static class AclTestClients
             "Acl",
             "User");
 
+    /// <summary>Platform operator on admin face — global SuperAdmin (CanManageAllFaces bar).</summary>
     public static async Task<string> GetPlatformAdminTokenAsync(HttpClient oauthClient) =>
+        await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(oauthClient);
+
+    /// <summary>Portal-only global Admin — for negative ACL tests (403 on admin face platform APIs).</summary>
+    public static async Task<string> GetGlobalAdminTokenAsync(HttpClient oauthClient) =>
         await IntegrationTestSeed.GetAdminAccessTokenAsync(oauthClient);
 
     public static async Task<string> GetPlatformSuperAdminTokenAsync(HttpClient oauthClient) =>

@@ -39,6 +39,17 @@ public sealed class AdminPushTestControllerTests
     }
 
     [Fact]
+    public async Task TestSelf_ShouldReturnForbidden_ForGlobalAdmin()
+    {
+        var client = _factory.CreateFaceClient("admin");
+        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.PostAsync("/api/admin/push/test-self", null);
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task TestSelf_ShouldReturnBadRequest_WhenPushDisabled_ForSuperAdmin()
     {
         var client = _pushDisabledFactory.CreateFaceClient("admin");

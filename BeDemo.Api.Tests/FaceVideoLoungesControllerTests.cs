@@ -65,7 +65,7 @@ public class FaceVideoLoungesControllerTests : IClassFixture<CustomWebApplicatio
     private static async Task EnableVideoLoungesCreateAsync(CustomWebApplicationFactory<Program> factory, int faceId, bool enabled)
     {
         using var admin = factory.CreateFaceClient("admin");
-        var adminToken = await IntegrationTestSeed.GetAdminAccessTokenAsync(admin);
+        var adminToken = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(admin);
         admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
         var res = await admin.PutAsJsonAsync($"/api/faces/{faceId}", new { videoLoungesCreate = enabled });
         res.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -193,7 +193,7 @@ public class FaceVideoLoungesControllerTests : IClassFixture<CustomWebApplicatio
         await client.PostAsJsonAsync($"/api/faces/{faceId}/video-lounges/{loungeId}/live/join", new { joinMode = "Full" });
 
         using var admin = _factory.CreateFaceClient("admin");
-        var adminToken = await IntegrationTestSeed.GetAdminAccessTokenAsync(admin);
+        var adminToken = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(admin);
         admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
         await admin.PostAsync($"/api/operator-content/video-lounges/{loungeId}/live/stealth-join", null);
 

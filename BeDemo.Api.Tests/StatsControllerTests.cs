@@ -32,7 +32,7 @@ public sealed class StatsControllerTests : IClassFixture<CustomWebApplicationFac
     {
         // Public face scope: even a valid JWT cannot satisfy CanManageAllFaces (requires admin face prefix).
         var client = _factory.CreateClient();
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/Stats");
@@ -43,7 +43,7 @@ public sealed class StatsControllerTests : IClassFixture<CustomWebApplicationFac
     public async Task GetStats_ShouldReturnFullSummary_WhenAdminFaceScopedOperator()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/Stats");
@@ -86,7 +86,7 @@ public sealed class StatsControllerTests : IClassFixture<CustomWebApplicationFac
     public async Task GetPublicStats_ShouldReturnOk_OnPublicFace_WithOperatorJwt()
     {
         var client = _factory.CreateFaceClient("public");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/Stats/public");
@@ -121,7 +121,7 @@ public sealed class StatsControllerTests : IClassFixture<CustomWebApplicationFac
     public async Task GetTimeseries_ShouldReturnBadRequest_WhenInvalidRange()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var to = DateTime.UtcNow;
@@ -135,7 +135,7 @@ public sealed class StatsControllerTests : IClassFixture<CustomWebApplicationFac
     public async Task GetTimeseries_ShouldReturnBuckets_WhenValidRequest()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var to = DateTime.UtcNow;

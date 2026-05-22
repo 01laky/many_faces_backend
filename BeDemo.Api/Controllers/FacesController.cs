@@ -47,10 +47,10 @@ public class FacesController : ControllerBase
         _memoryCache.Remove("Faces");
     }
 
-    /// <summary>Global Identity role from JWT (OAuth2 puts <see cref="ClaimTypes.Role"/>).</summary>
+    /// <summary>Global Admin or SuperAdmin — used for tenant-scoped elevation (e.g. public faces-config), not admin-face platform APIs.</summary>
     private bool IsGlobalAdmin() => _access.IsGlobalAdmin(User);
 
-    /// <summary>Admin UI scope (/admin/...) plus global Admin/SuperAdmin — can manage all faces.</summary>
+    /// <summary>Admin face scope + global SuperAdmin — full platform operator inventory.</summary>
     private bool CanManageAllFaces() => _access.CanManageAllFaces(User);
 
     /// <summary>Tenant users may only target their URL-scoped face; returns NotFound to avoid leaking ids.</summary>
@@ -66,8 +66,8 @@ public class FacesController : ControllerBase
     {
         try
         {
-            // Admin scope + global admin: full directory for CMS. Tenant scope: only the current face row.
-            if (_faceScope.IsAdminFaceScope && !IsGlobalAdmin())
+            // Admin scope + SuperAdmin: full directory for CMS. Tenant scope: only the current face row.
+            if (_faceScope.IsAdminFaceScope && !CanManageAllFaces())
                 return Forbid();
 
             var page = listQuery.Page;
@@ -148,7 +148,7 @@ public class FacesController : ControllerBase
         try
         {
             // Face scope rules:
-            // - Admin URL + global admin JWT: full graph (all faces) for admin SPA.
+            // - Admin URL + SuperAdmin JWT: full graph (all faces) for admin SPA.
             // - Admin URL + anyone else: Forbid (private face + enforcement already blocks anonymous).
             // - Public tenant + anonymous: all public faces (landing / directory across public tenants only).
             // - Public tenant + authenticated: public faces + private faces the user may use (portal switcher).
@@ -157,7 +157,7 @@ public class FacesController : ControllerBase
             List<Face> faces;
             if (_faceScope.IsAdminFaceScope)
             {
-                if (User.Identity?.IsAuthenticated != true || !IsGlobalAdmin())
+                if (User.Identity?.IsAuthenticated != true || !CanManageAllFaces())
                     return Forbid();
 
                 faces = await _context.Faces

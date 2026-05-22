@@ -23,7 +23,7 @@ public sealed class AdminStoryOperatorDetailTests
 
     private async Task AuthorizeAdminAsync()
     {
-        _token ??= await IntegrationTestSeed.GetAdminAccessTokenAsync(_adminClient);
+        _token ??= await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(_adminClient);
         _adminClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _token);
     }
 

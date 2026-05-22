@@ -30,7 +30,7 @@ public sealed class OperatorAiConversationsControllerTests : IClassFixture<Custo
     public async Task Crud_roundtrip_on_admin_face_scope()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var create = await client.PostAsJsonAsync("/api/operator-ai/conversations", new { title = "Support thread" });
@@ -54,7 +54,7 @@ public sealed class OperatorAiConversationsControllerTests : IClassFixture<Custo
     public async Task Model_status_on_admin_face_scope()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/operator-ai/model-status");
@@ -67,7 +67,7 @@ public sealed class OperatorAiConversationsControllerTests : IClassFixture<Custo
     public async Task Worker_host_on_admin_face_scope()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/operator-ai/worker-host");
@@ -91,7 +91,7 @@ public sealed class OperatorAiConversationsControllerTests : IClassFixture<Custo
     public async Task Live_stats_cache_get_on_admin_face_scope()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/operator-ai/live-stats-cache");
@@ -105,7 +105,7 @@ public sealed class OperatorAiConversationsControllerTests : IClassFixture<Custo
     public async Task Live_stats_cache_put_roundtrip_on_admin_face_scope()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var put = await client.PutAsJsonAsync(
@@ -120,7 +120,7 @@ public sealed class OperatorAiConversationsControllerTests : IClassFixture<Custo
     public async Task Public_stats_settings_get_on_admin_face_scope()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/operator-ai/public-stats-settings");
@@ -135,7 +135,7 @@ public sealed class OperatorAiConversationsControllerTests : IClassFixture<Custo
     public async Task Public_stats_settings_put_roundtrip_on_admin_face_scope()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var put = await client.PutAsJsonAsync(

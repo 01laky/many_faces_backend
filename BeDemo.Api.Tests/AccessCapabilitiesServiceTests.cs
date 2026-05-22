@@ -67,7 +67,7 @@ public class AccessCapabilitiesServiceTests
     }
 
     [Fact]
-    public async Task AdminFaceWithGlobalAdmin_IncludesPlatformPermissions_NotSelfService()
+    public async Task AdminFaceWithGlobalAdmin_ExcludesPlatformPermissions_NotSelfService()
     {
         var dbName = $"ac2_{Guid.NewGuid():N}";
         var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseInMemoryDatabase(dbName).Options;
@@ -86,8 +86,9 @@ public class AccessCapabilitiesServiceTests
         var svc = new AccessCapabilitiesService(db, Scope(88, "admin", adminScope: true).Object);
         var dto = await svc.GetCapabilitiesAsync("adm-1", P(UserRole.GlobalRoleNames.Admin));
 
-        dto.Permissions.Should().Contain(AclPermissionKeys.PlatformAdmin);
-        dto.Permissions.Should().Contain(AclPermissionKeys.PlatformPagetypeMutate);
+        dto.Permissions.Should().NotContain(AclPermissionKeys.PlatformAdmin);
+        dto.Permissions.Should().NotContain(AclPermissionKeys.PlatformPagetypeMutate);
+        dto.Permissions.Should().NotContain(AclPermissionKeys.PlatformSuper);
         dto.Permissions.Should().Contain(AclPermissionKeys.TenantSession);
         dto.Permissions.Should().NotContain(AclPermissionKeys.FaceRoleSelfService);
     }

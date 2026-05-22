@@ -90,7 +90,7 @@ public sealed class AdminChatRoomManagementTests
     private async Task EnableChatRoomsCreateAsync(int faceId, bool enabled)
     {
         using var admin = _factory.CreateFaceClient("admin");
-        var adminToken = await IntegrationTestSeed.GetAdminAccessTokenAsync(admin);
+        var adminToken = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(admin);
         admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
         var res = await admin.PutAsJsonAsync($"/api/faces/{faceId}", new { chatRoomsCreate = enabled });
         res.StatusCode.Should().Be(HttpStatusCode.OK);

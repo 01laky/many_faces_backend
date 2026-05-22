@@ -125,10 +125,10 @@ public class FacesControllerConfigTests : IClassFixture<CustomWebApplicationFact
     }
 
     [Fact]
-    public async Task GetFacesConfig_ShouldListAllSeededFaces_WhenGlobalAdminOnAdminScope()
+    public async Task GetFacesConfig_ShouldListAllSeededFaces_WhenSuperAdminOnAdminScope()
     {
         using var admin = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(admin);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(admin);
         admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await admin.GetAsync("/api/faces/config");

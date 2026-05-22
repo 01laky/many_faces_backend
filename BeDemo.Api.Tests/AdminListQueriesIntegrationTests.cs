@@ -21,7 +21,7 @@ public sealed class AdminListQueriesIntegrationTests : IClassFixture<CustomWebAp
 
     private async Task AuthorizeAdminAsync()
     {
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(_adminClient);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(_adminClient);
         _adminClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
     }
 

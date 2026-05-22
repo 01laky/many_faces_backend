@@ -32,7 +32,7 @@ public sealed class AdminStoryManagementTests
 
     private async Task AuthorizeAdminAsync()
     {
-        _token ??= await IntegrationTestSeed.GetAdminAccessTokenAsync(_adminClient);
+        _token ??= await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(_adminClient);
         _adminClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _token);
     }
 
@@ -89,6 +89,36 @@ public sealed class AdminStoryManagementTests
         }
 
         var detail = await _adminClient.GetFromJsonAsync<JsonElement>($"/api/stories/{storyId}?faceId={faceId}");
+        var creatorId = detail.GetProperty("creatorId").GetString()!;
+        return (storyId, faceId, creatorId);
+    }
+
+    private async Task<(int StoryId, int FaceId, string CreatorId)> SeedStoryWithTenantCreatorAsync(bool live = true)
+    {
+        using var oauth = _factory.CreateFaceClient("public");
+        var tenantToken = await IntegrationTestRegistration.RegisterAndGetAccessTokenViaPasswordGrantAsync(
+            oauth,
+            _factory,
+            email: $"story_creator_{Guid.NewGuid():N}@test.com");
+        using var tenantClient = _factory.CreateFaceClient("public");
+        tenantClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tenantToken);
+        var faceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(tenantClient, tenantToken, "public");
+
+        var create = await tenantClient.PostAsJsonAsync(
+            "/api/stories",
+            new { title = $"Tenant Story {Guid.NewGuid():N}", faceIds = new[] { faceId } });
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await create.Content.ReadFromJsonAsync<JsonElement>();
+        var storyId = created.GetProperty("id").GetInt32();
+        await UploadStoryImageAsync(tenantClient, storyId, 0);
+
+        if (live)
+        {
+            var publish = await tenantClient.PostAsJsonAsync($"/api/stories/{storyId}/publish", new { });
+            publish.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+
+        var detail = await tenantClient.GetFromJsonAsync<JsonElement>($"/api/stories/{storyId}?faceId={faceId}");
         var creatorId = detail.GetProperty("creatorId").GetString()!;
         return (storyId, faceId, creatorId);
     }
@@ -160,7 +190,7 @@ public sealed class AdminStoryManagementTests
     [Fact]
     public async Task HardDeleteStory_ShouldRemoveRow_AndSendDm()
     {
-        var (storyId, faceId, creatorId) = await SeedStoryAsync();
+        var (storyId, faceId, creatorId) = await SeedStoryWithTenantCreatorAsync();
         using var super = await CreateSuperAdminClientAsync();
 
         var first = await super.PostAsJsonAsync(

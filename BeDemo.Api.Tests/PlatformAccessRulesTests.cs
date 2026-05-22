@@ -44,11 +44,13 @@ public class PlatformAccessRulesTests
     }
 
     [Fact]
-    public void CanManageAllFaces_RequiresAdminScopeAndGlobalAdmin()
+    public void CanManageAllFaces_RequiresAdminScopeAndSuperAdmin()
     {
         var adminUser = Principal(UserRole.GlobalRoleNames.Admin);
-        PlatformAccessRules.CanManageAllFaces(MockScope(true, true).Object, adminUser).Should().BeTrue();
-        PlatformAccessRules.CanManageAllFaces(MockScope(true, false).Object, adminUser).Should().BeFalse();
+        var superAdmin = Principal(UserRole.GlobalRoleNames.SuperAdmin);
+        PlatformAccessRules.CanManageAllFaces(MockScope(true, true).Object, adminUser).Should().BeFalse();
+        PlatformAccessRules.CanManageAllFaces(MockScope(true, true).Object, superAdmin).Should().BeTrue();
+        PlatformAccessRules.CanManageAllFaces(MockScope(true, false).Object, superAdmin).Should().BeFalse();
         PlatformAccessRules.CanManageAllFaces(MockScope(true, true).Object, Principal(UserRole.GlobalRoleNames.User)).Should().BeFalse();
     }
 
@@ -60,4 +62,6 @@ public class PlatformAccessRulesTests
         PlatformAccessRules.CanMutateGlobalPageTypes(scope.Object, super)
             .Should().Be(PlatformAccessRules.CanManageAllFaces(scope.Object, super));
     }
+
+    internal static Moq.Mock<IFaceScopeContext> AdminFaceScope() => MockScope(true, true);
 }

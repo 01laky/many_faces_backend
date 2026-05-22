@@ -36,6 +36,17 @@ public sealed class AdminInfraControllerTests
     }
 
     [Fact]
+    public async Task WorkerConfig_ShouldReturnForbidden_ForGlobalAdmin()
+    {
+        var client = _factory.CreateFaceClient("admin");
+        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/admin/infra/worker-config");
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
     public async Task WorkerConfig_ShouldReturnOk_WithConfiguredFlags_ForSuperAdmin()
     {
         var client = _factory.CreateFaceClient("admin");

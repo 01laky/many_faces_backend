@@ -1522,6 +1522,9 @@
   <data name="pages.login.success" xml:space="preserve">
     <value>Přihlášení úspěšné!</value>
   </data>
+  <data name="pages.login.superAdminRequired" xml:space="preserve">
+    <value>Tato konzole je pouze pro platformové super-administrátory. Přihlaste se super-admin účtem nebo použijte zákaznický portál.</value>
+  </data>
   <data name="pages.login.title" xml:space="preserve">
     <value>Přihlášení</value>
   </data>

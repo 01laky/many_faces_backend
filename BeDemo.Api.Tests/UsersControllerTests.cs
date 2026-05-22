@@ -55,7 +55,7 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
     private async Task<HttpClient> CreateAdminApiClientAsync()
     {
         var admin = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(admin);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(admin);
         admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return admin;
     }

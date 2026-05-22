@@ -7,6 +7,7 @@
 | Run in full stack   | `../scripts/start-all-dev.sh` from `many_faces_main`                                                           |
 | Swagger             | `http://localhost:8000/swagger/index.html`                                                                     |
 | Local accounts      | [`../docs/guides/local-dev-accounts.md`](../docs/guides/local-dev-accounts.md)                                 |
+| Platform ACL        | [`../docs/guides/admin-superadmin-only-access.md`](../docs/guides/admin-superadmin-only-access.md)             |
 | Operator AI runbook | [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md) |
 
 ```mermaid
@@ -38,11 +39,12 @@ For engineers, the backend is designed as a layered ASP.NET Core service: middle
 - Session invalidation through the `atv` access-token version claim and `ApplicationUser.AccessTokenVersion`.
 - Face-prefixed API and hub routing that resolves the active face from the URL and applies trusted server-side scope.
 - Backend-enforced checks for face-specific data access, admin operations, role selection, and private face behaviour.
+- **Platform operator bar:** `CanManageAllFaces` = **admin face URL prefix + global `SUPER_ADMIN` only** (global **`ADMIN`** is portal-only). **`IsGlobalSuperAdmin`** gates moderation, operator user detail, and super-admin user chat. See [`docs/guides/admin-superadmin-only-access.md`](../docs/guides/admin-superadmin-only-access.md).
 - Capability responses through `/api/me/capabilities` so clients can render role-aware UI without guessing.
 - CRUD and domain APIs for users, faces, pages, page types, route translations, profiles, albums, blogs, reels, stories, wall listings, chats, comments, likes, follows, blocks, and notifications.
 - Page `gridSchema` persistence used by **many_faces_admin** (`many_faces_admin/`) to configure layouts and by **many_faces_portal** (`many_faces_portal/`) to render them.
 - SignalR hubs for chat and real-time communication.
-- **Operator statistics APIs:** `GET /api/Stats`, `GET /api/Stats/timeseries` (JWT + **`CanManageAllFaces`**), and **`GET /api/Stats/public`** (anonymous aggregate counts on the **`public`** face prefix only). Counts for the full dashboard are centralized in **`IPlatformStatsQueryService`**.
+- **Operator statistics APIs:** `GET /api/Stats`, `GET /api/Stats/timeseries` (JWT + **`CanManageAllFaces`** = **`SUPER_ADMIN` on admin face**), and **`GET /api/Stats/public`** (anonymous aggregate counts on the **`public`** face prefix only). Counts for the full dashboard are centralized in **`IPlatformStatsQueryService`**.
 - **Operator user moderation (`SUPER_ADMIN` only):** `OperatorUsersController` at `/api/operator-users/users/{id}/detail`, global/face ban (required `reason`), face `userRoleId` patch, and `platform-messages` — see [`docs/guides/admin-operator-user-detail.md`](../../docs/guides/admin-operator-user-detail.md).
 - **Super-admin user chat (`SUPER_ADMIN` only):** `OperatorUserChatController` at `/api/operator-user-chat/*`, `PlatformDirectMessageService`, and `MessengerHub.SendPlatformDirectMessage` — per-operator 1:1 threads over `Messages` — see [`docs/guides/admin-superadmin-user-chat.md`](../../docs/guides/admin-superadmin-user-chat.md).
 - AI gRPC client integration (**`Generate`** with optional **`stats_context_json`**, **`OperatorStatsChat`**, **`ReviewContent`**) and Redis-backed queue infrastructure for asynchronous workflows.

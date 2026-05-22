@@ -1600,6 +1600,9 @@
   <data name="pages.login.success" xml:space="preserve">
     <value>Connexion réussie !</value>
   </data>
+  <data name="pages.login.superAdminRequired" xml:space="preserve">
+    <value>Cette console est réservée aux super-administrateurs de la plateforme. Connectez-vous avec un compte super-admin ou utilisez le portail client.</value>
+  </data>
   <data name="pages.login.title" xml:space="preserve">
     <value>Login</value>
   </data>

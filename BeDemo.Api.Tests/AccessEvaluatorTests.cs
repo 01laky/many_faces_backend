@@ -16,9 +16,12 @@ public class AccessEvaluatorTests
         var scope = new Mock<IFaceScopeContext>();
         scope.Setup(s => s.IsAdminFaceScope).Returns(true);
         var ev = new AccessEvaluator(scope.Object);
+        var super = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Role, UserRole.GlobalRoleNames.SuperAdmin)], "test"));
         var admin = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Role, UserRole.GlobalRoleNames.Admin)], "test"));
-        ev.CanManageAllFaces(admin).Should().BeTrue();
-        ev.CanMutateGlobalPageTypes(admin).Should().BeTrue();
+        ev.CanManageAllFaces(super).Should().BeTrue();
+        ev.CanMutateGlobalPageTypes(super).Should().BeTrue();
+        ev.CanManageAllFaces(admin).Should().BeFalse();
+        ev.CanMutateGlobalPageTypes(admin).Should().BeFalse();
     }
 
     [Fact]

@@ -27,7 +27,7 @@ public sealed class OperatorAiSystemSettingsIntegrationTests : IClassFixture<Ope
     private async Task<HttpClient> CreateAdminClientAsync()
     {
         var client = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return client;
     }

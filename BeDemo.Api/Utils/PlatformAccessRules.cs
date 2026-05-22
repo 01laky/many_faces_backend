@@ -17,10 +17,11 @@ public static class PlatformAccessRules
         user.IsInRole(UserRole.GlobalRoleNames.SuperAdmin);
 
     /// <summary>
-    /// Admin SPA URL prefix (/admin/...) plus global Admin or SuperAdmin — full face directory, users, tenant CMS from platform UI.
+    /// Admin SPA URL prefix (/admin/...) plus global SuperAdmin — platform operator APIs (users, faces CMS, stats, infra smoke).
+    /// Global Admin is portal-only and must not pass this gate.
     /// </summary>
     public static bool CanManageAllFaces(IFaceScopeContext faceScope, ClaimsPrincipal user) =>
-        faceScope.IsAdminFaceScope && IsGlobalAdmin(user);
+        faceScope.IsAdminFaceScope && IsGlobalSuperAdmin(user);
 
     /// <summary>
     /// Mutations to global schema tables (PageTypes, etc.) — same bar as platform operators (A15).

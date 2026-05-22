@@ -2,7 +2,7 @@
  * FacesControllerTests.cs - Integration tests for FacesController
  *
  * Tenant scope (/public/...): list/read only the URL face; cannot create faces without global Admin + /admin/ scope.
- * Admin scope: integration seeded user (global Admin) performs CRUD.
+ * Admin scope: integration seeded super-admin performs CRUD.
  */
 
 using System.Net;
@@ -52,7 +52,7 @@ public class FacesControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
             return _adminClient;
 
         var c = _factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(c);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(c);
         c.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         _adminClient = c;
         return _adminClient;

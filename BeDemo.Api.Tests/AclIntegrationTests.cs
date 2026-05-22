@@ -118,8 +118,8 @@ public class AclIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
         var tenantToken = await AclTestClients.RegisterAndGetTokenAsync(_factory, _oauth);
         _publicFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tenantToken);
 
-        var adminToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
-        _adminFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        var operatorToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
+        _adminFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", operatorToken);
         var rolesResponse = await _adminFace.GetAsync("/api/faces/face-roles");
         rolesResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         var adminRoles = await rolesResponse.Content.ReadFromJsonAsync<JsonElement>();
@@ -212,9 +212,9 @@ public class AclIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
     }
 
     [Fact]
-    public async Task MeCapabilities_AdminFace_PlatformAdmin_IncludesPagetypeMutateAndPlatformAdmin()
+    public async Task MeCapabilities_AdminFace_GlobalAdmin_ExcludesPlatformOperatorPermissions()
     {
-        var adminToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
+        var adminToken = await AclTestClients.GetGlobalAdminTokenAsync(_oauth);
         _adminFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
 
         var response = await _adminFace.GetAsync("/api/me/capabilities");
@@ -223,8 +223,9 @@ public class AclIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
         root!.GetProperty("isAdminFaceScope").GetBoolean().Should().BeTrue();
         root.GetProperty("globalRole").GetString().Should().Be(UserRole.GlobalRoleNames.Admin);
         var perms = root.GetProperty("permissions").EnumerateArray().Select(p => p.GetString()).ToList();
-        perms.Should().Contain(AclPermissionKeys.PlatformAdmin);
-        perms.Should().Contain(AclPermissionKeys.PlatformPagetypeMutate);
+        perms.Should().NotContain(AclPermissionKeys.PlatformAdmin);
+        perms.Should().NotContain(AclPermissionKeys.PlatformPagetypeMutate);
+        perms.Should().NotContain(AclPermissionKeys.PlatformSuper);
         perms.Should().Contain(AclPermissionKeys.TenantSession);
         perms.Should().NotContain(AclPermissionKeys.FaceRoleSelfService);
     }
@@ -255,7 +256,7 @@ public class AclIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
     [Fact]
     public async Task PostPageTypes_PlatformAdmin_OnPublicFace_IsForbidden()
     {
-        var adminToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
+        var adminToken = await AclTestClients.GetGlobalAdminTokenAsync(_oauth);
         _publicFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
         var response = await _publicFace.PostAsJsonAsync("/api/pagetypes", new { index = $"admin_on_public_{Guid.NewGuid():N}" });
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
@@ -347,15 +348,16 @@ public class AclIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
     [Fact]
     public async Task PutPageTypes_PlatformAdmin_OnPublicFace_IsForbidden()
     {
-        var adminToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
+        var globalAdminToken = await AclTestClients.GetGlobalAdminTokenAsync(_oauth);
+        var operatorToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
         using var adminOnAdmin = AclTestClients.CreateAdminFaceClient(_factory);
-        adminOnAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        adminOnAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", operatorToken);
         var createResponse = await adminOnAdmin.PostAsJsonAsync("/api/pagetypes", new { index = $"putdeny_{Guid.NewGuid():N}" });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
         var id = created.GetProperty("id").GetInt32();
 
-        _publicFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        _publicFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", globalAdminToken);
         var put = await _publicFace.PutAsJsonAsync($"/api/pagetypes/{id}", new { index = $"nope_{Guid.NewGuid():N}" });
         put.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
@@ -363,15 +365,16 @@ public class AclIntegrationTests : IClassFixture<CustomWebApplicationFactory<Pro
     [Fact]
     public async Task DeletePageTypes_PlatformAdmin_OnPublicFace_IsForbidden()
     {
-        var adminToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
+        var globalAdminToken = await AclTestClients.GetGlobalAdminTokenAsync(_oauth);
+        var operatorToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
         using var adminOnAdmin = AclTestClients.CreateAdminFaceClient(_factory);
-        adminOnAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        adminOnAdmin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", operatorToken);
         var createResponse = await adminOnAdmin.PostAsJsonAsync("/api/pagetypes", new { index = $"deldeny_{Guid.NewGuid():N}" });
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
         var id = created.GetProperty("id").GetInt32();
 
-        _publicFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        _publicFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", globalAdminToken);
         var del = await _publicFace.DeleteAsync($"/api/pagetypes/{id}");
         del.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }

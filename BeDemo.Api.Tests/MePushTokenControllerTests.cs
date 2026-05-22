@@ -21,7 +21,7 @@ public sealed class MePushTokenControllerTests : IClassFixture<CustomWebApplicat
     public async Task PushToken_RegisterThenDeleteByInstallation_ShouldReturn204()
     {
         var client = _factory.CreateFaceClient("public");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var installationId = $"itest-{Guid.NewGuid():N}";
@@ -44,7 +44,7 @@ public sealed class MePushTokenControllerTests : IClassFixture<CustomWebApplicat
     public async Task PushToken_DeleteAll_WhenInstallationIdOmitted_ShouldReturn204()
     {
         var client = _factory.CreateFaceClient("public");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         await client.PostAsJsonAsync(

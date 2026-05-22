@@ -26,7 +26,7 @@ public class OperatorUsersControllerTests : IClassFixture<CustomWebApplicationFa
     [Fact]
     public async Task GetDetail_Should403_ForPlatformAdmin_NotSuperAdmin()
     {
-        var adminToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
+        var adminToken = await AclTestClients.GetGlobalAdminTokenAsync(_oauth);
         var targetId = await GetIntegrationAdminUserIdAsync();
         var req = new HttpRequestMessage(HttpMethod.Get, $"/api/operator-users/users/{targetId}/detail");
         req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);

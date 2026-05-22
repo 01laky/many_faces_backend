@@ -45,7 +45,7 @@ public static class IntegrationTestFaceHelper
     public static async Task<(int Id, string Index)> CreateUniqueFaceAsync(CustomWebApplicationFactory<Program> factory)
     {
         using var admin = factory.CreateFaceClient("admin");
-        var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(admin);
+        var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(admin);
         admin.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         var index = $"itest_{Guid.NewGuid():N}";
         using var resp = await admin.PostAsJsonAsync("/api/faces", new
