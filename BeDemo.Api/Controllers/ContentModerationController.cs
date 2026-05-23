@@ -6,6 +6,7 @@ using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Moderation;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
+using BeDemo.Api.Models.DTOs.Moderation;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -99,7 +100,7 @@ public sealed class ContentModerationController : ControllerBase
                     FaceTitle = a.AlbumFaces.Select(af => af.Face.Title).FirstOrDefault() ?? string.Empty,
                 })
                 .ToListAsync();
-            items.AddRange(albumRows.Select(row => MapAlbum(row.Entity, row.FaceId, row.FaceTitle)));
+            items.AddRange(albumRows.Select(row => ContentModerationQueueMapper.MapAlbum(row.Entity, row.FaceId, row.FaceTitle)));
         }
 
         if (q.ContentType is null or ModeratedContentType.Blog)
@@ -125,7 +126,7 @@ public sealed class ContentModerationController : ControllerBase
                 .Where(b => !q.MinQueueAgeHours.HasValue ||
                     (b.SubmittedAtUtc != null && b.SubmittedAtUtc <= DateTime.UtcNow.AddHours(-q.MinQueueAgeHours.Value)))
                 .ToListAsync();
-            items.AddRange(blogs.Select(MapBlog));
+            items.AddRange(blogs.Select(ContentModerationQueueMapper.MapBlog));
         }
 
         if (q.ContentType is null or ModeratedContentType.Reel)
@@ -156,7 +157,7 @@ public sealed class ContentModerationController : ControllerBase
                     FaceTitle = r.ReelFaces.Select(rf => rf.Face.Title).FirstOrDefault() ?? string.Empty,
                 })
                 .ToListAsync();
-            items.AddRange(reelRows.Select(row => MapReel(row.Entity, row.FaceId, row.FaceTitle)));
+            items.AddRange(reelRows.Select(row => ContentModerationQueueMapper.MapReel(row.Entity, row.FaceId, row.FaceTitle)));
         }
 
         var sorted = ModerationQueueSorter.ApplySort(items, q.SortBy, q.SortDir).ToList();
@@ -169,100 +170,6 @@ public sealed class ContentModerationController : ControllerBase
         var pageItems = sorted.Skip((page - 1) * pageSize).Take(pageSize).ToList();
         return Ok(ListPaginationHelper.BuildEnvelope(pageItems, page, pageSize, totalCount, totalPages));
     }
-
-    /// <summary>Maps album entity to queue DTO with PI-8 plain-text preview fields (no raw HTML).</summary>
-    private static ModerationItemDto MapAlbum(Album album, int faceId, string faceTitle) =>
-        new(
-            ModeratedContentType.Album,
-            album.Id,
-            album.Title,
-            faceId,
-            faceTitle,
-            album.CreatorId,
-            CreatorDisplayName(album.Creator),
-            album.ApprovalStatus,
-            album.AiReviewStatus,
-            album.AiReviewDecision,
-            album.AiReviewConfidence,
-            album.AiReviewRiskLevel,
-            album.AiReviewFlagsJson,
-            album.AiReviewReason,
-            album.AiReviewUserMessage,
-            album.AiReviewModelVersion,
-            album.AiReviewTraceId,
-            album.SubmittedAtUtc,
-            album.HumanReviewedAtUtc,
-            album.HumanDecisionReason,
-            album.RemovedAtUtc,
-            album.RemovalReason,
-            album.CreatedAt,
-            ContentModerationPreviewText.ToPlainTextPreview(album.Description),
-            null);
-
-    private static ModerationItemDto MapBlog(Blog blog)
-    {
-        var firstImageUrl = blog.Images
-            .OrderBy(i => i.SortOrder)
-            .Select(i => i.ImageUrl)
-            .FirstOrDefault();
-        return new(
-            ModeratedContentType.Blog,
-            blog.Id,
-            blog.Title,
-            blog.FaceId,
-            blog.Face.Title,
-            blog.CreatorId,
-            CreatorDisplayName(blog.Creator),
-            blog.ApprovalStatus,
-            blog.AiReviewStatus,
-            blog.AiReviewDecision,
-            blog.AiReviewConfidence,
-            blog.AiReviewRiskLevel,
-            blog.AiReviewFlagsJson,
-            blog.AiReviewReason,
-            blog.AiReviewUserMessage,
-            blog.AiReviewModelVersion,
-            blog.AiReviewTraceId,
-            blog.SubmittedAtUtc,
-            blog.HumanReviewedAtUtc,
-            blog.HumanDecisionReason,
-            blog.RemovedAtUtc,
-            blog.RemovalReason,
-            blog.CreatedAt,
-            ContentModerationPreviewText.ToPlainTextPreview(blog.Content),
-            ContentModerationPreviewText.ToMediaUrlPreview(firstImageUrl));
-    }
-
-    private static ModerationItemDto MapReel(Reel reel, int faceId, string faceTitle) =>
-        new(
-            ModeratedContentType.Reel,
-            reel.Id,
-            reel.Title,
-            faceId,
-            faceTitle,
-            reel.CreatorId,
-            CreatorDisplayName(reel.Creator),
-            reel.ApprovalStatus,
-            reel.AiReviewStatus,
-            reel.AiReviewDecision,
-            reel.AiReviewConfidence,
-            reel.AiReviewRiskLevel,
-            reel.AiReviewFlagsJson,
-            reel.AiReviewReason,
-            reel.AiReviewUserMessage,
-            reel.AiReviewModelVersion,
-            reel.AiReviewTraceId,
-            reel.SubmittedAtUtc,
-            reel.HumanReviewedAtUtc,
-            reel.HumanDecisionReason,
-            reel.RemovedAtUtc,
-            reel.RemovalReason,
-            reel.CreatedAt,
-            ContentModerationPreviewText.ToPlainTextPreview(reel.Description),
-            ContentModerationPreviewText.ToMediaUrlPreview(reel.VideoUrl));
-
-    private static string CreatorDisplayName(ApplicationUser creator) =>
-        $"{creator.FirstName ?? ""} {creator.LastName ?? ""}".Trim();
 
     /// <summary>Immutable audit trail for a single moderated entity (newest first).</summary>
     [HttpGet("{contentType}/{contentId:int}/events")]
@@ -833,35 +740,6 @@ internal sealed record ModerationActionResult(
     public static ModerationActionResult Fail(int statusCode, string message) =>
         new(false, statusCode, message, null, null);
 }
-
-/// <param name="BodyPreviewPlainText">SHV2 PI-8: stripped HTML / plain description for operator preview (never raw HTML).</param>
-/// <param name="MediaUrlPreview">Optional reel media URL preview (plain string).</param>
-public sealed record ModerationItemDto(
-    ModeratedContentType ContentType,
-    int ContentId,
-    string Title,
-    int FaceId,
-    string FaceTitle,
-    string CreatorId,
-    string CreatorName,
-    ContentApprovalStatus ApprovalStatus,
-    AiReviewStatus AiReviewStatus,
-    AiReviewDecision AiReviewDecision,
-    double? AiReviewConfidence,
-    AiReviewRiskLevel AiReviewRiskLevel,
-    string? AiReviewFlagsJson,
-    string? AiReviewReason,
-    string? AiReviewUserMessage,
-    string? AiReviewModelVersion,
-    string? AiReviewTraceId,
-    DateTime? SubmittedAtUtc,
-    DateTime? HumanReviewedAtUtc,
-    string? HumanDecisionReason,
-    DateTime? RemovedAtUtc,
-    string? RemovalReason,
-    DateTime CreatedAt,
-    string BodyPreviewPlainText,
-    string? MediaUrlPreview);
 
 public sealed record ModerationMetricsWithAlerts(
     ContentModerationMetricsSnapshot Metrics,

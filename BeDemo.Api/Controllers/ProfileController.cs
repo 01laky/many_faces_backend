@@ -237,22 +237,11 @@ public class ProfileController : ControllerBase
             }
         }
 
-        var ufp = await _context.UserFaceProfiles
-            .FirstOrDefaultAsync(x => x.UserProfileId == profile.Id && x.FaceId == faceId);
-
-        if (ufp == null)
-        {
-            ufp = new UserFaceProfile
-            {
-                UserProfileId = profile.Id,
-                FaceId = faceId,
-                IsActive = false,
-                Visited = false,
-                FaceRoleIntroCompleted = false,
-                CreatedAt = DateTime.UtcNow,
-            };
-            _context.UserFaceProfiles.Add(ufp);
-        }
+        var ufp = await UserFaceProfileEnsure.GetOrCreateAsync(
+            _context,
+            profile.Id,
+            faceId,
+            UserFaceProfileEnsure.Options.Passive);
 
         if (!ProfileGridSettingsJson.TryMergePatch(ufp.Settings, patch, out var merged, out var mergeError))
             return BadRequest(new { error = mergeError });
@@ -361,24 +350,13 @@ public class ProfileController : ControllerBase
         if (error != null)
             return BadRequest(new { error });
 
-        var faceProfile = await _context.UserFaceProfiles
-            .FirstOrDefaultAsync(ufp => ufp.UserProfileId == profile.Id && ufp.FaceId == faceId);
-
-        if (faceProfile == null)
-        {
-            faceProfile = new UserFaceProfile
-            {
-                UserProfileId = profile.Id,
-                FaceId = faceId,
-                AvatarUrl = path,
-            };
-            _context.UserFaceProfiles.Add(faceProfile);
-        }
-        else
-        {
-            faceProfile.AvatarUrl = path;
-            faceProfile.UpdatedAt = DateTime.UtcNow;
-        }
+        var faceProfile = await UserFaceProfileEnsure.GetOrCreateAsync(
+            _context,
+            profile.Id,
+            faceId,
+            UserFaceProfileEnsure.Options.Passive);
+        faceProfile.AvatarUrl = path;
+        faceProfile.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
 

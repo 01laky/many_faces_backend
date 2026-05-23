@@ -1,4 +1,4 @@
-using BeDemo.Api.Controllers;
+using BeDemo.Api.Models.DTOs.Moderation;
 using BeDemo.Api.Validation.Rules;
 
 namespace BeDemo.Api.Utils;

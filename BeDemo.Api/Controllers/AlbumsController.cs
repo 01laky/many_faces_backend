@@ -391,8 +391,11 @@ public class AlbumsController : ControllerBase
         if (album.CreatorId != UserId)
             return Forbid();
 
-        if (!ContentModerationHelpers.IsCreatorEditable(album.ApprovalStatus))
-            return Conflict(new { error = "Only pending or rejected albums can be edited by the creator" });
+        var editConflict = ContentCreatorMutationGuard.TryConflictIfNotEditable(
+            album.ApprovalStatus,
+            ContentCreatorMutationGuard.AlbumsContentKind);
+        if (editConflict != null)
+            return editConflict;
 
         var scopeFace = _faceScope.ResolveDataFaceId(null);
         if (!album.AlbumFaces.Any(af => af.FaceId == scopeFace))
@@ -482,8 +485,11 @@ public class AlbumsController : ControllerBase
         if (album.CreatorId != UserId)
             return Forbid();
 
-        if (!ContentModerationHelpers.IsCreatorDeletable(album.ApprovalStatus))
-            return Conflict(new { error = "Only pending or rejected albums can be deleted by the creator" });
+        var deleteConflict = ContentCreatorMutationGuard.TryConflictIfNotDeletable(
+            album.ApprovalStatus,
+            ContentCreatorMutationGuard.AlbumsContentKind);
+        if (deleteConflict != null)
+            return deleteConflict;
 
         var scopeFace = _faceScope.ResolveDataFaceId(null);
         if (!album.AlbumFaces.Any(af => af.FaceId == scopeFace))

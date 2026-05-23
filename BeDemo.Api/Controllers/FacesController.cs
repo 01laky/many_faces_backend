@@ -55,7 +55,7 @@ public class FacesController : ControllerBase
 
     /// <summary>Tenant users may only target their URL-scoped face; returns NotFound to avoid leaking ids.</summary>
     private IActionResult? GateTenantFaceOrNotFound(int targetFaceId) =>
-        TenantFaceAccessGate.TryBlockTenantCrossFace(_faceScope, CanManageAllFaces(), targetFaceId);
+        _faceScope.GateTenantFaceOrNotFound(_access, User, targetFaceId);
 
     /// <summary>
     /// GET /api/faces
@@ -441,26 +441,13 @@ public class FacesController : ControllerBase
             var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == userId);
             if (userProfile != null)
             {
-                var ufp = await _context.UserFaceProfiles
-                    .FirstOrDefaultAsync(x => x.UserProfileId == userProfile.Id && x.FaceId == id);
-                if (ufp != null)
-                {
-                    ufp.FaceRoleIntroCompleted = true;
-                    ufp.IsActive = FaceRoleParticipation.IsActiveForFaceRoleName(role.Name);
-                    ufp.UpdatedAt = DateTime.UtcNow;
-                }
-                else
-                {
-                    _context.UserFaceProfiles.Add(new UserFaceProfile
-                    {
-                        UserProfileId = userProfile.Id,
-                        FaceId = id,
-                        IsActive = FaceRoleParticipation.IsActiveForFaceRoleName(role.Name),
-                        Visited = false,
-                        FaceRoleIntroCompleted = true,
-                        CreatedAt = DateTime.UtcNow,
-                    });
-                }
+                await UserFaceProfileEnsure.GetOrCreateAsync(
+                    _context,
+                    userProfile.Id,
+                    id,
+                    UserFaceProfileEnsure.Options.ForFaceRole(
+                        FaceRoleParticipation.IsActiveForFaceRoleName(role.Name),
+                        faceRoleIntroCompleted: true));
             }
 
             await _context.SaveChangesAsync();
@@ -497,26 +484,11 @@ public class FacesController : ControllerBase
         if (userProfile == null)
             return BadRequest(new { error = "User profile not found" });
 
-        var ufp = await _context.UserFaceProfiles
-            .FirstOrDefaultAsync(x => x.UserProfileId == userProfile.Id && x.FaceId == id);
-        if (ufp == null)
-        {
-            ufp = new UserFaceProfile
-            {
-                UserProfileId = userProfile.Id,
-                FaceId = id,
-                IsActive = false,
-                Visited = true,
-                FaceRoleIntroCompleted = false,
-                CreatedAt = DateTime.UtcNow,
-            };
-            _context.UserFaceProfiles.Add(ufp);
-        }
-        else
-        {
-            ufp.Visited = true;
-            ufp.UpdatedAt = DateTime.UtcNow;
-        }
+        await UserFaceProfileEnsure.GetOrCreateAsync(
+            _context,
+            userProfile.Id,
+            id,
+            UserFaceProfileEnsure.Options.ForVisit);
 
         await _context.SaveChangesAsync();
         return Ok(new { visited = true });

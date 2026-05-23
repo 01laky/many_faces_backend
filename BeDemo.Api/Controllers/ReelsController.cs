@@ -352,8 +352,11 @@ public class ReelsController : ControllerBase
         if (reel.CreatorId != UserId)
             return Forbid();
 
-        if (!ContentModerationHelpers.IsCreatorEditable(reel.ApprovalStatus))
-            return Conflict(new { error = "Only pending or rejected reels can be edited by the creator" });
+        var editConflict = ContentCreatorMutationGuard.TryConflictIfNotEditable(
+            reel.ApprovalStatus,
+            ContentCreatorMutationGuard.ReelsContentKind);
+        if (editConflict != null)
+            return editConflict;
 
         if (dto.Title != null)
             reel.Title = dto.Title.Trim();
@@ -420,8 +423,11 @@ public class ReelsController : ControllerBase
         if (reel.CreatorId != UserId)
             return Forbid();
 
-        if (!ContentModerationHelpers.IsCreatorDeletable(reel.ApprovalStatus))
-            return Conflict(new { error = "Only pending or rejected reels can be deleted by the creator" });
+        var deleteConflict = ContentCreatorMutationGuard.TryConflictIfNotDeletable(
+            reel.ApprovalStatus,
+            ContentCreatorMutationGuard.ReelsContentKind);
+        if (deleteConflict != null)
+            return deleteConflict;
 
         _context.Reels.Remove(reel);
         await _context.SaveChangesAsync();

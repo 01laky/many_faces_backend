@@ -308,8 +308,11 @@ public class BlogsController : ControllerBase
         if (blog.CreatorId != UserId)
             return Forbid();
 
-        if (!ContentModerationHelpers.IsCreatorEditable(blog.ApprovalStatus))
-            return Conflict(new { error = "Only pending or rejected blogs can be edited by the creator" });
+        var editConflict = ContentCreatorMutationGuard.TryConflictIfNotEditable(
+            blog.ApprovalStatus,
+            ContentCreatorMutationGuard.BlogsContentKind);
+        if (editConflict != null)
+            return editConflict;
 
         if (dto.Title != null)
             blog.Title = dto.Title.Trim();
@@ -390,8 +393,11 @@ public class BlogsController : ControllerBase
         if (blog.CreatorId != UserId)
             return Forbid();
 
-        if (!ContentModerationHelpers.IsCreatorDeletable(blog.ApprovalStatus))
-            return Conflict(new { error = "Only pending or rejected blogs can be deleted by the creator" });
+        var deleteConflict = ContentCreatorMutationGuard.TryConflictIfNotDeletable(
+            blog.ApprovalStatus,
+            ContentCreatorMutationGuard.BlogsContentKind);
+        if (deleteConflict != null)
+            return deleteConflict;
 
         _context.Blogs.Remove(blog);
         await _context.SaveChangesAsync();
