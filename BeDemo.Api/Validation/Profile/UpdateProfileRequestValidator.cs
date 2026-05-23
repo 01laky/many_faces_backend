@@ -1,4 +1,5 @@
 using BeDemo.Api.Configuration;
+using BeDemo.Api.Utils;
 using BeDemo.Api.Validation.Rules;
 using FluentValidation;
 
@@ -12,7 +13,18 @@ public sealed class UpdateProfileRequestValidator : AbstractValidator<BeDemo.Api
         RuleFor(x => x).Must(m =>
                 !string.IsNullOrWhiteSpace(m.FirstName) ||
                 !string.IsNullOrWhiteSpace(m.LastName) ||
-                m.EnableAnimatedGradient.HasValue)
+                m.EnableAnimatedGradient.HasValue ||
+                m.PreferredUiLanguage != null ||
+                m.LastSelectedFaceId.HasValue ||
+                m.ClearPreferredUiLanguage ||
+                m.ClearLastSelectedFaceId)
             .WithMessage("At least one field is required.");
+
+        RuleFor(x => x.PreferredUiLanguage)
+            .Must(lang => lang == null || PortalSupportedUiLanguages.IsAllowed(lang) || lang.Trim().Length == 0)
+            .When(x => x.PreferredUiLanguage != null)
+            .WithMessage("Unsupported UI language.");
+
+        RuleFor(x => x.LastSelectedFaceId).OptionalPositiveFaceId();
     }
 }

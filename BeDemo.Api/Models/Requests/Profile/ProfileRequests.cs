@@ -9,5 +9,19 @@ public class UpdateProfileRequest
 
     [JsonPropertyName("enableAnimatedGradient")]
     public bool? EnableAnimatedGradient { get; set; }
+
+    [JsonPropertyName("preferredUiLanguage")]
+    public string? PreferredUiLanguage { get; set; }
+
+    [JsonPropertyName("lastSelectedFaceId")]
+    public int? LastSelectedFaceId { get; set; }
+
+    /// <summary>When true, clears <see cref="PreferredUiLanguage"/>.</summary>
+    [JsonPropertyName("clearPreferredUiLanguage")]
+    public bool ClearPreferredUiLanguage { get; set; }
+
+    /// <summary>When true, clears <see cref="LastSelectedFaceId"/>.</summary>
+    [JsonPropertyName("clearLastSelectedFaceId")]
+    public bool ClearLastSelectedFaceId { get; set; }
 }
 

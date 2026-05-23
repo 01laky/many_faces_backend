@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -84,6 +85,8 @@ public class ProfileController : ControllerBase
             lastName = user.LastName,
             email = user.Email,
             enableAnimatedGradient = profile.EnableAnimatedGradient,
+            preferredUiLanguage = profile.PreferredUiLanguage,
+            lastSelectedFaceId = profile.LastSelectedFaceId,
             globalAvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(profile.AvatarUrl, Request.Scheme, Request.Host.Value!),
             faceAvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(faceAvatarUrl, Request.Scheme, Request.Host.Value!),
         });
@@ -118,21 +121,184 @@ public class ProfileController : ControllerBase
         if (nameChanged)
             await _userManager.UpdateAsync(user);
 
+        var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (profile == null)
+        {
+            profile = new UserProfile { UserId = userId };
+            _context.UserProfiles.Add(profile);
+        }
+
+        var profileDirty = false;
+
         if (model.EnableAnimatedGradient.HasValue)
         {
-            var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
-            if (profile == null)
-            {
-                profile = new UserProfile { UserId = userId };
-                _context.UserProfiles.Add(profile);
-            }
-
             profile.EnableAnimatedGradient = model.EnableAnimatedGradient.Value;
+            profileDirty = true;
+        }
+
+        if (model.ClearPreferredUiLanguage)
+        {
+            profile.PreferredUiLanguage = null;
+            profileDirty = true;
+        }
+        else if (model.PreferredUiLanguage != null)
+        {
+            var lang = model.PreferredUiLanguage.Trim();
+            if (lang.Length == 0)
+            {
+                profile.PreferredUiLanguage = null;
+                profileDirty = true;
+            }
+            else if (!PortalSupportedUiLanguages.IsAllowed(lang))
+            {
+                return BadRequest(new { error = "Unsupported UI language" });
+            }
+            else
+            {
+                profile.PreferredUiLanguage = lang.ToLowerInvariant();
+                profileDirty = true;
+            }
+        }
+
+        if (model.ClearLastSelectedFaceId)
+        {
+            profile.LastSelectedFaceId = null;
+            profileDirty = true;
+        }
+        else if (model.LastSelectedFaceId.HasValue)
+        {
+            var faceAccess = await ValidateUserCanAccessFaceAsync(userId, profile.Id, model.LastSelectedFaceId.Value);
+            if (faceAccess != null)
+                return faceAccess;
+            profile.LastSelectedFaceId = model.LastSelectedFaceId.Value;
+            profileDirty = true;
+        }
+
+        if (profileDirty)
+        {
             profile.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
         }
 
         return Ok(new { message = "Profile updated" });
+    }
+
+    /// <summary>
+    /// GET /api/profile/me/faces/{faceId}/settings — grid component UI prefs for the current user on a face.
+    /// </summary>
+    [HttpGet("me/faces/{faceId:int}/settings")]
+    public async Task<IActionResult> GetMyFaceGridSettings(int faceId)
+    {
+        var userId = _userManager.GetUserId(User);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        var profile = await EnsureUserProfileAsync(userId);
+        var gate = await ValidateUserCanAccessFaceAsync(userId, profile.Id, faceId);
+        if (gate != null)
+            return gate;
+
+        var ufp = await _context.UserFaceProfiles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.UserProfileId == profile.Id && x.FaceId == faceId);
+
+        if (!ProfileGridSettingsJson.TryParseResponse(ufp?.Settings, out var gridComponents, out var parseError))
+            return BadRequest(new { error = parseError });
+
+        return Ok(new { gridComponents });
+    }
+
+    /// <summary>
+    /// PUT /api/profile/me/faces/{faceId}/settings — merge grid component UI prefs (e.g. carousel autoplay).
+    /// </summary>
+    [HttpPut("me/faces/{faceId:int}/settings")]
+    public async Task<IActionResult> UpdateMyFaceGridSettings(int faceId, [FromBody] UpdateFaceGridSettingsRequest model)
+    {
+        var userId = _userManager.GetUserId(User);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        var profile = await EnsureUserProfileAsync(userId);
+        var gate = await ValidateUserCanAccessFaceAsync(userId, profile.Id, faceId);
+        if (gate != null)
+            return gate;
+
+        var patch = new JsonObject();
+        if (model.GridComponents != null)
+        {
+            foreach (var (componentId, entry) in model.GridComponents)
+            {
+                if (string.IsNullOrWhiteSpace(componentId))
+                    continue;
+                var node = new JsonObject();
+                if (entry.Autoplay.HasValue)
+                    node["autoplay"] = entry.Autoplay.Value;
+                patch[componentId] = node;
+            }
+        }
+
+        var ufp = await _context.UserFaceProfiles
+            .FirstOrDefaultAsync(x => x.UserProfileId == profile.Id && x.FaceId == faceId);
+
+        if (ufp == null)
+        {
+            ufp = new UserFaceProfile
+            {
+                UserProfileId = profile.Id,
+                FaceId = faceId,
+                IsActive = false,
+                Visited = false,
+                FaceRoleIntroCompleted = false,
+                CreatedAt = DateTime.UtcNow,
+            };
+            _context.UserFaceProfiles.Add(ufp);
+        }
+
+        if (!ProfileGridSettingsJson.TryMergePatch(ufp.Settings, patch, out var merged, out var mergeError))
+            return BadRequest(new { error = mergeError });
+
+        ufp.Settings = merged;
+        ufp.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        if (!ProfileGridSettingsJson.TryParseResponse(merged, out var gridComponents, out _))
+            gridComponents = new JsonObject();
+
+        return Ok(new { gridComponents });
+    }
+
+    private async Task<UserProfile> EnsureUserProfileAsync(string userId)
+    {
+        var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+        if (profile != null)
+            return profile;
+
+        profile = new UserProfile { UserId = userId };
+        _context.UserProfiles.Add(profile);
+        await _context.SaveChangesAsync();
+        return profile;
+    }
+
+    /// <summary>User may persist prefs for public faces or faces they participate in.</summary>
+    private async Task<IActionResult?> ValidateUserCanAccessFaceAsync(string userId, int userProfileId, int faceId)
+    {
+        var face = await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Id == faceId);
+        if (face == null)
+            return NotFound(new { error = "Face not found" });
+
+        if (face.IsPublic)
+            return null;
+
+        var hasRole = await _context.UserFaceRoles.AnyAsync(ufr => ufr.UserId == userId && ufr.FaceId == faceId);
+        if (hasRole)
+            return null;
+
+        var hasProfile = await _context.UserFaceProfiles.AnyAsync(ufp =>
+            ufp.UserProfileId == userProfileId && ufp.FaceId == faceId);
+        if (hasProfile)
+            return null;
+
+        return StatusCode(StatusCodes.Status403Forbidden, new { error = "Face not accessible" });
     }
 
     /// <summary>

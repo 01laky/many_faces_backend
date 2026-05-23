@@ -890,6 +890,15 @@ public class FacesController : ControllerBase
             if (FaceScopeConstants.IsAdminFaceIndex(face.Index))
                 return BadRequest(new { error = "The admin scope face cannot be deleted" });
 
+            var profilesWithFace = await _context.UserProfiles
+                .Where(p => p.LastSelectedFaceId == id)
+                .ToListAsync();
+            foreach (var p in profilesWithFace)
+            {
+                p.LastSelectedFaceId = null;
+                p.UpdatedAt = DateTime.UtcNow;
+            }
+
             _context.Faces.Remove(face);
             await _context.SaveChangesAsync();
             InvalidateFacesRoutingCache();

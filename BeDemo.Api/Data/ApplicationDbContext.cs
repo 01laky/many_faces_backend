@@ -185,7 +185,13 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.Nickname).HasMaxLength(100);
             entity.Property(e => e.Rod).HasMaxLength(10); // "M", "F", "O", etc.
             entity.Property(e => e.EnableAnimatedGradient).HasDefaultValue(false);
+            entity.Property(e => e.PreferredUiLanguage).HasMaxLength(8);
             entity.Property(e => e.CreatedAt).IsRequired();
+
+            entity.HasOne(e => e.LastSelectedFace)
+                  .WithMany()
+                  .HasForeignKey(e => e.LastSelectedFaceId)
+                  .OnDelete(DeleteBehavior.SetNull);
 
             // One-to-one relationship: ApplicationUser -> UserProfile
             entity.HasOne(e => e.User)

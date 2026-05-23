@@ -54,6 +54,21 @@ public class UserProfile
     public bool EnableAnimatedGradient { get; set; }
 
     /// <summary>
+    /// Portal UI language code (e.g. en, sk). Synced across devices for authenticated users.
+    /// </summary>
+    public string? PreferredUiLanguage { get; set; }
+
+    /// <summary>
+    /// Last face the user selected in the portal; nullable when never set or face was removed.
+    /// </summary>
+    public int? LastSelectedFaceId { get; set; }
+
+    /// <summary>
+    /// Navigation to last selected face (optional FK).
+    /// </summary>
+    public Face? LastSelectedFace { get; set; }
+
+    /// <summary>
     /// Timestamp when the profile was created
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
