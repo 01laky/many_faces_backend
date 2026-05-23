@@ -1,14 +1,39 @@
-# Many Faces API — detailed reference (index)
+# Backend — detailed README (`many_faces_backend`)
 
-Long-form backend documentation is split into **four parts** under [`docs/reference/`](./reference/) so you can open smaller files and link directly to a section from PRs.
+Short runbook lives in **[`../README.md`](../README.md)**. This file is the **long index** for engineers working inside the submodule.
 
-| Part | File                                                                                                                   | Contents                                                                                                     |
-| ---- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 1    | [`reference/01-features-running-and-api.md`](./reference/01-features-running-and-api.md)                               | Features, stack, project layout, **Running**, **API Endpoints** (Swagger remains canonical for live routes). |
-| 2    | [`reference/02-routing-config-and-workflow.md`](./reference/02-routing-config-and-workflow.md)                         | Face routing, **Configuration**, migrations, development workflow.                                           |
-| 3    | [`reference/03-testing-integration-and-troubleshooting.md`](./reference/03-testing-integration-and-troubleshooting.md) | **Testing**, monorepo integration, **Troubleshooting**.                                                      |
-| 4    | [`reference/04-database-schema-diagram.md`](./reference/04-database-schema-diagram.md)                                 | Auto-generated **ER diagram** (do not hand-edit the Mermaid block).                                          |
+## What the API owns
 
-**Start here for narrative architecture:** [`../README.md`](../README.md) (security, OAuth diagrams, moderation, operator stats).
+- OAuth2 password + refresh grants, JWT, JWKS, face-scoped routing middleware.
+- EF Core + PostgreSQL for faces, pages, social modules, moderation, stats, operator AI.
+- SignalR hubs; Redis job workers; gRPC clients to **`many_faces_ai`**, optional mail/push/search workers.
+- Platform operator routes under **`/admin/api/...`** — **`SUPER_ADMIN` only** ([`admin-superadmin-only-access.md`](../../docs/guides/admin-superadmin-only-access.md)).
 
-**Other quick links:** [`../STORIES_API.md`](../STORIES_API.md) · [`./README.md`](./README.md) (this folder) · monorepo [`../../docs/README.md`](../../docs/README.md).
+## Reference split
+
+| File | Contents |
+| ---- | -------- |
+| [`reference/01-features-running-and-api.md`](./reference/01-features-running-and-api.md) | Features, HTTP surface pointers, validation, localization |
+| [`reference/02-routing-config-and-workflow.md`](./reference/02-routing-config-and-workflow.md) | Face prefixes, middleware, config keys |
+| [`reference/03-testing-integration-and-troubleshooting.md`](./reference/03-testing-integration-and-troubleshooting.md) | `dotnet test`, integration filters, common failures |
+
+**Route tables:** prefer **Swagger** + integration tests over duplicating every path here.
+
+## Diagram: request path
+
+```mermaid
+flowchart LR
+  Client[Portal / Admin / Mobile]
+  MW[RoutingMiddleware face prefix]
+  Auth[JWT + ACL]
+  Ctrl[Controllers]
+  DB[(PostgreSQL)]
+  Client --> MW --> Auth --> Ctrl --> DB
+```
+
+## Submodule vs monorepo
+
+| Keep in submodule | Keep in monorepo `docs/` |
+| ----------------- | ------------------------ |
+| Ports, `dotnet run`, proto regen, project layout | Cross-app policies, worker onboarding, agent prompts |
+| This `docs/reference/` index | Canonical guides linked from [`docs/README.md`](../../docs/README.md) |

@@ -1,13 +1,35 @@
-# Backend submodule — docs index
+# Backend documentation index (`many_faces_backend/docs/`)
 
-| File                                                                                                                   | Purpose                                                                                      |
-| ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| [`../README.md`](../README.md)                                                                                         | Main entry: overview, security, routing diagrams, moderation summary, operator stats, links. |
-| [`./DETAILED_README.md`](./DETAILED_README.md)                                                                         | **Index** to the split detailed reference under [`reference/`](./reference/).                |
-| [`reference/01-features-running-and-api.md`](./reference/01-features-running-and-api.md)                               | Features, running the API, endpoint tables (keep in sync with Swagger).                      |
-| [`reference/02-routing-config-and-workflow.md`](./reference/02-routing-config-and-workflow.md)                         | Face routing, configuration, migrations, workflow.                                           |
-| [`reference/03-testing-integration-and-troubleshooting.md`](./reference/03-testing-integration-and-troubleshooting.md) | Tests, monorepo integration, troubleshooting.                                                |
-| [`reference/04-database-schema-diagram.md`](./reference/04-database-schema-diagram.md)                                 | ER diagram (generated).                                                                      |
-| [`../STORIES_API.md`](../STORIES_API.md)                                                                               | Stories HTTP surface (tables + curl guide pointers).                                         |
+**Entry points**
 
-Monorepo guides live under **`many_faces_main/docs/guides/`** (authentication, [`api-request-validation.md`](../../docs/guides/api-request-validation.md), dev-https, Docker, OpenAPI regeneration).
+| Document | Purpose |
+| -------- | ------- |
+| [`DETAILED_README.md`](./DETAILED_README.md) | Long-form backend narrative + links |
+| [`reference/README.md`](./reference/README.md) | API surface index (Swagger is authoritative for routes) |
+
+**Monorepo guides (cross-cutting truth)**
+
+| Topic | Guide |
+| ----- | ----- |
+| Onboarding / CI | [`docs/guides/development.md`](../../docs/guides/development.md) |
+| Auth & sessions | [`docs/guides/authentication-and-sessions.md`](../../docs/guides/authentication-and-sessions.md) |
+| Platform operator ACL | [`docs/guides/admin-superadmin-only-access.md`](../../docs/guides/admin-superadmin-only-access.md) |
+| Capabilities | [`docs/guides/acl-and-capabilities.md`](../../docs/guides/acl-and-capabilities.md) |
+| Request validation | [`docs/guides/api-request-validation.md`](../../docs/guides/api-request-validation.md) |
+| Migrations / seeds | [`docs/guides/efcore-migrations-and-seeding.md`](../../docs/guides/efcore-migrations-and-seeding.md) |
+| Backend overview | [`docs/readmes/be-backend-overview.md`](../../docs/readmes/be-backend-overview.md) |
+
+**Live API reference:** Swagger at `http://localhost:8000/swagger` when `be-demo-dev` is running.
+
+```mermaid
+flowchart TB
+  README[docs/README.md]
+  DET[DETAILED_README.md]
+  REF[reference/]
+  MONO[monorepo docs/guides]
+  SW[Swagger OpenAPI]
+  README --> DET
+  README --> REF
+  README --> MONO
+  REF --> SW
+```
