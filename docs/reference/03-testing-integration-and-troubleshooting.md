@@ -38,3 +38,13 @@ See [`local-dev-accounts.md`](../../../docs/guides/local-dev-accounts.md).
 ## CI
 
 Backend repo runs `dotnet format` + `dotnet test` on push. Monorepo `./scripts/lint-all.sh` includes backend format check.
+
+From monorepo root (matches GitHub **many_faces_backend** job):
+
+```bash
+node scripts/verify-backend-security-tests.mjs      # BSH3 Category=BackendSecurity
+node scripts/verify-moderation-security-tests.mjs   # PI-10 Category=ModerationSecurity
+node scripts/verify-vulnerable-packages.mjs         # BSH3-S8 NuGet advisories (gates CI)
+```
+
+See [`docs/prompts/security-hardening-backend-v3-agent-prompt.md`](../../../docs/prompts/security-hardening-backend-v3-agent-prompt.md).
