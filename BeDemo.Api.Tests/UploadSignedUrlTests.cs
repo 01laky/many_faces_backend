@@ -11,6 +11,8 @@ using Xunit;
 namespace BeDemo.Api.Tests;
 
 /// <summary>SHV2 BE-U3 — HMAC-signed upload serve URLs and blocked anonymous /uploads/* static files.</summary>
+/// <summary>SHV2 BE-U3 — HMAC signed upload serve URLs.</summary>
+[Trait("Category", "BackendSecurity")]
 public sealed class UploadSignedUrlTests : IClassFixture<CustomWebApplicationFactory<Program>>, IDisposable
 {
     private readonly CustomWebApplicationFactory<Program> _factory;

@@ -84,14 +84,16 @@ public sealed class OAuth2Service : IOAuth2Service
                 {
                     // BE-L1: never log raw username/email on failed password grant (credential stuffing forensics use hash only).
                     _logger.LogWarning(
-                        "Invalid username/email or password ({CredentialHint})",
+                        "authFailureReason=invalid_grant {CredentialHint}",
                         PiiLogRedaction.FormatCredentialIdentifierForLog(request.Username));
                     return null;
                 }
 
                 if (await userManager.IsLockedOutAsync(userByCreds).ConfigureAwait(false))
                 {
-                    _logger.LogWarning("Password grant rejected: user account is locked out ({UserId})", userByCreds.Id);
+                    _logger.LogWarning(
+                        "authFailureReason=account_locked_out userId={UserId}",
+                        userByCreds.Id);
                     return null;
                 }
 

@@ -30,6 +30,8 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         builder.UseSetting("Push:Enabled", "true");
         builder.UseSetting("Push:WorkerGrpcUrl", "http://localhost:59997");
         builder.UseSetting("Uploads:SigningSecret", "test-upload-signing-secret-fixed-32b!!");
+        builder.UseSetting("OAuth2:ClientSecret", "be-demo-secret-very-strong-key");
+        builder.UseSetting("RegistrationInvite:HmacPepper", "test-registration-invite-pepper-fixed!!");
 
         builder.ConfigureServices(services =>
         {

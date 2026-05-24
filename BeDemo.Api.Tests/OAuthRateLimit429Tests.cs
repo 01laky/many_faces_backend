@@ -10,6 +10,7 @@ namespace BeDemo.Api.Tests;
 /// ACL A21: both <c>register/request</c> and <c>token</c> policies return <strong>429</strong> with <strong>Retry-After</strong> after permit burst.
 /// One test method + short fixed windows (see <see cref="RateLimitedOAuthWebApplicationFactory"/>) avoids cross-test partition races.
 /// </summary>
+[Trait("Category", "BackendSecurity")]
 public sealed class OAuthRateLimit429Tests : IClassFixture<RateLimitedOAuthWebApplicationFactory>, IDisposable
 {
     private readonly RateLimitedOAuthWebApplicationFactory _factory;

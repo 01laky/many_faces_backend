@@ -5,6 +5,7 @@ using Xunit;
 namespace BeDemo.Api.Tests;
 
 /// <summary>Unit tests for SHV2 BE-L1–L3 structured log redaction helpers.</summary>
+[Trait("Category", "BackendSecurity")]
 public class PiiLogRedactionTests
 {
     [Fact]

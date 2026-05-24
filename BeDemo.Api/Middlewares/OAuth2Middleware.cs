@@ -14,6 +14,7 @@ using System.Text;
 using System.Text.Json;
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Services;
+using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Middlewares;
 
@@ -82,7 +83,9 @@ public class OAuth2Middleware
                     // If client credentials are not valid, returns 401 Unauthorized
                     if (!isValidClient)
                     {
-                        _logger.LogWarning("Invalid client credentials for client: {ClientId}", request.ClientId);
+                        _logger.LogWarning(
+                            "authFailureReason=invalid_client clientIdHint={ClientIdHint}",
+                            string.IsNullOrWhiteSpace(request.ClientId) ? "missing" : request.ClientId);
                         context.Response.StatusCode = 401;
                         await context.Response.WriteAsync(JsonSerializer.Serialize(new OAuth2ErrorResponse
                         {

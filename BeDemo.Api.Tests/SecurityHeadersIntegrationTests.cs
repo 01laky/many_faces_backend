@@ -7,6 +7,7 @@ namespace BeDemo.Api.Tests;
 /// <summary>
 /// Asserts baseline security headers (H1) on an anonymous JSON endpoint used by JWKS discovery.
 /// </summary>
+[Trait("Category", "BackendSecurity")]
 public sealed class SecurityHeadersIntegrationTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;

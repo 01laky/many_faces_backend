@@ -20,6 +20,8 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Hosting;
@@ -27,6 +29,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using BeDemo.Api.Data;
@@ -35,6 +38,7 @@ using BeDemo.Api.Security;
 using BeDemo.Api.Middlewares;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
+using BeDemo.Api.Configuration;
 using BeDemo.Api.Hubs;
 using BeDemo.Api.Scripts;
 using BeDemo.Api.Swagger;
@@ -46,7 +50,12 @@ using StackExchange.Redis;
 if (args.Length > 0 && args[0] == "generate-diagram")
 {
     // Quick test to generate diagram
-    var diagramConnStr = "Host=localhost;Port=54320;Database=bedemo;Username=bedemo_user;Password=bedemo_password";
+    var diagramConnStr = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+    if (string.IsNullOrWhiteSpace(diagramConnStr))
+    {
+        Console.Error.WriteLine("Set ConnectionStrings__DefaultConnection before running generate-diagram.");
+        return;
+    }
     var diagramOptions = new DbContextOptionsBuilder<ApplicationDbContext>()
         .UseNpgsql(diagramConnStr)
         .Options;
@@ -59,13 +68,37 @@ if (args.Length > 0 && args[0] == "generate-diagram")
 // Creates WebApplicationBuilder, which is used to configure the application
 var builder = WebApplication.CreateBuilder(args);
 
-// gRPC to many_faces_elastic search-worker, many_faces_push, and many_faces_mailer may use cleartext HTTP/2 (h2c) when WorkerGrpcUrl is http://; .NET requires this switch before opening those channels.
+var isHardenedEnv = builder.Environment.IsEnvironment("Hardened");
+var isProductionEnv = builder.Environment.IsProduction();
+var useTransportHardening = isProductionEnv || isHardenedEnv;
+
+if (useTransportHardening)
+{
+    builder.Services.AddHsts(options =>
+    {
+        options.Preload = true;
+        options.IncludeSubDomains = true;
+        options.MaxAge = TimeSpan.FromDays(365);
+    });
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
+
+// gRPC to many_faces_elastic search-worker, many_faces_push, mailer, and AI may use cleartext HTTP/2 (h2c) when URL is http://.
 var searchWorkerGrpcUrl = builder.Configuration["Search:WorkerGrpcUrl"] ?? string.Empty;
 var pushWorkerGrpcUrl = builder.Configuration["Push:WorkerGrpcUrl"] ?? string.Empty;
 var mailWorkerGrpcUrl = builder.Configuration["Mail:WorkerGrpcUrl"] ?? string.Empty;
+var aiWorkerGrpcUrl = builder.Configuration["AiService:GrpcAddress"]
+    ?? Environment.GetEnvironmentVariable("AI_SERVICE_GRPC_ADDRESS")
+    ?? string.Empty;
 if (searchWorkerGrpcUrl.TrimStart().StartsWith("http://", StringComparison.OrdinalIgnoreCase)
     || pushWorkerGrpcUrl.TrimStart().StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-    || mailWorkerGrpcUrl.TrimStart().StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+    || mailWorkerGrpcUrl.TrimStart().StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+    || aiWorkerGrpcUrl.TrimStart().StartsWith("http://", StringComparison.OrdinalIgnoreCase))
 {
     AppContext.SetSwitch("System.Net.Http.SocketsHttpHandler.Http2UnencryptedSupport", true);
 }
@@ -222,6 +255,30 @@ var localizationPermit = isTestingEnv && bypassRateLimitInTesting
     ? 1_000_000
     : builder.Configuration.GetValue("Localization:RateLimitPermitLimit", 120);
 var localizationWindowSec = builder.Configuration.GetValue("Localization:RateLimitWindowSeconds", 60);
+var authLoginPermit = isTestingEnv && bypassRateLimitInTesting
+    ? 1_000_000
+    : builder.Configuration.GetValue("Auth:LoginRateLimitPermitLimit", 30);
+var authLoginWindowSec = builder.Configuration.GetValue("Auth:LoginRateLimitWindowSeconds", 60);
+var apiGlobalPermit = isTestingEnv && bypassRateLimitInTesting
+    ? 1_000_000
+    : builder.Configuration.GetValue("RateLimit:ApiPermitLimit", 600);
+var apiGlobalWindowSec = builder.Configuration.GetValue("RateLimit:ApiWindowSeconds", 60);
+var uploadPermit = isTestingEnv && bypassRateLimitInTesting
+    ? 1_000_000
+    : builder.Configuration.GetValue("RateLimit:UploadPermitLimit", 20);
+var uploadWindowSec = builder.Configuration.GetValue("RateLimit:UploadWindowSeconds", 60);
+var registerPrefillPermit = isTestingEnv && bypassRateLimitInTesting
+    ? 1_000_000
+    : builder.Configuration.GetValue("RateLimit:RegisterPrefillPermitLimit", 30);
+var registerPrefillWindowSec = builder.Configuration.GetValue("RateLimit:RegisterPrefillWindowSeconds", 60);
+var aiAvailabilityPermit = isTestingEnv && bypassRateLimitInTesting
+    ? 1_000_000
+    : builder.Configuration.GetValue("RateLimit:AiAvailabilityPermitLimit", 120);
+var aiAvailabilityWindowSec = builder.Configuration.GetValue("RateLimit:AiAvailabilityWindowSeconds", 60);
+var signalrNegotiatePermit = isTestingEnv && bypassRateLimitInTesting
+    ? 1_000_000
+    : builder.Configuration.GetValue("RateLimit:SignalrNegotiatePermitLimit", 60);
+var signalrNegotiateWindowSec = builder.Configuration.GetValue("RateLimit:SignalrNegotiateWindowSeconds", 60);
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -265,6 +322,87 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0,
             }));
+    options.AddPolicy("auth-login", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: RateLimitingPartitionKey.ForHttpContext(context),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = authLoginPermit,
+                Window = TimeSpan.FromSeconds(Math.Max(1, authLoginWindowSec)),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+    options.AddPolicy("api-global", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: RateLimitingPartitionKey.ForHttpContext(context),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = apiGlobalPermit,
+                Window = TimeSpan.FromSeconds(Math.Max(1, apiGlobalWindowSec)),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+    options.AddPolicy("upload-write", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: RateLimitingPartitionKey.ForHttpContext(context),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = uploadPermit,
+                Window = TimeSpan.FromSeconds(Math.Max(1, uploadWindowSec)),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+    options.AddPolicy("oauth-register-prefill", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: RateLimitingPartitionKey.ForHttpContext(context),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = registerPrefillPermit,
+                Window = TimeSpan.FromSeconds(Math.Max(1, registerPrefillWindowSec)),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+    options.AddPolicy("ai-availability-read", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: RateLimitingPartitionKey.ForHttpContext(context),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = aiAvailabilityPermit,
+                Window = TimeSpan.FromSeconds(Math.Max(1, aiAvailabilityWindowSec)),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+    options.AddPolicy("signalr-negotiate", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: RateLimitingPartitionKey.ForHttpContext(context),
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = signalrNegotiatePermit,
+                Window = TimeSpan.FromSeconds(Math.Max(1, signalrNegotiateWindowSec)),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            }));
+
+    // BSH3-A4: default API throttle — skipped when endpoint has its own [EnableRateLimiting] policy.
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var endpoint = httpContext.GetEndpoint();
+        if (endpoint?.Metadata.GetMetadata<EnableRateLimitingAttribute>() != null
+            || endpoint?.Metadata.GetMetadata<DisableRateLimitingAttribute>() != null)
+        {
+            return RateLimitPartition.GetNoLimiter(RateLimitingPartitionKey.ForHttpContext(httpContext));
+        }
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            RateLimitingPartitionKey.ForHttpContext(httpContext),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = apiGlobalPermit,
+                Window = TimeSpan.FromSeconds(Math.Max(1, apiGlobalWindowSec)),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0,
+            });
+    });
 });
 
 // ============================================================================
@@ -294,9 +432,10 @@ var devLanHost = builder.Configuration["DEV_LAN_HOST"]?.Trim();
 if (string.IsNullOrEmpty(devLanHost))
     devLanHost = Environment.GetEnvironmentVariable("DEV_LAN_HOST")?.Trim();
 var lanOrigins = BeDemo.Api.Dev.DevLanCorsOriginBuilder.Build(devLanHost);
-var corsOrigins = defaultCorsOrigins
-    .Concat(lanOrigins)
-    .Concat(extraOrigins)
+var corsOriginSource = useTransportHardening
+    ? extraOrigins
+    : defaultCorsOrigins.Concat(lanOrigins).Concat(extraOrigins);
+var corsOrigins = corsOriginSource
     .Where(o => !string.IsNullOrWhiteSpace(o))
     .Distinct(StringComparer.OrdinalIgnoreCase)
     .ToArray();
@@ -432,9 +571,14 @@ builder.Services.AddOptions<BeDemo.Api.Configuration.UploadsOptions>()
     .ValidateOnStart();
 builder.Services.AddSingleton<IUploadSignedUrlService, UploadSignedUrlService>();
 
+builder.Services.AddOptions<HardenedSecurityOptions>()
+    .BindConfiguration(HardenedSecurityOptions.SectionName)
+    .ValidateOnStart();
+builder.Services.AddSingleton<IValidateOptions<HardenedSecurityOptions>, HardenedSecurityValidateOptions>();
+
 // AI gRPC client - singleton to reuse the HTTP/2 channel across requests
-builder.Services.AddOptions<BeDemo.Api.Configuration.AiServiceOptions>()
-    .BindConfiguration(BeDemo.Api.Configuration.AiServiceOptions.SectionName);
+builder.Services.AddOptions<AiServiceOptions>()
+    .BindConfiguration(AiServiceOptions.SectionName);
 builder.Services.AddSingleton<AiGrpcService>();
 builder.Services.AddSingleton<IAiModelStatusClient>(sp => sp.GetRequiredService<AiGrpcService>());
 builder.Services.AddSingleton<IAiGrpcService, AiAvailabilityGuardGrpcService>();
@@ -479,6 +623,28 @@ builder.Services.AddAuthentication(options =>
                 context.Token = accessToken;
             return Task.CompletedTask;
         },
+        OnAuthenticationFailed = context =>
+        {
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Auth.JwtBearer");
+            logger.LogWarning(
+                context.Exception,
+                "authFailureReason=jwt_validation_failure path={Path}",
+                context.HttpContext.Request.Path);
+            return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Auth.JwtBearer");
+            logger.LogWarning(
+                "authFailureReason=jwt_challenge path={Path} error={Error}",
+                context.HttpContext.Request.Path,
+                context.Error ?? "none");
+            return Task.CompletedTask;
+        },
         OnTokenValidated = async context =>
         {
             var userId = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -500,8 +666,13 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Adds authorization system - checks if user has permission to access resources
-builder.Services.AddAuthorization();
+// BSH3-A1: default deny — explicit [AllowAnonymous] on OAuth, JWKS, localization, documented public routes.
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 // ============================================================================
 // SIGNALR CONFIGURATION
@@ -720,6 +891,10 @@ else
 // Enable CORS - must be before UseHttpsRedirection and authentication
 app.UseCors();
 
+if (useTransportHardening)
+    app.UseForwardedHeaders();
+
+app.UseMiddleware<HubQueryTokenRedactionMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
 // Swagger / OpenAPI UI: Development by default; Production only if Swagger:EnableInProduction=true (discouraged).
@@ -732,14 +907,12 @@ if (swaggerUiEnabled)
     app.UseSwaggerUI();
 }
 
-// Redirects all HTTP requests to HTTPS (if available)
-// Skip HTTPS redirect in development to avoid CORS issues with preflight requests
-// HTTPS redirect causes 307 which breaks CORS preflight requests
-// Disabled HTTPS redirect completely for development
-// if (!app.Environment.IsDevelopment())
-// {
-//     app.UseHttpsRedirection();
-// }
+// BSH3-T1: HTTPS redirect + HSTS in Production / Hardened (Development keeps plain HTTP for CORS preflight).
+if (useTransportHardening)
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
 
 // Adds custom routing middleware - implements face-based multi-tenant routing
 // This middleware executes before OAuth2Middleware and authentication
@@ -785,13 +958,15 @@ app.UseRateLimiter();
 // Maps SignalR ChatHub to endpoint /hubs/chat
 // This hub requires authentication ([Authorize] attribute)
 // User must connect with valid JWT token: wss://localhost:8001/hubs/chat?access_token=<token>
-app.MapHub<ChatHub>("/hubs/chat");
-app.MapHub<MessengerHub>("/hubs/messenger");
-app.MapHub<ChatRoomHub>("/hubs/chatroom");
-app.MapHub<VideoLoungeHub>("/hubs/video-lounge");
+app.MapHub<ChatHub>("/hubs/chat").RequireRateLimiting("signalr-negotiate");
+app.MapHub<MessengerHub>("/hubs/messenger").RequireRateLimiting("signalr-negotiate");
+app.MapHub<ChatRoomHub>("/hubs/chatroom").RequireRateLimiting("signalr-negotiate");
+app.MapHub<VideoLoungeHub>("/hubs/video-lounge").RequireRateLimiting("signalr-negotiate");
 
 // Maps all controllers - automatically finds all controllers and creates endpoints from them
 // E.g., OAuth2Controller with [Route("api/oauth2")] creates endpoints like /api/oauth2/token, /api/oauth2/register
+// Per-endpoint policies (oauth-token, oauth-register, localization-read, auth-login) use [EnableRateLimiting]; avoid a
+// global MapControllers policy so it does not stack with those named policies (BSH3-A4 partial).
 app.MapControllers();
 
 // Runs the application - application starts listening on configured ports

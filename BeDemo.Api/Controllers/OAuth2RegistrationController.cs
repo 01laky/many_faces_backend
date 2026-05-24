@@ -1,6 +1,7 @@
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.Requests.OAuth;
 using BeDemo.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -11,6 +12,7 @@ namespace BeDemo.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/oauth2/register")]
+[AllowAnonymous]
 public sealed class OAuth2RegistrationController : ControllerBase
 {
     private readonly IRegistrationInviteService _invites;
@@ -57,6 +59,7 @@ public sealed class OAuth2RegistrationController : ControllerBase
 
     /// <summary>Read-only prefill for complete-registration UI; never returns the verification code.</summary>
     [HttpGet("prefill")]
+    [EnableRateLimiting("oauth-register-prefill")]
     public async Task<IActionResult> Prefill([FromQuery] RegisterPrefillQuery query, CancellationToken cancellationToken)
     {
         var prefill = await _invites.GetPrefillAsync(query.Hash!, cancellationToken).ConfigureAwait(false);

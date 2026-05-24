@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.Extensions.Configuration;
 
 namespace BeDemo.Api.Utils;
@@ -27,8 +28,10 @@ public static class RateLimitingPartitionKey
     {
         ArgumentNullException.ThrowIfNull(httpContext);
 
+        var userId = httpContext.User?.FindFirstValue(ClaimTypes.NameIdentifier);
         var remote = httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Connection.Id;
+        var identity = string.IsNullOrEmpty(userId) ? $"ip:{remote}" : $"user:{userId}";
         var testScope = httpContext.RequestServices.GetService<IConfiguration>()?[TestingScopeConfigurationKey];
-        return string.IsNullOrWhiteSpace(testScope) ? remote : $"{testScope}:{remote}";
+        return string.IsNullOrWhiteSpace(testScope) ? identity : $"{testScope}:{identity}";
     }
 }

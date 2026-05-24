@@ -1,4 +1,5 @@
 using BeDemo.Api.Models;
+using BeDemo.Api.Utils;
 using Microsoft.EntityFrameworkCore;
 
 namespace BeDemo.Api.Data;
@@ -55,6 +56,16 @@ public partial class ApplicationDbContext
                 atvProp.CurrentValue = Math.Max(atvProp.CurrentValue, floor);
                 atvProp.IsModified = true;
                 userIds.Add(entry.Entity.Id);
+
+                if (pwdChanged)
+                    SecurityAuditLogger.LogPasswordChanged(entry.Entity.Id);
+                if (roleChanged)
+                {
+                    SecurityAuditLogger.LogGlobalRoleChanged(
+                        entry.Entity.Id,
+                        roleProp.OriginalValue,
+                        roleProp.CurrentValue);
+                }
             }
         }
 

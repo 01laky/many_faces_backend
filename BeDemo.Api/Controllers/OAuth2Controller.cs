@@ -10,6 +10,7 @@
 
 using Microsoft.AspNetCore.Identity;
 using FluentValidation.AspNetCore;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,7 @@ namespace BeDemo.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/oauth2")]  // All endpoints in this controller will have prefix /api/oauth2
+[AllowAnonymous]
 public class OAuth2Controller : ControllerBase
 {
     private readonly IOAuth2Service _oauth2Service;              // Service for OAuth2 operations

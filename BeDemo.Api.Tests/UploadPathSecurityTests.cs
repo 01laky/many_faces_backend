@@ -5,6 +5,7 @@ using Xunit;
 namespace BeDemo.Api.Tests;
 
 /// <summary>SHV2 BE-U4 — path traversal guards for wwwroot upload writes.</summary>
+[Trait("Category", "BackendSecurity")]
 public sealed class UploadPathSecurityTests
 {
     [Theory]

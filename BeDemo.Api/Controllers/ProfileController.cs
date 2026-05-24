@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Models;
 using BeDemo.Api.Data;
@@ -294,6 +295,7 @@ public class ProfileController : ControllerBase
     /// POST /api/profile/me/avatar - upload global avatar
     /// </summary>
     [HttpPost("me/avatar")]
+    [EnableRateLimiting("upload-write")]
     public async Task<IActionResult> UploadMyAvatar([FromForm] AvatarUploadRequest request)
     {
         var userId = _userManager.GetUserId(User);
@@ -327,6 +329,7 @@ public class ProfileController : ControllerBase
     /// POST /api/profile/me/faces/{faceId}/avatar - upload face-specific avatar
     /// </summary>
     [HttpPost("me/faces/{faceId:int}/avatar")]
+    [EnableRateLimiting("upload-write")]
     public async Task<IActionResult> UploadMyFaceAvatar(int faceId, [FromForm] AvatarUploadRequest request)
     {
         var userId = _userManager.GetUserId(User);

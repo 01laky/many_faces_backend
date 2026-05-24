@@ -1,6 +1,7 @@
 using BeDemo.Api.Services.OperatorAi;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace BeDemo.Api.Controllers;
 
@@ -14,6 +15,7 @@ public sealed class AiAvailabilityController : ControllerBase
     public AiAvailabilityController(IOperatorAiSystemSettingsProvider settings) => _settings = settings;
 
     [HttpGet("~/api/ai/enabled")]
+    [EnableRateLimiting("ai-availability-read")]
     public async Task<ActionResult<AiEnabledResponse>> GetEnabled(CancellationToken cancellationToken)
     {
         var enabled = await _settings.IsAiEnabledAsync(cancellationToken);

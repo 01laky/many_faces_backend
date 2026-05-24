@@ -1,38 +1,48 @@
 /*
  * AiGrpcService.cs - gRPC client for Python AI service (many_faces_ai)
  *
- * Calls the Generate RPC on the AI service. Address is read from configuration
- * (AiService:GrpcAddress or AI_SERVICE_GRPC_ADDRESS), e.g. http://ai-demo-dev:50051.
+ * BSH3-G2: TLS + optional service token via GrpcWorkerChannelFactory (parity with Search/Push/Mail).
  * Recreates the channel on connection failures (e.g. after AI container restart).
  */
 
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using BeDemo.Api.Configuration;
+using BeDemo.Api.Utils;
 using Grpc.Core;
 using Grpc.Net.Client;
 using BeDemo.Api.Models;
 using Health;
+using Microsoft.Extensions.Options;
 
 namespace BeDemo.Api.Services;
 
 /// <summary>
-/// Singleton gRPC client that calls the Python AI service Generate RPC.
-/// Recreates the channel when connection fails (e.g. AI container restarted).
+/// Singleton gRPC client that calls the Python AI service RPCs on <see cref="HealthService.HealthServiceClient"/>.
 /// </summary>
 public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
 {
-    private readonly string _grpcAddress;
+    private readonly AiServiceOptions _options;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<AiGrpcService> _logger;
     private readonly object _channelLock = new();
-    private GrpcChannel? _channel;
+    private readonly List<X509Certificate2> _tlsCertificatesToDispose = [];
     private readonly TimeSpan _deadline = TimeSpan.FromSeconds(300);
+    private GrpcChannel? _channel;
+    private string? _resolvedAddress;
 
-    public AiGrpcService(IConfiguration configuration, ILogger<AiGrpcService> logger)
+    public AiGrpcService(
+        IOptions<AiServiceOptions> options,
+        IConfiguration configuration,
+        ILogger<AiGrpcService> logger)
     {
-        _grpcAddress = configuration["AiService:GrpcAddress"]
-            ?? Environment.GetEnvironmentVariable("AI_SERVICE_GRPC_ADDRESS")
-            ?? "http://ai-demo-dev:50051";
+        _options = options.Value;
+        _configuration = configuration;
         _logger = logger;
     }
+
+    private string ResolvedAddress =>
+        _resolvedAddress ??= _options.ResolveGrpcAddress(_configuration);
 
     private GrpcChannel GetOrCreateChannel()
     {
@@ -40,16 +50,32 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
         {
             if (_channel != null)
                 return _channel;
-            _logger.LogInformation("Creating gRPC channel to AI service at {Address}", _grpcAddress);
-            var handler = new SocketsHttpHandler
+
+            var address = ResolvedAddress;
+            _logger.LogInformation("Creating gRPC channel to AI service at {Address}", address);
+            var tlsSettings = GrpcWorkerChannelFactory.FromAi(_options, address);
+            var revocation = _configuration.GetValue("HardenedSecurity:CertificateRevocationMode", "NoCheck") switch
             {
-                EnableMultipleHttp2Connections = true,
-                KeepAlivePingDelay = TimeSpan.FromSeconds(60),
-                KeepAlivePingTimeout = TimeSpan.FromSeconds(30),
+                "Online" => X509RevocationMode.Online,
+                "Offline" => X509RevocationMode.Offline,
+                _ => X509RevocationMode.NoCheck,
             };
-            _channel = GrpcChannel.ForAddress(_grpcAddress, new GrpcChannelOptions { HttpHandler = handler });
+            _channel = GrpcWorkerChannelFactory.CreateChannel(tlsSettings, _tlsCertificatesToDispose, revocation);
             return _channel;
         }
+    }
+
+    private CallOptions CreateCallOptions(CancellationToken cancellationToken, TimeSpan? deadline = null)
+    {
+        var effectiveDeadline = deadline ?? _deadline;
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(effectiveDeadline);
+
+        var headers = new Metadata();
+        if (!string.IsNullOrWhiteSpace(_options.WorkerAuthToken))
+            headers.Add(AiServiceOptions.WorkerAuthMetadataKey, _options.WorkerAuthToken.Trim());
+
+        return new CallOptions(headers, DateTime.UtcNow.Add(effectiveDeadline), cts.Token);
     }
 
     private void InvalidateChannel()
@@ -85,9 +111,8 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
             request.StatsContextJson = statsContextJson.Trim();
         if (!string.IsNullOrWhiteSpace(responseLocale))
             request.ResponseLocale = responseLocale.Trim();
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(_deadline);
-        var callOptions = new CallOptions(deadline: DateTime.UtcNow.Add(_deadline), cancellationToken: cts.Token);
+
+        var callOptions = CreateCallOptions(cancellationToken);
 
         for (int attempt = 1; attempt <= 2; attempt++)
         {
@@ -151,6 +176,16 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
         int maxNewTokens = 150,
         CancellationToken cancellationToken = default)
     {
+        if (!string.IsNullOrWhiteSpace(publicStatsAbsoluteUrl)
+            && !OutboundUrlAllowlist.TryValidatePublicHttpsUrl(publicStatsAbsoluteUrl, out var rejection))
+        {
+            _logger.LogWarning(
+                "OperatorStatsChat rejected outbound URL reason={Reason} urlLen={UrlLen}",
+                rejection,
+                publicStatsAbsoluteUrl.Length);
+            return "Error: outbound stats URL rejected";
+        }
+
         var grpcRequest = new OperatorStatsChatRequest
         {
             UserMessage = userMessage ?? string.Empty,
@@ -160,9 +195,7 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
             MaxNewTokens = maxNewTokens <= 0 ? 150 : maxNewTokens,
         };
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(_deadline);
-        var callOptions = new CallOptions(deadline: DateTime.UtcNow.Add(_deadline), cancellationToken: cts.Token);
+        var callOptions = CreateCallOptions(cancellationToken);
 
         for (int attempt = 1; attempt <= 2; attempt++)
         {
@@ -214,9 +247,7 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
     /// <inheritdoc />
     public async Task<AiModelStatus> GetModelStatusAsync(CancellationToken cancellationToken = default)
     {
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(15));
-        var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: cts.Token);
+        var callOptions = CreateCallOptions(cancellationToken, TimeSpan.FromSeconds(15));
 
         for (var attempt = 1; attempt <= 2; attempt++)
         {
@@ -247,9 +278,7 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
     /// <inheritdoc />
     public async Task<AiHostProfileFetchResult> GetHostProfileAsync(CancellationToken cancellationToken = default)
     {
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(TimeSpan.FromSeconds(15));
-        var callOptions = new CallOptions(deadline: DateTime.UtcNow.AddSeconds(15), cancellationToken: cts.Token);
+        var callOptions = CreateCallOptions(cancellationToken, TimeSpan.FromSeconds(15));
 
         for (var attempt = 1; attempt <= 2; attempt++)
         {
@@ -292,36 +321,7 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
         return new AiHostProfileFetchResult(null, "AI service unavailable");
     }
 
-    private static AiModelStatus ParseModelStatus(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-            return new AiModelStatus(false, true, false, null);
-
-        var trimmed = message.Trim();
-        if (!trimmed.StartsWith('{'))
-            return new AiModelStatus(false, true, false, null);
-
-        try
-        {
-            using var doc = JsonDocument.Parse(trimmed);
-            var root = doc.RootElement;
-            var ready = root.TryGetProperty("ready", out var r) && r.GetBoolean();
-            var loading = root.TryGetProperty("loading", out var l) && l.GetBoolean();
-            var unavailable = root.TryGetProperty("unavailable", out var u) && u.GetBoolean();
-            if (root.TryGetProperty("error", out var err) && err.ValueKind == JsonValueKind.String
-                && !string.IsNullOrWhiteSpace(err.GetString()))
-                unavailable = true;
-            string? modelName = null;
-            if (root.TryGetProperty("modelName", out var m) && m.ValueKind == JsonValueKind.String)
-                modelName = m.GetString();
-            return new AiModelStatus(ready, loading, unavailable, modelName);
-        }
-        catch (JsonException)
-        {
-            return new AiModelStatus(false, true, false, null);
-        }
-    }
-
+    /// <inheritdoc />
     public async Task<AiContentReviewResult> ReviewContentAsync(
         AiContentReviewRequest request,
         CancellationToken cancellationToken = default)
@@ -337,9 +337,7 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
             MediaUrl = request.MediaUrl ?? string.Empty,
             CreatorId = request.CreatorId,
         };
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cts.CancelAfter(_deadline);
-        var callOptions = new CallOptions(deadline: DateTime.UtcNow.Add(_deadline), cancellationToken: cts.Token);
+        var callOptions = CreateCallOptions(cancellationToken);
 
         for (int attempt = 1; attempt <= 2; attempt++)
         {
@@ -417,6 +415,37 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
             _ => AiReviewRiskLevel.Unknown,
         };
 
+    private static AiModelStatus ParseModelStatus(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return new AiModelStatus(false, true, false, null);
+
+        var trimmed = message.Trim();
+        if (!trimmed.StartsWith('{'))
+            return new AiModelStatus(false, true, false, null);
+
+        try
+        {
+            using var doc = JsonDocument.Parse(trimmed);
+            var root = doc.RootElement;
+            var ready = root.TryGetProperty("ready", out var r) && r.GetBoolean();
+            var loading = root.TryGetProperty("loading", out var l) && l.GetBoolean();
+            var unavailable = root.TryGetProperty("unavailable", out var u) && u.GetBoolean();
+            if (root.TryGetProperty("error", out var err) && err.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(err.GetString()))
+                unavailable = true;
+            string? modelName = null;
+            if (root.TryGetProperty("modelName", out var m) && m.ValueKind == JsonValueKind.String)
+                modelName = m.GetString();
+            return new AiModelStatus(ready, loading, unavailable, modelName);
+        }
+        catch (JsonException)
+        {
+            return new AiModelStatus(false, true, false, null);
+        }
+    }
+
+    /// <inheritdoc />
     public void Dispose()
     {
         lock (_channelLock)
@@ -424,5 +453,12 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
             _channel?.Dispose();
             _channel = null;
         }
+
+        foreach (var cert in _tlsCertificatesToDispose)
+        {
+            cert.Dispose();
+        }
+
+        _tlsCertificatesToDispose.Clear();
     }
 }

@@ -1,6 +1,7 @@
 using System.Net.Http;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using BeDemo.Api.Configuration;
 using Grpc.Net.Client;
 
 namespace BeDemo.Api.Services;
@@ -46,7 +47,18 @@ internal static class GrpcWorkerChannelFactory
         o.WorkerGrpcTlsServerName,
         "Mail");
 
-    internal static GrpcChannel CreateChannel(GrpcWorkerTlsSettings s, List<X509Certificate2> disposeList)
+    internal static GrpcWorkerTlsSettings FromAi(AiServiceOptions o, string resolvedGrpcAddress) => new(
+        resolvedGrpcAddress.Trim(),
+        o.WorkerTlsServerCaPath,
+        o.WorkerTlsClientCertPath,
+        o.WorkerTlsClientKeyPath,
+        o.WorkerGrpcTlsServerName,
+        "AiService");
+
+    internal static GrpcChannel CreateChannel(
+        GrpcWorkerTlsSettings s,
+        List<X509Certificate2> disposeList,
+        X509RevocationMode revocationMode = X509RevocationMode.NoCheck)
     {
         var uri = new Uri(s.WorkerGrpcUrl, UriKind.Absolute);
 
@@ -115,7 +127,7 @@ internal static class GrpcWorkerChannelFactory
 
             var roots = customRoots;
             handler.SslOptions.RemoteCertificateValidationCallback = (_, certificate, _, sslPolicyErrors) =>
-                ValidateServerCertWithCustomRoots(certificate, sslPolicyErrors, roots);
+                ValidateServerCertWithCustomRoots(certificate, sslPolicyErrors, roots, revocationMode);
         }
 
         if (clientCertPath is not null && clientKeyPath is not null)
@@ -145,7 +157,8 @@ internal static class GrpcWorkerChannelFactory
     internal static bool ValidateServerCertWithCustomRoots(
         X509Certificate? certificate,
         SslPolicyErrors sslPolicyErrors,
-        X509Certificate2Collection customRoots)
+        X509Certificate2Collection customRoots,
+        X509RevocationMode revocationMode = X509RevocationMode.NoCheck)
     {
         if (certificate is not X509Certificate2 server)
         {
@@ -165,7 +178,7 @@ internal static class GrpcWorkerChannelFactory
         using var chain = new X509Chain();
         chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
         chain.ChainPolicy.CustomTrustStore.AddRange(customRoots);
-        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+        chain.ChainPolicy.RevocationMode = revocationMode;
         return chain.Build(server);
     }
 }

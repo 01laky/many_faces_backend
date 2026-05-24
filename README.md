@@ -21,6 +21,41 @@ flowchart LR
     api --> mailer["many_faces_mailer<br/>SMTP gRPC"]
 ```
 
+### Encryption & trust boundary (BSH3)
+
+```mermaid
+flowchart TB
+  subgraph clients["Clients HTTPS/WSS"]
+    SPA["Portal / Admin / Mobile"]
+  end
+  subgraph be["many_faces_backend"]
+    API["ASP.NET Core API"]
+    JWT["ES512 JWT + atv session"]
+    UP["HMAC signed upload URLs"]
+  end
+  subgraph data["Data plane TLS in Hardened"]
+    PG["PostgreSQL SSL"]
+    RD["Redis TLS + AUTH"]
+  end
+  subgraph workers["Worker gRPC HTTPS + token"]
+    AI["many_faces_ai"]
+    SR["search-worker"]
+    PU["push-worker"]
+    ML["mailer"]
+  end
+  SPA --> API
+  API --> JWT
+  API --> UP
+  API --> PG
+  API --> RD
+  API --> AI
+  API --> SR
+  API --> PU
+  API --> ML
+```
+
+Dev compose uses cleartext **h2c** to workers on the Docker network; **`ASPNETCORE_ENVIRONMENT=Hardened`** (see `appsettings.Hardened.json`, `docker-compose.hardened.yml`) requires **https://** worker URLs and non-empty bearer tokens. Spec: [`docs/prompts/security-hardening-backend-v3-agent-prompt.md`](../docs/prompts/security-hardening-backend-v3-agent-prompt.md).
+
 ## Overview
 
 The Backend API (**many_faces_backend**; monorepo path `many_faces_backend/`) provides a RESTful API for user authentication, authorization, and management. It uses ASP.NET Core Identity for user management, Entity Framework Core for access to PostgreSQL, and OAuth2-issued JWTs for bearer APIs.
@@ -264,6 +299,9 @@ flowchart TD
 
 ## Security (operations)
 
+- **BSH3 backend hardening (2026-05-21):** global auth **fallback deny** (`FallbackPolicy`); HTTPS + HSTS in Production/Hardened; demo secrets in `appsettings.Development.json` only; `AiService` gRPC TLS + `x-ai-worker-token` metadata; `HardenedSecurityValidateOptions` on startup; CI gate `node scripts/verify-backend-security-tests.mjs` (`Category=BackendSecurity`). Full spec: [`docs/prompts/security-hardening-backend-v3-agent-prompt.md`](../docs/prompts/security-hardening-backend-v3-agent-prompt.md).
+- **Hardened env vars (examples):** `ConnectionStrings__DefaultConnection` (include `SSL Mode=Require`), `Jwt__SigningPemPath`, `Uploads__SigningSecret`, `RegistrationInvite__HmacPepper`, `OAuth2__ClientSecret`, `AiService__WorkerAuthToken`, `Search__WorkerAuthToken`, `Push__WorkerAuthToken`, `Mail__WorkerAuthToken`, `Redis__Configuration` (`ssl=true`, password). AI worker server: `AI_WORKER_EXPECTED_TOKEN` (same value as `AiService__WorkerAuthToken`).
+- **Ops alerting (BSH3-L3):** watch Seq/Dozzle for spikes of `authFailureReason=invalid_grant` or `invalid_client` on `/api/oauth2/token`, and HTTP **429** on OAuth/register/upload endpoints; audit lines prefixed `SECURITY_AUDIT` for password/role changes.
 - **OAuth token code layout:** `OAuth2Service` orchestrates grants; `OAuthClientValidator` (DB clients), `OAuthAccessTokenFactory` (ES512 access JWT + misuse-as-refresh guard), `OAuthTokenRequestSignatureVerifier` (legacy body signature, `IClock` for tests), `OAuthRefreshTokenStore`. See monorepo [`docs/guides/authentication-and-sessions.md`](../docs/guides/authentication-and-sessions.md) (section 2). Unit tests: `OAuth*Tests` in `BeDemo.Api.Tests`.
 - **JWKS:** `GET /api/oauth2/jwks` — public key for ES512 JWT validation.
 - **Stable signing key:** set `Jwt:SigningPemPath` (path to EC private key PEM, P-521) and `Jwt:KeyId` in configuration; leave empty for ephemeral dev keys.
