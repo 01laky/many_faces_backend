@@ -90,6 +90,7 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<OperatorAiLiveStatsCacheSettings> OperatorAiLiveStatsCacheSettings { get; set; } = null!;
     public DbSet<OperatorAiPublicStatsSettings> OperatorAiPublicStatsSettings { get; set; } = null!;
     public DbSet<OperatorAiSystemSettings> OperatorAiSystemSettings { get; set; } = null!;
+    public DbSet<OperatorMailSystemSettings> OperatorMailSystemSettings { get; set; } = null!;
 
     /// <summary>Singleton refresh metadata for AI worker host profile.</summary>
     public DbSet<AiWorkerHostRefreshMeta> AiWorkerHostRefreshMetas { get; set; } = null!;
@@ -1293,6 +1294,24 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.UpdatedAtUtc).IsRequired();
             entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
             entity.Property(e => e.LastEnableHealthStatus).HasMaxLength(64);
+        });
+
+        builder.Entity<OperatorMailSystemSettings>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.DefaultLocale).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.WorkerGrpcUrl).HasMaxLength(512);
+            entity.Property(e => e.WorkerAuthTokenCiphertext).HasMaxLength(4096);
+            entity.Property(e => e.SmtpHost).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.SmtpUser).HasMaxLength(255);
+            entity.Property(e => e.SmtpPasswordCiphertext).HasMaxLength(4096);
+            entity.Property(e => e.FromEmail).IsRequired().HasMaxLength(320);
+            entity.Property(e => e.FromDisplayName).HasMaxLength(255);
+            entity.Property(e => e.PortalPublicBaseUrl).IsRequired().HasMaxLength(512);
+            entity.Property(e => e.CompleteRegistrationPathTemplate).IsRequired().HasMaxLength(512);
+            entity.Property(e => e.MobileDeepLinkBase).IsRequired().HasMaxLength(512);
+            entity.Property(e => e.UpdatedAtUtc).IsRequired();
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
         });
 
         builder.Entity<AiWorkerHostRefreshMeta>(entity =>

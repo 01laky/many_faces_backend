@@ -1,5 +1,6 @@
 using BeDemo.Api.Data;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorMail;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,10 @@ namespace BeDemo.Api.Tests;
 
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
-    public CapturingMailerWorkerClient CapturingMailer { get; } = new();
+    private CapturingMailerWorkerClient? _capturingMailer;
+
+    public CapturingMailerWorkerClient CapturingMailer =>
+        _capturingMailer ?? throw new InvalidOperationException("Capturing mailer not initialized.");
     // Static flag to ensure database is initialized only once across all test instances
     private static readonly object _dbInitLock = new object();
     private static bool _databaseInitialized = false;
@@ -27,6 +31,10 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
 
         builder.UseSetting("Mail:Enabled", "true");
         builder.UseSetting("Mail:WorkerGrpcUrl", "http://localhost:59998");
+        builder.UseSetting("Mail:Smtp:Host", "mailpit");
+        builder.UseSetting("Mail:Smtp:Port", "1025");
+        builder.UseSetting("Mail:From:Email", "no-reply@test.invalid");
+        builder.UseSetting("Mail:From:DisplayName", "Many Faces Test");
         builder.UseSetting("Push:Enabled", "true");
         builder.UseSetting("Push:WorkerGrpcUrl", "http://localhost:59997");
         builder.UseSetting("Uploads:SigningSecret", "test-upload-signing-secret-fixed-32b!!");
@@ -36,7 +44,12 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IMailerWorkerClient>();
-            services.AddSingleton<IMailerWorkerClient>(CapturingMailer);
+            services.AddSingleton<IMailerWorkerClient>(sp =>
+            {
+                var client = new CapturingMailerWorkerClient(sp.GetRequiredService<IOperatorMailSettingsProvider>());
+                _capturingMailer = client;
+                return client;
+            });
 
             // Initialize in-memory database once per test run (Program.cs registers InMemory when Testing)
             lock (_dbInitLock)

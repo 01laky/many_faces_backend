@@ -19,6 +19,10 @@ public sealed class AdminInfraLocalizationTests
         "pages.settings.infra.sectionTitle",
         "pages.settings.infra.mail.title",
         "pages.settings.infra.mail.send",
+        "pages.settings.infra.mail.config.save",
+        "pages.settings.infra.mail.config.testSmtp.action",
+        "pages.settings.infra.mail.config.status.incomplete",
+        "pages.settings.infra.status.incomplete",
         "pages.settings.infra.push.title",
         "pages.settings.infra.search.refresh",
         "pages.settings.infra.status.notConfigured",
@@ -56,5 +60,10 @@ public sealed class AdminInfraLocalizationTests
         var mail = infra["mail"] as JsonObject;
         mail.Should().NotBeNull();
         mail!.ContainsKey("title").Should().BeTrue();
+        var mailConfig = mail["config"] as JsonObject;
+        mailConfig.Should().NotBeNull();
+        mailConfig!.ContainsKey("save").Should().BeTrue();
+        (mailConfig["testSmtp"] as JsonObject).Should().NotBeNull();
+        mailConfig["testSmtp"]!.AsObject().ContainsKey("action").Should().BeTrue();
     }
 }

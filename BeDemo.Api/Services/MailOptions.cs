@@ -27,6 +27,12 @@ public sealed class MailOptions
     /// <summary>BCP 47 fallback when HTTP culture is not available (background jobs, tests).</summary>
     public string DefaultLocale { get; set; } = "en";
 
+    /// <summary>Bootstrap SMTP relay when DB row is seeded (overridden after first admin save).</summary>
+    public MailSmtpBootstrapOptions Smtp { get; set; } = new();
+
+    /// <summary>Bootstrap From identity when DB row is seeded.</summary>
+    public MailFromBootstrapOptions From { get; set; } = new();
+
     public bool IsWorkerAddressValid =>
         !string.IsNullOrWhiteSpace(WorkerGrpcUrl) &&
         Uri.TryCreate(WorkerGrpcUrl, UriKind.Absolute, out var uri) &&

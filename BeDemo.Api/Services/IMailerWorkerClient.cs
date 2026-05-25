@@ -13,4 +13,9 @@ public interface IMailerWorkerClient
     Task<SendTemplatedEmailResponse?> SendTemplatedEmailAsync(
         SendTemplatedEmailRequest request,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Opens SMTP transport without sending MIME.</summary>
+    Task<TestSmtpConnectionResponse?> TestSmtpConnectionAsync(
+        OperatorMail.OperatorMailSettingsValues settings,
+        CancellationToken cancellationToken = default);
 }

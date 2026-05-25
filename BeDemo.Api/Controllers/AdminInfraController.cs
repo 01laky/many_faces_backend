@@ -6,6 +6,7 @@ using Microsoft.Extensions.Options;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorMail;
 
 namespace BeDemo.Api.Controllers;
 
@@ -19,18 +20,18 @@ public sealed class AdminInfraController : ControllerBase
 {
     private readonly IAccessEvaluator _access;
     private readonly ApplicationDbContext _db;
-    private readonly IOptions<MailOptions> _mailOptions;
+    private readonly IOperatorMailSettingsProvider _mailSettings;
     private readonly IOptions<PushOptions> _pushOptions;
 
     public AdminInfraController(
         IAccessEvaluator access,
         ApplicationDbContext db,
-        IOptions<MailOptions> mailOptions,
+        IOperatorMailSettingsProvider mailSettings,
         IOptions<PushOptions> pushOptions)
     {
         _access = access;
         _db = db;
-        _mailOptions = mailOptions;
+        _mailSettings = mailSettings;
         _pushOptions = pushOptions;
     }
 
@@ -59,11 +60,14 @@ public sealed class AdminInfraController : ControllerBase
             .AsNoTracking()
             .CountAsync(d => d.UserId == userId, cancellationToken);
 
+        var mailValues = await _mailSettings.GetAsync(cancellationToken);
+
         return Ok(new AdminInfraWorkerConfigDto
         {
             Mail = new AdminInfraMailWorkerConfigDto
             {
-                Configured = _mailOptions.Value.IsEnabled,
+                Configured = mailValues.EffectiveStatus == OperatorMailEffectiveStatuses.Configured,
+                EffectiveStatus = mailValues.EffectiveStatus,
             },
             Push = new AdminInfraPushWorkerConfigDto
             {

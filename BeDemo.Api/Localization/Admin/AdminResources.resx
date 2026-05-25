@@ -2843,6 +2843,165 @@
   <data name="pages.settings.infra.mail.hint" xml:space="preserve">
     <value>Requires Mail:Enabled and a running mailer worker.</value>
   </data>
+  <data name="pages.settings.infra.mail.config.platform.sectionTitle" xml:space="preserve">
+    <value>Platform settings</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smtp.sectionTitle" xml:space="preserve">
+    <value>SMTP &amp; sender</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.enabled.label" xml:space="preserve">
+    <value>Enable mail</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.enabled.hint" xml:space="preserve">
+    <value>When off, the API skips all mailer worker calls.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.defaultLocale.label" xml:space="preserve">
+    <value>Default locale</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.workerGrpcUrl.label" xml:space="preserve">
+    <value>Worker gRPC URL</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.workerAuthToken.label" xml:space="preserve">
+    <value>Worker auth token</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.workerAuthToken.placeholder" xml:space="preserve">
+    <value>Leave blank to keep existing token</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.workerAuthToken.placeholderEmpty" xml:space="preserve">
+    <value>Leave blank to keep existing token</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.workerAuthToken.configured" xml:space="preserve">
+    <value>A token is configured (enter a new value to rotate)</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.workerAuthToken.placeholderSet" xml:space="preserve">
+    <value>A token is configured (enter a new value to rotate)</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.portalPublicBaseUrl.label" xml:space="preserve">
+    <value>Portal public base URL</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.completeRegistrationPathTemplate.label" xml:space="preserve">
+    <value>Registration path template</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.mobileDeepLinkBase.label" xml:space="preserve">
+    <value>Mobile deep link base</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.preferMobileDeepLinkWhenPlatformMobile.label" xml:space="preserve">
+    <value>Prefer mobile deep link for mobile signups</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smtpHost.label" xml:space="preserve">
+    <value>SMTP host</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smtpPort.label" xml:space="preserve">
+    <value>SMTP port</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smtpStartTls.label" xml:space="preserve">
+    <value>Use STARTTLS</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smtpUser.label" xml:space="preserve">
+    <value>SMTP user</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smtpPassword.label" xml:space="preserve">
+    <value>SMTP password</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smtpPassword.placeholder" xml:space="preserve">
+    <value>Leave blank to keep existing password</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smtpPassword.placeholderEmpty" xml:space="preserve">
+    <value>Leave blank to keep existing password</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smtpPassword.configured" xml:space="preserve">
+    <value>A password is configured (enter a new value to rotate)</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smtpPassword.placeholderSet" xml:space="preserve">
+    <value>A password is configured (enter a new value to rotate)</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.fromEmail.label" xml:space="preserve">
+    <value>From email</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.fromDisplayName.label" xml:space="preserve">
+    <value>From display name</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.save" xml:space="preserve">
+    <value>Save mail settings</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.saveSuccess" xml:space="preserve">
+    <value>Mail settings saved.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.saveError" xml:space="preserve">
+    <value>Could not save mail settings.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.loadError" xml:space="preserve">
+    <value>Could not load mail settings.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.clearSecret" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.testSmtp.action" xml:space="preserve">
+    <value>Test SMTP connection</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.testSmtp.saveFirstHint" xml:space="preserve">
+    <value>Save mail settings before testing SMTP.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.testSmtp.success" xml:space="preserve">
+    <value>SMTP connection ok.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.testSmtp.failure" xml:space="preserve">
+    <value>SMTP connection failed.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.confirm.disable.message" xml:space="preserve">
+    <value>Disable platform mail? Registration and confirm emails will stop sending.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.confirm.disable.confirm" xml:space="preserve">
+    <value>Disable mail</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.confirm.workerUrl.message" xml:space="preserve">
+    <value>Change the mail worker URL? Misconfiguration can break all sends until fixed.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.confirm.workerUrl.confirm" xml:space="preserve">
+    <value>Change URL</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.confirm.smtpHost.message" xml:space="preserve">
+    <value>Change SMTP host or credentials? Verify with Test SMTP after saving.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.confirm.smtpHost.confirm" xml:space="preserve">
+    <value>Change SMTP</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.status.incomplete" xml:space="preserve">
+    <value>Incomplete</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.status.updatedAt" xml:space="preserve">
+    <value>Updated {{at}}</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.validation.unsupportedLocale" xml:space="preserve">
+    <value>Unsupported locale.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.validation.missingLocalePlaceholder" xml:space="preserve">
+    <value>Path template must include {locale}.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.validation.invalidWorkerUrl" xml:space="preserve">
+    <value>Enter a valid http(s) worker URL.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.validation.hostRequired" xml:space="preserve">
+    <value>SMTP host is required when mail is enabled.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.validation.portInvalid" xml:space="preserve">
+    <value>SMTP port must be between 1 and 65535.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.validation.fromEmailRequired" xml:space="preserve">
+    <value>From email is required when mail is enabled.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.validation.fromEmailInvalid" xml:space="preserve">
+    <value>Enter a valid From email address.</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smoke.sectionTitle" xml:space="preserve">
+    <value>Smoke test</value>
+  </data>
+  <data name="pages.settings.infra.mail.config.smoke.hint" xml:space="preserve">
+    <value>Save changes before sending a test email. Uses saved server settings.</value>
+  </data>
+  <data name="pages.settings.infra.status.incomplete" xml:space="preserve">
+    <value>Incomplete</value>
+  </data>
   <data name="pages.settings.infra.push.title" xml:space="preserve">
     <value>Push worker</value>
   </data>

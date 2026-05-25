@@ -12,8 +12,10 @@ public sealed class AdminInfraWorkerConfigDto
 
 public sealed class AdminInfraMailWorkerConfigDto
 {
-    /// <summary>True when <see cref="Services.MailOptions.IsEnabled"/> — mail worker gRPC would be used for smoke tests.</summary>
+    /// <summary>True when operator mail is fully configured for sends.</summary>
     public bool Configured { get; init; }
+
+    public string? EffectiveStatus { get; init; }
 }
 
 public sealed class AdminInfraPushWorkerConfigDto

@@ -7,8 +7,7 @@ using BeDemo.Api.Utils;
 using ManyFaces.Mailer.V1;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using BeDemo.Api.Configuration;
+using BeDemo.Api.Services.OperatorMail;
 
 namespace BeDemo.Api.Services;
 
@@ -21,7 +20,7 @@ public sealed class AdminMeProfileService : IAdminMeProfileService
     private readonly IOAuthRefreshTokenStore _refreshTokens;
     private readonly IUploadSignedUrlService _uploadUrls;
     private readonly IMailerWorkerClient _mailerWorker;
-    private readonly IOptions<MailOptions> _mailOptions;
+    private readonly IOperatorMailSettingsProvider _mailSettings;
     private readonly ILogger<AdminMeProfileService> _logger;
 
     public AdminMeProfileService(
@@ -31,7 +30,7 @@ public sealed class AdminMeProfileService : IAdminMeProfileService
         IOAuthRefreshTokenStore refreshTokens,
         IUploadSignedUrlService uploadUrls,
         IMailerWorkerClient mailerWorker,
-        IOptions<MailOptions> mailOptions,
+        IOperatorMailSettingsProvider mailSettings,
         ILogger<AdminMeProfileService> logger)
     {
         _context = context;
@@ -40,7 +39,7 @@ public sealed class AdminMeProfileService : IAdminMeProfileService
         _refreshTokens = refreshTokens;
         _uploadUrls = uploadUrls;
         _mailerWorker = mailerWorker;
-        _mailOptions = mailOptions;
+        _mailSettings = mailSettings;
         _logger = logger;
     }
 
@@ -205,7 +204,8 @@ public sealed class AdminMeProfileService : IAdminMeProfileService
         string locale,
         CancellationToken cancellationToken)
     {
-        if (!_mailOptions.Value.Enabled)
+        var mail = await _mailSettings.GetAsync(cancellationToken).ConfigureAwait(false);
+        if (!mail.IsSendAllowed)
             return "Mail worker is disabled or misconfigured (Mail:Enabled / Mail:WorkerGrpcUrl).";
 
         if (string.IsNullOrEmpty(user.Email))

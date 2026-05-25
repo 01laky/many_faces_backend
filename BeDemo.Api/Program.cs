@@ -38,6 +38,7 @@ using BeDemo.Api.Security;
 using BeDemo.Api.Middlewares;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
+using BeDemo.Api.Services.OperatorMail;
 using BeDemo.Api.Services.Search;
 using BeDemo.Api.Configuration;
 using BeDemo.Api.Hubs;
@@ -738,6 +739,10 @@ else
 builder.Services.AddSingleton<IOperatorAiLiveStatsCacheSettingsProvider, OperatorAiLiveStatsCacheSettingsService>();
 builder.Services.AddSingleton<IOperatorAiPublicStatsSettingsProvider, OperatorAiPublicStatsSettingsService>();
 builder.Services.AddSingleton<IOperatorAiSystemSettingsProvider, OperatorAiSystemSettingsService>();
+builder.Services.AddDataProtection();
+builder.Services.AddSingleton<IOperatorMailSecretProtector, OperatorMailSecretProtector>();
+builder.Services.AddSingleton<IOperatorMailSettingsProvider, OperatorMailSettingsService>();
+builder.Services.AddSingleton<AdminMailSettingsApplyService>();
 builder.Services.AddScoped<IOperatorAiEnableService, OperatorAiEnableService>();
 builder.Services.AddHostedService<OperatorAiLiveBundleCacheStartupWarm>();
 

@@ -9,6 +9,7 @@ using BeDemo.Api.Validation.Rules;
 using ManyFaces.Mailer.V1;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using BeDemo.Api.Services.OperatorMail;
 using Microsoft.Extensions.Options;
 
 namespace BeDemo.Api.Services;
@@ -30,8 +31,7 @@ public sealed class RegistrationInviteService : IRegistrationInviteService
     private readonly IOAuthClientValidator _clientValidator;
     private readonly IUserRegistrationProvisioner _provisioner;
     private readonly IOptions<RegistrationInviteOptions> _inviteOptions;
-    private readonly IOptions<MailOptions> _mailOptions;
-    private readonly IOptions<MailRegistrationLinkOptions> _linkOptions;
+    private readonly IOperatorMailSettingsProvider _mailSettings;
     private readonly ILogger<RegistrationInviteService> _logger;
 
     public RegistrationInviteService(
@@ -43,8 +43,7 @@ public sealed class RegistrationInviteService : IRegistrationInviteService
         IOAuthClientValidator clientValidator,
         IUserRegistrationProvisioner provisioner,
         IOptions<RegistrationInviteOptions> inviteOptions,
-        IOptions<MailOptions> mailOptions,
-        IOptions<MailRegistrationLinkOptions> linkOptions,
+        IOperatorMailSettingsProvider mailSettings,
         ILogger<RegistrationInviteService> logger)
     {
         _context = context;
@@ -55,8 +54,7 @@ public sealed class RegistrationInviteService : IRegistrationInviteService
         _clientValidator = clientValidator;
         _provisioner = provisioner;
         _inviteOptions = inviteOptions;
-        _mailOptions = mailOptions;
-        _linkOptions = linkOptions;
+        _mailSettings = mailSettings;
         _logger = logger;
     }
 
@@ -83,7 +81,7 @@ public sealed class RegistrationInviteService : IRegistrationInviteService
             normalized,
             dto.FirstName,
             dto.LastName,
-            ResolveLocale(dto.Locale),
+            await ResolveLocaleAsync(dto.Locale, cancellationToken),
             createdByUserId: null,
             preferMobileLink: IsMobilePlatform(dto.Platform),
             cancellationToken).ConfigureAwait(false);
@@ -119,7 +117,7 @@ public sealed class RegistrationInviteService : IRegistrationInviteService
             normalized,
             pending.FirstName,
             pending.LastName,
-            ResolveLocale(dto.Locale ?? pending.Locale),
+            await ResolveLocaleAsync(dto.Locale ?? pending.Locale, cancellationToken),
             createdByUserId: pending.CreatedByUserId,
             preferMobileLink: IsMobilePlatform(dto.Platform),
             cancellationToken).ConfigureAwait(false);
@@ -350,16 +348,16 @@ public sealed class RegistrationInviteService : IRegistrationInviteService
         bool preferMobileLink,
         CancellationToken cancellationToken)
     {
-        if (!_mailOptions.Value.IsEnabled)
+        var mail = await _mailSettings.GetAsync(cancellationToken).ConfigureAwait(false);
+        if (!mail.IsSendAllowed)
         {
-            // BE-L2: log invite id + email domain only — not the full mailbox (PII).
             _logger.LogWarning(
                 "Mail worker disabled; registration invite created but email not sent ({EmailHint})",
                 PiiLogRedaction.FormatEmailForLog(invite.Email, invite.Id));
             return;
         }
 
-        var actionLink = BuildActionLink(invite, preferMobileLink);
+        var actionLink = BuildActionLink(invite, preferMobileLink, mail);
         var display = PickDisplayName(invite);
         var request = new SendTemplatedEmailRequest();
         request.To.Add(invite.Email);
@@ -377,9 +375,8 @@ public sealed class RegistrationInviteService : IRegistrationInviteService
     /// <summary>
     /// Portal HTTPS link or mobile deep link; hash is URL-encoded as the sole query parameter.
     /// </summary>
-    private string BuildActionLink(RegistrationInvite invite, bool preferMobileLink)
+    private static string BuildActionLink(RegistrationInvite invite, bool preferMobileLink, OperatorMailSettingsValues link)
     {
-        var link = _linkOptions.Value;
         var hash = Uri.EscapeDataString(invite.LinkHash);
         if (preferMobileLink && link.PreferMobileDeepLinkWhenPlatformMobile)
         {
@@ -418,20 +415,17 @@ public sealed class RegistrationInviteService : IRegistrationInviteService
         && invite.RevokedAtUtc == null
         && invite.ExpiresAtUtc > DateTime.UtcNow;
 
-    private string ResolveLocale(string? locale)
+    private async Task<string> ResolveLocaleAsync(string? locale, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrWhiteSpace(locale))
-        {
             return locale.Trim();
-        }
 
         var current = CultureInfo.CurrentUICulture.Name;
         if (!string.IsNullOrWhiteSpace(current))
-        {
             return current;
-        }
 
-        return _mailOptions.Value.DefaultLocale;
+        var mail = await _mailSettings.GetAsync(cancellationToken).ConfigureAwait(false);
+        return mail.DefaultLocale;
     }
 
     private static bool IsMobilePlatform(string? platform) =>
