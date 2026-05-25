@@ -24,6 +24,10 @@ public sealed class AdminInfraLocalizationTests
         "pages.settings.infra.mail.config.status.incomplete",
         "pages.settings.infra.status.incomplete",
         "pages.settings.infra.push.title",
+        "pages.settings.infra.push.config.save",
+        "pages.settings.infra.push.config.platform.sectionTitle",
+        "pages.settings.infra.push.config.testFcm.action",
+        "pages.settings.infra.push.config.status.incomplete",
         "pages.settings.infra.search.refresh",
         "pages.settings.infra.status.notConfigured",
         "pages.settings.infra.links.mailpit",
@@ -65,5 +69,16 @@ public sealed class AdminInfraLocalizationTests
         mailConfig!.ContainsKey("save").Should().BeTrue();
         (mailConfig["testSmtp"] as JsonObject).Should().NotBeNull();
         mailConfig["testSmtp"]!.AsObject().ContainsKey("action").Should().BeTrue();
+
+        var push = infra["push"] as JsonObject;
+        push.Should().NotBeNull();
+        push!.ContainsKey("title").Should().BeTrue();
+        var pushConfig = push["config"] as JsonObject;
+        pushConfig.Should().NotBeNull();
+        pushConfig!.ContainsKey("save").Should().BeTrue();
+        (pushConfig["platform"] as JsonObject).Should().NotBeNull();
+        pushConfig["platform"]!.AsObject().ContainsKey("sectionTitle").Should().BeTrue();
+        (pushConfig["testFcm"] as JsonObject).Should().NotBeNull();
+        pushConfig["testFcm"]!.AsObject().ContainsKey("action").Should().BeTrue();
     }
 }

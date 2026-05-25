@@ -92,6 +92,8 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<OperatorAiSystemSettings> OperatorAiSystemSettings { get; set; } = null!;
     public DbSet<OperatorMailSystemSettings> OperatorMailSystemSettings { get; set; } = null!;
 
+    public DbSet<OperatorPushSystemSettings> OperatorPushSystemSettings { get; set; } = null!;
+
     /// <summary>Singleton refresh metadata for AI worker host profile.</summary>
     public DbSet<AiWorkerHostRefreshMeta> AiWorkerHostRefreshMetas { get; set; } = null!;
 
@@ -1310,6 +1312,20 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(e => e.PortalPublicBaseUrl).IsRequired().HasMaxLength(512);
             entity.Property(e => e.CompleteRegistrationPathTemplate).IsRequired().HasMaxLength(512);
             entity.Property(e => e.MobileDeepLinkBase).IsRequired().HasMaxLength(512);
+            entity.Property(e => e.UpdatedAtUtc).IsRequired();
+            entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
+        });
+
+        builder.Entity<OperatorPushSystemSettings>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.WorkerGrpcUrl).HasMaxLength(512);
+            entity.Property(e => e.WorkerAuthTokenCiphertext).HasMaxLength(4096);
+            entity.Property(e => e.FirebaseProjectId).HasMaxLength(128);
+            entity.Property(e => e.FirebaseServiceAccountJsonCiphertext).HasMaxLength(65536);
+            entity.Property(e => e.DefaultTitleLocKey).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.DefaultBodyLocKey).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.DefaultAndroidChannelId).HasMaxLength(128);
             entity.Property(e => e.UpdatedAtUtc).IsRequired();
             entity.Property(e => e.UpdatedByUserId).HasMaxLength(450);
         });

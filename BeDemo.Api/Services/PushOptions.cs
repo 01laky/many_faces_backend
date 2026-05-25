@@ -32,6 +32,18 @@ public sealed class PushOptions
     /// <summary>Per-RPC deadline in seconds (clamped by the client implementation).</summary>
     public int GrpcDeadlineSeconds { get; set; } = 15;
 
+    /// <summary>Default title localization key for smoke / pilot sends.</summary>
+    public string DefaultTitleLocKey { get; set; } = "push_test_title";
+
+    /// <summary>Default body localization key for smoke / pilot sends.</summary>
+    public string DefaultBodyLocKey { get; set; } = "push_test_body";
+
+    /// <summary>Optional Android notification channel id for smoke sends.</summary>
+    public string? DefaultAndroidChannelId { get; set; }
+
+    /// <summary>Firebase bootstrap options (nested <c>Push:Firebase</c>).</summary>
+    public PushFirebaseBootstrapOptions Firebase { get; set; } = new();
+
     /// <summary>True when the worker URL is usable for gRPC channel construction.</summary>
     public bool IsWorkerAddressValid =>
         !string.IsNullOrWhiteSpace(WorkerGrpcUrl) &&

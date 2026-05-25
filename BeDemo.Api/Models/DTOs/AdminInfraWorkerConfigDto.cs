@@ -20,8 +20,10 @@ public sealed class AdminInfraMailWorkerConfigDto
 
 public sealed class AdminInfraPushWorkerConfigDto
 {
-    /// <summary>True when <see cref="Services.PushOptions.IsEnabled"/> — push worker gRPC would be used for smoke tests.</summary>
+    /// <summary>True when operator push is fully configured for sends.</summary>
     public bool Configured { get; init; }
+
+    public string? EffectiveStatus { get; init; }
 
     /// <summary>Count of <c>UserPushDevices</c> rows for the calling operator account.</summary>
     public int RegisteredDeviceCount { get; init; }

@@ -1,3 +1,4 @@
+using BeDemo.Api.Services.OperatorPush;
 using ManyFaces.Push.V1;
 
 namespace BeDemo.Api.Services;
@@ -12,4 +13,9 @@ public interface IPushWorkerClient
     /// Returns null when push is disabled or misconfigured (callers should treat as a no-op / feature off).
     /// </summary>
     Task<SendPushResponse?> SendPushAsync(SendPushRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Probes Firebase credentials via worker gRPC without sending a notification.</summary>
+    Task<TestFcmCredentialsResponse?> TestFcmCredentialsAsync(
+        OperatorPushSettingsValues settings,
+        CancellationToken cancellationToken = default);
 }

@@ -1,6 +1,7 @@
 using BeDemo.Api.Data;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorMail;
+using BeDemo.Api.Services.OperatorPush;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ namespace BeDemo.Api.Tests;
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
     private CapturingMailerWorkerClient? _capturingMailer;
+    private CapturingPushWorkerClient? _capturingPush;
 
     /// <summary>
     /// Resolves the test double lazily — the singleton factory runs on first <see cref="IMailerWorkerClient"/> use,
@@ -34,6 +36,25 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
 
             throw new InvalidOperationException(
                 "Capturing mailer not initialized; IMailerWorkerClient is not CapturingMailerWorkerClient.");
+        }
+    }
+
+    public CapturingPushWorkerClient CapturingPush
+    {
+        get
+        {
+            if (_capturingPush is not null)
+                return _capturingPush;
+
+            var client = Services.GetRequiredService<IPushWorkerClient>();
+            if (client is CapturingPushWorkerClient capturing)
+            {
+                _capturingPush = capturing;
+                return capturing;
+            }
+
+            throw new InvalidOperationException(
+                "Capturing push client not initialized; IPushWorkerClient is not CapturingPushWorkerClient.");
         }
     }
     // Static flag to ensure database is initialized only once across all test instances
@@ -68,6 +89,11 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                 new CapturingMailerWorkerClient(sp.GetRequiredService<IOperatorMailSettingsProvider>()));
             services.AddSingleton<IMailerWorkerClient>(sp => sp.GetRequiredService<CapturingMailerWorkerClient>());
 
+            services.RemoveAll<IPushWorkerClient>();
+            services.AddSingleton<CapturingPushWorkerClient>(sp =>
+                new CapturingPushWorkerClient(sp.GetRequiredService<IOperatorPushSettingsProvider>()));
+            services.AddSingleton<IPushWorkerClient>(sp => sp.GetRequiredService<CapturingPushWorkerClient>());
+
             // Initialize in-memory database once per test run (Program.cs registers InMemory when Testing)
             lock (_dbInitLock)
             {
@@ -84,6 +110,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                         IntegrationTestSeed.EnsureOperatorAiEnabledForIntegrationTestsAsync(scope.ServiceProvider)
                             .GetAwaiter().GetResult();
                         IntegrationTestMail.ResetToBootstrapAsync(scope.ServiceProvider).GetAwaiter().GetResult();
+                        IntegrationTestPush.ResetToBootstrapAsync(scope.ServiceProvider).GetAwaiter().GetResult();
                         _databaseInitialized = true;
                     }
                 }

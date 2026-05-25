@@ -1,10 +1,11 @@
 using System.Security.Claims;
+using BeDemo.Api.Data;
+using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorPush;
+using ManyFaces.Push.V1;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using BeDemo.Api.Data;
-using BeDemo.Api.Services;
-using ManyFaces.Push.V1;
 
 namespace BeDemo.Api.Controllers;
 
@@ -19,23 +20,26 @@ public sealed class AdminPushTestController : ControllerBase
     private readonly ApplicationDbContext _db;
     private readonly IAccessEvaluator _access;
     private readonly IPushWorkerClient _pushWorker;
+    private readonly IOperatorPushSettingsProvider _pushSettings;
     private readonly ILogger<AdminPushTestController> _logger;
 
     public AdminPushTestController(
         ApplicationDbContext db,
         IAccessEvaluator access,
         IPushWorkerClient pushWorker,
+        IOperatorPushSettingsProvider pushSettings,
         ILogger<AdminPushTestController> logger)
     {
         _db = db;
         _access = access;
         _pushWorker = pushWorker;
+        _pushSettings = pushSettings;
         _logger = logger;
     }
 
     /// <summary>
     /// Sends a minimal localized test notification to every device token registered for the calling operator account.
-    /// Requires <see cref="IAccessEvaluator.CanManageAllFaces"/> and a configured push worker (<c>Push:Enabled</c>).
+    /// Requires <see cref="IAccessEvaluator.CanManageAllFaces"/> and configured operator push settings.
     /// </summary>
     [HttpPost("test-self")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -54,6 +58,12 @@ public sealed class AdminPushTestController : ControllerBase
             return Unauthorized();
         }
 
+        var settings = await _pushSettings.GetAsync(cancellationToken);
+        if (!settings.IsSendAllowed)
+        {
+            return BadRequest("Push worker is disabled or misconfigured. Save push settings in Infrastructure first.");
+        }
+
         var devices = await _db.UserPushDevices.Where(d => d.UserId == userId).ToListAsync(cancellationToken);
         if (devices.Count == 0)
         {
@@ -63,8 +73,9 @@ public sealed class AdminPushTestController : ControllerBase
         var tokens = devices.Select(d => d.RegistrationToken).Distinct().ToList();
         var request = new SendPushRequest
         {
-            TitleLocKey = "push_self_test_title",
-            BodyLocKey = "push_self_test_body",
+            TitleLocKey = settings.DefaultTitleLocKey,
+            BodyLocKey = settings.DefaultBodyLocKey,
+            AndroidChannelId = settings.DefaultAndroidChannelId ?? string.Empty,
             TtlSeconds = 300,
         };
         request.RegistrationTokens.AddRange(tokens);
@@ -73,10 +84,9 @@ public sealed class AdminPushTestController : ControllerBase
         var response = await _pushWorker.SendPushAsync(request, cancellationToken);
         if (response is null)
         {
-            return BadRequest("Push worker is disabled or misconfigured (Push:Enabled / Push:WorkerGrpcUrl).");
+            return BadRequest("Push worker is disabled or misconfigured.");
         }
 
-        // Drop permanently invalid tokens so the next mobile registration cycle can recover cleanly.
         var invalidTokens = new HashSet<string>(StringComparer.Ordinal);
         for (var i = 0; i < response.Results.Count && i < tokens.Count; i++)
         {

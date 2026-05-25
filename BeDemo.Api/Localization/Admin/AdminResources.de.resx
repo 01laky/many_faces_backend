@@ -3023,6 +3023,165 @@
   <data name="pages.settings.infra.push.deviceCount" xml:space="preserve">
     <value>{{count}} registered device(s)</value>
   </data>
+  <data name="pages.settings.infra.push.config.platform.sectionTitle" xml:space="preserve">
+    <value>Plattformeinstellungen</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.sectionTitle" xml:space="preserve">
+    <value>Firebase / FCM</value>
+  </data>
+  <data name="pages.settings.infra.push.config.transport.sectionTitle" xml:space="preserve">
+    <value>Transport (Umgebung)</value>
+  </data>
+  <data name="pages.settings.infra.push.config.enabled.label" xml:space="preserve">
+    <value>Push aktivieren</value>
+  </data>
+  <data name="pages.settings.infra.push.config.enabled.hint" xml:space="preserve">
+    <value>Wenn aus, überspringt die API alle Push-Worker-Aufrufe.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.workerGrpcUrl.label" xml:space="preserve">
+    <value>Worker-gRPC-URL</value>
+  </data>
+  <data name="pages.settings.infra.push.config.workerAuthToken.label" xml:space="preserve">
+    <value>Worker-Auth-Token</value>
+  </data>
+  <data name="pages.settings.infra.push.config.workerAuthToken.placeholderEmpty" xml:space="preserve">
+    <value>Leer lassen, um vorhandenes Token zu behalten</value>
+  </data>
+  <data name="pages.settings.infra.push.config.workerAuthToken.placeholderSet" xml:space="preserve">
+    <value>Token ist gesetzt (neuen Wert zum Rotieren eingeben)</value>
+  </data>
+  <data name="pages.settings.infra.push.config.titleLocKey.label" xml:space="preserve">
+    <value>Standard-Titel-Loc-Key</value>
+  </data>
+  <data name="pages.settings.infra.push.config.bodyLocKey.label" xml:space="preserve">
+    <value>Standard-Text-Loc-Key</value>
+  </data>
+  <data name="pages.settings.infra.push.config.androidChannelId.label" xml:space="preserve">
+    <value>Android-Channel-ID</value>
+  </data>
+  <data name="pages.settings.infra.push.config.grpcDeadlineSeconds.label" xml:space="preserve">
+    <value>gRPC-Deadline (Sekunden)</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.projectId.label" xml:space="preserve">
+    <value>Firebase-Projekt-ID</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.serviceAccountJson.label" xml:space="preserve">
+    <value>Service-Account-JSON</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.serviceAccountJson.placeholderEmpty" xml:space="preserve">
+    <value>Firebase-Service-Account-JSON einfügen oder hochladen</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.serviceAccountJson.placeholderSet" xml:space="preserve">
+    <value>Anmeldedaten gesetzt (einfügen oder hochladen zum Rotieren)</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.uploadJson" xml:space="preserve">
+    <value>JSON hochladen</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.credentialsConfigured" xml:space="preserve">
+    <value>Firebase-Anmeldedaten sind auf dem Server konfiguriert.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.credentialsMissing" xml:space="preserve">
+    <value>Firebase-Anmeldedaten sind noch nicht konfiguriert.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.transport.tlsConfigured" xml:space="preserve">
+    <value>TLS: über Umgebung konfiguriert</value>
+  </data>
+  <data name="pages.settings.infra.push.config.transport.tlsNotConfigured" xml:space="preserve">
+    <value>TLS: nicht über Umgebung konfiguriert</value>
+  </data>
+  <data name="pages.settings.infra.push.config.transport.mtlsConfigured" xml:space="preserve">
+    <value>mTLS: über Umgebung konfiguriert</value>
+  </data>
+  <data name="pages.settings.infra.push.config.transport.mtlsNotConfigured" xml:space="preserve">
+    <value>mTLS: nicht über Umgebung konfiguriert</value>
+  </data>
+  <data name="pages.settings.infra.push.config.save" xml:space="preserve">
+    <value>Push-Einstellungen speichern</value>
+  </data>
+  <data name="pages.settings.infra.push.config.saveSuccess" xml:space="preserve">
+    <value>Push-Einstellungen gespeichert.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.saveError" xml:space="preserve">
+    <value>Push-Einstellungen konnten nicht gespeichert werden.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.loadError" xml:space="preserve">
+    <value>Push-Einstellungen konnten nicht geladen werden.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.clearSecret" xml:space="preserve">
+    <value>Löschen</value>
+  </data>
+  <data name="pages.settings.infra.push.config.testFcm.action" xml:space="preserve">
+    <value>FCM-Anmeldedaten testen</value>
+  </data>
+  <data name="pages.settings.infra.push.config.testFcm.saveFirstHint" xml:space="preserve">
+    <value>Push-Einstellungen vor dem FCM-Test speichern.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.testFcm.success" xml:space="preserve">
+    <value>FCM-Anmeldedaten OK (Projekt {{projectId}}).</value>
+  </data>
+  <data name="pages.settings.infra.push.config.testFcm.failure" xml:space="preserve">
+    <value>FCM-Anmeldedatentest fehlgeschlagen.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.disable.message" xml:space="preserve">
+    <value>Plattform-Push deaktivieren? Benachrichtigungen werden nicht mehr gesendet.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.disable.confirm" xml:space="preserve">
+    <value>Push deaktivieren</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.workerUrl.message" xml:space="preserve">
+    <value>Push-Worker-URL ändern? Fehlkonfiguration kann alle Sendungen unterbrechen.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.workerUrl.confirm" xml:space="preserve">
+    <value>URL ändern</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.firebaseJson.message" xml:space="preserve">
+    <value>Firebase-Service-Account-JSON rotieren? Nach dem Speichern mit FCM-Test prüfen.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.firebaseJson.confirm" xml:space="preserve">
+    <value>Anmeldedaten rotieren</value>
+  </data>
+  <data name="pages.settings.infra.push.config.status.disabled" xml:space="preserve">
+    <value>Deaktiviert</value>
+  </data>
+  <data name="pages.settings.infra.push.config.status.incomplete" xml:space="preserve">
+    <value>Unvollständig</value>
+  </data>
+  <data name="pages.settings.infra.push.config.status.configured" xml:space="preserve">
+    <value>Konfiguriert</value>
+  </data>
+  <data name="pages.settings.infra.push.config.status.notConfigured" xml:space="preserve">
+    <value>Nicht konfiguriert</value>
+  </data>
+  <data name="pages.settings.infra.push.config.status.updatedAt" xml:space="preserve">
+    <value>Aktualisiert {{value}}</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.invalidWorkerUrl" xml:space="preserve">
+    <value>Gültige http(s)-Worker-URL eingeben.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.titleLocKeyRequired" xml:space="preserve">
+    <value>Standard-Titel-Loc-Key ist erforderlich, wenn Push aktiv ist.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.bodyLocKeyRequired" xml:space="preserve">
+    <value>Standard-Text-Loc-Key ist erforderlich, wenn Push aktiv ist.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.invalidLocKey" xml:space="preserve">
+    <value>Loc-Key enthält ungültige Zeichen.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.grpcDeadlineInvalid" xml:space="preserve">
+    <value>gRPC-Deadline muss zwischen 1 und 120 Sekunden liegen.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.firebaseJsonRequired" xml:space="preserve">
+    <value>Firebase-Service-Account-JSON ist erforderlich, wenn Push aktiv ist.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.firebaseJsonInvalid" xml:space="preserve">
+    <value>Gültiges Firebase-Service-Account-JSON eingeben.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.smoke.sectionTitle" xml:space="preserve">
+    <value>Smoke-Test</value>
+  </data>
+  <data name="pages.settings.infra.push.config.smoke.hint" xml:space="preserve">
+    <value>Änderungen vor dem Test-Push speichern. Verwendet gespeicherte Servereinstellungen.</value>
+  </data>
   <data name="pages.settings.infra.search.title" xml:space="preserve">
     <value>Search worker</value>
   </data>

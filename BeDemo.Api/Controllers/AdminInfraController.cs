@@ -1,12 +1,13 @@
-using System.Security.Claims;
+using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorMail;
+using BeDemo.Api.Services.OperatorPush;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Security.Claims;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models.DTOs;
-using BeDemo.Api.Services;
-using BeDemo.Api.Services.OperatorMail;
 
 namespace BeDemo.Api.Controllers;
 
@@ -21,18 +22,18 @@ public sealed class AdminInfraController : ControllerBase
     private readonly IAccessEvaluator _access;
     private readonly ApplicationDbContext _db;
     private readonly IOperatorMailSettingsProvider _mailSettings;
-    private readonly IOptions<PushOptions> _pushOptions;
+    private readonly IOperatorPushSettingsProvider _pushSettings;
 
     public AdminInfraController(
         IAccessEvaluator access,
         ApplicationDbContext db,
         IOperatorMailSettingsProvider mailSettings,
-        IOptions<PushOptions> pushOptions)
+        IOperatorPushSettingsProvider pushSettings)
     {
         _access = access;
         _db = db;
         _mailSettings = mailSettings;
-        _pushOptions = pushOptions;
+        _pushSettings = pushSettings;
     }
 
     /// <summary>
@@ -61,6 +62,7 @@ public sealed class AdminInfraController : ControllerBase
             .CountAsync(d => d.UserId == userId, cancellationToken);
 
         var mailValues = await _mailSettings.GetAsync(cancellationToken);
+        var pushValues = await _pushSettings.GetAsync(cancellationToken);
 
         return Ok(new AdminInfraWorkerConfigDto
         {
@@ -71,7 +73,8 @@ public sealed class AdminInfraController : ControllerBase
             },
             Push = new AdminInfraPushWorkerConfigDto
             {
-                Configured = _pushOptions.Value.IsEnabled,
+                Configured = pushValues.EffectiveStatus == OperatorPushEffectiveStatuses.Configured,
+                EffectiveStatus = pushValues.EffectiveStatus,
                 RegisteredDeviceCount = deviceCount,
             },
         });

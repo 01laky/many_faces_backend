@@ -3023,6 +3023,165 @@
   <data name="pages.settings.infra.push.deviceCount" xml:space="preserve">
     <value>{{count}} registered device(s)</value>
   </data>
+  <data name="pages.settings.infra.push.config.platform.sectionTitle" xml:space="preserve">
+    <value>Nastavení platformy</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.sectionTitle" xml:space="preserve">
+    <value>Firebase / FCM</value>
+  </data>
+  <data name="pages.settings.infra.push.config.transport.sectionTitle" xml:space="preserve">
+    <value>Transport (prostředí)</value>
+  </data>
+  <data name="pages.settings.infra.push.config.enabled.label" xml:space="preserve">
+    <value>Povolit push</value>
+  </data>
+  <data name="pages.settings.infra.push.config.enabled.hint" xml:space="preserve">
+    <value>Když je vypnuto, API přeskočí všechna volání push workeru.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.workerGrpcUrl.label" xml:space="preserve">
+    <value>Worker gRPC URL</value>
+  </data>
+  <data name="pages.settings.infra.push.config.workerAuthToken.label" xml:space="preserve">
+    <value>Auth token workeru</value>
+  </data>
+  <data name="pages.settings.infra.push.config.workerAuthToken.placeholderEmpty" xml:space="preserve">
+    <value>Nechte prázdné pro zachování existujícího tokenu</value>
+  </data>
+  <data name="pages.settings.infra.push.config.workerAuthToken.placeholderSet" xml:space="preserve">
+    <value>Token je nastaven (zadejte novou hodnotu pro rotaci)</value>
+  </data>
+  <data name="pages.settings.infra.push.config.titleLocKey.label" xml:space="preserve">
+    <value>Výchozí klíč titulku (loc key)</value>
+  </data>
+  <data name="pages.settings.infra.push.config.bodyLocKey.label" xml:space="preserve">
+    <value>Výchozí klíč textu (loc key)</value>
+  </data>
+  <data name="pages.settings.infra.push.config.androidChannelId.label" xml:space="preserve">
+    <value>Android channel id</value>
+  </data>
+  <data name="pages.settings.infra.push.config.grpcDeadlineSeconds.label" xml:space="preserve">
+    <value>gRPC deadline (sekundy)</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.projectId.label" xml:space="preserve">
+    <value>Firebase project ID</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.serviceAccountJson.label" xml:space="preserve">
+    <value>Service account JSON</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.serviceAccountJson.placeholderEmpty" xml:space="preserve">
+    <value>Vložte nebo nahrajte Firebase service account JSON</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.serviceAccountJson.placeholderSet" xml:space="preserve">
+    <value>Přihlašovací údaje jsou nastaveny (vložte nebo nahrajte pro rotaci)</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.uploadJson" xml:space="preserve">
+    <value>Nahrát JSON</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.credentialsConfigured" xml:space="preserve">
+    <value>Firebase přihlašovací údaje jsou nastaveny na serveru.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.firebase.credentialsMissing" xml:space="preserve">
+    <value>Firebase přihlašovací údaje ještě nejsou nastaveny.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.transport.tlsConfigured" xml:space="preserve">
+    <value>TLS: nastaveno přes prostředí</value>
+  </data>
+  <data name="pages.settings.infra.push.config.transport.tlsNotConfigured" xml:space="preserve">
+    <value>TLS: není nastaveno přes prostředí</value>
+  </data>
+  <data name="pages.settings.infra.push.config.transport.mtlsConfigured" xml:space="preserve">
+    <value>mTLS: nastaveno přes prostředí</value>
+  </data>
+  <data name="pages.settings.infra.push.config.transport.mtlsNotConfigured" xml:space="preserve">
+    <value>mTLS: není nastaveno přes prostředí</value>
+  </data>
+  <data name="pages.settings.infra.push.config.save" xml:space="preserve">
+    <value>Uložit push nastavení</value>
+  </data>
+  <data name="pages.settings.infra.push.config.saveSuccess" xml:space="preserve">
+    <value>Push nastavení byla uložena.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.saveError" xml:space="preserve">
+    <value>Push nastavení se nepodařilo uložit.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.loadError" xml:space="preserve">
+    <value>Push nastavení se nepodařilo načíst.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.clearSecret" xml:space="preserve">
+    <value>Vymazat</value>
+  </data>
+  <data name="pages.settings.infra.push.config.testFcm.action" xml:space="preserve">
+    <value>Otestovat FCM přihlašovací údaje</value>
+  </data>
+  <data name="pages.settings.infra.push.config.testFcm.saveFirstHint" xml:space="preserve">
+    <value>Před testem FCM uložte push nastavení.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.testFcm.success" xml:space="preserve">
+    <value>FCM přihlašovací údaje OK (projekt {{projectId}}).</value>
+  </data>
+  <data name="pages.settings.infra.push.config.testFcm.failure" xml:space="preserve">
+    <value>Test FCM přihlašovacích údajů selhal.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.disable.message" xml:space="preserve">
+    <value>Vypnout platformový push? Notifikace se přestanou odesílat.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.disable.confirm" xml:space="preserve">
+    <value>Vypnout push</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.workerUrl.message" xml:space="preserve">
+    <value>Změnit push worker URL? Chybná konfigurace může přerušit všechna odeslání.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.workerUrl.confirm" xml:space="preserve">
+    <value>Změnit URL</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.firebaseJson.message" xml:space="preserve">
+    <value>Rotovat Firebase service account JSON? Po uložení ověřte testem FCM.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.confirm.firebaseJson.confirm" xml:space="preserve">
+    <value>Rotovat přihlašovací údaje</value>
+  </data>
+  <data name="pages.settings.infra.push.config.status.disabled" xml:space="preserve">
+    <value>Vypnuto</value>
+  </data>
+  <data name="pages.settings.infra.push.config.status.incomplete" xml:space="preserve">
+    <value>Neúplné</value>
+  </data>
+  <data name="pages.settings.infra.push.config.status.configured" xml:space="preserve">
+    <value>Nakonfigurováno</value>
+  </data>
+  <data name="pages.settings.infra.push.config.status.notConfigured" xml:space="preserve">
+    <value>Nenakonfigurováno</value>
+  </data>
+  <data name="pages.settings.infra.push.config.status.updatedAt" xml:space="preserve">
+    <value>Aktualizováno {{value}}</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.invalidWorkerUrl" xml:space="preserve">
+    <value>Zadejte platnou http(s) worker URL.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.titleLocKeyRequired" xml:space="preserve">
+    <value>Výchozí klíč titulku je povinný, když je push zapnutý.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.bodyLocKeyRequired" xml:space="preserve">
+    <value>Výchozí klíč textu je povinný, když je push zapnutý.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.invalidLocKey" xml:space="preserve">
+    <value>Loc key obsahuje neplatné znaky.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.grpcDeadlineInvalid" xml:space="preserve">
+    <value>gRPC deadline musí být mezi 1 a 120 sekundami.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.firebaseJsonRequired" xml:space="preserve">
+    <value>Firebase service account JSON je povinný, když je push zapnutý.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.validation.firebaseJsonInvalid" xml:space="preserve">
+    <value>Zadejte platný Firebase service account JSON.</value>
+  </data>
+  <data name="pages.settings.infra.push.config.smoke.sectionTitle" xml:space="preserve">
+    <value>Smoke test</value>
+  </data>
+  <data name="pages.settings.infra.push.config.smoke.hint" xml:space="preserve">
+    <value>Před odesláním test push uložte změny. Používá uložená nastavení serveru.</value>
+  </data>
   <data name="pages.settings.infra.search.title" xml:space="preserve">
     <value>Search worker</value>
   </data>

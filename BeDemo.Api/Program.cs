@@ -39,6 +39,7 @@ using BeDemo.Api.Middlewares;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Services.OperatorMail;
+using BeDemo.Api.Services.OperatorPush;
 using BeDemo.Api.Services.Search;
 using BeDemo.Api.Configuration;
 using BeDemo.Api.Hubs;
@@ -168,6 +169,8 @@ builder.Services.Configure<ContentModerationSecurityOptions>(
     builder.Configuration.GetSection(ContentModerationSecurityOptions.SectionName));
 builder.Services.Configure<SearchOptions>(builder.Configuration.GetSection(SearchOptions.SectionName));
 builder.Services.Configure<PushOptions>(builder.Configuration.GetSection(PushOptions.SectionName));
+builder.Services.Configure<PushFirebaseBootstrapOptions>(
+    builder.Configuration.GetSection($"{PushOptions.SectionName}:Firebase"));
 builder.Services.Configure<MailOptions>(builder.Configuration.GetSection(MailOptions.SectionName));
 builder.Services.Configure<RegistrationInviteOptions>(builder.Configuration.GetSection(RegistrationInviteOptions.SectionName));
 builder.Services.Configure<MailRegistrationLinkOptions>(builder.Configuration.GetSection(MailRegistrationLinkOptions.SectionName));
@@ -743,6 +746,9 @@ builder.Services.AddDataProtection();
 builder.Services.AddSingleton<IOperatorMailSecretProtector, OperatorMailSecretProtector>();
 builder.Services.AddSingleton<IOperatorMailSettingsProvider, OperatorMailSettingsService>();
 builder.Services.AddSingleton<AdminMailSettingsApplyService>();
+builder.Services.AddSingleton<IOperatorPushSecretProtector, OperatorPushSecretProtector>();
+builder.Services.AddSingleton<IOperatorPushSettingsProvider, OperatorPushSettingsService>();
+builder.Services.AddSingleton<AdminPushSettingsApplyService>();
 builder.Services.AddScoped<IOperatorAiEnableService, OperatorAiEnableService>();
 builder.Services.AddHostedService<OperatorAiLiveBundleCacheStartupWarm>();
 

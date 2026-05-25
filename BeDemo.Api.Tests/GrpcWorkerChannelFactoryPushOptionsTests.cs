@@ -2,6 +2,7 @@ using System.Net.Security;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorPush;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -91,16 +92,33 @@ public sealed class GrpcWorkerChannelFactoryPushOptionsTests
     }
 
     [Fact]
-    public void PushWorkerGrpcClient_ctor_throws_on_invalid_https_tls_combo()
+    public async Task PushWorkerGrpcClient_send_throws_on_invalid_https_tls_combo()
     {
+        var values = new OperatorPushSettingsValues(
+            true,
+            "https://push-worker:50053",
+            null,
+            "demo-project",
+            IntegrationTestPush.TestFirebaseServiceAccountJson,
+            "push_test_title",
+            "push_test_body",
+            null,
+            15,
+            DateTime.UtcNow,
+            null);
+        var provider = new StaticPushSettingsProvider(values);
         var o = Options.Create(new PushOptions
         {
-            Enabled = true,
-            WorkerGrpcUrl = "https://push-worker:50053",
             WorkerTlsClientCertPath = "/no/such/client.crt",
             WorkerTlsClientKeyPath = "/no/such/client.key",
         });
-        var act = () => _ = new PushWorkerGrpcClient(o, NullLogger<PushWorkerGrpcClient>.Instance);
-        act.Should().Throw<IOException>();
+        using var sut = new PushWorkerGrpcClient(provider, o, NullLogger<PushWorkerGrpcClient>.Instance);
+        var act = async () =>
+        {
+            var req = new ManyFaces.Push.V1.SendPushRequest { TitleLocKey = "k", BodyLocKey = "b" };
+            req.RegistrationTokens.Add("tok");
+            await sut.SendPushAsync(req);
+        };
+        await act.Should().ThrowAsync<IOException>();
     }
 }
