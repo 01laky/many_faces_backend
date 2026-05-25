@@ -29,6 +29,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 ---
 
+## [1.0.2]
+
+### Added
+
+- Add README shield badges (version, CI, stack tech) via sync-readme-badges.py.
+
+### Added
+
+- Add README shield badges (version, CI, stack tech) via sync-readme-badges.py.
+
+### Changed
+
+### Fixed
+
+---
+
 ## [1.0.1]
 
 ### Changed
@@ -145,7 +161,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/01laky/many_faces_backend/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/01laky/many_faces_backend/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/01laky/many_faces_backend/compare/v0.8.0...v0.9.0
