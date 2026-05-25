@@ -38,6 +38,7 @@ using BeDemo.Api.Security;
 using BeDemo.Api.Middlewares;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
+using BeDemo.Api.Services.Search;
 using BeDemo.Api.Configuration;
 using BeDemo.Api.Hubs;
 using BeDemo.Api.Scripts;
@@ -173,6 +174,21 @@ builder.Services.AddScoped<IUserRegistrationProvisioner, UserRegistrationProvisi
 builder.Services.AddHostedService<RegistrationInviteCleanupHostedService>();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<ISearchWorkerProbe, SearchWorkerGrpcProbe>();
+builder.Services.AddSingleton<ISearchQueryGateway, SearchWorkerGrpcGateway>();
+builder.Services.AddScoped<ISearchOutboxService, SearchOutboxService>();
+builder.Services.AddScoped<SearchDocumentBuilder>();
+builder.Services.AddScoped<SearchHitAclFilter>();
+builder.Services.AddScoped<IAdminSearchAutocompleteService, AdminSearchAutocompleteService>();
+builder.Services.AddScoped<SearchIndexReconciliationRunner>();
+
+var searchOptionsForHosted = builder.Configuration.GetSection(SearchOptions.SectionName).Get<SearchOptions>() ?? new SearchOptions();
+if (searchOptionsForHosted.IsEnabled)
+{
+    builder.Services.AddHostedService<SearchOutboxProcessorHostedService>();
+    if (searchOptionsForHosted.ReconciliationEnabled)
+        builder.Services.AddHostedService<SearchIndexReconciliationHostedService>();
+}
+
 builder.Services.AddSingleton<IPushWorkerClient, PushWorkerGrpcClient>();
 builder.Services.AddSingleton<IMailerWorkerClient, MailerWorkerGrpcClient>();
 

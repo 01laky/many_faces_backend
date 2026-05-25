@@ -3425,4 +3425,55 @@
   <data name="welcome" xml:space="preserve">
     <value>Willkommen bei Vite + React</value>
   </data>
+  <data name="globalSearch.toggle" xml:space="preserve">
+    <value>Plattform durchsuchen</value>
+  </data>
+  <data name="globalSearch.placeholder" xml:space="preserve">
+    <value>Plattform durchsuchen…</value>
+  </data>
+  <data name="globalSearch.loading" xml:space="preserve">
+    <value>Suche…</value>
+  </data>
+  <data name="globalSearch.loadingMore" xml:space="preserve">
+    <value>Weitere laden…</value>
+  </data>
+  <data name="globalSearch.noResults" xml:space="preserve">
+    <value>Keine Ergebnisse für „{{query}}“</value>
+  </data>
+  <data name="globalSearch.unavailable" xml:space="preserve">
+    <value>Suche nicht verfügbar</value>
+  </data>
+  <data name="globalSearch.entityType.user" xml:space="preserve">
+    <value>Benutzer</value>
+  </data>
+  <data name="globalSearch.entityType.face" xml:space="preserve">
+    <value>Face</value>
+  </data>
+  <data name="globalSearch.entityType.page" xml:space="preserve">
+    <value>Seite</value>
+  </data>
+  <data name="globalSearch.entityType.album" xml:space="preserve">
+    <value>Album</value>
+  </data>
+  <data name="globalSearch.entityType.blog" xml:space="preserve">
+    <value>Blog</value>
+  </data>
+  <data name="globalSearch.entityType.reel" xml:space="preserve">
+    <value>Reel</value>
+  </data>
+  <data name="globalSearch.entityType.story" xml:space="preserve">
+    <value>Story</value>
+  </data>
+  <data name="globalSearch.entityType.face_chat_room" xml:space="preserve">
+    <value>Chatraum</value>
+  </data>
+  <data name="globalSearch.entityType.video_lounge" xml:space="preserve">
+    <value>Video-Lounge</value>
+  </data>
+  <data name="globalSearch.entityType.face_profile" xml:space="preserve">
+    <value>Profil</value>
+  </data>
+  <data name="globalSearch.entityType.wall_ticket" xml:space="preserve">
+    <value>Wall-Ticket</value>
+  </data>
 </root>

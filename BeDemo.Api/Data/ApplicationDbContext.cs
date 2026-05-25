@@ -97,6 +97,9 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     /// <summary>Operator face-scoped bans (not peer <see cref="UserBlock"/>).</summary>
     public DbSet<UserFaceModeration> UserFaceModerations { get; set; } = null!;
 
+    /// <summary>Pending search index/delete operations for incremental Elasticsearch projection.</summary>
+    public DbSet<SearchOutboxEntry> SearchOutboxEntries { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -1317,6 +1320,18 @@ public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany()
                 .HasForeignKey(e => e.BannedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<SearchOutboxEntry>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.DocumentType).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.EntityId).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.Operation).IsRequired();
+            entity.Property(e => e.CreatedAtUtc).IsRequired();
+            entity.Property(e => e.LastError).HasMaxLength(2000);
+            entity.HasIndex(e => new { e.DocumentType, e.EntityId, e.ProcessedAtUtc });
+            entity.HasIndex(e => e.ProcessedAtUtc);
         });
     }
 }

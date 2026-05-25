@@ -49,6 +49,27 @@ public sealed class SearchOptions
     /// <summary>Reserved for hosted Elastic / API key auth inside the worker only (not used by the API HTTP path).</summary>
     public string? ApiKey { get; set; }
 
+    /// <summary>When false, <see cref="SearchIndexReconciliationHostedService"/> is not registered.</summary>
+    public bool ReconciliationEnabled { get; set; } = true;
+
+    /// <summary>Hours between full reconciliation runs after the first startup run completes.</summary>
+    public int ReconciliationIntervalHours { get; set; } = 6;
+
+    /// <summary>Delay after host start before the first reconciliation run (does not block Kestrel).</summary>
+    public int ReconciliationStartupDelaySeconds { get; set; } = 30;
+
+    /// <summary>PostgreSQL read batch size per entity type during reconciliation.</summary>
+    public int ReconciliationBatchSize { get; set; } = 200;
+
+    /// <summary>Maximum wall-clock time for one reconciliation run before cancellation.</summary>
+    public int ReconciliationRunTimeoutMinutes { get; set; } = 45;
+
+    /// <summary>How often <see cref="SearchOutboxProcessorHostedService"/> polls pending outbox rows.</summary>
+    public int OutboxPollIntervalSeconds { get; set; } = 5;
+
+    /// <summary>Log a warning when pending outbox depth exceeds this threshold (§6.5 observability).</summary>
+    public int OutboxWarningPendingCount { get; set; } = 1000;
+
     /// <summary>
     /// True when operators explicitly enabled search and supplied a usable worker URL. Used by DI to decide whether to open a <see cref="Grpc.Net.Client.GrpcChannel"/>.
     /// </summary>
