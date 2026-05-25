@@ -38,36 +38,20 @@ public sealed class SearchOutboxService : ISearchOutboxService
     }
 
     /// <inheritdoc />
-    public void StageIndex(string documentType, string entityId) =>
-        Upsert(documentType, entityId, SearchOutboxOperation.Index);
-
-    /// <inheritdoc />
-    public void StageDelete(string documentType, string entityId) =>
-        Upsert(documentType, entityId, SearchOutboxOperation.Delete);
-
-    private void Upsert(string documentType, string entityId, SearchOutboxOperation operation)
+    public void StageIndex(string documentType, string entityId)
     {
         if (!_options.Value.IsEnabled)
             return;
 
-        var existing = _db.SearchOutboxEntries
-            .FirstOrDefault(e => e.DocumentType == documentType && e.EntityId == entityId && e.ProcessedAtUtc == null);
+        SearchOutboxStaging.StageIndex(_db, documentType, entityId);
+    }
 
-        if (existing is not null)
-        {
-            existing.Operation = operation;
-            existing.CreatedAtUtc = DateTime.UtcNow;
-            existing.AttemptCount = 0;
-            existing.LastError = null;
+    /// <inheritdoc />
+    public void StageDelete(string documentType, string entityId)
+    {
+        if (!_options.Value.IsEnabled)
             return;
-        }
 
-        _db.SearchOutboxEntries.Add(new SearchOutboxEntry
-        {
-            DocumentType = documentType,
-            EntityId = entityId,
-            Operation = operation,
-            CreatedAtUtc = DateTime.UtcNow,
-        });
+        SearchOutboxStaging.StageDelete(_db, documentType, entityId);
     }
 }

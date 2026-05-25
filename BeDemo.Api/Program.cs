@@ -173,11 +173,13 @@ builder.Services.AddScoped<IRegistrationInviteService, RegistrationInviteService
 builder.Services.AddScoped<IUserRegistrationProvisioner, UserRegistrationProvisioner>();
 builder.Services.AddHostedService<RegistrationInviteCleanupHostedService>();
 builder.Services.AddHttpClient();
+builder.Services.AddSingleton<SearchOutboxSaveChangesInterceptor>();
 builder.Services.AddSingleton<ISearchWorkerProbe, SearchWorkerGrpcProbe>();
 builder.Services.AddSingleton<ISearchQueryGateway, SearchWorkerGrpcGateway>();
 builder.Services.AddScoped<ISearchOutboxService, SearchOutboxService>();
 builder.Services.AddScoped<SearchDocumentBuilder>();
 builder.Services.AddScoped<SearchHitAclFilter>();
+builder.Services.AddScoped<SearchHitBatchFilter>();
 builder.Services.AddScoped<IAdminSearchAutocompleteService, AdminSearchAutocompleteService>();
 builder.Services.AddScoped<SearchIndexReconciliationRunner>();
 
@@ -476,10 +478,12 @@ builder.Services.AddCors(options =>
 if (builder.Environment.IsEnvironment("Testing"))
 {
     // In-memory database for integration tests (no PostgreSQL required)
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseInMemoryDatabase("BeDemoTestDb"));
+    builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
+        options.UseInMemoryDatabase("BeDemoTestDb")
+            .AddInterceptors(sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>()));
     builder.Services.AddDbContextFactory<ApplicationDbContext>(
-        options => options.UseInMemoryDatabase("BeDemoTestDb"),
+        (sp, options) => options.UseInMemoryDatabase("BeDemoTestDb")
+            .AddInterceptors(sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>()),
         ServiceLifetime.Scoped);
 }
 else
@@ -490,12 +494,14 @@ else
         ? connectionString.Substring(0, connectionString.IndexOf("Password=")) + "Password=***"
         : connectionString;
     Log.Information("Using connection string: {ConnectionString}", connectionStringForLogging);
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
         options.UseNpgsql(connectionString)
-            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
+            .AddInterceptors(sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>()));
     builder.Services.AddDbContextFactory<ApplicationDbContext>(
-        options => options.UseNpgsql(connectionString)
-            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)),
+        (sp, options) => options.UseNpgsql(connectionString)
+            .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
+            .AddInterceptors(sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>()),
         ServiceLifetime.Scoped);
 }
 

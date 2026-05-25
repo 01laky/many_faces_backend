@@ -165,6 +165,7 @@ public sealed class SearchDocumentBuilder
             DocumentType = SearchDocumentTypes.FaceProfile,
             EntityId = profile.Id.ToString(),
             FaceId = profile.FaceId.ToString(),
+            RoutingUserId = user.Id,
             Title = display,
             Subtitle = user.Email ?? string.Empty,
             SearchText = $"{display} {user.Email} {user.UserName}".Trim(),

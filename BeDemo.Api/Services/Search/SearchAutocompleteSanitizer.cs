@@ -7,7 +7,7 @@ namespace BeDemo.Api.Services.Search;
 
 /// <summary>
 /// XSS-safe projection of autocomplete hits before JSON serialization (§3.5).
-/// Highlights allow only <c>&lt;em&gt;</c> / <c>&lt;/em&gt;</c>; title and subtitle are HTML-encoded.
+/// Highlights allow only <c>&lt;em&gt;</c> / <c>&lt;/em&gt;</c>; title and subtitle are plain text (React escapes on render).
 /// </summary>
 public static class SearchAutocompleteSanitizer
 {
@@ -56,19 +56,24 @@ public static class SearchAutocompleteSanitizer
 
     public static AdminSearchAutocompleteHitDto ToDto(AutocompleteHit hit)
     {
-        var routeIds = hit.RouteParams?.Ids ?? new Google.Protobuf.Collections.MapField<string, string>();
+        var normalizedIds = SearchRouteParamsNormalizer.Normalize(
+            hit.DocumentType,
+            hit.EntityId,
+            hit.RouteParams);
+
         return new AdminSearchAutocompleteHitDto
         {
             EntityType = hit.DocumentType,
             EntityId = hit.EntityId,
             FaceId = string.IsNullOrWhiteSpace(hit.FaceId) ? null : hit.FaceId,
-            Title = EncodePlainText(hit.Title),
-            Subtitle = string.IsNullOrWhiteSpace(hit.Subtitle) ? null : EncodePlainText(hit.Subtitle),
+            Title = hit.Title ?? string.Empty,
+            Subtitle = string.IsNullOrWhiteSpace(hit.Subtitle) ? null : hit.Subtitle,
             Highlights = hit.Highlights.Select(SanitizeHighlight).ToList(),
+            Score = hit.Score,
             RouteParams = new AdminSearchRouteParamsDto
             {
                 Type = hit.RouteParams?.Type ?? hit.DocumentType,
-                Ids = routeIds.ToDictionary(kv => kv.Key, kv => kv.Value),
+                Ids = normalizedIds,
             },
         };
     }

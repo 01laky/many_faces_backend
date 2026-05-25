@@ -24,18 +24,18 @@ public sealed class AdminSearchAutocompleteService : IAdminSearchAutocompleteSer
     private const int MaxWorkerPages = 10;
 
     private readonly ISearchQueryGateway _gateway;
-    private readonly SearchHitAclFilter _acl;
+    private readonly SearchHitBatchFilter _batchFilter;
     private readonly IOptions<SearchOptions> _options;
     private readonly ILogger<AdminSearchAutocompleteService> _logger;
 
     public AdminSearchAutocompleteService(
         ISearchQueryGateway gateway,
-        SearchHitAclFilter acl,
+        SearchHitBatchFilter batchFilter,
         IOptions<SearchOptions> options,
         ILogger<AdminSearchAutocompleteService> logger)
     {
         _gateway = gateway;
-        _acl = acl;
+        _batchFilter = batchFilter;
         _options = options;
         _logger = logger;
     }
@@ -94,11 +94,9 @@ public sealed class AdminSearchAutocompleteService : IAdminSearchAutocompleteSer
                 if (response is null)
                     return DegradedResponse(query, offset, pageSize, "Search worker is unavailable.");
 
-                foreach (var hit in response.Hits)
+                var visibleFromPage = await _batchFilter.FilterVisibleAsync(response.Hits, cancellationToken);
+                foreach (var hit in visibleFromPage)
                 {
-                    if (!await _acl.IsVisibleAsync(hit, cancellationToken))
-                        continue;
-
                     visibleHits.Add(SearchAutocompleteSanitizer.ToDto(hit));
                     if (visibleHits.Count >= pageSize)
                         break;
@@ -118,8 +116,9 @@ public sealed class AdminSearchAutocompleteService : IAdminSearchAutocompleteSer
             }
 
             visibleHits = visibleHits
-                .OrderBy(h => SearchDocumentTypes.SortOrder(h.EntityType))
-                .ThenByDescending(h => h.Title, StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(h => h.Score)
+                .ThenBy(h => SearchDocumentTypes.SortOrder(h.EntityType))
+                .ThenBy(h => h.Title, StringComparer.OrdinalIgnoreCase)
                 .Take(pageSize)
                 .ToList();
 

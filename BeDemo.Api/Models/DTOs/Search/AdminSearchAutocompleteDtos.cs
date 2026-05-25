@@ -34,6 +34,8 @@ public sealed class AdminSearchAutocompleteHitDto
 
     public IReadOnlyList<string> Highlights { get; set; } = [];
 
+    public double Score { get; set; }
+
     public AdminSearchRouteParamsDto RouteParams { get; set; } = new();
 }
 

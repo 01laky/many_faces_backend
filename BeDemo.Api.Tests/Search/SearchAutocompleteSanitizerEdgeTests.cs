@@ -22,12 +22,9 @@ public sealed class SearchAutocompleteSanitizerEdgeTests
 
         var dto = SearchAutocompleteSanitizer.ToDto(hit);
 
-        dto.Title.Should().NotContain("<script>");
-        dto.Title.Should().Contain("&lt;script&gt;");
-        dto.Subtitle.Should().NotContain("<img");
+        dto.Title.Should().Be("<script>alert(1)</script>demo@example.com");
+        dto.Subtitle.Should().Be("<img onerror=alert(1) src=x>");
         dto.Highlights[0].Should().Be("<em>demo</em>bad");
-        dto.Highlights[0].Should().NotContain("<script>");
-        dto.Highlights[0].Should().NotContain("<b>");
     }
 
     [Fact]

@@ -41,6 +41,7 @@ public sealed class SearchIndexReconciliationHostedService : BackgroundService
 
         do
         {
+            SearchObservability.LogReconciliationStaleWarningIfNeeded(_logger);
             await TryRunOnceAsync(stoppingToken);
         }
         while (await timer.WaitForNextTickAsync(stoppingToken));
