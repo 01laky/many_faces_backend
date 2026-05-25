@@ -2,6 +2,8 @@
 
 **Version:** [`1.0.0`](./VERSION) · [Changelog](./CHANGELOG.md)
 
+**Author:** Ladislav Kostolny · [01laky@gmail.com](mailto:01laky@gmail.com)
+
 **The trust boundary for Many Faces AI.** This ASP.NET Core API owns authentication, face-scoped routing, authorization, PostgreSQL persistence, SignalR hubs, worker gRPC clients, Redis-backed jobs/cache, OpenAPI contracts, and the operator AI orchestration path. Clients (portal, admin, mobile) use **HTTPS/REST/SignalR** here only — workers, Elasticsearch, and Ollama are reached through this API.
 
 ### Three pillars
