@@ -66,6 +66,8 @@ public sealed class AdminPushTestControllerTests
 	[Fact]
 	public async Task TestSelf_ShouldReturnBadRequest_WhenNoDevices_ForSuperAdmin()
 	{
+		await EnsureSuperAdminHasNoPushDevicesAsync(_factory);
+
 		var client = _factory.CreateFaceClient("admin");
 		var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
 		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -74,6 +76,24 @@ public sealed class AdminPushTestControllerTests
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 		var body = await response.Content.ReadAsStringAsync();
 		body.Should().Match("*device*", because: "seeded super-admin has no push devices");
+	}
+
+	private static async Task EnsureSuperAdminHasNoPushDevicesAsync(CustomWebApplicationFactory<Program> factory)
+	{
+		using var scope = factory.Services.CreateScope();
+		var sp = scope.ServiceProvider;
+		var userManager = sp.GetRequiredService<UserManager<ApplicationUser>>();
+		var db = sp.GetRequiredService<ApplicationDbContext>();
+		var user = await userManager.FindByEmailAsync(IntegrationTestSeed.SuperAdminEmail);
+		if (user == null)
+			throw new InvalidOperationException("Super-admin seed missing.");
+
+		var rows = db.UserPushDevices.Where(d => d.UserId == user.Id).ToList();
+		if (rows.Count == 0)
+			return;
+
+		db.UserPushDevices.RemoveRange(rows);
+		await db.SaveChangesAsync();
 	}
 
 	private static async Task EnsureSuperAdminHasPushDeviceAsync(PushDisabledWebApplicationFactory factory)
