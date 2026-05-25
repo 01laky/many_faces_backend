@@ -142,6 +142,7 @@ builder.Services.AddScoped<IOperatorAiLiveStatsPrefetcher, OperatorAiLiveStatsPr
 builder.Services.AddScoped<IOperatorAiLiveStatsOrchestrator, OperatorAiLiveStatsOrchestrator>();
 builder.Services.AddScoped<IFaceModerationService, FaceModerationService>();
 builder.Services.AddScoped<IOperatorUserModerationService, OperatorUserModerationService>();
+builder.Services.AddScoped<IAdminMeProfileService, AdminMeProfileService>();
 builder.Services.AddScoped<IOperatorAlbumManagementService, OperatorAlbumManagementService>();
 builder.Services.AddScoped<IOperatorReelManagementService, OperatorReelManagementService>();
 builder.Services.AddScoped<IOperatorBlogManagementService, OperatorBlogManagementService>();

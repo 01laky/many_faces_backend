@@ -14,6 +14,14 @@ public interface IOperatorUserModerationService
         string correlationId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Self-service face role change for super-admin operator account (skips super-admin target guard).</summary>
+    Task<(bool Success, string? Error, int StatusCode)> SetSelfFaceRoleAsync(
+        string userId,
+        int faceId,
+        int userRoleId,
+        string correlationId,
+        CancellationToken cancellationToken = default);
+
     Task<(bool Success, string? Error, int StatusCode, bool AlreadyBanned)> GlobalBanAsync(
         string operatorUserId,
         string targetUserId,

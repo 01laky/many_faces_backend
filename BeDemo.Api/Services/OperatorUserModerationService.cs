@@ -123,6 +123,36 @@ public sealed class OperatorUserModerationService : IOperatorUserModerationServi
         if (!OperatorModerationGuard.CanChangeFaceRole(target))
             return (false, "Cannot change role for this user", StatusCodes.Status403Forbidden);
 
+        return await ApplyFaceRoleChangeAsync(operatorUserId, targetUserId, faceId, userRoleId, correlationId, cancellationToken);
+    }
+
+    public async Task<(bool Success, string? Error, int StatusCode)> SetSelfFaceRoleAsync(
+        string userId,
+        int faceId,
+        int userRoleId,
+        string correlationId,
+        CancellationToken cancellationToken = default)
+    {
+        var hasMembership = await _context.UserFaceRoles.AsNoTracking()
+            .AnyAsync(ufr => ufr.UserId == userId && ufr.FaceId == faceId, cancellationToken);
+        if (!hasMembership)
+            return (false, "Face membership not found", StatusCodes.Status404NotFound);
+
+        return await ApplyFaceRoleChangeAsync(userId, userId, faceId, userRoleId, correlationId, cancellationToken);
+    }
+
+    private async Task<(bool Success, string? Error, int StatusCode)> ApplyFaceRoleChangeAsync(
+        string operatorUserId,
+        string targetUserId,
+        int faceId,
+        int userRoleId,
+        string correlationId,
+        CancellationToken cancellationToken)
+    {
+        var target = await LoadTargetWithRoleAsync(targetUserId, cancellationToken);
+        if (target == null)
+            return (false, "User not found", StatusCodes.Status404NotFound);
+
         var face = await _context.Faces.FindAsync(new object[] { faceId }, cancellationToken);
         if (face == null)
             return (false, "Face not found", StatusCodes.Status404NotFound);
