@@ -49,6 +49,7 @@ public sealed class AdminInfraControllerTests
     [Fact]
     public async Task WorkerConfig_ShouldReturnOk_WithConfiguredFlags_ForSuperAdmin()
     {
+        await IntegrationTestMail.ResetToBootstrapAsync(_factory);
         var client = _factory.CreateFaceClient("admin");
         var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -65,6 +66,7 @@ public sealed class AdminInfraControllerTests
     [Fact]
     public async Task WorkerConfig_ShouldReportMailNotConfigured_WhenMailDisabled()
     {
+        await IntegrationTestMail.ResetToBootstrapAsync(_mailDisabledFactory, forceEnabled: false);
         var client = _mailDisabledFactory.CreateFaceClient("admin");
         var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);

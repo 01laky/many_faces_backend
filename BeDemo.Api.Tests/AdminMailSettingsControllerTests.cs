@@ -37,7 +37,10 @@ public sealed class AdminMailSettingsControllerTests
         _adminFace = AclTestClients.CreateAdminFaceClient(factory);
     }
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+        IntegrationTestMail.ResetToBootstrapAsync(_factory).GetAwaiter().GetResult();
+    }
 
     [Fact]
     public async Task AMC_B1_GetSettings_ReturnsBootstrap_WhenNoPriorPut()

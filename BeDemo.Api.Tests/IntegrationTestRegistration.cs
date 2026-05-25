@@ -167,6 +167,7 @@ internal static class IntegrationTestRegistration
         string lastName,
         string locale)
     {
+        await IntegrationTestMail.ResetToBootstrapAsync(factory);
         factory.CapturingMailer.Reset();
         var requestResponse = await client.PostAsJsonAsync(
             "/api/oauth2/register/request",
@@ -215,6 +216,7 @@ internal static class IntegrationTestRegistration
         string lastName,
         string locale)
     {
+        await IntegrationTestMail.ResetToBootstrapAsync(factory);
         factory.CapturingMailer.Reset();
         var requestResponse = await client.PostAsJsonAsync(
             "/api/oauth2/register/request",

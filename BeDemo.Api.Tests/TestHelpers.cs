@@ -14,8 +14,28 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
 {
     private CapturingMailerWorkerClient? _capturingMailer;
 
-    public CapturingMailerWorkerClient CapturingMailer =>
-        _capturingMailer ?? throw new InvalidOperationException("Capturing mailer not initialized.");
+    /// <summary>
+    /// Resolves the test double lazily — the singleton factory runs on first <see cref="IMailerWorkerClient"/> use,
+    /// which may be after registration helpers call <see cref="CapturingMailer.Reset"/>.
+    /// </summary>
+    public CapturingMailerWorkerClient CapturingMailer
+    {
+        get
+        {
+            if (_capturingMailer is not null)
+                return _capturingMailer;
+
+            var client = Services.GetRequiredService<IMailerWorkerClient>();
+            if (client is CapturingMailerWorkerClient capturing)
+            {
+                _capturingMailer = capturing;
+                return capturing;
+            }
+
+            throw new InvalidOperationException(
+                "Capturing mailer not initialized; IMailerWorkerClient is not CapturingMailerWorkerClient.");
+        }
+    }
     // Static flag to ensure database is initialized only once across all test instances
     private static readonly object _dbInitLock = new object();
     private static bool _databaseInitialized = false;
@@ -44,12 +64,9 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IMailerWorkerClient>();
-            services.AddSingleton<IMailerWorkerClient>(sp =>
-            {
-                var client = new CapturingMailerWorkerClient(sp.GetRequiredService<IOperatorMailSettingsProvider>());
-                _capturingMailer = client;
-                return client;
-            });
+            services.AddSingleton<CapturingMailerWorkerClient>(sp =>
+                new CapturingMailerWorkerClient(sp.GetRequiredService<IOperatorMailSettingsProvider>()));
+            services.AddSingleton<IMailerWorkerClient>(sp => sp.GetRequiredService<CapturingMailerWorkerClient>());
 
             // Initialize in-memory database once per test run (Program.cs registers InMemory when Testing)
             lock (_dbInitLock)
@@ -66,6 +83,7 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
                         IntegrationTestSeed.EnsureSuperAdminAsync(scope.ServiceProvider).GetAwaiter().GetResult();
                         IntegrationTestSeed.EnsureOperatorAiEnabledForIntegrationTestsAsync(scope.ServiceProvider)
                             .GetAwaiter().GetResult();
+                        IntegrationTestMail.ResetToBootstrapAsync(scope.ServiceProvider).GetAwaiter().GetResult();
                         _databaseInitialized = true;
                     }
                 }
