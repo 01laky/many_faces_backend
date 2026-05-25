@@ -1,25 +1,27 @@
 # Many Faces API
 
+**Version:** [`1.0.0`](./VERSION) · [Changelog](./CHANGELOG.md)
+
 **The trust boundary for Many Faces AI.** This ASP.NET Core API owns authentication, face-scoped routing, authorization, PostgreSQL persistence, SignalR hubs, worker gRPC clients, Redis-backed jobs/cache, OpenAPI contracts, and the operator AI orchestration path. Clients (portal, admin, mobile) use **HTTPS/REST/SignalR** here only — workers, Elasticsearch, and Ollama are reached through this API.
 
 ### Three pillars
 
-| Pillar | Highlights |
-| ------ | ----------- |
-| **Security (BSH3)** | **ES512 JWT** + JWKS, **`atv`** session invalidation, face-scope middleware (anti-spoof), refresh rotation, rate limits, **HMAC signed upload URLs**, production **fallback deny**, gRPC **TLS + bearer** to workers. CI: `node ../scripts/verify-backend-security-tests.mjs`. Guide: [`../docs/guides/security-crypto-sockets.md`](../docs/guides/security-crypto-sockets.md). |
-| **AI orchestration** | **Operator chat** (`ChatHub` → `many_faces_ai`), **live stats map-reduce** (61 entity bundles, Redis stage-1 cache), **`ReviewContent`** moderation jobs (Redis queue, sanitization before gRPC). Runbook: [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md). |
-| **Configuration** | **Faces** + pages + **`gridSchema`** in PostgreSQL; **operator settings in DB** — mail SMTP ([`admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md)), push FCM ([`admin-push-configuration.md`](../docs/guides/admin-push-configuration.md)), search/AI modes; env bootstrap until admin saves. |
+| Pillar               | Highlights                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Security (BSH3)**  | **ES512 JWT** + JWKS, **`atv`** session invalidation, face-scope middleware (anti-spoof), refresh rotation, rate limits, **HMAC signed upload URLs**, production **fallback deny**, gRPC **TLS + bearer** to workers. CI: `node ../scripts/verify-backend-security-tests.mjs`. Guide: [`../docs/guides/security-crypto-sockets.md`](../docs/guides/security-crypto-sockets.md). |
+| **AI orchestration** | **Operator chat** (`ChatHub` → `many_faces_ai`), **live stats map-reduce** (61 entity bundles, Redis stage-1 cache), **`ReviewContent`** moderation jobs (Redis queue, sanitization before gRPC). Runbook: [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md).                                                      |
+| **Configuration**    | **Faces** + pages + **`gridSchema`** in PostgreSQL; **operator settings in DB** — mail SMTP ([`admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md)), push FCM ([`admin-push-configuration.md`](../docs/guides/admin-push-configuration.md)), search/AI modes; env bootstrap until admin saves.                                                        |
 
-| Start here          | Link                                                                                                           |
-| ------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **Security**        | BSH3 above · [`appsettings.Hardened.json`](./BeDemo.Api/appsettings.Hardened.json) · worker TLS env vars       |
-| Run in full stack   | `../scripts/start-all-dev.sh` from `many_faces_main`                                                           |
-| Swagger             | `http://localhost:8000/swagger/index.html`                                                                     |
-| Local accounts      | [`../docs/guides/local-dev-accounts.md`](../docs/guides/local-dev-accounts.md)                                 |
-| Platform ACL        | [`../docs/guides/admin-superadmin-only-access.md`](../docs/guides/admin-superadmin-only-access.md)             |
-| Operator AI runbook | [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md) |
-| Admin mail settings | [`../docs/guides/admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md)               |
-| Admin push settings | [`../docs/guides/admin-push-configuration.md`](../docs/guides/admin-push-configuration.md)                   |
+| Start here          | Link                                                                                                                         |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| **Security**        | BSH3 above · [`appsettings.Hardened.json`](./BeDemo.Api/appsettings.Hardened.json) · worker TLS env vars                     |
+| Run in full stack   | `../scripts/start-all-dev.sh` from `many_faces_main`                                                                         |
+| Swagger             | `http://localhost:8000/swagger/index.html`                                                                                   |
+| Local accounts      | [`../docs/guides/local-dev-accounts.md`](../docs/guides/local-dev-accounts.md)                                               |
+| Platform ACL        | [`../docs/guides/admin-superadmin-only-access.md`](../docs/guides/admin-superadmin-only-access.md)                           |
+| Operator AI runbook | [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md)               |
+| Admin mail settings | [`../docs/guides/admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md)                               |
+| Admin push settings | [`../docs/guides/admin-push-configuration.md`](../docs/guides/admin-push-configuration.md)                                   |
 | Infra smoke APIs    | [`../docs/guides/admin-settings-infrastructure-smoke-tests.md`](../docs/guides/admin-settings-infrastructure-smoke-tests.md) |
 
 ```mermaid
