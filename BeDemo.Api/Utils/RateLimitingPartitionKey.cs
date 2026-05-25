@@ -18,20 +18,20 @@ namespace BeDemo.Api.Utils;
 /// </remarks>
 public static class RateLimitingPartitionKey
 {
-    /// <summary>Configuration key set once per test host in <c>BeDemo.Api.Tests</c>.</summary>
-    public const string TestingScopeConfigurationKey = "Testing:RateLimitScopeId";
+	/// <summary>Configuration key set once per test host in <c>BeDemo.Api.Tests</c>.</summary>
+	public const string TestingScopeConfigurationKey = "Testing:RateLimitScopeId";
 
-    /// <summary>
-    /// Resolves the partition key for the current HTTP request.
-    /// </summary>
-    public static string ForHttpContext(HttpContext httpContext)
-    {
-        ArgumentNullException.ThrowIfNull(httpContext);
+	/// <summary>
+	/// Resolves the partition key for the current HTTP request.
+	/// </summary>
+	public static string ForHttpContext(HttpContext httpContext)
+	{
+		ArgumentNullException.ThrowIfNull(httpContext);
 
-        var userId = httpContext.User?.FindFirstValue(ClaimTypes.NameIdentifier);
-        var remote = httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Connection.Id;
-        var identity = string.IsNullOrEmpty(userId) ? $"ip:{remote}" : $"user:{userId}";
-        var testScope = httpContext.RequestServices.GetService<IConfiguration>()?[TestingScopeConfigurationKey];
-        return string.IsNullOrWhiteSpace(testScope) ? identity : $"{testScope}:{identity}";
-    }
+		var userId = httpContext.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+		var remote = httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Connection.Id;
+		var identity = string.IsNullOrEmpty(userId) ? $"ip:{remote}" : $"user:{userId}";
+		var testScope = httpContext.RequestServices.GetService<IConfiguration>()?[TestingScopeConfigurationKey];
+		return string.IsNullOrWhiteSpace(testScope) ? identity : $"{testScope}:{identity}";
+	}
 }

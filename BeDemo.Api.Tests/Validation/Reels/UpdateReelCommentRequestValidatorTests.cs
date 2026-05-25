@@ -5,14 +5,14 @@ namespace BeDemo.Api.Tests.Validation.Reels;
 
 public sealed class UpdateReelCommentRequestValidatorTests
 {
-    private readonly UpdateReelCommentRequestValidator _sut = new();
+	private readonly UpdateReelCommentRequestValidator _sut = new();
 
-    [Fact]
-    public void Valid_minimal_instance_has_no_errors()
-    {
-        var model = new UpdateReelCommentDto();
-        var result = _sut.TestValidate(model);
-        // Refine per §4 T1–T12 as rules are added.
-        _ = result;
-    }
+	[Fact]
+	public void Valid_minimal_instance_has_no_errors()
+	{
+		var model = new UpdateReelCommentDto();
+		var result = _sut.TestValidate(model);
+		// Refine per §4 T1–T12 as rules are added.
+		_ = result;
+	}
 }

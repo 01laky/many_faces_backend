@@ -9,13 +9,13 @@ namespace BeDemo.Api.Tests.Validation.Rules;
 
 public sealed class PlatformPushRulesTests
 {
-    private sealed class Model { public string Platform { get; set; } = "ios"; }
-    private sealed class Validator : AbstractValidator<Model>
-    {
-        public Validator() => RuleFor(x => x.Platform).PushPlatform();
-    }
+	private sealed class Model { public string Platform { get; set; } = "ios"; }
+	private sealed class Validator : AbstractValidator<Model>
+	{
+		public Validator() => RuleFor(x => x.Platform).PushPlatform();
+	}
 
-    [Fact]
-    public void T7_Invalid_platform_fails() => new Validator().TestValidate(new Model { Platform = "windows" })
-        .ShouldHaveValidationErrorFor(x => x.Platform);
+	[Fact]
+	public void T7_Invalid_platform_fails() => new Validator().TestValidate(new Model { Platform = "windows" })
+		.ShouldHaveValidationErrorFor(x => x.Platform);
 }

@@ -31,7 +31,8 @@ const RAW_RUNTIME_STATE =
           ["@commitlint/cli", "npm:20.5.0"],\
           ["@commitlint/config-conventional", "npm:20.5.0"],\
           ["be-demo", "workspace:."],\
-          ["husky", "npm:9.1.7"]\
+          ["husky", "npm:9.1.7"],\
+          ["prettier", "npm:3.8.3"]\
         ],\
         "linkType": "SOFT"\
       }]\
@@ -370,7 +371,8 @@ const RAW_RUNTIME_STATE =
           ["@commitlint/cli", "npm:20.5.0"],\
           ["@commitlint/config-conventional", "npm:20.5.0"],\
           ["be-demo", "workspace:."],\
-          ["husky", "npm:9.1.7"]\
+          ["husky", "npm:9.1.7"],\
+          ["prettier", "npm:3.8.3"]\
         ],\
         "linkType": "SOFT"\
       }]\
@@ -836,6 +838,15 @@ const RAW_RUNTIME_STATE =
         "packageLocation": "../../../.yarn/berry/cache/picocolors-npm-1.1.1-4fede47cf1-10c0.zip/node_modules/picocolors/",\
         "packageDependencies": [\
           ["picocolors", "npm:1.1.1"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
+    ["prettier", [\
+      ["npm:3.8.3", {\
+        "packageLocation": "./.yarn/unplugged/prettier-npm-3.8.3-ecd857a540/node_modules/prettier/",\
+        "packageDependencies": [\
+          ["prettier", "npm:3.8.3"]\
         ],\
         "linkType": "HARD"\
       }]\

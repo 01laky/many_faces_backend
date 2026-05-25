@@ -14,9 +14,9 @@ namespace BeDemo.Api.Models.DTOs;
 /// </summary>
 public class ChatHistoryEntry
 {
-    [JsonPropertyName("userMessage")]
-    public string UserMessage { get; set; } = string.Empty;
+	[JsonPropertyName("userMessage")]
+	public string UserMessage { get; set; } = string.Empty;
 
-    [JsonPropertyName("aiResponse")]
-    public string AiResponse { get; set; } = string.Empty;
+	[JsonPropertyName("aiResponse")]
+	public string AiResponse { get; set; } = string.Empty;
 }

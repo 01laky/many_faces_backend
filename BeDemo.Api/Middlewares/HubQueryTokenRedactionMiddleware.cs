@@ -5,22 +5,22 @@ namespace BeDemo.Api.Middlewares;
 /// </summary>
 public sealed class HubQueryTokenRedactionMiddleware
 {
-    /// <summary>HttpContext.Items key — use instead of raw Request.QueryString when logging hub negotiate URLs.</summary>
-    public const string RedactedPathAndQueryItemKey = "RedactedPathAndQuery";
+	/// <summary>HttpContext.Items key — use instead of raw Request.QueryString when logging hub negotiate URLs.</summary>
+	public const string RedactedPathAndQueryItemKey = "RedactedPathAndQuery";
 
-    private readonly RequestDelegate _next;
+	private readonly RequestDelegate _next;
 
-    public HubQueryTokenRedactionMiddleware(RequestDelegate next) => _next = next;
+	public HubQueryTokenRedactionMiddleware(RequestDelegate next) => _next = next;
 
-    public async Task InvokeAsync(HttpContext context)
-    {
-        if (context.Request.Path.StartsWithSegments("/hubs", StringComparison.OrdinalIgnoreCase)
-            && context.Request.Query.ContainsKey("access_token"))
-        {
-            context.Items[RedactedPathAndQueryItemKey] =
-                $"{context.Request.Path}?access_token=[REDACTED]";
-        }
+	public async Task InvokeAsync(HttpContext context)
+	{
+		if (context.Request.Path.StartsWithSegments("/hubs", StringComparison.OrdinalIgnoreCase)
+			&& context.Request.Query.ContainsKey("access_token"))
+		{
+			context.Items[RedactedPathAndQueryItemKey] =
+				$"{context.Request.Path}?access_token=[REDACTED]";
+		}
 
-        await _next(context);
-    }
+		await _next(context);
+	}
 }

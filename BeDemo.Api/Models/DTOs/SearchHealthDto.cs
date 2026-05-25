@@ -5,11 +5,11 @@ namespace BeDemo.Api.Models.DTOs;
 /// </summary>
 public sealed class SearchHealthDto
 {
-    public bool Configured { get; init; }
+	public bool Configured { get; init; }
 
-    public bool Reachable { get; init; }
+	public bool Reachable { get; init; }
 
-    public string? ClusterName { get; init; }
+	public string? ClusterName { get; init; }
 
-    public string? Message { get; init; }
+	public string? Message { get; init; }
 }

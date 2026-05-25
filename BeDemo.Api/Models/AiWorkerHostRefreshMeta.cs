@@ -5,13 +5,13 @@ namespace BeDemo.Api.Models;
 /// </summary>
 public class AiWorkerHostRefreshMeta
 {
-    public int Id { get; set; }
+	public int Id { get; set; }
 
-    public DateTime? LastRefreshAttemptUtc { get; set; }
+	public DateTime? LastRefreshAttemptUtc { get; set; }
 
-    public bool LastRefreshSucceeded { get; set; }
+	public bool LastRefreshSucceeded { get; set; }
 
-    public string? LastRefreshError { get; set; }
+	public string? LastRefreshError { get; set; }
 
-    public string? GrpcAddressConfigured { get; set; }
+	public string? GrpcAddressConfigured { get; set; }
 }

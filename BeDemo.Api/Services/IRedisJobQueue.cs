@@ -5,8 +5,8 @@ namespace BeDemo.Api.Services;
 /// </summary>
 public interface IRedisJobQueue
 {
-    Task EnqueueAsync(string jobType, string payloadJson, CancellationToken cancellationToken = default);
+	Task EnqueueAsync(string jobType, string payloadJson, CancellationToken cancellationToken = default);
 
-    /// <summary>Schedule a job to become ready at (UTC) <paramref name="runAtUtc"/>.</summary>
-    Task ScheduleAsync(string jobType, string payloadJson, DateTime runAtUtc, CancellationToken cancellationToken = default);
+	/// <summary>Schedule a job to become ready at (UTC) <paramref name="runAtUtc"/>.</summary>
+	Task ScheduleAsync(string jobType, string payloadJson, DateTime runAtUtc, CancellationToken cancellationToken = default);
 }

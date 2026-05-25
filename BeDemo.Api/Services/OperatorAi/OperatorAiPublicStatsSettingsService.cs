@@ -14,102 +14,102 @@ namespace BeDemo.Api.Services.OperatorAi;
 /// </summary>
 public sealed class OperatorAiPublicStatsSettingsService : IOperatorAiPublicStatsSettingsProvider
 {
-    private const string MemoryCacheKey = "OperatorAi:PublicStatsSettings";
+	private const string MemoryCacheKey = "OperatorAi:PublicStatsSettings";
 
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly IMemoryCache _memoryCache;
-    private readonly OperatorAiOptions _options;
+	private readonly IServiceScopeFactory _scopeFactory;
+	private readonly IMemoryCache _memoryCache;
+	private readonly OperatorAiOptions _options;
 
-    public OperatorAiPublicStatsSettingsService(
-        IServiceScopeFactory scopeFactory,
-        IMemoryCache memoryCache,
-        IOptions<OperatorAiOptions> options)
-    {
-        _scopeFactory = scopeFactory;
-        _memoryCache = memoryCache;
-        _options = options.Value;
-    }
+	public OperatorAiPublicStatsSettingsService(
+		IServiceScopeFactory scopeFactory,
+		IMemoryCache memoryCache,
+		IOptions<OperatorAiOptions> options)
+	{
+		_scopeFactory = scopeFactory;
+		_memoryCache = memoryCache;
+		_options = options.Value;
+	}
 
-    /// <inheritdoc />
-    public async Task<OperatorAiPublicStatsSettingsValues> GetAsync(CancellationToken cancellationToken = default)
-    {
-        if (_memoryCache.TryGetValue(MemoryCacheKey, out OperatorAiPublicStatsSettingsValues? cached) && cached != null)
-            return cached;
+	/// <inheritdoc />
+	public async Task<OperatorAiPublicStatsSettingsValues> GetAsync(CancellationToken cancellationToken = default)
+	{
+		if (_memoryCache.TryGetValue(MemoryCacheKey, out OperatorAiPublicStatsSettingsValues? cached) && cached != null)
+			return cached;
 
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var row = await db.OperatorAiPublicStatsSettings
-            .AsNoTracking()
-            .SingleOrDefaultAsync(e => e.Id == 1, cancellationToken);
+		using var scope = _scopeFactory.CreateScope();
+		var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var row = await db.OperatorAiPublicStatsSettings
+			.AsNoTracking()
+			.SingleOrDefaultAsync(e => e.Id == 1, cancellationToken);
 
-        var values = row == null
-            ? FallbackValues()
-            : new OperatorAiPublicStatsSettingsValues(
-                OperatorAiPublicStatsConstraints.NormalizePublicStatsMode(row.PublicStatsMode),
-                ClampParallel(row.LiveMaxParallelBundleCalls));
+		var values = row == null
+			? FallbackValues()
+			: new OperatorAiPublicStatsSettingsValues(
+				OperatorAiPublicStatsConstraints.NormalizePublicStatsMode(row.PublicStatsMode),
+				ClampParallel(row.LiveMaxParallelBundleCalls));
 
-        Cache(values);
-        return values;
-    }
+		Cache(values);
+		return values;
+	}
 
-    /// <inheritdoc />
-    public async Task<OperatorAiPublicStatsSettingsValues> SetAsync(
-        OperatorAiPublicStatsSettingsValues values,
-        string? updatedByUserId,
-        CancellationToken cancellationToken = default)
-    {
-        var normalized = new OperatorAiPublicStatsSettingsValues(
-            OperatorAiPublicStatsConstraints.NormalizePublicStatsMode(values.PublicStatsMode),
-            ClampParallel(values.LiveMaxParallelBundleCalls));
+	/// <inheritdoc />
+	public async Task<OperatorAiPublicStatsSettingsValues> SetAsync(
+		OperatorAiPublicStatsSettingsValues values,
+		string? updatedByUserId,
+		CancellationToken cancellationToken = default)
+	{
+		var normalized = new OperatorAiPublicStatsSettingsValues(
+			OperatorAiPublicStatsConstraints.NormalizePublicStatsMode(values.PublicStatsMode),
+			ClampParallel(values.LiveMaxParallelBundleCalls));
 
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var row = await db.OperatorAiPublicStatsSettings.SingleOrDefaultAsync(e => e.Id == 1, cancellationToken);
-        if (row == null)
-        {
-            row = new OperatorAiPublicStatsSettings { Id = 1 };
-            db.OperatorAiPublicStatsSettings.Add(row);
-        }
+		using var scope = _scopeFactory.CreateScope();
+		var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var row = await db.OperatorAiPublicStatsSettings.SingleOrDefaultAsync(e => e.Id == 1, cancellationToken);
+		if (row == null)
+		{
+			row = new OperatorAiPublicStatsSettings { Id = 1 };
+			db.OperatorAiPublicStatsSettings.Add(row);
+		}
 
-        row.PublicStatsMode = normalized.PublicStatsMode;
-        row.LiveMaxParallelBundleCalls = normalized.LiveMaxParallelBundleCalls;
-        row.UpdatedAtUtc = DateTime.UtcNow;
-        row.UpdatedByUserId = updatedByUserId;
-        await db.SaveChangesAsync(cancellationToken);
+		row.PublicStatsMode = normalized.PublicStatsMode;
+		row.LiveMaxParallelBundleCalls = normalized.LiveMaxParallelBundleCalls;
+		row.UpdatedAtUtc = DateTime.UtcNow;
+		row.UpdatedByUserId = updatedByUserId;
+		await db.SaveChangesAsync(cancellationToken);
 
-        Cache(normalized);
-        return normalized;
-    }
+		Cache(normalized);
+		return normalized;
+	}
 
-    /// <inheritdoc />
-    public OperatorAiPublicStatsSettingsDto ToDto(OperatorAiPublicStatsSettingsValues values) => new()
-    {
-        PublicStatsMode = values.PublicStatsMode,
-        LiveMaxParallelBundleCalls = values.LiveMaxParallelBundleCalls,
-        DefaultPublicStatsMode = OperatorAiPublicStatsConstraints.DefaultPublicStatsMode,
-        DefaultLiveMaxParallelBundleCalls = OperatorAiPublicStatsConstraints.DefaultLiveMaxParallelBundleCalls,
-        MinLiveMaxParallelBundleCalls = OperatorAiPublicStatsConstraints.MinLiveMaxParallelBundleCalls,
-        MaxLiveMaxParallelBundleCalls = OperatorAiPublicStatsConstraints.MaxLiveMaxParallelBundleCalls,
-    };
+	/// <inheritdoc />
+	public OperatorAiPublicStatsSettingsDto ToDto(OperatorAiPublicStatsSettingsValues values) => new()
+	{
+		PublicStatsMode = values.PublicStatsMode,
+		LiveMaxParallelBundleCalls = values.LiveMaxParallelBundleCalls,
+		DefaultPublicStatsMode = OperatorAiPublicStatsConstraints.DefaultPublicStatsMode,
+		DefaultLiveMaxParallelBundleCalls = OperatorAiPublicStatsConstraints.DefaultLiveMaxParallelBundleCalls,
+		MinLiveMaxParallelBundleCalls = OperatorAiPublicStatsConstraints.MinLiveMaxParallelBundleCalls,
+		MaxLiveMaxParallelBundleCalls = OperatorAiPublicStatsConstraints.MaxLiveMaxParallelBundleCalls,
+	};
 
-    private OperatorAiPublicStatsSettingsValues FallbackValues() => new(
-        OperatorAiPublicStatsConstraints.DefaultPublicStatsMode,
-        ClampParallel(_options.MaxParallelBundleAiCalls));
+	private OperatorAiPublicStatsSettingsValues FallbackValues() => new(
+		OperatorAiPublicStatsConstraints.DefaultPublicStatsMode,
+		ClampParallel(_options.MaxParallelBundleAiCalls));
 
-    private static int ClampParallel(int value) =>
-        Math.Min(
-            OperatorAiPublicStatsConstraints.MaxLiveMaxParallelBundleCalls,
-            Math.Max(OperatorAiPublicStatsConstraints.MinLiveMaxParallelBundleCalls, value));
+	private static int ClampParallel(int value) =>
+		Math.Min(
+			OperatorAiPublicStatsConstraints.MaxLiveMaxParallelBundleCalls,
+			Math.Max(OperatorAiPublicStatsConstraints.MinLiveMaxParallelBundleCalls, value));
 
-    private void Cache(OperatorAiPublicStatsSettingsValues values)
-    {
-        var seconds = Math.Max(1, _options.LiveBundleCacheSettingsMemoryCacheSeconds);
-        _memoryCache.Set(
-            MemoryCacheKey,
-            values,
-            new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(seconds),
-            });
-    }
+	private void Cache(OperatorAiPublicStatsSettingsValues values)
+	{
+		var seconds = Math.Max(1, _options.LiveBundleCacheSettingsMemoryCacheSeconds);
+		_memoryCache.Set(
+			MemoryCacheKey,
+			values,
+			new MemoryCacheEntryOptions
+			{
+				AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(seconds),
+			});
+	}
 }

@@ -7,8 +7,8 @@ namespace BeDemo.Api.Validation.Faces;
 /// <summary>FluentValidation for <see cref="BeDemo.Api.Models.Requests.Faces.WallTicketCommentDto"/> (endpoint-schema-validation §12.1).</summary>
 public sealed class WallTicketCommentRequestValidator : AbstractValidator<BeDemo.Api.Models.Requests.Faces.WallTicketCommentDto>
 {
-    public WallTicketCommentRequestValidator()
-    {
-        RuleFor(x => x.Content).NotEmpty().MaximumLength(ValidationConstants.WallTicketCommentMaxLength);
-    }
+	public WallTicketCommentRequestValidator()
+	{
+		RuleFor(x => x.Content).NotEmpty().MaximumLength(ValidationConstants.WallTicketCommentMaxLength);
+	}
 }

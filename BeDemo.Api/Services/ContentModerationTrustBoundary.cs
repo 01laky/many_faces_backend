@@ -28,32 +28,32 @@ namespace BeDemo.Api.Services;
 /// </remarks>
 public static class ContentModerationTrustBoundary
 {
-    /// <summary>gRPC method used exclusively for untrusted album/blog/reel moderation (<c>many_faces_ai</c> classifier).</summary>
-    public const string UntrustedAiRpcName = "ReviewContent";
+	/// <summary>gRPC method used exclusively for untrusted album/blog/reel moderation (<c>many_faces_ai</c> classifier).</summary>
+	public const string UntrustedAiRpcName = "ReviewContent";
 
-    /// <summary>SignalR hub route for operator and face chat (not the moderation Redis worker).</summary>
-    public const string TrustedOperatorHubPath = "/hubs/chat";
+	/// <summary>SignalR hub route for operator and face chat (not the moderation Redis worker).</summary>
+	public const string TrustedOperatorHubPath = "/hubs/chat";
 
-    /// <summary>
-    /// gRPC entry points for trusted operator AI. Must not call <see cref="ContentModerationInputSanitizer"/> or
-    /// apply <see cref="ContentModerationPromptInjectionHeuristic"/> to aggregate stats JSON.
-    /// </summary>
-    public static readonly IReadOnlyList<string> TrustedOperatorAiRpcNames =
-        ["Generate", "OperatorStatsChat", "FetchPublicStats"];
+	/// <summary>
+	/// gRPC entry points for trusted operator AI. Must not call <see cref="ContentModerationInputSanitizer"/> or
+	/// apply <see cref="ContentModerationPromptInjectionHeuristic"/> to aggregate stats JSON.
+	/// </summary>
+	public static readonly IReadOnlyList<string> TrustedOperatorAiRpcNames =
+		["Generate", "OperatorStatsChat", "FetchPublicStats"];
 
-    /// <summary>
-    /// Representative camelCase JSON shape from <c>PublicStatsSnapshotDto</c> (counts only). Used in tests to prove
-    /// aggregate stats are not treated as instruction-like creator submissions.
-    /// </summary>
-    public const string PublicStatsSnapshotJsonSample =
-        """{"usersCount":1204,"facesCount":89,"pagesCount":12,"friendshipsCount":3401,"pendingFriendRequestsCount":17,"messagesCount":98234,"albumsCount":410,"blogsCount":205,"reelsCount":88,"storiesCount":900,"storyViewsCount":12000,"wallTicketsCount":3,"faceChatRoomsCount":44,"faceChatMessagesCount":5510,"generatedAtUtc":"2026-05-16T12:00:00Z"}""";
+	/// <summary>
+	/// Representative camelCase JSON shape from <c>PublicStatsSnapshotDto</c> (counts only). Used in tests to prove
+	/// aggregate stats are not treated as instruction-like creator submissions.
+	/// </summary>
+	public const string PublicStatsSnapshotJsonSample =
+		"""{"usersCount":1204,"facesCount":89,"pagesCount":12,"friendshipsCount":3401,"pendingFriendRequestsCount":17,"messagesCount":98234,"albumsCount":410,"blogsCount":205,"reelsCount":88,"storiesCount":900,"storyViewsCount":12000,"wallTicketsCount":3,"faceChatRoomsCount":44,"faceChatMessagesCount":5510,"generatedAtUtc":"2026-05-16T12:00:00Z"}""";
 
-    /// <summary>
-    /// Returns true when the payload is only trusted operator aggregate stats (no moderation sanitizer required).
-    /// </summary>
-    public static bool IsTrustedOperatorStatsContext(string? json) =>
-        !string.IsNullOrWhiteSpace(json) &&
-        json.Contains("\"usersCount\"", StringComparison.Ordinal) &&
-        json.Contains("\"generatedAtUtc\"", StringComparison.Ordinal) &&
-        !json.Contains("ignore previous", StringComparison.OrdinalIgnoreCase);
+	/// <summary>
+	/// Returns true when the payload is only trusted operator aggregate stats (no moderation sanitizer required).
+	/// </summary>
+	public static bool IsTrustedOperatorStatsContext(string? json) =>
+		!string.IsNullOrWhiteSpace(json) &&
+		json.Contains("\"usersCount\"", StringComparison.Ordinal) &&
+		json.Contains("\"generatedAtUtc\"", StringComparison.Ordinal) &&
+		!json.Contains("ignore previous", StringComparison.OrdinalIgnoreCase);
 }

@@ -9,21 +9,21 @@ namespace BeDemo.Api.Models;
 /// </summary>
 public class ComponentType
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.None)]
-    public int Id { get; set; }
+	[Key]
+	[DatabaseGenerated(DatabaseGeneratedOption.None)]
+	public int Id { get; set; }
 
-    [Required]
-    [StringLength(50)]
-    public string Index { get; set; } = string.Empty;
+	[Required]
+	[StringLength(50)]
+	public string Index { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(100)]
-    public string Name { get; set; } = string.Empty;
+	[Required]
+	[StringLength(100)]
+	public string Name { get; set; } = string.Empty;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public DateTime? UpdatedAt { get; set; }
+	public DateTime? UpdatedAt { get; set; }
 }
 
 /// <summary>
@@ -31,14 +31,14 @@ public class ComponentType
 /// </summary>
 public enum ComponentTypeId
 {
-    Ad = 1,
-    Album = 2,
-    Blog = 3,
-    ChatRoom = 4,
-    UserProfile = 5,
-    Story = 6,
-    Reel = 7,
-    VideoLounge = 8,
+	Ad = 1,
+	Album = 2,
+	Blog = 3,
+	ChatRoom = 4,
+	UserProfile = 5,
+	Story = 6,
+	Reel = 7,
+	VideoLounge = 8,
 }
 
 /// <summary>
@@ -46,12 +46,12 @@ public enum ComponentTypeId
 /// </summary>
 public static class ComponentTypeIndex
 {
-    public const string Ad = "ad";
-    public const string Album = "album";
-    public const string Blog = "blog";
-    public const string ChatRoom = "chatRoom";
-    public const string UserProfile = "userProfile";
-    public const string Story = "story";
-    public const string Reel = "reel";
-    public const string VideoLounge = "videoLounge";
+	public const string Ad = "ad";
+	public const string Album = "album";
+	public const string Blog = "blog";
+	public const string ChatRoom = "chatRoom";
+	public const string UserProfile = "userProfile";
+	public const string Story = "story";
+	public const string Reel = "reel";
+	public const string VideoLounge = "videoLounge";
 }

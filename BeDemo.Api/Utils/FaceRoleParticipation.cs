@@ -10,9 +10,9 @@ namespace BeDemo.Api.Utils;
 /// </summary>
 public static class FaceRoleParticipation
 {
-    public static bool IsHostFaceRole(string? roleName) =>
-        string.Equals(roleName, UserRole.FaceRoleNames.FaceHost, StringComparison.Ordinal);
+	public static bool IsHostFaceRole(string? roleName) =>
+		string.Equals(roleName, UserRole.FaceRoleNames.FaceHost, StringComparison.Ordinal);
 
-    /// <summary>Non-host face roles count as “active” participants in face-directory UX.</summary>
-    public static bool IsActiveForFaceRoleName(string? roleName) => !IsHostFaceRole(roleName);
+	/// <summary>Non-host face roles count as “active” participants in face-directory UX.</summary>
+	public static bool IsActiveForFaceRoleName(string? roleName) => !IsHostFaceRole(roleName);
 }

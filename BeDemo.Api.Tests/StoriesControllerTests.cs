@@ -10,15 +10,15 @@ namespace BeDemo.Api.Tests;
 /// </summary>
 public class StoriesControllerTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    private readonly CustomWebApplicationFactory<Program> _factory;
+	private readonly CustomWebApplicationFactory<Program> _factory;
 
-    public StoriesControllerTests(CustomWebApplicationFactory<Program> factory) => _factory = factory;
+	public StoriesControllerTests(CustomWebApplicationFactory<Program> factory) => _factory = factory;
 
-    [Fact]
-    public async Task GetStories_WithoutAuth_Returns401()
-    {
-        var client = _factory.CreateClient();
-        var response = await client.GetAsync("/api/stories");
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
+	[Fact]
+	public async Task GetStories_WithoutAuth_Returns401()
+	{
+		var client = _factory.CreateClient();
+		var response = await client.GetAsync("/api/stories");
+		Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+	}
 }

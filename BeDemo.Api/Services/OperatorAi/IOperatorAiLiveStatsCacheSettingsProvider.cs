@@ -7,12 +7,12 @@ using BeDemo.Api.Models.DTOs.OperatorAi;
 /// </summary>
 public interface IOperatorAiLiveStatsCacheSettingsProvider
 {
-    Task<long> GetTtlMillisecondsAsync(CancellationToken cancellationToken = default);
+	Task<long> GetTtlMillisecondsAsync(CancellationToken cancellationToken = default);
 
-    Task<long> SetTtlMillisecondsAsync(
-        long ttlMilliseconds,
-        string? updatedByUserId,
-        CancellationToken cancellationToken = default);
+	Task<long> SetTtlMillisecondsAsync(
+		long ttlMilliseconds,
+		string? updatedByUserId,
+		CancellationToken cancellationToken = default);
 
-    OperatorAiLiveStatsCacheSettingsDto ToDto(long ttlMilliseconds);
+	OperatorAiLiveStatsCacheSettingsDto ToDto(long ttlMilliseconds);
 }

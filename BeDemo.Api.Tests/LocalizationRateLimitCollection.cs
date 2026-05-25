@@ -11,6 +11,6 @@ namespace BeDemo.Api.Tests;
 [CollectionDefinition(Name, DisableParallelization = true)]
 public sealed class LocalizationRateLimitCollection : ICollectionFixture<RateLimitedLocalizationWebApplicationFactory>
 {
-    /// <summary>Collection name referenced by <see cref="CollectionAttribute"/> on test classes.</summary>
-    public const string Name = "Localization rate limit (serial)";
+	/// <summary>Collection name referenced by <see cref="CollectionAttribute"/> on test classes.</summary>
+	public const string Name = "Localization rate limit (serial)";
 }

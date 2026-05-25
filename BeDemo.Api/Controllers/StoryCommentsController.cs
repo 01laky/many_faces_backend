@@ -13,67 +13,67 @@ namespace BeDemo.Api.Controllers;
 [Authorize]
 public class StoryCommentsController : ControllerBase
 {
-    private readonly ApplicationDbContext _context;
-    private readonly ILogger<StoryCommentsController> _logger;
+	private readonly ApplicationDbContext _context;
+	private readonly ILogger<StoryCommentsController> _logger;
 
-    public StoryCommentsController(ApplicationDbContext context, ILogger<StoryCommentsController> logger)
-    {
-        _context = context;
-        _logger = logger;
-    }
+	public StoryCommentsController(ApplicationDbContext context, ILogger<StoryCommentsController> logger)
+	{
+		_context = context;
+		_logger = logger;
+	}
 
-    private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
-    [HttpGet]
-    public async Task<IActionResult> GetComments(int storyId, [FromQuery] StoryScopedQuery scopedQuery, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(UserId))
-            return Unauthorized();
+	[HttpGet]
+	public async Task<IActionResult> GetComments(int storyId, [FromQuery] StoryScopedQuery scopedQuery, CancellationToken cancellationToken)
+	{
+		if (string.IsNullOrEmpty(UserId))
+			return Unauthorized();
 
-        var story = await StoryInteractionGuard.GetLiveStoryForViewerAsync(_context, storyId, scopedQuery.FaceId, UserId, cancellationToken);
-        if (story == null)
-            return NotFound(new { error = "Story not found" });
+		var story = await StoryInteractionGuard.GetLiveStoryForViewerAsync(_context, storyId, scopedQuery.FaceId, UserId, cancellationToken);
+		if (story == null)
+			return NotFound(new { error = "Story not found" });
 
-        var comments = await _context.StoryComments
-            .Where(c => c.StoryId == storyId)
-            .Include(c => c.User)
-            .OrderByDescending(c => c.CreatedAt)
-            .Select(c => new
-            {
-                c.Id,
-                c.UserId,
-                userName = (c.User.FirstName ?? "") + " " + (c.User.LastName ?? ""),
-                c.Content,
-                c.CreatedAt,
-            })
-            .ToListAsync(cancellationToken);
+		var comments = await _context.StoryComments
+			.Where(c => c.StoryId == storyId)
+			.Include(c => c.User)
+			.OrderByDescending(c => c.CreatedAt)
+			.Select(c => new
+			{
+				c.Id,
+				c.UserId,
+				userName = (c.User.FirstName ?? "") + " " + (c.User.LastName ?? ""),
+				c.Content,
+				c.CreatedAt,
+			})
+			.ToListAsync(cancellationToken);
 
-        return Ok(comments);
-    }
+		return Ok(comments);
+	}
 
-    [HttpPost]
-    public async Task<IActionResult> CreateComment(
-        int storyId,
-        [FromQuery] StoryScopedQuery scopedQuery,
-        [FromBody] CreateStoryCommentDto dto,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrEmpty(UserId))
-            return Unauthorized();
+	[HttpPost]
+	public async Task<IActionResult> CreateComment(
+		int storyId,
+		[FromQuery] StoryScopedQuery scopedQuery,
+		[FromBody] CreateStoryCommentDto dto,
+		CancellationToken cancellationToken)
+	{
+		if (string.IsNullOrEmpty(UserId))
+			return Unauthorized();
 
-        var story = await StoryInteractionGuard.GetLiveStoryForViewerAsync(_context, storyId, scopedQuery.FaceId, UserId, cancellationToken);
-        if (story == null)
-            return NotFound(new { error = "Story not found" });
+		var story = await StoryInteractionGuard.GetLiveStoryForViewerAsync(_context, storyId, scopedQuery.FaceId, UserId, cancellationToken);
+		if (story == null)
+			return NotFound(new { error = "Story not found" });
 
-        var comment = new StoryComment
-        {
-            StoryId = storyId,
-            UserId = UserId,
-            Content = dto.Content.Trim(),
-        };
-        _context.StoryComments.Add(comment);
-        await _context.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation("User {UserId} commented on story {StoryId}", UserId, storyId);
-        return Ok(new { comment.Id });
-    }
+		var comment = new StoryComment
+		{
+			StoryId = storyId,
+			UserId = UserId,
+			Content = dto.Content.Trim(),
+		};
+		_context.StoryComments.Add(comment);
+		await _context.SaveChangesAsync(cancellationToken);
+		_logger.LogInformation("User {UserId} commented on story {StoryId}", UserId, storyId);
+		return Ok(new { comment.Id });
+	}
 }

@@ -5,14 +5,14 @@ namespace BeDemo.Api.Configuration;
 /// </summary>
 public sealed class UploadsOptions
 {
-    public const string SectionName = "Uploads";
+	public const string SectionName = "Uploads";
 
-    /// <summary>
-    /// Server secret for <see cref="Services.UploadSignedUrlService"/> (min 32 chars in production).
-    /// Override via environment <c>Uploads__SigningSecret</c>.
-    /// </summary>
-    public string SigningSecret { get; set; } = string.Empty;
+	/// <summary>
+	/// Server secret for <see cref="Services.UploadSignedUrlService"/> (min 32 chars in production).
+	/// Override via environment <c>Uploads__SigningSecret</c>.
+	/// </summary>
+	public string SigningSecret { get; set; } = string.Empty;
 
-    /// <summary>Default lifetime of <c>exp</c> query parameter on signed serve URLs.</summary>
-    public int SignedUrlLifetimeMinutes { get; set; } = 60;
+	/// <summary>Default lifetime of <c>exp</c> query parameter on signed serve URLs.</summary>
+	public int SignedUrlLifetimeMinutes { get; set; } = 60;
 }

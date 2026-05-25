@@ -9,42 +9,42 @@ namespace BeDemo.Api.Tests;
 /// </summary>
 public sealed class FaceScopeTestHandler : DelegatingHandler
 {
-    private readonly string _prefix;
+	private readonly string _prefix;
 
-    /// <param name="faceIndex">Logical face index (e.g. <c>public</c>, <c>admin</c>); converted with <see cref="Routing.ConvertToKebabCase"/>.</param>
-    public FaceScopeTestHandler(string faceIndex)
-    {
-        var kebab = Routing.ConvertToKebabCase(faceIndex).Trim('/');
-        _prefix = string.IsNullOrEmpty(kebab) ? "/public" : "/" + kebab;
-    }
+	/// <param name="faceIndex">Logical face index (e.g. <c>public</c>, <c>admin</c>); converted with <see cref="Routing.ConvertToKebabCase"/>.</param>
+	public FaceScopeTestHandler(string faceIndex)
+	{
+		var kebab = Routing.ConvertToKebabCase(faceIndex).Trim('/');
+		_prefix = string.IsNullOrEmpty(kebab) ? "/public" : "/" + kebab;
+	}
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        if (request.RequestUri?.IsAbsoluteUri != true)
-            return base.SendAsync(request, cancellationToken);
+	protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+	{
+		if (request.RequestUri?.IsAbsoluteUri != true)
+			return base.SendAsync(request, cancellationToken);
 
-        var ub = new UriBuilder(request.RequestUri);
-        var path = ub.Path;
+		var ub = new UriBuilder(request.RequestUri);
+		var path = ub.Path;
 
-        if (Routing.IsExemptFromFaceScope(path))
-            return base.SendAsync(request, cancellationToken);
+		if (Routing.IsExemptFromFaceScope(path))
+			return base.SendAsync(request, cancellationToken);
 
-        if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(path, "/api", StringComparison.OrdinalIgnoreCase))
-        {
-            ub.Path = _prefix + path;
-            request.RequestUri = ub.Uri;
-            return base.SendAsync(request, cancellationToken);
-        }
+		if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(path, "/api", StringComparison.OrdinalIgnoreCase))
+		{
+			ub.Path = _prefix + path;
+			request.RequestUri = ub.Uri;
+			return base.SendAsync(request, cancellationToken);
+		}
 
-        if (path.StartsWith("/hubs/", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(path, "/hubs", StringComparison.OrdinalIgnoreCase))
-        {
-            ub.Path = _prefix + path;
-            request.RequestUri = ub.Uri;
-            return base.SendAsync(request, cancellationToken);
-        }
+		if (path.StartsWith("/hubs/", StringComparison.OrdinalIgnoreCase) ||
+			string.Equals(path, "/hubs", StringComparison.OrdinalIgnoreCase))
+		{
+			ub.Path = _prefix + path;
+			request.RequestUri = ub.Uri;
+			return base.SendAsync(request, cancellationToken);
+		}
 
-        return base.SendAsync(request, cancellationToken);
-    }
+		return base.SendAsync(request, cancellationToken);
+	}
 }

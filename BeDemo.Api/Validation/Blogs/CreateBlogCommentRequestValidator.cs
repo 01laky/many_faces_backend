@@ -7,8 +7,8 @@ namespace BeDemo.Api.Validation.Blogs;
 /// <summary>FluentValidation for <see cref="BeDemo.Api.Models.Requests.Blogs.CreateBlogCommentDto"/> (endpoint-schema-validation §12.1).</summary>
 public sealed class CreateBlogCommentRequestValidator : AbstractValidator<BeDemo.Api.Models.Requests.Blogs.CreateBlogCommentDto>
 {
-    public CreateBlogCommentRequestValidator()
-    {
-        RuleFor(x => x.Content).NotEmpty().MaximumLength(ValidationConstants.DescriptionMediumMaxLength);
-    }
+	public CreateBlogCommentRequestValidator()
+	{
+		RuleFor(x => x.Content).NotEmpty().MaximumLength(ValidationConstants.DescriptionMediumMaxLength);
+	}
 }

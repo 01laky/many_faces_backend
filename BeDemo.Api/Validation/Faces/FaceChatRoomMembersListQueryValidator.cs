@@ -5,14 +5,14 @@ using BeDemo.Api.Validation.Rules;
 namespace BeDemo.Api.Validation.Faces;
 
 public sealed class FaceChatRoomMembersListQueryValidator
-    : AbstractValidator<BeDemo.Api.Models.Requests.Faces.FaceChatRoomMembersListQuery>
+	: AbstractValidator<BeDemo.Api.Models.Requests.Faces.FaceChatRoomMembersListQuery>
 {
-    private static readonly string[] SortWhitelist = ["userId", "joinedAt"];
+	private static readonly string[] SortWhitelist = ["userId", "joinedAt"];
 
-    public FaceChatRoomMembersListQueryValidator()
-    {
-        this.ApplyPaginationRules(x => x.Page, x => x.PageSize);
-        this.ApplyListSortRules(x => x.SortBy, x => x.SortDir, SortWhitelist);
-        RuleFor(x => x.Search).MaximumLength(200).NoNullBytes().When(x => !string.IsNullOrEmpty(x.Search));
-    }
+	public FaceChatRoomMembersListQueryValidator()
+	{
+		this.ApplyPaginationRules(x => x.Page, x => x.PageSize);
+		this.ApplyListSortRules(x => x.SortBy, x => x.SortDir, SortWhitelist);
+		RuleFor(x => x.Search).MaximumLength(200).NoNullBytes().When(x => !string.IsNullOrEmpty(x.Search));
+	}
 }

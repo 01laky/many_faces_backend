@@ -9,15 +9,15 @@ namespace BeDemo.Api.Services;
 /// </summary>
 public interface IAccessEvaluator
 {
-    /// <inheritdoc cref="PlatformAccessRules.CanManageAllFaces"/>
-    bool CanManageAllFaces(ClaimsPrincipal user);
+	/// <inheritdoc cref="PlatformAccessRules.CanManageAllFaces"/>
+	bool CanManageAllFaces(ClaimsPrincipal user);
 
-    /// <inheritdoc cref="PlatformAccessRules.CanMutateGlobalPageTypes"/>
-    bool CanMutateGlobalPageTypes(ClaimsPrincipal user);
+	/// <inheritdoc cref="PlatformAccessRules.CanMutateGlobalPageTypes"/>
+	bool CanMutateGlobalPageTypes(ClaimsPrincipal user);
 
-    /// <inheritdoc cref="PlatformAccessRules.IsGlobalAdmin"/>
-    bool IsGlobalAdmin(ClaimsPrincipal user);
+	/// <inheritdoc cref="PlatformAccessRules.IsGlobalAdmin"/>
+	bool IsGlobalAdmin(ClaimsPrincipal user);
 
-    /// <inheritdoc cref="PlatformAccessRules.IsGlobalSuperAdmin"/>
-    bool IsGlobalSuperAdmin(ClaimsPrincipal user);
+	/// <inheritdoc cref="PlatformAccessRules.IsGlobalSuperAdmin"/>
+	bool IsGlobalSuperAdmin(ClaimsPrincipal user);
 }

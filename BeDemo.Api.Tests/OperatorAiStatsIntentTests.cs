@@ -5,26 +5,26 @@ namespace BeDemo.Api.Tests;
 
 public sealed class OperatorAiStatsIntentTests
 {
-    [Theory]
-    [InlineData("Koľko máme používateľov?", true)]
-    [InlineData("How many users in dashboard?", true)]
-    [InlineData("faceWallTicketsByStatus", true)]
-    [InlineData("give me results about all informations in system", true)]
-    [InlineData("Give me info about users and chat rooms", true)]
-    [InlineData("Koľko je hodín?", false)]
-    [InlineData("What time is it now?", false)]
-    [InlineData("Explain SignalR in our project", false)]
-    public void IsMetricsQuestion_classifies_messages(string message, bool expected)
-    {
-        Assert.Equal(expected, OperatorAiStatsIntent.IsMetricsQuestion(message));
-    }
+	[Theory]
+	[InlineData("Koľko máme používateľov?", true)]
+	[InlineData("How many users in dashboard?", true)]
+	[InlineData("faceWallTicketsByStatus", true)]
+	[InlineData("give me results about all informations in system", true)]
+	[InlineData("Give me info about users and chat rooms", true)]
+	[InlineData("Koľko je hodín?", false)]
+	[InlineData("What time is it now?", false)]
+	[InlineData("Explain SignalR in our project", false)]
+	public void IsMetricsQuestion_classifies_messages(string message, bool expected)
+	{
+		Assert.Equal(expected, OperatorAiStatsIntent.IsMetricsQuestion(message));
+	}
 
-    [Theory]
-    [InlineData("give me results about all informations in system", true)]
-    [InlineData("full platform overview", true)]
-    [InlineData("how many users?", false)]
-    public void IsBroadOverviewQuestion_classifies_messages(string message, bool expected)
-    {
-        Assert.Equal(expected, OperatorAiStatsIntent.IsBroadOverviewQuestion(message));
-    }
+	[Theory]
+	[InlineData("give me results about all informations in system", true)]
+	[InlineData("full platform overview", true)]
+	[InlineData("how many users?", false)]
+	public void IsBroadOverviewQuestion_classifies_messages(string message, bool expected)
+	{
+		Assert.Equal(expected, OperatorAiStatsIntent.IsBroadOverviewQuestion(message));
+	}
 }

@@ -10,20 +10,20 @@ namespace BeDemo.Api.Controllers;
 [AllowAnonymous]
 public sealed class AiAvailabilityController : ControllerBase
 {
-    private readonly IOperatorAiSystemSettingsProvider _settings;
+	private readonly IOperatorAiSystemSettingsProvider _settings;
 
-    public AiAvailabilityController(IOperatorAiSystemSettingsProvider settings) => _settings = settings;
+	public AiAvailabilityController(IOperatorAiSystemSettingsProvider settings) => _settings = settings;
 
-    [HttpGet("~/api/ai/enabled")]
-    [EnableRateLimiting("ai-availability-read")]
-    public async Task<ActionResult<AiEnabledResponse>> GetEnabled(CancellationToken cancellationToken)
-    {
-        var enabled = await _settings.IsAiEnabledAsync(cancellationToken);
-        return Ok(new AiEnabledResponse { Enabled = enabled });
-    }
+	[HttpGet("~/api/ai/enabled")]
+	[EnableRateLimiting("ai-availability-read")]
+	public async Task<ActionResult<AiEnabledResponse>> GetEnabled(CancellationToken cancellationToken)
+	{
+		var enabled = await _settings.IsAiEnabledAsync(cancellationToken);
+		return Ok(new AiEnabledResponse { Enabled = enabled });
+	}
 }
 
 public sealed class AiEnabledResponse
 {
-    public bool Enabled { get; set; }
+	public bool Enabled { get; set; }
 }

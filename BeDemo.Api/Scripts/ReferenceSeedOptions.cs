@@ -11,16 +11,16 @@ namespace BeDemo.Api.Scripts;
 /// </summary>
 public static class ReferenceSeedOptions
 {
-    public const string AssumeExternalSqlReferenceAppliedKey = "Seed:AssumeExternalSqlReferenceApplied";
+	public const string AssumeExternalSqlReferenceAppliedKey = "Seed:AssumeExternalSqlReferenceApplied";
 
-    public static bool AssumeExternalSqlReferenceApplied(IConfiguration configuration) =>
-        configuration.GetValue(AssumeExternalSqlReferenceAppliedKey, false);
+	public static bool AssumeExternalSqlReferenceApplied(IConfiguration configuration) =>
+		configuration.GetValue(AssumeExternalSqlReferenceAppliedKey, false);
 
-    /// <summary>Returns true when the API should run <see cref="DatabaseSeeder"/> reference inserts (roles, types, faces, OAuth client).</summary>
-    public static bool ShouldSeedReferenceDataViaApi(IHostEnvironment environment, IConfiguration configuration)
-    {
-        if (environment.IsEnvironment("Testing"))
-            return true;
-        return !AssumeExternalSqlReferenceApplied(configuration);
-    }
+	/// <summary>Returns true when the API should run <see cref="DatabaseSeeder"/> reference inserts (roles, types, faces, OAuth client).</summary>
+	public static bool ShouldSeedReferenceDataViaApi(IHostEnvironment environment, IConfiguration configuration)
+	{
+		if (environment.IsEnvironment("Testing"))
+			return true;
+		return !AssumeExternalSqlReferenceApplied(configuration);
+	}
 }

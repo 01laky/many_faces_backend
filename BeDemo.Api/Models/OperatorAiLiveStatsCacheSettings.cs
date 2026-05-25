@@ -5,12 +5,12 @@ namespace BeDemo.Api.Models;
 /// </summary>
 public class OperatorAiLiveStatsCacheSettings
 {
-    /// <summary>Always <c>1</c> — platform-wide singleton.</summary>
-    public int Id { get; set; } = 1;
+	/// <summary>Always <c>1</c> — platform-wide singleton.</summary>
+	public int Id { get; set; } = 1;
 
-    public long TtlMilliseconds { get; set; }
+	public long TtlMilliseconds { get; set; }
 
-    public DateTime UpdatedAtUtc { get; set; }
+	public DateTime UpdatedAtUtc { get; set; }
 
-    public string? UpdatedByUserId { get; set; }
+	public string? UpdatedByUserId { get; set; }
 }

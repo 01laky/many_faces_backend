@@ -5,13 +5,13 @@ namespace BeDemo.Api.Models;
 /// </summary>
 public class UserFaceProfileLike
 {
-    public int Id { get; set; }
+	public int Id { get; set; }
 
-    public int UserFaceProfileId { get; set; }
-    public UserFaceProfile UserFaceProfile { get; set; } = null!;
+	public int UserFaceProfileId { get; set; }
+	public UserFaceProfile UserFaceProfile { get; set; } = null!;
 
-    public string UserId { get; set; } = string.Empty;
-    public ApplicationUser User { get; set; } = null!;
+	public string UserId { get; set; } = string.Empty;
+	public ApplicationUser User { get; set; } = null!;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

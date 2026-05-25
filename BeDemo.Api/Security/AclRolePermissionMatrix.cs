@@ -21,5 +21,5 @@ namespace BeDemo.Api.Security;
 /// </remarks>
 public static class AclRolePermissionMatrix
 {
-    // Intentionally no runtime API: documentation-only anchor for A5; keep in sync with docs/guides/acl-and-capabilities.md (monorepo root).
+	// Intentionally no runtime API: documentation-only anchor for A5; keep in sync with docs/guides/acl-and-capabilities.md (monorepo root).
 }

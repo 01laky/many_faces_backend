@@ -25,249 +25,249 @@ namespace BeDemo.Api.Tests;
 /// </summary>
 public class PagesControllerTests : IClassFixture<CustomWebApplicationFactory<Program>>, IDisposable
 {
-    private readonly CustomWebApplicationFactory<Program> _factory;
-    private readonly HttpClient _client;
-    private readonly HttpClient _oauth;
-    private readonly HttpClient _adminFace;
-    private string? _authToken;
+	private readonly CustomWebApplicationFactory<Program> _factory;
+	private readonly HttpClient _client;
+	private readonly HttpClient _oauth;
+	private readonly HttpClient _adminFace;
+	private string? _authToken;
 
-    public PagesControllerTests(CustomWebApplicationFactory<Program> factory)
-    {
-        _factory = factory;
-        _client = _factory.CreateClient();
-        _oauth = AclTestClients.CreateOAuthClient(factory);
-        _adminFace = AclTestClients.CreateAdminFaceClient(factory);
-    }
+	public PagesControllerTests(CustomWebApplicationFactory<Program> factory)
+	{
+		_factory = factory;
+		_client = _factory.CreateClient();
+		_oauth = AclTestClients.CreateOAuthClient(factory);
+		_adminFace = AclTestClients.CreateAdminFaceClient(factory);
+	}
 
-    /// <summary>
-    /// Helper method to authenticate and get JWT token
-    /// </summary>
-    private async Task<string> GetAuthTokenAsync()
-    {
-        if (_authToken != null)
-            return _authToken;
+	/// <summary>
+	/// Helper method to authenticate and get JWT token
+	/// </summary>
+	private async Task<string> GetAuthTokenAsync()
+	{
+		if (_authToken != null)
+			return _authToken;
 
-        _authToken = await IntegrationTestRegistration.RegisterAndGetAccessTokenViaPasswordGrantAsync(
-            _client,
-            _factory,
-            $"admin_{Guid.NewGuid()}@test.com",
-            "Test1234!@##",
-            "Admin",
-            "User");
-        return _authToken;
-    }
+		_authToken = await IntegrationTestRegistration.RegisterAndGetAccessTokenViaPasswordGrantAsync(
+			_client,
+			_factory,
+			$"admin_{Guid.NewGuid()}@test.com",
+			"Test1234!@##",
+			"Admin",
+			"User");
+		return _authToken;
+	}
 
-    /// <summary>Face id for the current URL scope (tests use the default <c>public</c> client).</summary>
-    private async Task<int> GetScopedFaceIdAsync()
-    {
-        var token = await GetAuthTokenAsync();
-        return await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
-    }
+	/// <summary>Face id for the current URL scope (tests use the default <c>public</c> client).</summary>
+	private async Task<int> GetScopedFaceIdAsync()
+	{
+		var token = await GetAuthTokenAsync();
+		return await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
+	}
 
-    /// <summary>
-    /// Helper method to create a PageType for testing
-    /// </summary>
-    private async Task<int> CreateTestPageTypeAsync()
-    {
-        var adminToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
-        _adminFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+	/// <summary>
+	/// Helper method to create a PageType for testing
+	/// </summary>
+	private async Task<int> CreateTestPageTypeAsync()
+	{
+		var adminToken = await AclTestClients.GetPlatformAdminTokenAsync(_oauth);
+		_adminFace.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
 
-        var pageTypeResponse = await _adminFace.PostAsJsonAsync("/api/pagetypes", new
-        {
-            index = $"test_{Guid.NewGuid()}"
-        });
+		var pageTypeResponse = await _adminFace.PostAsJsonAsync("/api/pagetypes", new
+		{
+			index = $"test_{Guid.NewGuid()}"
+		});
 
-        pageTypeResponse.StatusCode.Should().Be(HttpStatusCode.Created);
-        var pageType = await pageTypeResponse.Content.ReadFromJsonAsync<JsonElement>();
-        return (int)pageType.GetProperty("id").GetInt32();
-    }
+		pageTypeResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+		var pageType = await pageTypeResponse.Content.ReadFromJsonAsync<JsonElement>();
+		return (int)pageType.GetProperty("id").GetInt32();
+	}
 
-    [Fact]
-    public async Task GetPages_ShouldReturnUnauthorized_WhenNoToken()
-    {
-        // Act
-        var response = await _client.GetAsync("/api/pages");
+	[Fact]
+	public async Task GetPages_ShouldReturnUnauthorized_WhenNoToken()
+	{
+		// Act
+		var response = await _client.GetAsync("/api/pages");
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
+		// Assert
+		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+	}
 
-    [Fact]
-    public async Task GetPages_ShouldReturnPagesList_WhenAuthenticated()
-    {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+	[Fact]
+	public async Task GetPages_ShouldReturnPagesList_WhenAuthenticated()
+	{
+		// Arrange
+		var token = await GetAuthTokenAsync();
+		_client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        // Act
-        var response = await _client.GetAsync("/api/pages");
+		// Act
+		var response = await _client.GetAsync("/api/pages");
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
-        body.Should().NotBeNull();
-        body!.GetProperty("items").ValueKind.Should().Be(JsonValueKind.Array);
-        body.GetProperty("totalCount").GetInt32().Should().BeGreaterThanOrEqualTo(0);
-    }
+		// Assert
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+		body.Should().NotBeNull();
+		body!.GetProperty("items").ValueKind.Should().Be(JsonValueKind.Array);
+		body.GetProperty("totalCount").GetInt32().Should().BeGreaterThanOrEqualTo(0);
+	}
 
-    [Fact]
-    public async Task GetPage_ShouldReturnPage_WhenValidId()
-    {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+	[Fact]
+	public async Task GetPage_ShouldReturnPage_WhenValidId()
+	{
+		// Arrange
+		var token = await GetAuthTokenAsync();
+		_client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var faceId = await GetScopedFaceIdAsync();
-        var pageTypeId = await CreateTestPageTypeAsync();
+		var faceId = await GetScopedFaceIdAsync();
+		var pageTypeId = await CreateTestPageTypeAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/pages", new
-        {
-            faceId,
-            pageTypeId,
-            name = "Test Page",
-            path = "/test",
-            index = 0
-        });
+		var createResponse = await _client.PostAsJsonAsync("/api/pages", new
+		{
+			faceId,
+			pageTypeId,
+			name = "Test Page",
+			path = "/test",
+			index = 0
+		});
 
-        createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
-        var createdPage = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
-        createdPage.Should().NotBeNull();
-        int pageId = (int)createdPage.GetProperty("id").GetInt32();
+		createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+		var createdPage = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+		createdPage.Should().NotBeNull();
+		int pageId = (int)createdPage.GetProperty("id").GetInt32();
 
-        // Act
-        var response = await _client.GetAsync($"/api/pages/{pageId}");
+		// Act
+		var response = await _client.GetAsync($"/api/pages/{pageId}");
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var page = await response.Content.ReadFromJsonAsync<JsonElement>();
-        page.Should().NotBeNull();
-        page.GetProperty("id").GetInt32().Should().Be(pageId);
-    }
+		// Assert
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var page = await response.Content.ReadFromJsonAsync<JsonElement>();
+		page.Should().NotBeNull();
+		page.GetProperty("id").GetInt32().Should().Be(pageId);
+	}
 
-    [Fact]
-    public async Task CreatePage_ShouldReturnCreated_WhenValidData()
-    {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+	[Fact]
+	public async Task CreatePage_ShouldReturnCreated_WhenValidData()
+	{
+		// Arrange
+		var token = await GetAuthTokenAsync();
+		_client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var faceId = await GetScopedFaceIdAsync();
-        var pageTypeId = await CreateTestPageTypeAsync();
+		var faceId = await GetScopedFaceIdAsync();
+		var pageTypeId = await CreateTestPageTypeAsync();
 
-        var createRequest = new
-        {
-            faceId,
-            pageTypeId,
-            name = "Test Page",
-            path = "/test",
-            index = 0
-        };
+		var createRequest = new
+		{
+			faceId,
+			pageTypeId,
+			name = "Test Page",
+			path = "/test",
+			index = 0
+		};
 
-        // Act
-        var response = await _client.PostAsJsonAsync("/api/pages", createRequest);
+		// Act
+		var response = await _client.PostAsJsonAsync("/api/pages", createRequest);
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var page = await response.Content.ReadFromJsonAsync<JsonElement>();
-        page.Should().NotBeNull();
-        page.GetProperty("name").GetString().Should().Be("Test Page");
-    }
+		// Assert
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+		var page = await response.Content.ReadFromJsonAsync<JsonElement>();
+		page.Should().NotBeNull();
+		page.GetProperty("name").GetString().Should().Be("Test Page");
+	}
 
-    [Fact]
-    public async Task CreatePage_ShouldReturnBadRequest_WhenFaceNotFound()
-    {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+	[Fact]
+	public async Task CreatePage_ShouldReturnBadRequest_WhenFaceNotFound()
+	{
+		// Arrange
+		var token = await GetAuthTokenAsync();
+		_client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var pageTypeId = await CreateTestPageTypeAsync();
+		var pageTypeId = await CreateTestPageTypeAsync();
 
-        var createRequest = new
-        {
-            faceId = 99999, // Non-existent face ID
-            pageTypeId,
-            name = "Test Page",
-            path = "/test",
-            index = 0
-        };
+		var createRequest = new
+		{
+			faceId = 99999, // Non-existent face ID
+			pageTypeId,
+			name = "Test Page",
+			path = "/test",
+			index = 0
+		};
 
-        // Act
-        var response = await _client.PostAsJsonAsync("/api/pages", createRequest);
+		// Act
+		var response = await _client.PostAsJsonAsync("/api/pages", createRequest);
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
+		// Assert
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
 
-    [Fact]
-    public async Task UpdatePage_ShouldReturnOk_WhenValidData()
-    {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+	[Fact]
+	public async Task UpdatePage_ShouldReturnOk_WhenValidData()
+	{
+		// Arrange
+		var token = await GetAuthTokenAsync();
+		_client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var faceId = await GetScopedFaceIdAsync();
-        var pageTypeId = await CreateTestPageTypeAsync();
+		var faceId = await GetScopedFaceIdAsync();
+		var pageTypeId = await CreateTestPageTypeAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/pages", new
-        {
-            faceId,
-            pageTypeId,
-            name = "Test Page",
-            path = "/test",
-            index = 0
-        });
+		var createResponse = await _client.PostAsJsonAsync("/api/pages", new
+		{
+			faceId,
+			pageTypeId,
+			name = "Test Page",
+			path = "/test",
+			index = 0
+		});
 
-        var createdPage = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
-        int pageId = (int)createdPage.GetProperty("id").GetInt32();
+		var createdPage = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+		int pageId = (int)createdPage.GetProperty("id").GetInt32();
 
-        var updateRequest = new
-        {
-            name = "Updated Page Name"
-        };
+		var updateRequest = new
+		{
+			name = "Updated Page Name"
+		};
 
-        // Act
-        var response = await _client.PutAsJsonAsync($"/api/pages/{pageId}", updateRequest);
+		// Act
+		var response = await _client.PutAsJsonAsync($"/api/pages/{pageId}", updateRequest);
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var updatedPage = await response.Content.ReadFromJsonAsync<JsonElement>();
-        updatedPage.Should().NotBeNull();
-        updatedPage.GetProperty("name").GetString().Should().Be("Updated Page Name");
-    }
+		// Assert
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var updatedPage = await response.Content.ReadFromJsonAsync<JsonElement>();
+		updatedPage.Should().NotBeNull();
+		updatedPage.GetProperty("name").GetString().Should().Be("Updated Page Name");
+	}
 
-    [Fact]
-    public async Task DeletePage_ShouldReturnNoContent_WhenValidId()
-    {
-        // Arrange
-        var token = await GetAuthTokenAsync();
-        _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+	[Fact]
+	public async Task DeletePage_ShouldReturnNoContent_WhenValidId()
+	{
+		// Arrange
+		var token = await GetAuthTokenAsync();
+		_client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var faceId = await GetScopedFaceIdAsync();
-        var pageTypeId = await CreateTestPageTypeAsync();
+		var faceId = await GetScopedFaceIdAsync();
+		var pageTypeId = await CreateTestPageTypeAsync();
 
-        var createResponse = await _client.PostAsJsonAsync("/api/pages", new
-        {
-            faceId,
-            pageTypeId,
-            name = "Test Page",
-            path = "/test",
-            index = 0
-        });
+		var createResponse = await _client.PostAsJsonAsync("/api/pages", new
+		{
+			faceId,
+			pageTypeId,
+			name = "Test Page",
+			path = "/test",
+			index = 0
+		});
 
-        var createdPage = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
-        int pageId = (int)createdPage.GetProperty("id").GetInt32();
+		var createdPage = await createResponse.Content.ReadFromJsonAsync<JsonElement>();
+		int pageId = (int)createdPage.GetProperty("id").GetInt32();
 
-        // Act
-        var response = await _client.DeleteAsync($"/api/pages/{pageId}");
+		// Act
+		var response = await _client.DeleteAsync($"/api/pages/{pageId}");
 
-        // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-    }
+		// Assert
+		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+	}
 
-    public void Dispose()
-    {
-        _client?.Dispose();
-        _oauth?.Dispose();
-        _adminFace?.Dispose();
-    }
+	public void Dispose()
+	{
+		_client?.Dispose();
+		_oauth?.Dispose();
+		_adminFace?.Dispose();
+	}
 }

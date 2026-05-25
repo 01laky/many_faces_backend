@@ -7,12 +7,12 @@ public sealed record OperatorAiPublicStatsSettingsValues(string PublicStatsMode,
 /// <summary>Platform-wide operator AI public stats mode and live parallel cap (PostgreSQL singleton + L1).</summary>
 public interface IOperatorAiPublicStatsSettingsProvider
 {
-    Task<OperatorAiPublicStatsSettingsValues> GetAsync(CancellationToken cancellationToken = default);
+	Task<OperatorAiPublicStatsSettingsValues> GetAsync(CancellationToken cancellationToken = default);
 
-    Task<OperatorAiPublicStatsSettingsValues> SetAsync(
-        OperatorAiPublicStatsSettingsValues values,
-        string? updatedByUserId,
-        CancellationToken cancellationToken = default);
+	Task<OperatorAiPublicStatsSettingsValues> SetAsync(
+		OperatorAiPublicStatsSettingsValues values,
+		string? updatedByUserId,
+		CancellationToken cancellationToken = default);
 
-    OperatorAiPublicStatsSettingsDto ToDto(OperatorAiPublicStatsSettingsValues values);
+	OperatorAiPublicStatsSettingsDto ToDto(OperatorAiPublicStatsSettingsValues values);
 }

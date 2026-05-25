@@ -14,10 +14,10 @@ namespace BeDemo.Api.Services;
 /// </summary>
 public interface IFaceService
 {
-    /// <summary>
-    /// Gets all faces from database
-    /// Used by routing middleware to match face prefixes with face IDs
-    /// </summary>
-    /// <returns>List of all faces</returns>
-    List<Face> GetFaces();
+	/// <summary>
+	/// Gets all faces from database
+	/// Used by routing middleware to match face prefixes with face IDs
+	/// </summary>
+	/// <returns>List of all faces</returns>
+	List<Face> GetFaces();
 }

@@ -12,33 +12,33 @@ namespace BeDemo.Api.Validation.Filters;
 /// </summary>
 public sealed class OAuth2FluentValidationFilter : IAsyncActionFilter
 {
-    public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
-    {
-        foreach (var arg in context.ActionArguments.Values)
-        {
-            if (arg is not OAuth2TokenRequest request)
-                continue;
+	public async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+	{
+		foreach (var arg in context.ActionArguments.Values)
+		{
+			if (arg is not OAuth2TokenRequest request)
+				continue;
 
-            var validator = context.HttpContext.RequestServices.GetService<IValidator<OAuth2TokenRequest>>();
-            if (validator is null)
-            {
-                await next();
-                return;
-            }
+			var validator = context.HttpContext.RequestServices.GetService<IValidator<OAuth2TokenRequest>>();
+			if (validator is null)
+			{
+				await next();
+				return;
+			}
 
-            ValidationResult result = await validator.ValidateAsync(request, context.HttpContext.RequestAborted);
-            if (result.IsValid)
-                continue;
+			ValidationResult result = await validator.ValidateAsync(request, context.HttpContext.RequestAborted);
+			if (result.IsValid)
+				continue;
 
-            var description = string.Join("; ", result.Errors.Select(e => e.ErrorMessage));
-            context.Result = new BadRequestObjectResult(new OAuth2ErrorResponse
-            {
-                Error = "invalid_request",
-                ErrorDescription = string.IsNullOrWhiteSpace(description) ? "Validation failed." : description,
-            });
-            return;
-        }
+			var description = string.Join("; ", result.Errors.Select(e => e.ErrorMessage));
+			context.Result = new BadRequestObjectResult(new OAuth2ErrorResponse
+			{
+				Error = "invalid_request",
+				ErrorDescription = string.IsNullOrWhiteSpace(description) ? "Validation failed." : description,
+			});
+			return;
+		}
 
-        await next();
-    }
+		await next();
+	}
 }

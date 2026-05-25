@@ -21,17 +21,17 @@ namespace BeDemo.Api.Services;
 /// </summary>
 public interface IECDSAKeyService
 {
-    /// <summary>Private key used to sign new access JWTs (always the current rotation key).</summary>
-    ECDsaSecurityKey GetSigningKey();
+	/// <summary>Private key used to sign new access JWTs (always the current rotation key).</summary>
+	ECDsaSecurityKey GetSigningKey();
 
-    /// <summary>Primary public verification key (same as signing key material for EC).</summary>
-    ECDsaSecurityKey GetValidationKey();
+	/// <summary>Primary public verification key (same as signing key material for EC).</summary>
+	ECDsaSecurityKey GetValidationKey();
 
-    /// <summary>All keys that may verify an access JWT (current + optional previous). Used by JwtBearer and refresh-token misuse checks.</summary>
-    IReadOnlyList<SecurityKey> GetIssuerSigningKeys();
+	/// <summary>All keys that may verify an access JWT (current + optional previous). Used by JwtBearer and refresh-token misuse checks.</summary>
+	IReadOnlyList<SecurityKey> GetIssuerSigningKeys();
 
-    /// <summary><c>kid</c> for the current signing key (JWT header).</summary>
-    string GetKeyId();
+	/// <summary><c>kid</c> for the current signing key (JWT header).</summary>
+	string GetKeyId();
 }
 
 /// <summary>
@@ -40,89 +40,89 @@ public interface IECDSAKeyService
 /// </summary>
 public class ECDSAKeyService : IECDSAKeyService
 {
-    private readonly ECDsaSecurityKey _signingKey;
-    private readonly ECDsaSecurityKey? _previousSigningKey;
-    private readonly ReadOnlyCollection<SecurityKey> _issuerSigningKeys;
-    private readonly string _keyId;
+	private readonly ECDsaSecurityKey _signingKey;
+	private readonly ECDsaSecurityKey? _previousSigningKey;
+	private readonly ReadOnlyCollection<SecurityKey> _issuerSigningKeys;
+	private readonly string _keyId;
 
-    /// <summary>
-    /// Prefer <paramref name="configuration"/> <c>Jwt:SigningPemPath</c> for non-ephemeral keys. Optional <c>Jwt:KeyId</c> stabilizes <c>kid</c>.
-    /// </summary>
-    public ECDSAKeyService(IConfiguration configuration, IHostEnvironment environment)
-    {
-        var pemPath = configuration["Jwt:SigningPemPath"];
-        ECDsa ecdsa;
-        string keyId;
+	/// <summary>
+	/// Prefer <paramref name="configuration"/> <c>Jwt:SigningPemPath</c> for non-ephemeral keys. Optional <c>Jwt:KeyId</c> stabilizes <c>kid</c>.
+	/// </summary>
+	public ECDSAKeyService(IConfiguration configuration, IHostEnvironment environment)
+	{
+		var pemPath = configuration["Jwt:SigningPemPath"];
+		ECDsa ecdsa;
+		string keyId;
 
-        if (!string.IsNullOrWhiteSpace(pemPath))
-        {
-            var fullPath = Path.IsPathRooted(pemPath)
-                ? pemPath
-                : Path.GetFullPath(Path.Combine(environment.ContentRootPath, pemPath.Trim()));
-            if (File.Exists(fullPath))
-            {
-                var pem = File.ReadAllText(fullPath);
-                ecdsa = ECDsa.Create();
-                ecdsa.ImportFromPem(pem);
-                keyId = configuration["Jwt:KeyId"] ?? "bedemo-ecdsa-1";
-            }
-            else
-            {
-                ecdsa = CreateEphemeralP521();
-                keyId = Guid.NewGuid().ToString();
-            }
-        }
-        else
-        {
-            ecdsa = CreateEphemeralP521();
-            keyId = configuration["Jwt:KeyId"] ?? Guid.NewGuid().ToString();
-        }
+		if (!string.IsNullOrWhiteSpace(pemPath))
+		{
+			var fullPath = Path.IsPathRooted(pemPath)
+				? pemPath
+				: Path.GetFullPath(Path.Combine(environment.ContentRootPath, pemPath.Trim()));
+			if (File.Exists(fullPath))
+			{
+				var pem = File.ReadAllText(fullPath);
+				ecdsa = ECDsa.Create();
+				ecdsa.ImportFromPem(pem);
+				keyId = configuration["Jwt:KeyId"] ?? "bedemo-ecdsa-1";
+			}
+			else
+			{
+				ecdsa = CreateEphemeralP521();
+				keyId = Guid.NewGuid().ToString();
+			}
+		}
+		else
+		{
+			ecdsa = CreateEphemeralP521();
+			keyId = configuration["Jwt:KeyId"] ?? Guid.NewGuid().ToString();
+		}
 
-        _signingKey = new ECDsaSecurityKey(ecdsa) { KeyId = keyId };
-        _keyId = _signingKey.KeyId!;
+		_signingKey = new ECDsaSecurityKey(ecdsa) { KeyId = keyId };
+		_keyId = _signingKey.KeyId!;
 
-        _previousSigningKey = TryLoadPreviousKey(configuration, environment);
-        if (_previousSigningKey != null)
-        {
-            var list = new List<SecurityKey> { _signingKey, _previousSigningKey };
-            _issuerSigningKeys = new ReadOnlyCollection<SecurityKey>(list);
-        }
-        else
-        {
-            _issuerSigningKeys = new ReadOnlyCollection<SecurityKey>(new[] { (SecurityKey)_signingKey });
-        }
-    }
+		_previousSigningKey = TryLoadPreviousKey(configuration, environment);
+		if (_previousSigningKey != null)
+		{
+			var list = new List<SecurityKey> { _signingKey, _previousSigningKey };
+			_issuerSigningKeys = new ReadOnlyCollection<SecurityKey>(list);
+		}
+		else
+		{
+			_issuerSigningKeys = new ReadOnlyCollection<SecurityKey>(new[] { (SecurityKey)_signingKey });
+		}
+	}
 
-    private static ECDsaSecurityKey? TryLoadPreviousKey(IConfiguration configuration, IHostEnvironment environment)
-    {
-        var prevPath = configuration["Jwt:PreviousSigningPemPath"];
-        if (string.IsNullOrWhiteSpace(prevPath))
-            return null;
+	private static ECDsaSecurityKey? TryLoadPreviousKey(IConfiguration configuration, IHostEnvironment environment)
+	{
+		var prevPath = configuration["Jwt:PreviousSigningPemPath"];
+		if (string.IsNullOrWhiteSpace(prevPath))
+			return null;
 
-        var fullPath = Path.IsPathRooted(prevPath)
-            ? prevPath
-            : Path.GetFullPath(Path.Combine(environment.ContentRootPath, prevPath.Trim()));
-        if (!File.Exists(fullPath))
-            return null;
+		var fullPath = Path.IsPathRooted(prevPath)
+			? prevPath
+			: Path.GetFullPath(Path.Combine(environment.ContentRootPath, prevPath.Trim()));
+		if (!File.Exists(fullPath))
+			return null;
 
-        var pem = File.ReadAllText(fullPath);
-        var ecdsa = ECDsa.Create();
-        ecdsa.ImportFromPem(pem);
-        var kid = configuration["Jwt:PreviousKeyId"] ?? "bedemo-ecdsa-prev";
-        return new ECDsaSecurityKey(ecdsa) { KeyId = kid };
-    }
+		var pem = File.ReadAllText(fullPath);
+		var ecdsa = ECDsa.Create();
+		ecdsa.ImportFromPem(pem);
+		var kid = configuration["Jwt:PreviousKeyId"] ?? "bedemo-ecdsa-prev";
+		return new ECDsaSecurityKey(ecdsa) { KeyId = kid };
+	}
 
-    private static ECDsa CreateEphemeralP521() => ECDsa.Create(ECCurve.NamedCurves.nistP521);
+	private static ECDsa CreateEphemeralP521() => ECDsa.Create(ECCurve.NamedCurves.nistP521);
 
-    /// <inheritdoc />
-    public ECDsaSecurityKey GetSigningKey() => _signingKey;
+	/// <inheritdoc />
+	public ECDsaSecurityKey GetSigningKey() => _signingKey;
 
-    /// <inheritdoc />
-    public ECDsaSecurityKey GetValidationKey() => _signingKey;
+	/// <inheritdoc />
+	public ECDsaSecurityKey GetValidationKey() => _signingKey;
 
-    /// <inheritdoc />
-    public IReadOnlyList<SecurityKey> GetIssuerSigningKeys() => _issuerSigningKeys;
+	/// <inheritdoc />
+	public IReadOnlyList<SecurityKey> GetIssuerSigningKeys() => _issuerSigningKeys;
 
-    /// <inheritdoc />
-    public string GetKeyId() => _keyId;
+	/// <inheritdoc />
+	public string GetKeyId() => _keyId;
 }

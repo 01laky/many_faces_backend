@@ -7,8 +7,8 @@ namespace BeDemo.Api.Validation.Pages;
 /// <summary>FluentValidation for <see cref="BeDemo.Api.Models.Requests.Pages.UpdatePageComponentDto"/> (endpoint-schema-validation §12.1).</summary>
 public sealed class UpdatePageComponentRequestValidator : AbstractValidator<BeDemo.Api.Models.Requests.Pages.UpdatePageComponentDto>
 {
-    public UpdatePageComponentRequestValidator()
-    {
-        RuleFor(x => x.Label).MaximumLength(ValidationConstants.TitleMaxLength).When(x => x.Label != null);
-    }
+	public UpdatePageComponentRequestValidator()
+	{
+		RuleFor(x => x.Label).MaximumLength(ValidationConstants.TitleMaxLength).When(x => x.Label != null);
+	}
 }

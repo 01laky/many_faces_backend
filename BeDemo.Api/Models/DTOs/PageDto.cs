@@ -14,15 +14,15 @@ namespace BeDemo.Api.Models.DTOs;
 /// </summary>
 public class PageDto
 {
-    public int Id { get; set; }
-    public int FaceId { get; set; }
-    public int PageTypeId { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string Path { get; set; } = string.Empty;
-    public int Index { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
+	public int Id { get; set; }
+	public int FaceId { get; set; }
+	public int PageTypeId { get; set; }
+	public string Name { get; set; } = string.Empty;
+	public string? Description { get; set; }
+	public string Path { get; set; } = string.Empty;
+	public int Index { get; set; }
+	public DateTime CreatedAt { get; set; }
+	public DateTime? UpdatedAt { get; set; }
 }
 
 /// <summary>
@@ -30,24 +30,24 @@ public class PageDto
 /// </summary>
 public class CreatePageDto
 {
-    [Required(ErrorMessage = "FaceId is required")]
-    public int FaceId { get; set; }
+	[Required(ErrorMessage = "FaceId is required")]
+	public int FaceId { get; set; }
 
-    [Required(ErrorMessage = "PageTypeId is required")]
-    public int PageTypeId { get; set; }
+	[Required(ErrorMessage = "PageTypeId is required")]
+	public int PageTypeId { get; set; }
 
-    [Required(ErrorMessage = "Name is required")]
-    [StringLength(200, ErrorMessage = "Name must be at most 200 characters")]
-    public string Name { get; set; } = string.Empty;
+	[Required(ErrorMessage = "Name is required")]
+	[StringLength(200, ErrorMessage = "Name must be at most 200 characters")]
+	public string Name { get; set; } = string.Empty;
 
-    [StringLength(1000, ErrorMessage = "Description must be at most 1000 characters")]
-    public string? Description { get; set; }
+	[StringLength(1000, ErrorMessage = "Description must be at most 1000 characters")]
+	public string? Description { get; set; }
 
-    [Required(ErrorMessage = "Path is required")]
-    [StringLength(500, ErrorMessage = "Path must be at most 500 characters")]
-    public string Path { get; set; } = string.Empty;
+	[Required(ErrorMessage = "Path is required")]
+	[StringLength(500, ErrorMessage = "Path must be at most 500 characters")]
+	public string Path { get; set; } = string.Empty;
 
-    public int Index { get; set; } = 0;
+	public int Index { get; set; } = 0;
 }
 
 /// <summary>
@@ -55,18 +55,18 @@ public class CreatePageDto
 /// </summary>
 public class UpdatePageDto
 {
-    public int? FaceId { get; set; }
+	public int? FaceId { get; set; }
 
-    public int? PageTypeId { get; set; }
+	public int? PageTypeId { get; set; }
 
-    [StringLength(200, ErrorMessage = "Name must be at most 200 characters")]
-    public string? Name { get; set; }
+	[StringLength(200, ErrorMessage = "Name must be at most 200 characters")]
+	public string? Name { get; set; }
 
-    [StringLength(1000, ErrorMessage = "Description must be at most 1000 characters")]
-    public string? Description { get; set; }
+	[StringLength(1000, ErrorMessage = "Description must be at most 1000 characters")]
+	public string? Description { get; set; }
 
-    [StringLength(500, ErrorMessage = "Path must be at most 500 characters")]
-    public string? Path { get; set; }
+	[StringLength(500, ErrorMessage = "Path must be at most 500 characters")]
+	public string? Path { get; set; }
 
-    public int? Index { get; set; }
+	public int? Index { get; set; }
 }

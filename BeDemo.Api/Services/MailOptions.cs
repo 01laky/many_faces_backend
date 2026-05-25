@@ -6,37 +6,37 @@ namespace BeDemo.Api.Services;
 /// </summary>
 public sealed class MailOptions
 {
-    public const string SectionName = "Mail";
+	public const string SectionName = "Mail";
 
-    /// <summary>Master switch; keep false until <see cref="WorkerGrpcUrl"/> points at a reachable worker.</summary>
-    public bool Enabled { get; set; }
+	/// <summary>Master switch; keep false until <see cref="WorkerGrpcUrl"/> points at a reachable worker.</summary>
+	public bool Enabled { get; set; }
 
-    /// <summary>Absolute gRPC address, e.g. <c>http://mailer-worker:50054</c> on <c>many_faces_main_dev-network</c>.</summary>
-    public string? WorkerGrpcUrl { get; set; }
+	/// <summary>Absolute gRPC address, e.g. <c>http://mailer-worker:50054</c> on <c>many_faces_main_dev-network</c>.</summary>
+	public string? WorkerGrpcUrl { get; set; }
 
-    public string? WorkerTlsServerCaPath { get; set; }
-    public string? WorkerTlsClientCertPath { get; set; }
-    public string? WorkerTlsClientKeyPath { get; set; }
-    public string? WorkerGrpcTlsServerName { get; set; }
+	public string? WorkerTlsServerCaPath { get; set; }
+	public string? WorkerTlsClientCertPath { get; set; }
+	public string? WorkerTlsClientKeyPath { get; set; }
+	public string? WorkerGrpcTlsServerName { get; set; }
 
-    /// <summary>Shared secret as metadata <c>x-mailer-worker-token</c>; must match <c>MAILER_WORKER_EXPECTED_TOKEN</c> on the worker.</summary>
-    public string? WorkerAuthToken { get; set; }
+	/// <summary>Shared secret as metadata <c>x-mailer-worker-token</c>; must match <c>MAILER_WORKER_EXPECTED_TOKEN</c> on the worker.</summary>
+	public string? WorkerAuthToken { get; set; }
 
-    public int GrpcDeadlineSeconds { get; set; } = 30;
+	public int GrpcDeadlineSeconds { get; set; } = 30;
 
-    /// <summary>BCP 47 fallback when HTTP culture is not available (background jobs, tests).</summary>
-    public string DefaultLocale { get; set; } = "en";
+	/// <summary>BCP 47 fallback when HTTP culture is not available (background jobs, tests).</summary>
+	public string DefaultLocale { get; set; } = "en";
 
-    /// <summary>Bootstrap SMTP relay when DB row is seeded (overridden after first admin save).</summary>
-    public MailSmtpBootstrapOptions Smtp { get; set; } = new();
+	/// <summary>Bootstrap SMTP relay when DB row is seeded (overridden after first admin save).</summary>
+	public MailSmtpBootstrapOptions Smtp { get; set; } = new();
 
-    /// <summary>Bootstrap From identity when DB row is seeded.</summary>
-    public MailFromBootstrapOptions From { get; set; } = new();
+	/// <summary>Bootstrap From identity when DB row is seeded.</summary>
+	public MailFromBootstrapOptions From { get; set; } = new();
 
-    public bool IsWorkerAddressValid =>
-        !string.IsNullOrWhiteSpace(WorkerGrpcUrl) &&
-        Uri.TryCreate(WorkerGrpcUrl, UriKind.Absolute, out var uri) &&
-        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+	public bool IsWorkerAddressValid =>
+		!string.IsNullOrWhiteSpace(WorkerGrpcUrl) &&
+		Uri.TryCreate(WorkerGrpcUrl, UriKind.Absolute, out var uri) &&
+		(uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
 
-    public bool IsEnabled => Enabled && IsWorkerAddressValid;
+	public bool IsEnabled => Enabled && IsWorkerAddressValid;
 }

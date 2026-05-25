@@ -13,32 +13,32 @@ namespace BeDemo.Api.Scripts;
 
 public class GenerateDiagramManually
 {
-    public static async Task RunAsync(string[] args)
-    {
-        if (args.Length == 0 || args[0] != "generate-diagram")
-        {
-            return;
-        }
+	public static async Task RunAsync(string[] args)
+	{
+		if (args.Length == 0 || args[0] != "generate-diagram")
+		{
+			return;
+		}
 
-        Console.WriteLine("📊 Generating database diagram...");
+		Console.WriteLine("📊 Generating database diagram...");
 
-        var connectionString = "Host=localhost;Port=54320;Database=bedemo;Username=bedemo_user;Password=bedemo_password";
+		var connectionString = "Host=localhost;Port=54320;Database=bedemo;Username=bedemo_user;Password=bedemo_password";
 
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(connectionString)
-            .Options;
+		var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+			.UseNpgsql(connectionString)
+			.Options;
 
-        using var context = new ApplicationDbContext(options);
+		using var context = new ApplicationDbContext(options);
 
-        try
-        {
-            await DatabaseDiagramGenerator.GenerateDiagramAsync(context, connectionString);
-            Console.WriteLine("✅ Diagram generated successfully!");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"❌ Error: {ex.Message}");
-            Console.WriteLine(ex.StackTrace);
-        }
-    }
+		try
+		{
+			await DatabaseDiagramGenerator.GenerateDiagramAsync(context, connectionString);
+			Console.WriteLine("✅ Diagram generated successfully!");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"❌ Error: {ex.Message}");
+			Console.WriteLine(ex.StackTrace);
+		}
+	}
 }

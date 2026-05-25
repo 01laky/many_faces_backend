@@ -12,27 +12,27 @@ namespace BeDemo.Api.Models;
 /// </summary>
 public class UserFaceRole
 {
-    /// <summary>
-    /// User ID (ApplicationUser)
-    /// </summary>
-    public string UserId { get; set; } = string.Empty;
+	/// <summary>
+	/// User ID (ApplicationUser)
+	/// </summary>
+	public string UserId { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Face ID
-    /// </summary>
-    public int FaceId { get; set; }
+	/// <summary>
+	/// Face ID
+	/// </summary>
+	public int FaceId { get; set; }
 
-    /// <summary>
-    /// Face role (must be Scope = Face)
-    /// </summary>
-    public int UserRoleId { get; set; }
+	/// <summary>
+	/// Face role (must be Scope = Face)
+	/// </summary>
+	public int UserRoleId { get; set; }
 
-    /// <summary>
-    /// When the role was assigned
-    /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	/// <summary>
+	/// When the role was assigned
+	/// </summary>
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public ApplicationUser User { get; set; } = null!;
-    public Face Face { get; set; } = null!;
-    public UserRole UserRole { get; set; } = null!;
+	public ApplicationUser User { get; set; } = null!;
+	public Face Face { get; set; } = null!;
+	public UserRole UserRole { get; set; } = null!;
 }

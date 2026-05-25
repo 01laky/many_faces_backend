@@ -8,9 +8,9 @@ namespace BeDemo.Api.Tests;
 /// </remarks>
 internal static class IntegrationTestCredentials
 {
-    /// <summary>Default password for register/login flows in xUnit hosts (Testing environment).</summary>
-    public const string DefaultPassword = "Test1234!@##";
+	/// <summary>Default password for register/login flows in xUnit hosts (Testing environment).</summary>
+	public const string DefaultPassword = "Test1234!@##";
 
-    /// <summary>One character shorter than BE-A3 minimum — must fail registration in Testing.</summary>
-    public const string PasswordOneBelowMinimum = "Test123!@#";
+	/// <summary>One character shorter than BE-A3 minimum — must fail registration in Testing.</summary>
+	public const string PasswordOneBelowMinimum = "Test123!@#";
 }

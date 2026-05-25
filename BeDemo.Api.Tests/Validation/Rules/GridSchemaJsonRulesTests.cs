@@ -9,13 +9,13 @@ namespace BeDemo.Api.Tests.Validation.Rules;
 
 public sealed class GridSchemaJsonRulesTests
 {
-    private sealed class Model { public string? Grid { get; set; } }
-    private sealed class Validator : AbstractValidator<Model>
-    {
-        public Validator() => RuleFor(x => x.Grid).GridSchemaJsonRule();
-    }
+	private sealed class Model { public string? Grid { get; set; } }
+	private sealed class Validator : AbstractValidator<Model>
+	{
+		public Validator() => RuleFor(x => x.Grid).GridSchemaJsonRule();
+	}
 
-    [Fact]
-    public void T4_Over_max_fails() => new Validator().TestValidate(new Model { Grid = new string('x', ValidationConstants.GridSchemaMaxLength + 1) })
-        .ShouldHaveValidationErrorFor(x => x.Grid);
+	[Fact]
+	public void T4_Over_max_fails() => new Validator().TestValidate(new Model { Grid = new string('x', ValidationConstants.GridSchemaMaxLength + 1) })
+		.ShouldHaveValidationErrorFor(x => x.Grid);
 }

@@ -8,11 +8,11 @@ namespace BeDemo.Api.Models.DTOs.OperatorAi;
 /// </summary>
 public sealed class OperatorAiStatsContextDto
 {
-    public DateTime SnapshotUtc { get; init; }
+	public DateTime SnapshotUtc { get; init; }
 
-    /// <summary>Same shape as <c>GET /api/Stats</c> — maximum aggregate counts for the model.</summary>
-    public AdminDashboardSummaryDto Dashboard { get; init; } = new();
+	/// <summary>Same shape as <c>GET /api/Stats</c> — maximum aggregate counts for the model.</summary>
+	public AdminDashboardSummaryDto Dashboard { get; init; } = new();
 
-    /// <summary>Daily buckets for the last 7 UTC days (users, messages, stories) when the question is metrics-related.</summary>
-    public OperatorAiTimeseriesHintsDto? TimeseriesLast7Days { get; init; }
+	/// <summary>Daily buckets for the last 7 UTC days (users, messages, stories) when the question is metrics-related.</summary>
+	public OperatorAiTimeseriesHintsDto? TimeseriesLast7Days { get; init; }
 }

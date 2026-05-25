@@ -15,536 +15,536 @@ namespace BeDemo.Api.Tests;
 
 public class BlogsControllerTests : IClassFixture<CustomWebApplicationFactory<Program>>, IDisposable
 {
-    private readonly CustomWebApplicationFactory<Program> _factory;
-    private readonly HttpClient _client;
-    private string? _authToken;
-
-    public BlogsControllerTests(CustomWebApplicationFactory<Program> factory)
-    {
-        _factory = factory;
-        _client = _factory.CreateClient();
-    }
-
-    private async Task<string> GetAuthTokenAsync()
-    {
-        if (_authToken != null)
-            return _authToken;
-
-        var email = $"blog_test_{Guid.NewGuid()}@test.com";
-        const string password = "Test1234!@##";
-        _authToken = await IntegrationTestRegistration.RegisterAndGetAccessTokenViaPasswordGrantAsync(
-            _client,
-            _factory,
-            email,
-            password,
-            "Blog",
-            "Tester");
-        return _authToken;
-    }
-
-    private void SetAuth(string token)
-    {
-        _client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-    }
-
-    private async Task ApproveAsSuperAdminAsync(ModeratedContentType contentType, int contentId)
-    {
-        using var admin = _factory.CreateFaceClient("admin");
-        admin.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue(
-                "Bearer",
-                await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(admin));
-        var response = await admin.PostAsJsonAsync(
-            $"/api/contentmoderation/{contentType}/{contentId}/approve",
-            new { reason = "Approved for test" });
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    private Task<int> CreateTestFaceAsync() => IntegrationTestFaceHelper.CreateUniqueFaceIdAsync(_factory);
-
-    private async Task<(int BlogId, int FaceId)> CreateTestBlogAsync(int? faceId = null, List<string>? imageUrls = null)
-    {
-        var token = await GetAuthTokenAsync();
-        SetAuth(token);
-
-        var face = faceId ?? await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
-
-        var resp = await _client.PostAsJsonAsync("/api/blogs", new
-        {
-            title = $"Test Blog {Guid.NewGuid()}",
-            content = "<p>This is test blog content</p>",
-            faceId = face,
-            imageUrls
-        });
-        resp.StatusCode.Should().Be(HttpStatusCode.Created);
-        var blog = await resp.Content.ReadFromJsonAsync<JsonElement>();
-        return (blog.GetProperty("id").GetInt32(), face);
-    }
-
-    private Task<HttpResponseMessage> GetBlogDetailAsync(int blogId, int faceId) =>
-        _client.GetAsync($"/api/blogs/{blogId}?faceId={faceId}");
-
-    // ==================== Blogs CRUD ====================
-
-    [Fact]
-    public async Task GetBlogs_ShouldReturnUnauthorized_WhenNoToken()
-    {
-        var response = await _client.GetAsync("/api/blogs");
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task GetBlogs_ShouldReturnList_WhenAuthenticated()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var response = await _client.GetAsync("/api/blogs");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var blogs = await response.Content.ReadFromJsonAsync<JsonElement>();
-        blogs.TryGetProperty("items", out var items).Should().BeTrue();
-        items.ValueKind.Should().Be(JsonValueKind.Array);
-    }
-
-    [Fact]
-    public async Task CreateBlog_ShouldReturnCreated_WithValidData()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var faceId = await CreateTestFaceAsync();
-
-        var response = await _client.PostAsJsonAsync("/api/blogs", new
-        {
-            title = "My First Blog",
-            content = "<p>Hello world!</p>",
-            faceId
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
-        blog.GetProperty("title").GetString().Should().Be("My First Blog");
-        blog.GetProperty("content").GetString().Should().Be("<p>Hello world!</p>");
-        blog.GetProperty("faceId").GetInt32().Should().Be(faceId);
-        blog.GetProperty("approvalStatus").GetString().Should().Be(nameof(ContentApprovalStatus.PendingApproval));
-        blog.GetProperty("aiReviewStatus").GetString().Should().Be(nameof(AiReviewStatus.Queued));
-    }
-
-    [Fact]
-    public async Task CreateBlog_ShouldNotAppearInPublicList_UntilApproved()
-    {
-        var token = await GetAuthTokenAsync();
-        SetAuth(token);
-        var faceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
-
-        var response = await _client.PostAsJsonAsync("/api/blogs", new
-        {
-            title = "Pending Blog",
-            content = "<p>Review me</p>",
-            faceId
-        });
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var created = await response.Content.ReadFromJsonAsync<JsonElement>();
-        var blogId = created.GetProperty("id").GetInt32();
-
-        var list = await IntegrationTestPaginatedList.GetListItemsAsync(_client, $"/api/blogs?faceId={faceId}");
-        list!.Select(e => e.GetProperty("id").GetInt32()).Should().NotContain(blogId);
-
-        await ApproveAsSuperAdminAsync(ModeratedContentType.Blog, blogId);
-
-        var approvedList = await IntegrationTestPaginatedList.GetListItemsAsync(_client, $"/api/blogs?faceId={faceId}");
-        approvedList!.Select(e => e.GetProperty("id").GetInt32()).Should().Contain(blogId);
-    }
-
-    [Fact]
-    public async Task CreateBlog_ShouldReturnBadRequest_WhenTitleEmpty()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var faceId = await CreateTestFaceAsync();
-
-        var response = await _client.PostAsJsonAsync("/api/blogs", new
-        {
-            title = "   ",
-            content = "<p>Content</p>",
-            faceId
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task CreateBlog_ShouldReturnBadRequest_WhenContentEmpty()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var faceId = await CreateTestFaceAsync();
-
-        var response = await _client.PostAsJsonAsync("/api/blogs", new
-        {
-            title = "Valid Title",
-            content = "  ",
-            faceId
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task CreateBlog_ShouldReturnBadRequest_WhenFaceIdInvalid()
-    {
-        SetAuth(await GetAuthTokenAsync());
-
-        var response = await _client.PostAsJsonAsync("/api/blogs", new
-        {
-            title = "Valid Title",
-            content = "<p>Content</p>",
-            faceId = 99999
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task CreateBlog_ShouldCreateWithImages()
-    {
-        var token = await GetAuthTokenAsync();
-        SetAuth(token);
-        var faceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
-
-        var response = await _client.PostAsJsonAsync("/api/blogs", new
-        {
-            title = "Blog With Images",
-            content = "<p>Content with images</p>",
-            faceId,
-            imageUrls = new[] { "https://example.com/img1.jpg", "https://example.com/img2.jpg" }
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
-        var blogId = blog.GetProperty("id").GetInt32();
-
-        // Verify images via detail
-        var detailResp = await GetBlogDetailAsync(blogId, faceId);
-        detailResp.StatusCode.Should().Be(HttpStatusCode.OK);
-        var detail = await detailResp.Content.ReadFromJsonAsync<JsonElement>();
-        detail.GetProperty("images").GetArrayLength().Should().Be(2);
-    }
-
-    [Fact]
-    public async Task CreateBlog_ShouldLimitToThreeImages()
-    {
-        var token = await GetAuthTokenAsync();
-        SetAuth(token);
-        var faceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
-
-        var response = await _client.PostAsJsonAsync("/api/blogs", new
-        {
-            title = "Blog With Too Many Images",
-            content = "<p>Content</p>",
-            faceId,
-            imageUrls = new[] {
-                "https://example.com/img1.jpg",
-                "https://example.com/img2.jpg",
-                "https://example.com/img3.jpg",
-                "https://example.com/img4.jpg"
-            }
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
-        var blogId = blog.GetProperty("id").GetInt32();
-
-        var detailResp = await GetBlogDetailAsync(blogId, faceId);
-        detailResp.StatusCode.Should().Be(HttpStatusCode.OK);
-        var detail = await detailResp.Content.ReadFromJsonAsync<JsonElement>();
-        detail.GetProperty("images").GetArrayLength().Should().Be(3);
-    }
-
-    [Fact]
-    public async Task GetBlog_ShouldReturnBlog_WhenExists()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, faceId) = await CreateTestBlogAsync();
-
-        var response = await GetBlogDetailAsync(blogId, faceId);
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
-        blog.GetProperty("id").GetInt32().Should().Be(blogId);
-    }
-
-    [Fact]
-    public async Task GetBlog_ShouldReturnNotFound_WhenInvalidId()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var response = await _client.GetAsync("/api/blogs/99999");
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task GetBlogs_ShouldFilterByTenantScopedFaceId_FromMiddleware()
-    {
-        var token = await GetAuthTokenAsync();
-        SetAuth(token);
-        var scopedFaceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
-        var (first, _) = await CreateTestBlogAsync(faceId: scopedFaceId);
-        var (second, _) = await CreateTestBlogAsync(faceId: scopedFaceId);
-        await ApproveAsSuperAdminAsync(ModeratedContentType.Blog, first);
-        await ApproveAsSuperAdminAsync(ModeratedContentType.Blog, second);
-
-        var response = await _client.GetAsync("/api/blogs");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var blogs = await response.Content.ReadFromJsonAsync<JsonElement>();
-        var items = IntegrationTestPaginatedList.ReadItems(blogs);
-        items.Length.Should().BeGreaterThanOrEqualTo(2);
-        foreach (var b in items)
-            b.GetProperty("faceId").GetInt32().Should().Be(scopedFaceId);
-    }
-
-    [Fact]
-    public async Task UpdateBlog_ShouldReturnOk_WhenCreator()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        var response = await _client.PutAsJsonAsync($"/api/blogs/{blogId}", new
-        {
-            title = "Updated Title"
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
-        blog.GetProperty("title").GetString().Should().Be("Updated Title");
-    }
-
-    [Fact]
-    public async Task UpdateBlog_ShouldUpdateImages()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, faceId) = await CreateTestBlogAsync(imageUrls: new List<string> { "https://example.com/old.jpg" });
-
-        var response = await _client.PutAsJsonAsync($"/api/blogs/{blogId}", new
-        {
-            imageUrls = new[] { "https://example.com/new1.jpg", "https://example.com/new2.jpg" }
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-        var detailResp = await GetBlogDetailAsync(blogId, faceId);
-        var detail = await detailResp.Content.ReadFromJsonAsync<JsonElement>();
-        detail.GetProperty("images").GetArrayLength().Should().Be(2);
-    }
-
-    [Fact]
-    public async Task DeleteBlog_ShouldReturnNoContent_WhenCreator()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, faceId) = await CreateTestBlogAsync();
-
-        var response = await _client.DeleteAsync($"/api/blogs/{blogId}");
-
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-
-        var getResp = await GetBlogDetailAsync(blogId, faceId);
-        getResp.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task DeleteBlog_ShouldReturnNotFound_WhenInvalidId()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var response = await _client.DeleteAsync("/api/blogs/99999");
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    // ==================== Blog Comments ====================
-
-    [Fact]
-    public async Task GetBlogComments_ShouldReturnUnauthorized_WhenNoToken()
-    {
-        var response = await _client.GetAsync("/api/blogs/1/comments");
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task CreateBlogComment_ShouldReturnCreated()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        var response = await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new
-        {
-            content = "Great blog post!"
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.Created);
-        var comment = await response.Content.ReadFromJsonAsync<JsonElement>();
-        comment.GetProperty("content").GetString().Should().Be("Great blog post!");
-    }
-
-    [Fact]
-    public async Task CreateBlogComment_ShouldReturnBadRequest_WhenContentEmpty()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        var response = await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new
-        {
-            content = "   "
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task CreateBlogComment_ShouldReturnNotFound_WhenBlogMissing()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var response = await _client.PostAsJsonAsync("/api/blogs/99999/comments", new
-        {
-            content = "Hello"
-        });
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task GetBlogComments_ShouldReturnList()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new
-        {
-            content = "Comment 1"
-        });
-
-        var response = await _client.GetAsync($"/api/blogs/{blogId}/comments");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var comments = await response.Content.ReadFromJsonAsync<JsonElement>();
-        comments.GetArrayLength().Should().BeGreaterThan(0);
-    }
-
-    [Fact]
-    public async Task UpdateBlogComment_ShouldReturnOk_WhenAuthor()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        var createResp = await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new
-        {
-            content = "Original comment"
-        });
-        var created = await createResp.Content.ReadFromJsonAsync<JsonElement>();
-        var commentId = created.GetProperty("id").GetInt32();
-
-        var response = await _client.PutAsJsonAsync($"/api/blogs/{blogId}/comments/{commentId}", new
-        {
-            content = "Updated comment"
-        });
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
-        updated.GetProperty("content").GetString().Should().Be("Updated comment");
-    }
-
-    [Fact]
-    public async Task DeleteBlogComment_ShouldReturnNoContent_WhenAuthor()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        var createResp = await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new
-        {
-            content = "To be deleted"
-        });
-        var created = await createResp.Content.ReadFromJsonAsync<JsonElement>();
-        var commentId = created.GetProperty("id").GetInt32();
-
-        var response = await _client.DeleteAsync($"/api/blogs/{blogId}/comments/{commentId}");
-        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
-    }
-
-    // ==================== Blog Likes ====================
-
-    [Fact]
-    public async Task LikeBlog_ShouldReturnOk()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        var response = await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    [Fact]
-    public async Task LikeBlog_ShouldReturnBadRequest_WhenAlreadyLiked()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
-        var response = await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task LikeBlog_ShouldReturnNotFound_WhenBlogMissing()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var response = await _client.PostAsync("/api/blogs/99999/likes", null);
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task UnlikeBlog_ShouldReturnOk()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
-        var response = await _client.DeleteAsync($"/api/blogs/{blogId}/likes");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    [Fact]
-    public async Task UnlikeBlog_ShouldReturnNotFound_WhenNotLiked()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        var response = await _client.DeleteAsync($"/api/blogs/{blogId}/likes");
-        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
-    }
-
-    [Fact]
-    public async Task GetBlogLikes_ShouldReturnList()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, _) = await CreateTestBlogAsync();
-
-        await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
-
-        var response = await _client.GetAsync($"/api/blogs/{blogId}/likes");
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var likes = await response.Content.ReadFromJsonAsync<JsonElement>();
-        likes.GetArrayLength().Should().Be(1);
-    }
-
-    [Fact]
-    public async Task GetBlogDetail_ShouldIncludeLikeAndCommentCounts()
-    {
-        SetAuth(await GetAuthTokenAsync());
-        var (blogId, faceId) = await CreateTestBlogAsync();
-
-        await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
-        await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new { content = "Nice!" });
-
-        var response = await GetBlogDetailAsync(blogId, faceId);
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
-        blog.GetProperty("likesCount").GetInt32().Should().Be(1);
-        blog.GetProperty("commentsCount").GetInt32().Should().Be(1);
-        blog.GetProperty("isLikedByMe").GetBoolean().Should().BeTrue();
-    }
-
-    public void Dispose()
-    {
-        _client?.Dispose();
-    }
+	private readonly CustomWebApplicationFactory<Program> _factory;
+	private readonly HttpClient _client;
+	private string? _authToken;
+
+	public BlogsControllerTests(CustomWebApplicationFactory<Program> factory)
+	{
+		_factory = factory;
+		_client = _factory.CreateClient();
+	}
+
+	private async Task<string> GetAuthTokenAsync()
+	{
+		if (_authToken != null)
+			return _authToken;
+
+		var email = $"blog_test_{Guid.NewGuid()}@test.com";
+		const string password = "Test1234!@##";
+		_authToken = await IntegrationTestRegistration.RegisterAndGetAccessTokenViaPasswordGrantAsync(
+			_client,
+			_factory,
+			email,
+			password,
+			"Blog",
+			"Tester");
+		return _authToken;
+	}
+
+	private void SetAuth(string token)
+	{
+		_client.DefaultRequestHeaders.Authorization =
+			new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+	}
+
+	private async Task ApproveAsSuperAdminAsync(ModeratedContentType contentType, int contentId)
+	{
+		using var admin = _factory.CreateFaceClient("admin");
+		admin.DefaultRequestHeaders.Authorization =
+			new System.Net.Http.Headers.AuthenticationHeaderValue(
+				"Bearer",
+				await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(admin));
+		var response = await admin.PostAsJsonAsync(
+			$"/api/contentmoderation/{contentType}/{contentId}/approve",
+			new { reason = "Approved for test" });
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	private Task<int> CreateTestFaceAsync() => IntegrationTestFaceHelper.CreateUniqueFaceIdAsync(_factory);
+
+	private async Task<(int BlogId, int FaceId)> CreateTestBlogAsync(int? faceId = null, List<string>? imageUrls = null)
+	{
+		var token = await GetAuthTokenAsync();
+		SetAuth(token);
+
+		var face = faceId ?? await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
+
+		var resp = await _client.PostAsJsonAsync("/api/blogs", new
+		{
+			title = $"Test Blog {Guid.NewGuid()}",
+			content = "<p>This is test blog content</p>",
+			faceId = face,
+			imageUrls
+		});
+		resp.StatusCode.Should().Be(HttpStatusCode.Created);
+		var blog = await resp.Content.ReadFromJsonAsync<JsonElement>();
+		return (blog.GetProperty("id").GetInt32(), face);
+	}
+
+	private Task<HttpResponseMessage> GetBlogDetailAsync(int blogId, int faceId) =>
+		_client.GetAsync($"/api/blogs/{blogId}?faceId={faceId}");
+
+	// ==================== Blogs CRUD ====================
+
+	[Fact]
+	public async Task GetBlogs_ShouldReturnUnauthorized_WhenNoToken()
+	{
+		var response = await _client.GetAsync("/api/blogs");
+		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+	}
+
+	[Fact]
+	public async Task GetBlogs_ShouldReturnList_WhenAuthenticated()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var response = await _client.GetAsync("/api/blogs");
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var blogs = await response.Content.ReadFromJsonAsync<JsonElement>();
+		blogs.TryGetProperty("items", out var items).Should().BeTrue();
+		items.ValueKind.Should().Be(JsonValueKind.Array);
+	}
+
+	[Fact]
+	public async Task CreateBlog_ShouldReturnCreated_WithValidData()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var faceId = await CreateTestFaceAsync();
+
+		var response = await _client.PostAsJsonAsync("/api/blogs", new
+		{
+			title = "My First Blog",
+			content = "<p>Hello world!</p>",
+			faceId
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+		var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
+		blog.GetProperty("title").GetString().Should().Be("My First Blog");
+		blog.GetProperty("content").GetString().Should().Be("<p>Hello world!</p>");
+		blog.GetProperty("faceId").GetInt32().Should().Be(faceId);
+		blog.GetProperty("approvalStatus").GetString().Should().Be(nameof(ContentApprovalStatus.PendingApproval));
+		blog.GetProperty("aiReviewStatus").GetString().Should().Be(nameof(AiReviewStatus.Queued));
+	}
+
+	[Fact]
+	public async Task CreateBlog_ShouldNotAppearInPublicList_UntilApproved()
+	{
+		var token = await GetAuthTokenAsync();
+		SetAuth(token);
+		var faceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
+
+		var response = await _client.PostAsJsonAsync("/api/blogs", new
+		{
+			title = "Pending Blog",
+			content = "<p>Review me</p>",
+			faceId
+		});
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+		var created = await response.Content.ReadFromJsonAsync<JsonElement>();
+		var blogId = created.GetProperty("id").GetInt32();
+
+		var list = await IntegrationTestPaginatedList.GetListItemsAsync(_client, $"/api/blogs?faceId={faceId}");
+		list!.Select(e => e.GetProperty("id").GetInt32()).Should().NotContain(blogId);
+
+		await ApproveAsSuperAdminAsync(ModeratedContentType.Blog, blogId);
+
+		var approvedList = await IntegrationTestPaginatedList.GetListItemsAsync(_client, $"/api/blogs?faceId={faceId}");
+		approvedList!.Select(e => e.GetProperty("id").GetInt32()).Should().Contain(blogId);
+	}
+
+	[Fact]
+	public async Task CreateBlog_ShouldReturnBadRequest_WhenTitleEmpty()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var faceId = await CreateTestFaceAsync();
+
+		var response = await _client.PostAsJsonAsync("/api/blogs", new
+		{
+			title = "   ",
+			content = "<p>Content</p>",
+			faceId
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task CreateBlog_ShouldReturnBadRequest_WhenContentEmpty()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var faceId = await CreateTestFaceAsync();
+
+		var response = await _client.PostAsJsonAsync("/api/blogs", new
+		{
+			title = "Valid Title",
+			content = "  ",
+			faceId
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task CreateBlog_ShouldReturnBadRequest_WhenFaceIdInvalid()
+	{
+		SetAuth(await GetAuthTokenAsync());
+
+		var response = await _client.PostAsJsonAsync("/api/blogs", new
+		{
+			title = "Valid Title",
+			content = "<p>Content</p>",
+			faceId = 99999
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task CreateBlog_ShouldCreateWithImages()
+	{
+		var token = await GetAuthTokenAsync();
+		SetAuth(token);
+		var faceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
+
+		var response = await _client.PostAsJsonAsync("/api/blogs", new
+		{
+			title = "Blog With Images",
+			content = "<p>Content with images</p>",
+			faceId,
+			imageUrls = new[] { "https://example.com/img1.jpg", "https://example.com/img2.jpg" }
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+		var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
+		var blogId = blog.GetProperty("id").GetInt32();
+
+		// Verify images via detail
+		var detailResp = await GetBlogDetailAsync(blogId, faceId);
+		detailResp.StatusCode.Should().Be(HttpStatusCode.OK);
+		var detail = await detailResp.Content.ReadFromJsonAsync<JsonElement>();
+		detail.GetProperty("images").GetArrayLength().Should().Be(2);
+	}
+
+	[Fact]
+	public async Task CreateBlog_ShouldLimitToThreeImages()
+	{
+		var token = await GetAuthTokenAsync();
+		SetAuth(token);
+		var faceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
+
+		var response = await _client.PostAsJsonAsync("/api/blogs", new
+		{
+			title = "Blog With Too Many Images",
+			content = "<p>Content</p>",
+			faceId,
+			imageUrls = new[] {
+				"https://example.com/img1.jpg",
+				"https://example.com/img2.jpg",
+				"https://example.com/img3.jpg",
+				"https://example.com/img4.jpg"
+			}
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+		var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
+		var blogId = blog.GetProperty("id").GetInt32();
+
+		var detailResp = await GetBlogDetailAsync(blogId, faceId);
+		detailResp.StatusCode.Should().Be(HttpStatusCode.OK);
+		var detail = await detailResp.Content.ReadFromJsonAsync<JsonElement>();
+		detail.GetProperty("images").GetArrayLength().Should().Be(3);
+	}
+
+	[Fact]
+	public async Task GetBlog_ShouldReturnBlog_WhenExists()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, faceId) = await CreateTestBlogAsync();
+
+		var response = await GetBlogDetailAsync(blogId, faceId);
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
+		blog.GetProperty("id").GetInt32().Should().Be(blogId);
+	}
+
+	[Fact]
+	public async Task GetBlog_ShouldReturnNotFound_WhenInvalidId()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var response = await _client.GetAsync("/api/blogs/99999");
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task GetBlogs_ShouldFilterByTenantScopedFaceId_FromMiddleware()
+	{
+		var token = await GetAuthTokenAsync();
+		SetAuth(token);
+		var scopedFaceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(_client, token, "public");
+		var (first, _) = await CreateTestBlogAsync(faceId: scopedFaceId);
+		var (second, _) = await CreateTestBlogAsync(faceId: scopedFaceId);
+		await ApproveAsSuperAdminAsync(ModeratedContentType.Blog, first);
+		await ApproveAsSuperAdminAsync(ModeratedContentType.Blog, second);
+
+		var response = await _client.GetAsync("/api/blogs");
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var blogs = await response.Content.ReadFromJsonAsync<JsonElement>();
+		var items = IntegrationTestPaginatedList.ReadItems(blogs);
+		items.Length.Should().BeGreaterThanOrEqualTo(2);
+		foreach (var b in items)
+			b.GetProperty("faceId").GetInt32().Should().Be(scopedFaceId);
+	}
+
+	[Fact]
+	public async Task UpdateBlog_ShouldReturnOk_WhenCreator()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		var response = await _client.PutAsJsonAsync($"/api/blogs/{blogId}", new
+		{
+			title = "Updated Title"
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
+		blog.GetProperty("title").GetString().Should().Be("Updated Title");
+	}
+
+	[Fact]
+	public async Task UpdateBlog_ShouldUpdateImages()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, faceId) = await CreateTestBlogAsync(imageUrls: new List<string> { "https://example.com/old.jpg" });
+
+		var response = await _client.PutAsJsonAsync($"/api/blogs/{blogId}", new
+		{
+			imageUrls = new[] { "https://example.com/new1.jpg", "https://example.com/new2.jpg" }
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+		var detailResp = await GetBlogDetailAsync(blogId, faceId);
+		var detail = await detailResp.Content.ReadFromJsonAsync<JsonElement>();
+		detail.GetProperty("images").GetArrayLength().Should().Be(2);
+	}
+
+	[Fact]
+	public async Task DeleteBlog_ShouldReturnNoContent_WhenCreator()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, faceId) = await CreateTestBlogAsync();
+
+		var response = await _client.DeleteAsync($"/api/blogs/{blogId}");
+
+		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+		var getResp = await GetBlogDetailAsync(blogId, faceId);
+		getResp.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task DeleteBlog_ShouldReturnNotFound_WhenInvalidId()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var response = await _client.DeleteAsync("/api/blogs/99999");
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	// ==================== Blog Comments ====================
+
+	[Fact]
+	public async Task GetBlogComments_ShouldReturnUnauthorized_WhenNoToken()
+	{
+		var response = await _client.GetAsync("/api/blogs/1/comments");
+		response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+	}
+
+	[Fact]
+	public async Task CreateBlogComment_ShouldReturnCreated()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		var response = await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new
+		{
+			content = "Great blog post!"
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.Created);
+		var comment = await response.Content.ReadFromJsonAsync<JsonElement>();
+		comment.GetProperty("content").GetString().Should().Be("Great blog post!");
+	}
+
+	[Fact]
+	public async Task CreateBlogComment_ShouldReturnBadRequest_WhenContentEmpty()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		var response = await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new
+		{
+			content = "   "
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task CreateBlogComment_ShouldReturnNotFound_WhenBlogMissing()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var response = await _client.PostAsJsonAsync("/api/blogs/99999/comments", new
+		{
+			content = "Hello"
+		});
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task GetBlogComments_ShouldReturnList()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new
+		{
+			content = "Comment 1"
+		});
+
+		var response = await _client.GetAsync($"/api/blogs/{blogId}/comments");
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var comments = await response.Content.ReadFromJsonAsync<JsonElement>();
+		comments.GetArrayLength().Should().BeGreaterThan(0);
+	}
+
+	[Fact]
+	public async Task UpdateBlogComment_ShouldReturnOk_WhenAuthor()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		var createResp = await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new
+		{
+			content = "Original comment"
+		});
+		var created = await createResp.Content.ReadFromJsonAsync<JsonElement>();
+		var commentId = created.GetProperty("id").GetInt32();
+
+		var response = await _client.PutAsJsonAsync($"/api/blogs/{blogId}/comments/{commentId}", new
+		{
+			content = "Updated comment"
+		});
+
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
+		updated.GetProperty("content").GetString().Should().Be("Updated comment");
+	}
+
+	[Fact]
+	public async Task DeleteBlogComment_ShouldReturnNoContent_WhenAuthor()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		var createResp = await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new
+		{
+			content = "To be deleted"
+		});
+		var created = await createResp.Content.ReadFromJsonAsync<JsonElement>();
+		var commentId = created.GetProperty("id").GetInt32();
+
+		var response = await _client.DeleteAsync($"/api/blogs/{blogId}/comments/{commentId}");
+		response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+	}
+
+	// ==================== Blog Likes ====================
+
+	[Fact]
+	public async Task LikeBlog_ShouldReturnOk()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		var response = await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task LikeBlog_ShouldReturnBadRequest_WhenAlreadyLiked()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
+		var response = await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
+		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+	}
+
+	[Fact]
+	public async Task LikeBlog_ShouldReturnNotFound_WhenBlogMissing()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var response = await _client.PostAsync("/api/blogs/99999/likes", null);
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task UnlikeBlog_ShouldReturnOk()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
+		var response = await _client.DeleteAsync($"/api/blogs/{blogId}/likes");
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
+
+	[Fact]
+	public async Task UnlikeBlog_ShouldReturnNotFound_WhenNotLiked()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		var response = await _client.DeleteAsync($"/api/blogs/{blogId}/likes");
+		response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+	}
+
+	[Fact]
+	public async Task GetBlogLikes_ShouldReturnList()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, _) = await CreateTestBlogAsync();
+
+		await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
+
+		var response = await _client.GetAsync($"/api/blogs/{blogId}/likes");
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var likes = await response.Content.ReadFromJsonAsync<JsonElement>();
+		likes.GetArrayLength().Should().Be(1);
+	}
+
+	[Fact]
+	public async Task GetBlogDetail_ShouldIncludeLikeAndCommentCounts()
+	{
+		SetAuth(await GetAuthTokenAsync());
+		var (blogId, faceId) = await CreateTestBlogAsync();
+
+		await _client.PostAsync($"/api/blogs/{blogId}/likes", null);
+		await _client.PostAsJsonAsync($"/api/blogs/{blogId}/comments", new { content = "Nice!" });
+
+		var response = await GetBlogDetailAsync(blogId, faceId);
+		response.StatusCode.Should().Be(HttpStatusCode.OK);
+		var blog = await response.Content.ReadFromJsonAsync<JsonElement>();
+		blog.GetProperty("likesCount").GetInt32().Should().Be(1);
+		blog.GetProperty("commentsCount").GetInt32().Should().Be(1);
+		blog.GetProperty("isLikedByMe").GetBoolean().Should().BeTrue();
+	}
+
+	public void Dispose()
+	{
+		_client?.Dispose();
+	}
 }

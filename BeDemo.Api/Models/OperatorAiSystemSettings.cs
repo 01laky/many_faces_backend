@@ -6,18 +6,18 @@ namespace BeDemo.Api.Models;
 /// </summary>
 public class OperatorAiSystemSettings
 {
-    /// <summary>Always <c>1</c> — platform-wide singleton.</summary>
-    public int Id { get; set; } = 1;
+	/// <summary>Always <c>1</c> — platform-wide singleton.</summary>
+	public int Id { get; set; } = 1;
 
-    /// <summary>When false, no gRPC inference runs; moderation falls back to human review.</summary>
-    public bool AiEnabled { get; set; }
+	/// <summary>When false, no gRPC inference runs; moderation falls back to human review.</summary>
+	public bool AiEnabled { get; set; }
 
-    public DateTime UpdatedAtUtc { get; set; }
+	public DateTime UpdatedAtUtc { get; set; }
 
-    public string? UpdatedByUserId { get; set; }
+	public string? UpdatedByUserId { get; set; }
 
-    public DateTime? LastEnabledAtUtc { get; set; }
+	public DateTime? LastEnabledAtUtc { get; set; }
 
-    /// <summary>Last enable health outcome, e.g. <c>ok</c>, <c>model_loading_timeout</c>, <c>worker_unreachable</c>.</summary>
-    public string? LastEnableHealthStatus { get; set; }
+	/// <summary>Last enable health outcome, e.g. <c>ok</c>, <c>model_loading_timeout</c>, <c>worker_unreachable</c>.</summary>
+	public string? LastEnableHealthStatus { get; set; }
 }

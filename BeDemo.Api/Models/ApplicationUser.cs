@@ -9,27 +9,27 @@ namespace BeDemo.Api.Models;
 /// </summary>
 public class ApplicationUser : IdentityUser
 {
-    public string? FirstName { get; set; }
-    public string? LastName { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	public string? FirstName { get; set; }
+	public string? LastName { get; set; }
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>
-    /// Foreign key to UserRole - many-to-one relationship
-    /// </summary>
-    public int UserRoleId { get; set; }
+	/// <summary>
+	/// Foreign key to UserRole - many-to-one relationship
+	/// </summary>
+	public int UserRoleId { get; set; }
 
-    /// <summary>
-    /// Navigation property to UserRole
-    /// </summary>
-    public UserRole UserRole { get; set; } = null!;
+	/// <summary>
+	/// Navigation property to UserRole
+	/// </summary>
+	public UserRole UserRole { get; set; } = null!;
 
-    /// <summary>
-    /// Navigation property to UserProfile - one-to-one relationship
-    /// </summary>
-    public UserProfile? UserProfile { get; set; }
+	/// <summary>
+	/// Navigation property to UserProfile - one-to-one relationship
+	/// </summary>
+	public UserProfile? UserProfile { get; set; }
 
-    /// <summary>
-    /// Incremented when sessions must be invalidated (password change, privilege change). Issued JWTs carry claim <c>atv</c> matching this value (J6).
-    /// </summary>
-    public int AccessTokenVersion { get; set; }
+	/// <summary>
+	/// Incremented when sessions must be invalidated (password change, privilege change). Issued JWTs carry claim <c>atv</c> matching this value (J6).
+	/// </summary>
+	public int AccessTokenVersion { get; set; }
 }

@@ -6,5 +6,5 @@ namespace BeDemo.Api.Services;
 /// </summary>
 public interface IAiModelStatusClient
 {
-    Task<AiModelStatus> GetModelStatusAsync(CancellationToken cancellationToken = default);
+	Task<AiModelStatus> GetModelStatusAsync(CancellationToken cancellationToken = default);
 }

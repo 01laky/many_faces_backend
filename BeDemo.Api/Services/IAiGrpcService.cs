@@ -13,44 +13,44 @@ namespace BeDemo.Api.Services;
 /// </summary>
 public interface IAiGrpcService
 {
-    /// <summary>
-    /// Calls the AI service Generate RPC and returns the generated text (or error message).
-    /// </summary>
-    /// <param name="statsContextJson">When set, forwarded to the Python worker as read-only aggregate context (admin AI).</param>
-    Task<string> GenerateAsync(
-        string prompt,
-        int maxNewTokens = 50,
-        string? statsContextJson = null,
-        string? responseLocale = null,
-        CancellationToken cancellationToken = default);
+	/// <summary>
+	/// Calls the AI service Generate RPC and returns the generated text (or error message).
+	/// </summary>
+	/// <param name="statsContextJson">When set, forwarded to the Python worker as read-only aggregate context (admin AI).</param>
+	Task<string> GenerateAsync(
+		string prompt,
+		int maxNewTokens = 50,
+		string? statsContextJson = null,
+		string? responseLocale = null,
+		CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Optional path: Python may HTTP-fetch public aggregate JSON then answer with the local model.
-    /// </summary>
-    Task<string> OperatorStatsChatAsync(
-        string userMessage,
-        string historyText,
-        bool fetchLivePublicSnapshot,
-        string publicStatsAbsoluteUrl,
-        int maxNewTokens = 150,
-        CancellationToken cancellationToken = default);
+	/// <summary>
+	/// Optional path: Python may HTTP-fetch public aggregate JSON then answer with the local model.
+	/// </summary>
+	Task<string> OperatorStatsChatAsync(
+		string userMessage,
+		string historyText,
+		bool fetchLivePublicSnapshot,
+		string publicStatsAbsoluteUrl,
+		int maxNewTokens = 150,
+		CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Calls the AI service structured content review RPC and returns a moderation recommendation.
-    /// </summary>
-    Task<AiContentReviewResult> ReviewContentAsync(
-        AiContentReviewRequest request,
-        CancellationToken cancellationToken = default);
+	/// <summary>
+	/// Calls the AI service structured content review RPC and returns a moderation recommendation.
+	/// </summary>
+	Task<AiContentReviewResult> ReviewContentAsync(
+		AiContentReviewRequest request,
+		CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Lightweight readiness probe (gRPC HealthCheck JSON in <c>message</c>).
-    /// </summary>
-    Task<AiModelStatus> GetModelStatusAsync(CancellationToken cancellationToken = default);
+	/// <summary>
+	/// Lightweight readiness probe (gRPC HealthCheck JSON in <c>message</c>).
+	/// </summary>
+	Task<AiModelStatus> GetModelStatusAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Fetches host hardware/OS JSON from the Python worker (GetHostProfile RPC).
-    /// </summary>
-    Task<AiHostProfileFetchResult> GetHostProfileAsync(CancellationToken cancellationToken = default);
+	/// <summary>
+	/// Fetches host hardware/OS JSON from the Python worker (GetHostProfile RPC).
+	/// </summary>
+	Task<AiHostProfileFetchResult> GetHostProfileAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>Local Qwen model readiness reported by many_faces_ai HealthCheck.</summary>
@@ -60,13 +60,13 @@ public sealed record AiModelStatus(bool Ready, bool Loading, bool Unavailable, s
 public sealed record AiHostProfileFetchResult(string? JsonBody, string? Error);
 
 public sealed record AiContentReviewRequest(
-    ModeratedContentType ContentType,
-    int ContentId,
-    int ModerationVersion,
-    int FaceId,
-    string Title,
-    string Body,
-    string? MediaUrl,
-    string CreatorId);
+	ModeratedContentType ContentType,
+	int ContentId,
+	int ModerationVersion,
+	int FaceId,
+	string Title,
+	string Body,
+	string? MediaUrl,
+	string CreatorId);
 
 public sealed record AiContentReviewResult(AiReviewRecommendation? Recommendation, string? Error);

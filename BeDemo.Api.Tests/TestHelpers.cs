@@ -13,133 +13,133 @@ namespace BeDemo.Api.Tests;
 
 public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
 {
-    private CapturingMailerWorkerClient? _capturingMailer;
-    private CapturingPushWorkerClient? _capturingPush;
+	private CapturingMailerWorkerClient? _capturingMailer;
+	private CapturingPushWorkerClient? _capturingPush;
 
-    /// <summary>
-    /// Resolves the test double lazily — the singleton factory runs on first <see cref="IMailerWorkerClient"/> use,
-    /// which may be after registration helpers call <see cref="CapturingMailer.Reset"/>.
-    /// </summary>
-    public CapturingMailerWorkerClient CapturingMailer
-    {
-        get
-        {
-            if (_capturingMailer is not null)
-                return _capturingMailer;
+	/// <summary>
+	/// Resolves the test double lazily — the singleton factory runs on first <see cref="IMailerWorkerClient"/> use,
+	/// which may be after registration helpers call <see cref="CapturingMailer.Reset"/>.
+	/// </summary>
+	public CapturingMailerWorkerClient CapturingMailer
+	{
+		get
+		{
+			if (_capturingMailer is not null)
+				return _capturingMailer;
 
-            var client = Services.GetRequiredService<IMailerWorkerClient>();
-            if (client is CapturingMailerWorkerClient capturing)
-            {
-                _capturingMailer = capturing;
-                return capturing;
-            }
+			var client = Services.GetRequiredService<IMailerWorkerClient>();
+			if (client is CapturingMailerWorkerClient capturing)
+			{
+				_capturingMailer = capturing;
+				return capturing;
+			}
 
-            throw new InvalidOperationException(
-                "Capturing mailer not initialized; IMailerWorkerClient is not CapturingMailerWorkerClient.");
-        }
-    }
+			throw new InvalidOperationException(
+				"Capturing mailer not initialized; IMailerWorkerClient is not CapturingMailerWorkerClient.");
+		}
+	}
 
-    public CapturingPushWorkerClient CapturingPush
-    {
-        get
-        {
-            if (_capturingPush is not null)
-                return _capturingPush;
+	public CapturingPushWorkerClient CapturingPush
+	{
+		get
+		{
+			if (_capturingPush is not null)
+				return _capturingPush;
 
-            var client = Services.GetRequiredService<IPushWorkerClient>();
-            if (client is CapturingPushWorkerClient capturing)
-            {
-                _capturingPush = capturing;
-                return capturing;
-            }
+			var client = Services.GetRequiredService<IPushWorkerClient>();
+			if (client is CapturingPushWorkerClient capturing)
+			{
+				_capturingPush = capturing;
+				return capturing;
+			}
 
-            throw new InvalidOperationException(
-                "Capturing push client not initialized; IPushWorkerClient is not CapturingPushWorkerClient.");
-        }
-    }
-    // Static flag to ensure database is initialized only once across all test instances
-    private static readonly object _dbInitLock = new object();
-    private static bool _databaseInitialized = false;
+			throw new InvalidOperationException(
+				"Capturing push client not initialized; IPushWorkerClient is not CapturingPushWorkerClient.");
+		}
+	}
+	// Static flag to ensure database is initialized only once across all test instances
+	private static readonly object _dbInitLock = new object();
+	private static bool _databaseInitialized = false;
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        // Set environment to Testing so Program.cs uses InMemory database (see Program.cs)
-        builder.UseEnvironment("Testing");
+	protected override void ConfigureWebHost(IWebHostBuilder builder)
+	{
+		// Set environment to Testing so Program.cs uses InMemory database (see Program.cs)
+		builder.UseEnvironment("Testing");
 
-        // Unique scope per factory instance: Program.cs prefixes rate-limit partition keys so parallel
-        // WebApplicationFactory hosts (unlimited vs RateLimited* factories) do not share permit counters.
-        builder.UseSetting("Testing:RateLimitScopeId", Guid.NewGuid().ToString("N"));
+		// Unique scope per factory instance: Program.cs prefixes rate-limit partition keys so parallel
+		// WebApplicationFactory hosts (unlimited vs RateLimited* factories) do not share permit counters.
+		builder.UseSetting("Testing:RateLimitScopeId", Guid.NewGuid().ToString("N"));
 
-        builder.UseSetting("Mail:Enabled", "true");
-        builder.UseSetting("Mail:WorkerGrpcUrl", "http://localhost:59998");
-        builder.UseSetting("Mail:Smtp:Host", "mailpit");
-        builder.UseSetting("Mail:Smtp:Port", "1025");
-        builder.UseSetting("Mail:From:Email", "no-reply@test.invalid");
-        builder.UseSetting("Mail:From:DisplayName", "Many Faces Test");
-        builder.UseSetting("Push:Enabled", "true");
-        builder.UseSetting("Push:WorkerGrpcUrl", "http://localhost:59997");
-        builder.UseSetting("Uploads:SigningSecret", "test-upload-signing-secret-fixed-32b!!");
-        builder.UseSetting("OAuth2:ClientSecret", "be-demo-secret-very-strong-key");
-        builder.UseSetting("RegistrationInvite:HmacPepper", "test-registration-invite-pepper-fixed!!");
+		builder.UseSetting("Mail:Enabled", "true");
+		builder.UseSetting("Mail:WorkerGrpcUrl", "http://localhost:59998");
+		builder.UseSetting("Mail:Smtp:Host", "mailpit");
+		builder.UseSetting("Mail:Smtp:Port", "1025");
+		builder.UseSetting("Mail:From:Email", "no-reply@test.invalid");
+		builder.UseSetting("Mail:From:DisplayName", "Many Faces Test");
+		builder.UseSetting("Push:Enabled", "true");
+		builder.UseSetting("Push:WorkerGrpcUrl", "http://localhost:59997");
+		builder.UseSetting("Uploads:SigningSecret", "test-upload-signing-secret-fixed-32b!!");
+		builder.UseSetting("OAuth2:ClientSecret", "be-demo-secret-very-strong-key");
+		builder.UseSetting("RegistrationInvite:HmacPepper", "test-registration-invite-pepper-fixed!!");
 
-        builder.ConfigureServices(services =>
-        {
-            services.RemoveAll<IMailerWorkerClient>();
-            services.AddSingleton<CapturingMailerWorkerClient>(sp =>
-                new CapturingMailerWorkerClient(sp.GetRequiredService<IOperatorMailSettingsProvider>()));
-            services.AddSingleton<IMailerWorkerClient>(sp => sp.GetRequiredService<CapturingMailerWorkerClient>());
+		builder.ConfigureServices(services =>
+		{
+			services.RemoveAll<IMailerWorkerClient>();
+			services.AddSingleton<CapturingMailerWorkerClient>(sp =>
+				new CapturingMailerWorkerClient(sp.GetRequiredService<IOperatorMailSettingsProvider>()));
+			services.AddSingleton<IMailerWorkerClient>(sp => sp.GetRequiredService<CapturingMailerWorkerClient>());
 
-            services.RemoveAll<IPushWorkerClient>();
-            services.AddSingleton<CapturingPushWorkerClient>(sp =>
-                new CapturingPushWorkerClient(sp.GetRequiredService<IOperatorPushSettingsProvider>()));
-            services.AddSingleton<IPushWorkerClient>(sp => sp.GetRequiredService<CapturingPushWorkerClient>());
+			services.RemoveAll<IPushWorkerClient>();
+			services.AddSingleton<CapturingPushWorkerClient>(sp =>
+				new CapturingPushWorkerClient(sp.GetRequiredService<IOperatorPushSettingsProvider>()));
+			services.AddSingleton<IPushWorkerClient>(sp => sp.GetRequiredService<CapturingPushWorkerClient>());
 
-            // Initialize in-memory database once per test run (Program.cs registers InMemory when Testing)
-            lock (_dbInitLock)
-            {
-                if (!_databaseInitialized)
-                {
-                    var serviceProvider = services.BuildServiceProvider();
-                    using (var scope = serviceProvider.CreateScope())
-                    {
-                        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-                        context.Database.EnsureCreated();
-                        BeDemo.Api.Scripts.DatabaseSeeder.SeedDataOnlyAsync(context).GetAwaiter().GetResult();
-                        IntegrationTestSeed.EnsureAsync(scope.ServiceProvider).GetAwaiter().GetResult();
-                        IntegrationTestSeed.EnsureSuperAdminAsync(scope.ServiceProvider).GetAwaiter().GetResult();
-                        IntegrationTestSeed.EnsureOperatorAiEnabledForIntegrationTestsAsync(scope.ServiceProvider)
-                            .GetAwaiter().GetResult();
-                        IntegrationTestMail.ResetToBootstrapAsync(scope.ServiceProvider).GetAwaiter().GetResult();
-                        IntegrationTestPush.ResetToBootstrapAsync(scope.ServiceProvider).GetAwaiter().GetResult();
-                        _databaseInitialized = true;
-                    }
-                }
-            }
-        });
+			// Initialize in-memory database once per test run (Program.cs registers InMemory when Testing)
+			lock (_dbInitLock)
+			{
+				if (!_databaseInitialized)
+				{
+					var serviceProvider = services.BuildServiceProvider();
+					using (var scope = serviceProvider.CreateScope())
+					{
+						var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+						context.Database.EnsureCreated();
+						BeDemo.Api.Scripts.DatabaseSeeder.SeedDataOnlyAsync(context).GetAwaiter().GetResult();
+						IntegrationTestSeed.EnsureAsync(scope.ServiceProvider).GetAwaiter().GetResult();
+						IntegrationTestSeed.EnsureSuperAdminAsync(scope.ServiceProvider).GetAwaiter().GetResult();
+						IntegrationTestSeed.EnsureOperatorAiEnabledForIntegrationTestsAsync(scope.ServiceProvider)
+							.GetAwaiter().GetResult();
+						IntegrationTestMail.ResetToBootstrapAsync(scope.ServiceProvider).GetAwaiter().GetResult();
+						IntegrationTestPush.ResetToBootstrapAsync(scope.ServiceProvider).GetAwaiter().GetResult();
+						_databaseInitialized = true;
+					}
+				}
+			}
+		});
 
-        builder.ConfigureLogging(logging =>
-        {
-            logging.ClearProviders();
-            logging.AddConsole();
-            logging.SetMinimumLevel(LogLevel.Warning);
-        });
-    }
+		builder.ConfigureLogging(logging =>
+		{
+			logging.ClearProviders();
+			logging.AddConsole();
+			logging.SetMinimumLevel(LogLevel.Warning);
+		});
+	}
 
-    /// <summary>
-    /// HTTP client that prefixes requests with <c>/{face}/</c> for API and SignalR paths (see <see cref="FaceScopeTestHandler"/>).
-    /// </summary>
-    public HttpClient CreateFaceClient(string faceIndex = "public", WebApplicationFactoryClientOptions? options = null)
-    {
-        _ = options;
-        return CreateDefaultClient(new FaceScopeTestHandler(faceIndex));
-    }
+	/// <summary>
+	/// HTTP client that prefixes requests with <c>/{face}/</c> for API and SignalR paths (see <see cref="FaceScopeTestHandler"/>).
+	/// </summary>
+	public HttpClient CreateFaceClient(string faceIndex = "public", WebApplicationFactoryClientOptions? options = null)
+	{
+		_ = options;
+		return CreateDefaultClient(new FaceScopeTestHandler(faceIndex));
+	}
 
-    public new HttpClient CreateClient() => CreateFaceClient("public");
+	public new HttpClient CreateClient() => CreateFaceClient("public");
 
-    public new HttpClient CreateClient(WebApplicationFactoryClientOptions options) => CreateFaceClient("public", options);
+	public new HttpClient CreateClient(WebApplicationFactoryClientOptions options) => CreateFaceClient("public", options);
 
-    /// <summary>Test server client without face prefix (for asserting legacy bare <c>/api/...</c> behavior).</summary>
-    public HttpClient CreateUnscopedClient() => base.CreateClient();
+	/// <summary>Test server client without face prefix (for asserting legacy bare <c>/api/...</c> behavior).</summary>
+	public HttpClient CreateUnscopedClient() => base.CreateClient();
 }
 
 /// <summary>
@@ -147,16 +147,16 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
 /// </summary>
 public sealed class MailDisabledWebApplicationFactory : CustomWebApplicationFactory<Program>
 {
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        base.ConfigureWebHost(builder);
-        builder.UseSetting("Mail:Enabled", "false");
-        builder.ConfigureServices(services =>
-        {
-            services.RemoveAll<IMailerWorkerClient>();
-            services.AddSingleton<IMailerWorkerClient, DisabledMailerWorkerClient>();
-        });
-    }
+	protected override void ConfigureWebHost(IWebHostBuilder builder)
+	{
+		base.ConfigureWebHost(builder);
+		builder.UseSetting("Mail:Enabled", "false");
+		builder.ConfigureServices(services =>
+		{
+			services.RemoveAll<IMailerWorkerClient>();
+			services.AddSingleton<IMailerWorkerClient, DisabledMailerWorkerClient>();
+		});
+	}
 }
 
 /// <summary>
@@ -164,16 +164,16 @@ public sealed class MailDisabledWebApplicationFactory : CustomWebApplicationFact
 /// </summary>
 public sealed class PushDisabledWebApplicationFactory : CustomWebApplicationFactory<Program>
 {
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        base.ConfigureWebHost(builder);
-        builder.UseSetting("Push:Enabled", "false");
-        builder.ConfigureServices(services =>
-        {
-            services.RemoveAll<IPushWorkerClient>();
-            services.AddSingleton<IPushWorkerClient, DisabledPushWorkerClient>();
-        });
-    }
+	protected override void ConfigureWebHost(IWebHostBuilder builder)
+	{
+		base.ConfigureWebHost(builder);
+		builder.UseSetting("Push:Enabled", "false");
+		builder.ConfigureServices(services =>
+		{
+			services.RemoveAll<IPushWorkerClient>();
+			services.AddSingleton<IPushWorkerClient, DisabledPushWorkerClient>();
+		});
+	}
 }
 
 /// <summary>
@@ -183,17 +183,17 @@ public sealed class PushDisabledWebApplicationFactory : CustomWebApplicationFact
 /// </summary>
 public sealed class RateLimitedOAuthWebApplicationFactory : CustomWebApplicationFactory<Program>
 {
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        // UseSetting merges into host configuration before Program reads rate-limit options (ConfigureAppConfiguration alone was too late for WebApplicationFactory).
-        builder.UseSetting("OAuth2:BypassRateLimitInTesting", "false");
-        builder.UseSetting("OAuth2:TokenRateLimitPermitLimit", "2");
-        // Short windows so register + token 429 phases can run in one test (sleep between phases).
-        builder.UseSetting("OAuth2:TokenRateLimitWindowSeconds", "3");
-        builder.UseSetting("OAuth2:RegisterRateLimitPermitLimit", "2");
-        builder.UseSetting("OAuth2:RegisterRateLimitWindowSeconds", "3");
-        base.ConfigureWebHost(builder);
-    }
+	protected override void ConfigureWebHost(IWebHostBuilder builder)
+	{
+		// UseSetting merges into host configuration before Program reads rate-limit options (ConfigureAppConfiguration alone was too late for WebApplicationFactory).
+		builder.UseSetting("OAuth2:BypassRateLimitInTesting", "false");
+		builder.UseSetting("OAuth2:TokenRateLimitPermitLimit", "2");
+		// Short windows so register + token 429 phases can run in one test (sleep between phases).
+		builder.UseSetting("OAuth2:TokenRateLimitWindowSeconds", "3");
+		builder.UseSetting("OAuth2:RegisterRateLimitPermitLimit", "2");
+		builder.UseSetting("OAuth2:RegisterRateLimitWindowSeconds", "3");
+		base.ConfigureWebHost(builder);
+	}
 }
 
 /// <summary>
@@ -210,12 +210,12 @@ public sealed class RateLimitedOAuthWebApplicationFactory : CustomWebApplication
 /// </remarks>
 public sealed class RateLimitedLocalizationWebApplicationFactory : CustomWebApplicationFactory<Program>
 {
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        builder.UseSetting("OAuth2:BypassRateLimitInTesting", "false");
-        builder.UseSetting("Localization:RateLimitPermitLimit", "2");
-        // Short window so sequential scenarios in LocalizationRateLimit429Tests can reset between phases.
-        builder.UseSetting("Localization:RateLimitWindowSeconds", "3");
-        base.ConfigureWebHost(builder);
-    }
+	protected override void ConfigureWebHost(IWebHostBuilder builder)
+	{
+		builder.UseSetting("OAuth2:BypassRateLimitInTesting", "false");
+		builder.UseSetting("Localization:RateLimitPermitLimit", "2");
+		// Short window so sequential scenarios in LocalizationRateLimit429Tests can reset between phases.
+		builder.UseSetting("Localization:RateLimitWindowSeconds", "3");
+		base.ConfigureWebHost(builder);
+	}
 }

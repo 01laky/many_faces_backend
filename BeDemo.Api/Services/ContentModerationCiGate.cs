@@ -17,29 +17,29 @@ namespace BeDemo.Api.Services;
 /// </remarks>
 public static class ContentModerationCiGate
 {
-    /// <summary>xUnit trait key used by <see cref="XunitFilterExpression"/>.</summary>
-    public const string XunitTraitName = "Category";
+	/// <summary>xUnit trait key used by <see cref="XunitFilterExpression"/>.</summary>
+	public const string XunitTraitName = "Category";
 
-    /// <summary>xUnit trait value for SHV2 moderation security regression tests (PI-10).</summary>
-    public const string XunitTraitCategory = "ModerationSecurity";
+	/// <summary>xUnit trait value for SHV2 moderation security regression tests (PI-10).</summary>
+	public const string XunitTraitCategory = "ModerationSecurity";
 
-    /// <summary>
-    /// Filter passed to <c>dotnet test --filter</c> in CI and <c>verify-moderation-security-tests.mjs</c>.
-    /// Keep in sync with the script header comment when changing.
-    /// </summary>
-    public const string XunitFilterExpression = $"{XunitTraitName}={XunitTraitCategory}";
+	/// <summary>
+	/// Filter passed to <c>dotnet test --filter</c> in CI and <c>verify-moderation-security-tests.mjs</c>.
+	/// Keep in sync with the script header comment when changing.
+	/// </summary>
+	public const string XunitFilterExpression = $"{XunitTraitName}={XunitTraitCategory}";
 
-    /// <summary>
-    /// Human-readable list of test fixture types that must carry the PI-10 trait (enforced by unit test).
-    /// </summary>
-    public static readonly IReadOnlyList<string> RequiredSecurityTestClassNames =
-    [
-        "ContentModerationSecurityEdgeTests",
-        "ContentModerationUnicodeSpoofingTests",
-        "ContentModerationTrustBoundaryTests",
-        "ContentModerationPayloadLogRedactionTests",
-        "ContentModerationCiGateTests",
-        "ContentModerationPreviewTextTests",
-        "ContentModerationProductionPathTests",
-    ];
+	/// <summary>
+	/// Human-readable list of test fixture types that must carry the PI-10 trait (enforced by unit test).
+	/// </summary>
+	public static readonly IReadOnlyList<string> RequiredSecurityTestClassNames =
+	[
+		"ContentModerationSecurityEdgeTests",
+		"ContentModerationUnicodeSpoofingTests",
+		"ContentModerationTrustBoundaryTests",
+		"ContentModerationPayloadLogRedactionTests",
+		"ContentModerationCiGateTests",
+		"ContentModerationPreviewTextTests",
+		"ContentModerationProductionPathTests",
+	];
 }

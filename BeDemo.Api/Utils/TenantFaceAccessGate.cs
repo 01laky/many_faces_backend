@@ -9,18 +9,18 @@ namespace BeDemo.Api.Utils;
 /// </summary>
 public static class TenantFaceAccessGate
 {
-    /// <summary>
-    /// When <paramref name="callerCanManageAllFaces"/> is false and <paramref name="targetFaceId"/> ≠ scoped face, blocks with 404.
-    /// </summary>
-    public static IActionResult? TryBlockTenantCrossFace(
-        IFaceScopeContext faceScope,
-        bool callerCanManageAllFaces,
-        int targetFaceId)
-    {
-        if (callerCanManageAllFaces)
-            return null;
-        if (targetFaceId != faceScope.FaceId)
-            return new NotFoundObjectResult(new { error = "Face not found" });
-        return null;
-    }
+	/// <summary>
+	/// When <paramref name="callerCanManageAllFaces"/> is false and <paramref name="targetFaceId"/> ≠ scoped face, blocks with 404.
+	/// </summary>
+	public static IActionResult? TryBlockTenantCrossFace(
+		IFaceScopeContext faceScope,
+		bool callerCanManageAllFaces,
+		int targetFaceId)
+	{
+		if (callerCanManageAllFaces)
+			return null;
+		if (targetFaceId != faceScope.FaceId)
+			return new NotFoundObjectResult(new { error = "Face not found" });
+		return null;
+	}
 }

@@ -8,9 +8,9 @@ namespace BeDemo.Api.Tests;
 [Trait("Category", "BackendSecurity")]
 public sealed class BackendSecurityCiGateTests
 {
-    [Fact]
-    public void XunitFilterExpression_matches_expected_trait()
-    {
-        BackendSecurityCiGate.XunitFilterExpression.Should().Be("Category=BackendSecurity");
-    }
+	[Fact]
+	public void XunitFilterExpression_matches_expected_trait()
+	{
+		BackendSecurityCiGate.XunitFilterExpression.Should().Be("Category=BackendSecurity");
+	}
 }

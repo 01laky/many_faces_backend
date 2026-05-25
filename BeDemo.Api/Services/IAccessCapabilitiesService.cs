@@ -5,5 +5,5 @@ namespace BeDemo.Api.Services;
 
 public interface IAccessCapabilitiesService
 {
-    Task<CapabilitiesResponse> GetCapabilitiesAsync(string userId, ClaimsPrincipal principal, CancellationToken cancellationToken = default);
+	Task<CapabilitiesResponse> GetCapabilitiesAsync(string userId, ClaimsPrincipal principal, CancellationToken cancellationToken = default);
 }

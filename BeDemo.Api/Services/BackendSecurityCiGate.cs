@@ -5,6 +5,6 @@ namespace BeDemo.Api.Services;
 /// </summary>
 public static class BackendSecurityCiGate
 {
-    /// <summary>Trait filter — keep aligned with monorepo CI script.</summary>
-    public const string XunitFilterExpression = "Category=BackendSecurity";
+	/// <summary>Trait filter — keep aligned with monorepo CI script.</summary>
+	public const string XunitFilterExpression = "Category=BackendSecurity";
 }

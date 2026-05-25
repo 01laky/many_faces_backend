@@ -13,118 +13,118 @@ namespace BeDemo.Api.Controllers;
 [Authorize]
 public sealed class AdminMeProfileController : ControllerBase
 {
-    private readonly IAccessEvaluator _access;
-    private readonly IAdminMeProfileService _profiles;
+	private readonly IAccessEvaluator _access;
+	private readonly IAdminMeProfileService _profiles;
 
-    public AdminMeProfileController(IAccessEvaluator access, IAdminMeProfileService profiles)
-    {
-        _access = access;
-        _profiles = profiles;
-    }
+	public AdminMeProfileController(IAccessEvaluator access, IAdminMeProfileService profiles)
+	{
+		_access = access;
+		_profiles = profiles;
+	}
 
-    private string? CallerUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
+	private string? CallerUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-    private bool RequireSuperAdmin() => _access.IsGlobalSuperAdmin(User);
+	private bool RequireSuperAdmin() => _access.IsGlobalSuperAdmin(User);
 
-    [HttpGet("profile")]
-    public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
-    {
-        if (!RequireSuperAdmin())
-            return Forbid();
-        if (string.IsNullOrEmpty(CallerUserId))
-            return Unauthorized();
+	[HttpGet("profile")]
+	public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
+	{
+		if (!RequireSuperAdmin())
+			return Forbid();
+		if (string.IsNullOrEmpty(CallerUserId))
+			return Unauthorized();
 
-        var dto = await _profiles.GetProfileAsync(
-            CallerUserId,
-            Request.Scheme,
-            Request.Host.Value!,
-            cancellationToken);
-        if (dto == null)
-            return NotFound(new { error = "User not found" });
-        return Ok(dto);
-    }
+		var dto = await _profiles.GetProfileAsync(
+			CallerUserId,
+			Request.Scheme,
+			Request.Host.Value!,
+			cancellationToken);
+		if (dto == null)
+			return NotFound(new { error = "User not found" });
+		return Ok(dto);
+	}
 
-    [HttpPut("profile")]
-    public async Task<IActionResult> UpdateProfile(
-        [FromBody] UpdateAdminMeProfileRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (!RequireSuperAdmin())
-            return Forbid();
-        if (string.IsNullOrEmpty(CallerUserId))
-            return Unauthorized();
+	[HttpPut("profile")]
+	public async Task<IActionResult> UpdateProfile(
+		[FromBody] UpdateAdminMeProfileRequest request,
+		CancellationToken cancellationToken)
+	{
+		if (!RequireSuperAdmin())
+			return Forbid();
+		if (string.IsNullOrEmpty(CallerUserId))
+			return Unauthorized();
 
-        var locale = System.Globalization.CultureInfo.CurrentUICulture.Name;
-        var result = await _profiles.UpdateProfileAsync(
-            CallerUserId,
-            request,
-            Request.Scheme,
-            Request.Host.Value!,
-            locale,
-            HttpContext.TraceIdentifier,
-            cancellationToken);
+		var locale = System.Globalization.CultureInfo.CurrentUICulture.Name;
+		var result = await _profiles.UpdateProfileAsync(
+			CallerUserId,
+			request,
+			Request.Scheme,
+			Request.Host.Value!,
+			locale,
+			HttpContext.TraceIdentifier,
+			cancellationToken);
 
-        if (result.Profile == null)
-            return StatusCode(result.StatusCode, new { error = result.Error });
+		if (result.Profile == null)
+			return StatusCode(result.StatusCode, new { error = result.Error });
 
-        return Ok(result.Profile);
-    }
+		return Ok(result.Profile);
+	}
 
-    [HttpPut("password")]
-    public async Task<IActionResult> UpdatePassword(
-        [FromBody] UpdateAdminMePasswordRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (!RequireSuperAdmin())
-            return Forbid();
-        if (string.IsNullOrEmpty(CallerUserId))
-            return Unauthorized();
+	[HttpPut("password")]
+	public async Task<IActionResult> UpdatePassword(
+		[FromBody] UpdateAdminMePasswordRequest request,
+		CancellationToken cancellationToken)
+	{
+		if (!RequireSuperAdmin())
+			return Forbid();
+		if (string.IsNullOrEmpty(CallerUserId))
+			return Unauthorized();
 
-        var result = await _profiles.UpdatePasswordAsync(CallerUserId, request, cancellationToken);
-        if (result.Error != null)
-            return StatusCode(result.StatusCode, new { error = result.Error });
-        return NoContent();
-    }
+		var result = await _profiles.UpdatePasswordAsync(CallerUserId, request, cancellationToken);
+		if (result.Error != null)
+			return StatusCode(result.StatusCode, new { error = result.Error });
+		return NoContent();
+	}
 
-    [HttpPatch("faces/{faceId:int}/role")]
-    public async Task<IActionResult> PatchFaceRole(
-        int faceId,
-        [FromBody] OperatorSetFaceRoleRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (!RequireSuperAdmin())
-            return Forbid();
-        if (string.IsNullOrEmpty(CallerUserId))
-            return Unauthorized();
+	[HttpPatch("faces/{faceId:int}/role")]
+	public async Task<IActionResult> PatchFaceRole(
+		int faceId,
+		[FromBody] OperatorSetFaceRoleRequest request,
+		CancellationToken cancellationToken)
+	{
+		if (!RequireSuperAdmin())
+			return Forbid();
+		if (string.IsNullOrEmpty(CallerUserId))
+			return Unauthorized();
 
-        var result = await _profiles.SetSelfFaceRoleAsync(
-            CallerUserId,
-            faceId,
-            request.UserRoleId,
-            HttpContext.TraceIdentifier,
-            cancellationToken);
-        if (!result.Success)
-            return StatusCode(result.StatusCode, new { error = result.Error });
-        return Ok(new { userRoleId = request.UserRoleId });
-    }
+		var result = await _profiles.SetSelfFaceRoleAsync(
+			CallerUserId,
+			faceId,
+			request.UserRoleId,
+			HttpContext.TraceIdentifier,
+			cancellationToken);
+		if (!result.Success)
+			return StatusCode(result.StatusCode, new { error = result.Error });
+		return Ok(new { userRoleId = request.UserRoleId });
+	}
 
-    [HttpPost("resend-email-confirmation")]
-    public async Task<IActionResult> ResendEmailConfirmation(CancellationToken cancellationToken)
-    {
-        if (!RequireSuperAdmin())
-            return Forbid();
-        if (string.IsNullOrEmpty(CallerUserId))
-            return Unauthorized();
+	[HttpPost("resend-email-confirmation")]
+	public async Task<IActionResult> ResendEmailConfirmation(CancellationToken cancellationToken)
+	{
+		if (!RequireSuperAdmin())
+			return Forbid();
+		if (string.IsNullOrEmpty(CallerUserId))
+			return Unauthorized();
 
-        var locale = System.Globalization.CultureInfo.CurrentUICulture.Name;
-        var result = await _profiles.ResendEmailConfirmationAsync(
-            CallerUserId,
-            Request.Scheme,
-            Request.Host.Value!,
-            locale,
-            cancellationToken);
-        if (!result.Success)
-            return StatusCode(result.StatusCode, new { error = result.Error });
-        return Ok(new { message = "Confirmation email sent" });
-    }
+		var locale = System.Globalization.CultureInfo.CurrentUICulture.Name;
+		var result = await _profiles.ResendEmailConfirmationAsync(
+			CallerUserId,
+			Request.Scheme,
+			Request.Host.Value!,
+			locale,
+			cancellationToken);
+		if (!result.Success)
+			return StatusCode(result.StatusCode, new { error = result.Error });
+		return Ok(new { message = "Confirmation email sent" });
+	}
 }

@@ -14,76 +14,76 @@ namespace BeDemo.Api.Tests;
 /// </summary>
 public sealed class OAuthClientValidatorTests
 {
-    private static ApplicationDbContext CreateDb()
-    {
-        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseInMemoryDatabase($"oauth_client_val_{Guid.NewGuid():N}")
-            .Options;
-        return new ApplicationDbContext(options);
-    }
+	private static ApplicationDbContext CreateDb()
+	{
+		var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+			.UseInMemoryDatabase($"oauth_client_val_{Guid.NewGuid():N}")
+			.Options;
+		return new ApplicationDbContext(options);
+	}
 
-    private static void SeedActiveClient(ApplicationDbContext db, string clientId, string plainSecret, IPasswordHasher<OAuthClient> hasher)
-    {
-        var entity = new OAuthClient
-        {
-            ClientId = clientId,
-            IsActive = true,
-            CreatedAtUtc = DateTime.UtcNow,
-        };
-        entity.SecretHash = hasher.HashPassword(entity, plainSecret);
-        db.OAuthClients.Add(entity);
-        db.SaveChanges();
-    }
+	private static void SeedActiveClient(ApplicationDbContext db, string clientId, string plainSecret, IPasswordHasher<OAuthClient> hasher)
+	{
+		var entity = new OAuthClient
+		{
+			ClientId = clientId,
+			IsActive = true,
+			CreatedAtUtc = DateTime.UtcNow,
+		};
+		entity.SecretHash = hasher.HashPassword(entity, plainSecret);
+		db.OAuthClients.Add(entity);
+		db.SaveChanges();
+	}
 
-    [Fact]
-    public async Task ValidateAsync_ReturnsTrue_WhenClientActiveAndSecretMatches()
-    {
-        await using var db = CreateDb();
-        var hasher = new PasswordHasher<OAuthClient>();
-        SeedActiveClient(db, "c1", "secret-1", hasher);
-        var sut = new OAuthClientValidator(db, hasher, NullLogger<OAuthClientValidator>.Instance);
+	[Fact]
+	public async Task ValidateAsync_ReturnsTrue_WhenClientActiveAndSecretMatches()
+	{
+		await using var db = CreateDb();
+		var hasher = new PasswordHasher<OAuthClient>();
+		SeedActiveClient(db, "c1", "secret-1", hasher);
+		var sut = new OAuthClientValidator(db, hasher, NullLogger<OAuthClientValidator>.Instance);
 
-        (await sut.ValidateAsync("c1", "secret-1")).Should().BeTrue();
-    }
+		(await sut.ValidateAsync("c1", "secret-1")).Should().BeTrue();
+	}
 
-    [Fact]
-    public async Task ValidateAsync_ReturnsFalse_WhenClientInactive()
-    {
-        await using var db = CreateDb();
-        var hasher = new PasswordHasher<OAuthClient>();
-        var entity = new OAuthClient
-        {
-            ClientId = "inactive",
-            IsActive = false,
-            CreatedAtUtc = DateTime.UtcNow,
-        };
-        entity.SecretHash = hasher.HashPassword(entity, "good-secret");
-        db.OAuthClients.Add(entity);
-        db.SaveChanges();
+	[Fact]
+	public async Task ValidateAsync_ReturnsFalse_WhenClientInactive()
+	{
+		await using var db = CreateDb();
+		var hasher = new PasswordHasher<OAuthClient>();
+		var entity = new OAuthClient
+		{
+			ClientId = "inactive",
+			IsActive = false,
+			CreatedAtUtc = DateTime.UtcNow,
+		};
+		entity.SecretHash = hasher.HashPassword(entity, "good-secret");
+		db.OAuthClients.Add(entity);
+		db.SaveChanges();
 
-        var sut = new OAuthClientValidator(db, hasher, NullLogger<OAuthClientValidator>.Instance);
+		var sut = new OAuthClientValidator(db, hasher, NullLogger<OAuthClientValidator>.Instance);
 
-        (await sut.ValidateAsync("inactive", "good-secret")).Should().BeFalse();
-    }
+		(await sut.ValidateAsync("inactive", "good-secret")).Should().BeFalse();
+	}
 
-    [Fact]
-    public async Task ValidateAsync_ReturnsFalse_WhenUnknownClientId()
-    {
-        await using var db = CreateDb();
-        var hasher = new PasswordHasher<OAuthClient>();
-        var sut = new OAuthClientValidator(db, hasher, NullLogger<OAuthClientValidator>.Instance);
+	[Fact]
+	public async Task ValidateAsync_ReturnsFalse_WhenUnknownClientId()
+	{
+		await using var db = CreateDb();
+		var hasher = new PasswordHasher<OAuthClient>();
+		var sut = new OAuthClientValidator(db, hasher, NullLogger<OAuthClientValidator>.Instance);
 
-        (await sut.ValidateAsync("missing", "x")).Should().BeFalse();
-    }
+		(await sut.ValidateAsync("missing", "x")).Should().BeFalse();
+	}
 
-    [Fact]
-    public async Task ValidateAsync_ReturnsFalse_WhenSecretWrong()
-    {
-        await using var db = CreateDb();
-        var hasher = new PasswordHasher<OAuthClient>();
-        SeedActiveClient(db, "c2", "right", hasher);
-        var sut = new OAuthClientValidator(db, hasher, NullLogger<OAuthClientValidator>.Instance);
+	[Fact]
+	public async Task ValidateAsync_ReturnsFalse_WhenSecretWrong()
+	{
+		await using var db = CreateDb();
+		var hasher = new PasswordHasher<OAuthClient>();
+		SeedActiveClient(db, "c2", "right", hasher);
+		var sut = new OAuthClientValidator(db, hasher, NullLogger<OAuthClientValidator>.Instance);
 
-        (await sut.ValidateAsync("c2", "wrong")).Should().BeFalse();
-    }
+		(await sut.ValidateAsync("c2", "wrong")).Should().BeFalse();
+	}
 }

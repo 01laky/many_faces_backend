@@ -8,10 +8,10 @@ namespace BeDemo.Api.Security;
 /// </summary>
 public static class TokenHasher
 {
-    public static string Sha256Hex(string plaintext)
-    {
-        var bytes = Encoding.UTF8.GetBytes(plaintext);
-        var hash = SHA256.HashData(bytes);
-        return Convert.ToHexString(hash).ToLowerInvariant();
-    }
+	public static string Sha256Hex(string plaintext)
+	{
+		var bytes = Encoding.UTF8.GetBytes(plaintext);
+		var hash = SHA256.HashData(bytes);
+		return Convert.ToHexString(hash).ToLowerInvariant();
+	}
 }

@@ -8,46 +8,46 @@ namespace BeDemo.Api.Models;
 /// </summary>
 public class Page
 {
-    [Key]
-    public int Id { get; set; }
+	[Key]
+	public int Id { get; set; }
 
-    [Required]
-    public int FaceId { get; set; }
+	[Required]
+	public int FaceId { get; set; }
 
-    [ForeignKey(nameof(FaceId))]
-    public Face Face { get; set; } = null!;
+	[ForeignKey(nameof(FaceId))]
+	public Face Face { get; set; } = null!;
 
-    [Required]
-    public int PageTypeId { get; set; }
+	[Required]
+	public int PageTypeId { get; set; }
 
-    [ForeignKey(nameof(PageTypeId))]
-    public PageType PageType { get; set; } = null!;
+	[ForeignKey(nameof(PageTypeId))]
+	public PageType PageType { get; set; } = null!;
 
-    [Required]
-    [StringLength(200)]
-    public string Name { get; set; } = string.Empty;
+	[Required]
+	[StringLength(200)]
+	public string Name { get; set; } = string.Empty;
 
-    [StringLength(1000)]
-    public string? Description { get; set; }
+	[StringLength(1000)]
+	public string? Description { get; set; }
 
-    [Required]
-    [StringLength(500)]
-    public string Path { get; set; } = string.Empty;
+	[Required]
+	[StringLength(500)]
+	public string Path { get; set; } = string.Empty;
 
-    public int Index { get; set; } = 0;
+	public int Index { get; set; } = 0;
 
-    /// <summary>
-    /// JSON schema for the responsive grid layout (react-grid-layout format)
-    /// </summary>
-    public string? GridSchema { get; set; }
+	/// <summary>
+	/// JSON schema for the responsive grid layout (react-grid-layout format)
+	/// </summary>
+	public string? GridSchema { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public DateTime? UpdatedAt { get; set; }
+	public DateTime? UpdatedAt { get; set; }
 
-    // Navigation property - one Page has many RouteTranslations
-    public ICollection<PageRouteTranslation> RouteTranslations { get; set; } = new List<PageRouteTranslation>();
+	// Navigation property - one Page has many RouteTranslations
+	public ICollection<PageRouteTranslation> RouteTranslations { get; set; } = new List<PageRouteTranslation>();
 
-    // Navigation property - one Page has many PageComponents
-    public ICollection<PageComponent> Components { get; set; } = new List<PageComponent>();
+	// Navigation property - one Page has many PageComponents
+	public ICollection<PageComponent> Components { get; set; } = new List<PageComponent>();
 }

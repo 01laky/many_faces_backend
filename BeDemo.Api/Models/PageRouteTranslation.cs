@@ -8,24 +8,24 @@ namespace BeDemo.Api.Models;
 /// </summary>
 public class PageRouteTranslation
 {
-    [Key]
-    public int Id { get; set; }
+	[Key]
+	public int Id { get; set; }
 
-    [Required]
-    public int PageId { get; set; }
+	[Required]
+	public int PageId { get; set; }
 
-    [ForeignKey(nameof(PageId))]
-    public Page Page { get; set; } = null!;
+	[ForeignKey(nameof(PageId))]
+	public Page Page { get; set; } = null!;
 
-    [Required]
-    [StringLength(10)]
-    public string LanguageCode { get; set; } = string.Empty;
+	[Required]
+	[StringLength(10)]
+	public string LanguageCode { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(200)]
-    public string TranslatedRoute { get; set; } = string.Empty;
+	[Required]
+	[StringLength(200)]
+	public string TranslatedRoute { get; set; } = string.Empty;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public DateTime? UpdatedAt { get; set; }
+	public DateTime? UpdatedAt { get; set; }
 }

@@ -8,18 +8,18 @@ namespace BeDemo.Api.Utils;
 /// </summary>
 public static class FaceRoleSelfServiceRules
 {
-    private static readonly HashSet<string> SelfAssignableNormalized = new(StringComparer.OrdinalIgnoreCase)
-    {
-        UserRole.FaceRoleNames.FaceUser,
-        UserRole.FaceRoleNames.Inzerent,
-        UserRole.FaceRoleNames.Subscriber,
-        UserRole.FaceRoleNames.FaceHost,
-    };
+	private static readonly HashSet<string> SelfAssignableNormalized = new(StringComparer.OrdinalIgnoreCase)
+	{
+		UserRole.FaceRoleNames.FaceUser,
+		UserRole.FaceRoleNames.Inzerent,
+		UserRole.FaceRoleNames.Subscriber,
+		UserRole.FaceRoleNames.FaceHost,
+	};
 
-    public static bool IsSelfAssignableFaceRoleName(string? roleName)
-    {
-        if (string.IsNullOrWhiteSpace(roleName))
-            return false;
-        return SelfAssignableNormalized.Contains(roleName.Trim());
-    }
+	public static bool IsSelfAssignableFaceRoleName(string? roleName)
+	{
+		if (string.IsNullOrWhiteSpace(roleName))
+			return false;
+		return SelfAssignableNormalized.Contains(roleName.Trim());
+	}
 }

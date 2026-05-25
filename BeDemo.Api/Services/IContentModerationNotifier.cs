@@ -6,9 +6,9 @@ namespace BeDemo.Api.Services;
 /// </summary>
 public interface IContentModerationNotifier
 {
-    /// <summary>Queues a notification for the content owner (must be followed by <c>SaveChanges</c> on the same unit of work).</summary>
-    void NotifyCreator(string creatorId, string title, string message, string type = "content_moderation");
+	/// <summary>Queues a notification for the content owner (must be followed by <c>SaveChanges</c> on the same unit of work).</summary>
+	void NotifyCreator(string creatorId, string title, string message, string type = "content_moderation");
 
-    /// <summary>Loads all global super-admin user ids and queues one notification per admin.</summary>
-    Task NotifySuperAdminsAsync(string title, string message, string type = "moderation_ops", CancellationToken cancellationToken = default);
+	/// <summary>Loads all global super-admin user ids and queues one notification per admin.</summary>
+	Task NotifySuperAdminsAsync(string title, string message, string type = "moderation_ops", CancellationToken cancellationToken = default);
 }

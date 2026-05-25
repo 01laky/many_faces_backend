@@ -9,8 +9,8 @@ namespace BeDemo.Api.Services;
 /// </summary>
 public interface ISearchWorkerProbe
 {
-    /// <summary>
-    /// Returns whether search is configured (<see cref="SearchOptions"/>) and whether the worker reports a healthy Elasticsearch projection.
-    /// </summary>
-    Task<SearchHealthDto> GetHealthAsync(CancellationToken cancellationToken = default);
+	/// <summary>
+	/// Returns whether search is configured (<see cref="SearchOptions"/>) and whether the worker reports a healthy Elasticsearch projection.
+	/// </summary>
+	Task<SearchHealthDto> GetHealthAsync(CancellationToken cancellationToken = default);
 }

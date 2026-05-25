@@ -11,79 +11,79 @@ namespace BeDemo.Api.Tests;
 /// </remarks>
 public class ResourceJsonUnflattenerTests
 {
-    [Fact]
-    public void ToNestedObject_SingleSegment()
-    {
-        var obj = ResourceJsonUnflattener.ToNestedObject(new Dictionary<string, string> { ["welcome"] = "Hi" });
-        Assert.Equal("Hi", obj["welcome"]?.GetValue<string>());
-    }
+	[Fact]
+	public void ToNestedObject_SingleSegment()
+	{
+		var obj = ResourceJsonUnflattener.ToNestedObject(new Dictionary<string, string> { ["welcome"] = "Hi" });
+		Assert.Equal("Hi", obj["welcome"]?.GetValue<string>());
+	}
 
-    [Fact]
-    public void ToNestedObject_DeepNesting()
-    {
-        var obj = ResourceJsonUnflattener.ToNestedObject(new Dictionary<string, string>
-        {
-            ["pages.login.title"] = "Login",
-        });
-        Assert.Equal("Login", obj["pages"]?["login"]?["title"]?.GetValue<string>());
-    }
+	[Fact]
+	public void ToNestedObject_DeepNesting()
+	{
+		var obj = ResourceJsonUnflattener.ToNestedObject(new Dictionary<string, string>
+		{
+			["pages.login.title"] = "Login",
+		});
+		Assert.Equal("Login", obj["pages"]?["login"]?["title"]?.GetValue<string>());
+	}
 
-    /// <summary>
-    /// §4.2 requires at least three nesting levels (e.g. <c>pages.section.field.label</c>).
-    /// </summary>
-    [Fact]
-    public void ToNestedObject_DeepNesting_FourLevels()
-    {
-        var obj = ResourceJsonUnflattener.ToNestedObject(new Dictionary<string, string>
-        {
-            ["pages.register.validation.passwordMinLength"] = "Password must be at least 12 characters",
-        });
+	/// <summary>
+	/// §4.2 requires at least three nesting levels (e.g. <c>pages.section.field.label</c>).
+	/// </summary>
+	[Fact]
+	public void ToNestedObject_DeepNesting_FourLevels()
+	{
+		var obj = ResourceJsonUnflattener.ToNestedObject(new Dictionary<string, string>
+		{
+			["pages.register.validation.passwordMinLength"] = "Password must be at least 12 characters",
+		});
 
-        Assert.Equal(
-            "Password must be at least 12 characters",
-            obj["pages"]?["register"]?["validation"]?["passwordMinLength"]?.GetValue<string>());
-    }
+		Assert.Equal(
+			"Password must be at least 12 characters",
+			obj["pages"]?["register"]?["validation"]?["passwordMinLength"]?.GetValue<string>());
+	}
 
-    [Fact]
-    public void FindAmbiguousFlatKeys_ReturnsEmpty_ForCompatibleSet()
-    {
-        var keys = new[] { "welcome", "pages.login.title", "pages.register.title" };
-        Assert.Empty(ResourceJsonUnflattener.FindAmbiguousFlatKeys(keys));
-    }
+	[Fact]
+	public void FindAmbiguousFlatKeys_ReturnsEmpty_ForCompatibleSet()
+	{
+		var keys = new[] { "welcome", "pages.login.title", "pages.register.title" };
+		Assert.Empty(ResourceJsonUnflattener.FindAmbiguousFlatKeys(keys));
+	}
 
-    [Fact]
-    public void ToNestedObject_AmbiguousBranchThrows()
-    {
-        Assert.Throws<InvalidOperationException>(() =>
-            ResourceJsonUnflattener.ToNestedObject(new Dictionary<string, string>
-            {
-                ["pages.login"] = "x",
-                ["pages.login.title"] = "Login",
-            }));
-    }
+	[Fact]
+	public void ToNestedObject_AmbiguousBranchThrows()
+	{
+		Assert.Throws<InvalidOperationException>(() =>
+			ResourceJsonUnflattener.ToNestedObject(new Dictionary<string, string>
+			{
+				["pages.login"] = "x",
+				["pages.login.title"] = "Login",
+			}));
+	}
 
-    [Fact]
-    public void NormalizeForI18next_RedoublesNamedPlaceholdersAfterResxUnescape()
-    {
-        Assert.Equal(
-            "{{count}} / {{max}} characters",
-            ResourceJsonUnflattener.NormalizeForI18next("{count} / {max} characters"));
-        Assert.Equal("{{current}} / {{total}}", ResourceJsonUnflattener.NormalizeForI18next("{current} / {total}"));
-        Assert.Equal(
-            "{{count}} / {{max}} characters",
-            ResourceJsonUnflattener.NormalizeForI18next("{{count}} / {{max}} characters"));
-        Assert.Equal("Plain text", ResourceJsonUnflattener.NormalizeForI18next("Plain text"));
-    }
+	[Fact]
+	public void NormalizeForI18next_RedoublesNamedPlaceholdersAfterResxUnescape()
+	{
+		Assert.Equal(
+			"{{count}} / {{max}} characters",
+			ResourceJsonUnflattener.NormalizeForI18next("{count} / {max} characters"));
+		Assert.Equal("{{current}} / {{total}}", ResourceJsonUnflattener.NormalizeForI18next("{current} / {total}"));
+		Assert.Equal(
+			"{{count}} / {{max}} characters",
+			ResourceJsonUnflattener.NormalizeForI18next("{{count}} / {{max}} characters"));
+		Assert.Equal("Plain text", ResourceJsonUnflattener.NormalizeForI18next("Plain text"));
+	}
 
-    [Fact]
-    public void ToMobileNamespaces_SplitsByPrefix()
-    {
-        var ns = ResourceJsonUnflattener.ToMobileNamespaces(new Dictionary<string, string>
-        {
-            ["common.authRetryTitle"] = "Retry",
-            ["register.title"] = "Register",
-        });
-        Assert.Equal("Retry", ns["common"]["authRetryTitle"]?.GetValue<string>());
-        Assert.Equal("Register", ns["register"]["title"]?.GetValue<string>());
-    }
+	[Fact]
+	public void ToMobileNamespaces_SplitsByPrefix()
+	{
+		var ns = ResourceJsonUnflattener.ToMobileNamespaces(new Dictionary<string, string>
+		{
+			["common.authRetryTitle"] = "Retry",
+			["register.title"] = "Register",
+		});
+		Assert.Equal("Retry", ns["common"]["authRetryTitle"]?.GetValue<string>());
+		Assert.Equal("Register", ns["register"]["title"]?.GetValue<string>());
+	}
 }

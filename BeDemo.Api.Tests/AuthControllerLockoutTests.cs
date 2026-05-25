@@ -13,50 +13,50 @@ namespace BeDemo.Api.Tests;
 [Trait("Category", "BackendSecurity")]
 public sealed class AuthControllerLockoutTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    private readonly CustomWebApplicationFactory<Program> _factory;
+	private readonly CustomWebApplicationFactory<Program> _factory;
 
-    public AuthControllerLockoutTests(CustomWebApplicationFactory<Program> factory) => _factory = factory;
+	public AuthControllerLockoutTests(CustomWebApplicationFactory<Program> factory) => _factory = factory;
 
-    [Fact]
-    public async Task Login_locks_out_after_max_failed_attempts()
-    {
-        const string email = "lockout-test@demo.com";
-        const string password = "LockoutTest1234!@##";
+	[Fact]
+	public async Task Login_locks_out_after_max_failed_attempts()
+	{
+		const string email = "lockout-test@demo.com";
+		const string password = "LockoutTest1234!@##";
 
-        using var scope = _factory.Services.CreateScope();
-        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-        var userRole = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
-            .UserRoles.First(r => r.Name == UserRole.GlobalRoleNames.User);
+		using var scope = _factory.Services.CreateScope();
+		var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+		var userRole = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>()
+			.UserRoles.First(r => r.Name == UserRole.GlobalRoleNames.User);
 
-        var user = new ApplicationUser
-        {
-            UserName = email,
-            Email = email,
-            EmailConfirmed = true,
-            UserRoleId = userRole.Id,
-        };
-        (await userManager.CreateAsync(user, password)).Succeeded.Should().BeTrue();
+		var user = new ApplicationUser
+		{
+			UserName = email,
+			Email = email,
+			EmailConfirmed = true,
+			UserRoleId = userRole.Id,
+		};
+		(await userManager.CreateAsync(user, password)).Succeeded.Should().BeTrue();
 
-        using var client = _factory.CreateUnscopedClient();
-        var maxAttempts = userManager.Options.Lockout.MaxFailedAccessAttempts;
+		using var client = _factory.CreateUnscopedClient();
+		var maxAttempts = userManager.Options.Lockout.MaxFailedAccessAttempts;
 
-        for (var i = 0; i < maxAttempts; i++)
-        {
-            using var bad = await client.PostAsJsonAsync("/api/auth/login", new
-            {
-                email,
-                password = "wrong-password",
-                rememberMe = false,
-            });
-            bad.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-        }
+		for (var i = 0; i < maxAttempts; i++)
+		{
+			using var bad = await client.PostAsJsonAsync("/api/auth/login", new
+			{
+				email,
+				password = "wrong-password",
+				rememberMe = false,
+			});
+			bad.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+		}
 
-        using var goodAfterLockout = await client.PostAsJsonAsync("/api/auth/login", new
-        {
-            email,
-            password,
-            rememberMe = false,
-        });
-        goodAfterLockout.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
+		using var goodAfterLockout = await client.PostAsJsonAsync("/api/auth/login", new
+		{
+			email,
+			password,
+			rememberMe = false,
+		});
+		goodAfterLockout.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+	}
 }

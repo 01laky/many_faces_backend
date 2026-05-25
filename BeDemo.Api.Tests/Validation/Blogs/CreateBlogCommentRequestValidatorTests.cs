@@ -6,13 +6,13 @@ namespace BeDemo.Api.Tests.Validation.Blogs;
 
 public sealed class CreateBlogCommentRequestValidatorTests
 {
-    private readonly CreateBlogCommentRequestValidator _sut = new();
+	private readonly CreateBlogCommentRequestValidator _sut = new();
 
-    [Fact]
-    public void Empty_instance_has_validation_errors()
-    {
-        var model = new CreateBlogCommentDto();
-        var result = _sut.TestValidate(model);
-        result.ShouldHaveValidationErrors();
-    }
+	[Fact]
+	public void Empty_instance_has_validation_errors()
+	{
+		var model = new CreateBlogCommentDto();
+		var result = _sut.TestValidate(model);
+		result.ShouldHaveValidationErrors();
+	}
 }

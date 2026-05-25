@@ -18,48 +18,48 @@ namespace BeDemo.Api.Scripts;
 /// </summary>
 public static class DatabaseDiagramGenerator
 {
-    /// <summary>
-    /// Generates Mermaid ERD diagram and saves it to many_faces_backend/README.md
-    /// </summary>
-    public static async Task GenerateDiagramAsync(ApplicationDbContext context, string connectionString)
-    {
-        try
-        {
-            var diagram = await GenerateMermaidDiagramAsync(connectionString);
-            await SaveDiagramToFileAsync(diagram);
-            Console.WriteLine("✅ Database ERD diagram generated successfully");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"⚠️  Failed to generate database diagram: {ex.Message}");
-            Console.WriteLine($"   Stack trace: {ex.StackTrace}");
-            // Don't throw - diagram generation is optional
-        }
-    }
+	/// <summary>
+	/// Generates Mermaid ERD diagram and saves it to many_faces_backend/README.md
+	/// </summary>
+	public static async Task GenerateDiagramAsync(ApplicationDbContext context, string connectionString)
+	{
+		try
+		{
+			var diagram = await GenerateMermaidDiagramAsync(connectionString);
+			await SaveDiagramToFileAsync(diagram);
+			Console.WriteLine("✅ Database ERD diagram generated successfully");
+		}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"⚠️  Failed to generate database diagram: {ex.Message}");
+			Console.WriteLine($"   Stack trace: {ex.StackTrace}");
+			// Don't throw - diagram generation is optional
+		}
+	}
 
-    /// <summary>
-    /// Generates Mermaid ERD diagram from PostgreSQL database
-    /// </summary>
-    private static async Task<string> GenerateMermaidDiagramAsync(string connectionString)
-    {
-        var builder = new NpgsqlConnectionStringBuilder(connectionString);
-        var database = builder.Database ?? "bedemo";
+	/// <summary>
+	/// Generates Mermaid ERD diagram from PostgreSQL database
+	/// </summary>
+	private static async Task<string> GenerateMermaidDiagramAsync(string connectionString)
+	{
+		var builder = new NpgsqlConnectionStringBuilder(connectionString);
+		var database = builder.Database ?? "bedemo";
 
-        // Build connection string to 'postgres' database to query information schema
-        var infoSchemaConnectionString = new NpgsqlConnectionStringBuilder(connectionString)
-        {
-            Database = "postgres"  // Connect to postgres database to query information_schema
-        }.ToString();
+		// Build connection string to 'postgres' database to query information schema
+		var infoSchemaConnectionString = new NpgsqlConnectionStringBuilder(connectionString)
+		{
+			Database = "postgres"  // Connect to postgres database to query information_schema
+		}.ToString();
 
-        var tables = new List<TableInfo>();
-        var tableNames = new List<string>();
+		var tables = new List<TableInfo>();
+		var tableNames = new List<string>();
 
-        // First, get all table names (excluding system tables)
-        await using (var conn = new NpgsqlConnection(connectionString))
-        {
-            await conn.OpenAsync();
+		// First, get all table names (excluding system tables)
+		await using (var conn = new NpgsqlConnection(connectionString))
+		{
+			await conn.OpenAsync();
 
-            var tablesQuery = @"
+			var tablesQuery = @"
                 SELECT 
                     table_name
                 FROM information_schema.tables
@@ -69,45 +69,45 @@ public static class DatabaseDiagramGenerator
                 ORDER BY table_name;
             ";
 
-            await using (var cmd = new NpgsqlCommand(tablesQuery, conn))
-            await using (var reader = await cmd.ExecuteReaderAsync())
-            {
-                while (await reader.ReadAsync())
-                {
-                    tableNames.Add(reader.GetString(0));
-                }
-            }
-        }
+			await using (var cmd = new NpgsqlCommand(tablesQuery, conn))
+			await using (var reader = await cmd.ExecuteReaderAsync())
+			{
+				while (await reader.ReadAsync())
+				{
+					tableNames.Add(reader.GetString(0));
+				}
+			}
+		}
 
-        // Then, get columns and foreign keys for each table using separate connections
-        foreach (var tableName in tableNames)
-        {
-            await using (var conn = new NpgsqlConnection(connectionString))
-            {
-                await conn.OpenAsync();
-                var columns = await GetTableColumnsAsync(conn, tableName);
-                var foreignKeys = await GetForeignKeysAsync(conn, tableName);
+		// Then, get columns and foreign keys for each table using separate connections
+		foreach (var tableName in tableNames)
+		{
+			await using (var conn = new NpgsqlConnection(connectionString))
+			{
+				await conn.OpenAsync();
+				var columns = await GetTableColumnsAsync(conn, tableName);
+				var foreignKeys = await GetForeignKeysAsync(conn, tableName);
 
-                tables.Add(new TableInfo
-                {
-                    Name = tableName,
-                    Columns = columns,
-                    ForeignKeys = foreignKeys
-                });
-            }
-        }
+				tables.Add(new TableInfo
+				{
+					Name = tableName,
+					Columns = columns,
+					ForeignKeys = foreignKeys
+				});
+			}
+		}
 
-        return BuildMermaidDiagram(tables);
-    }
+		return BuildMermaidDiagram(tables);
+	}
 
-    /// <summary>
-    /// Gets column information for a table
-    /// </summary>
-    private static async Task<List<ColumnInfo>> GetTableColumnsAsync(NpgsqlConnection conn, string tableName)
-    {
-        var columns = new List<ColumnInfo>();
+	/// <summary>
+	/// Gets column information for a table
+	/// </summary>
+	private static async Task<List<ColumnInfo>> GetTableColumnsAsync(NpgsqlConnection conn, string tableName)
+	{
+		var columns = new List<ColumnInfo>();
 
-        var query = @"
+		var query = @"
             SELECT 
                 c.column_name,
                 c.data_type,
@@ -131,45 +131,45 @@ public static class DatabaseDiagramGenerator
             ORDER BY c.ordinal_position;
         ";
 
-        await using (var cmd = new NpgsqlCommand(query, conn))
-        {
-            cmd.Parameters.AddWithValue("tableName", tableName);
-            await using (var reader = await cmd.ExecuteReaderAsync())
-            {
-                while (await reader.ReadAsync())
-                {
-                    var columnName = reader.GetString(0);
-                    var dataType = reader.GetString(1);
-                    var isNullable = reader.GetString(2) == "YES";
-                    var defaultValue = reader.IsDBNull(3) ? null : reader.GetString(3);
-                    var isPrimaryKey = !reader.IsDBNull(4) && reader.GetBoolean(4);
+		await using (var cmd = new NpgsqlCommand(query, conn))
+		{
+			cmd.Parameters.AddWithValue("tableName", tableName);
+			await using (var reader = await cmd.ExecuteReaderAsync())
+			{
+				while (await reader.ReadAsync())
+				{
+					var columnName = reader.GetString(0);
+					var dataType = reader.GetString(1);
+					var isNullable = reader.GetString(2) == "YES";
+					var defaultValue = reader.IsDBNull(3) ? null : reader.GetString(3);
+					var isPrimaryKey = !reader.IsDBNull(4) && reader.GetBoolean(4);
 
-                    // Format data type for better readability
-                    var formattedType = FormatDataType(dataType);
+					// Format data type for better readability
+					var formattedType = FormatDataType(dataType);
 
-                    columns.Add(new ColumnInfo
-                    {
-                        Name = columnName,
-                        Type = formattedType,
-                        IsNullable = isNullable,
-                        IsPrimaryKey = isPrimaryKey,
-                        DefaultValue = defaultValue
-                    });
-                }
-            }
-        }
+					columns.Add(new ColumnInfo
+					{
+						Name = columnName,
+						Type = formattedType,
+						IsNullable = isNullable,
+						IsPrimaryKey = isPrimaryKey,
+						DefaultValue = defaultValue
+					});
+				}
+			}
+		}
 
-        return columns;
-    }
+		return columns;
+	}
 
-    /// <summary>
-    /// Gets foreign key relationships for a table
-    /// </summary>
-    private static async Task<List<ForeignKeyInfo>> GetForeignKeysAsync(NpgsqlConnection conn, string tableName)
-    {
-        var foreignKeys = new List<ForeignKeyInfo>();
+	/// <summary>
+	/// Gets foreign key relationships for a table
+	/// </summary>
+	private static async Task<List<ForeignKeyInfo>> GetForeignKeysAsync(NpgsqlConnection conn, string tableName)
+	{
+		var foreignKeys = new List<ForeignKeyInfo>();
 
-        var query = @"
+		var query = @"
             SELECT
                 kcu.column_name,
                 ccu.table_name AS foreign_table_name,
@@ -190,259 +190,259 @@ public static class DatabaseDiagramGenerator
               AND tc.table_name = @tableName;
         ";
 
-        await using (var cmd = new NpgsqlCommand(query, conn))
-        {
-            cmd.Parameters.AddWithValue("tableName", tableName);
-            await using (var reader = await cmd.ExecuteReaderAsync())
-            {
-                while (await reader.ReadAsync())
-                {
-                    foreignKeys.Add(new ForeignKeyInfo
-                    {
-                        ColumnName = reader.GetString(0),
-                        ReferencedTable = reader.GetString(1),
-                        ReferencedColumn = reader.GetString(2),
-                        DeleteRule = reader.IsDBNull(3) ? "NO ACTION" : reader.GetString(3)
-                    });
-                }
-            }
-        }
+		await using (var cmd = new NpgsqlCommand(query, conn))
+		{
+			cmd.Parameters.AddWithValue("tableName", tableName);
+			await using (var reader = await cmd.ExecuteReaderAsync())
+			{
+				while (await reader.ReadAsync())
+				{
+					foreignKeys.Add(new ForeignKeyInfo
+					{
+						ColumnName = reader.GetString(0),
+						ReferencedTable = reader.GetString(1),
+						ReferencedColumn = reader.GetString(2),
+						DeleteRule = reader.IsDBNull(3) ? "NO ACTION" : reader.GetString(3)
+					});
+				}
+			}
+		}
 
-        return foreignKeys;
-    }
+		return foreignKeys;
+	}
 
-    /// <summary>
-    /// Formats PostgreSQL data type for better readability
-    /// </summary>
-    private static string FormatDataType(string dataType)
-    {
-        return dataType switch
-        {
-            "character varying" => "varchar",
-            "timestamp with time zone" => "timestamp",
-            "timestamp without time zone" => "timestamp",
-            "double precision" => "double",
-            "numeric" => "decimal",
-            _ => dataType
-        };
-    }
+	/// <summary>
+	/// Formats PostgreSQL data type for better readability
+	/// </summary>
+	private static string FormatDataType(string dataType)
+	{
+		return dataType switch
+		{
+			"character varying" => "varchar",
+			"timestamp with time zone" => "timestamp",
+			"timestamp without time zone" => "timestamp",
+			"double precision" => "double",
+			"numeric" => "decimal",
+			_ => dataType
+		};
+	}
 
-    /// <summary>
-    /// Builds Mermaid ERD diagram from table information
-    /// </summary>
-    private static string BuildMermaidDiagram(List<TableInfo> tables)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("```mermaid");
-        sb.AppendLine("erDiagram");
-        sb.AppendLine();
+	/// <summary>
+	/// Builds Mermaid ERD diagram from table information
+	/// </summary>
+	private static string BuildMermaidDiagram(List<TableInfo> tables)
+	{
+		var sb = new StringBuilder();
+		sb.AppendLine("```mermaid");
+		sb.AppendLine("erDiagram");
+		sb.AppendLine();
 
-        // Define all entities (tables) with their columns
-        foreach (var table in tables)
-        {
-            var tableName = SanitizeTableName(table.Name);
-            sb.AppendLine($"    {tableName} {{");
+		// Define all entities (tables) with their columns
+		foreach (var table in tables)
+		{
+			var tableName = SanitizeTableName(table.Name);
+			sb.AppendLine($"    {tableName} {{");
 
-            foreach (var column in table.Columns)
-            {
-                var type = column.Type;
-                var nullable = column.IsNullable ? "" : " NOT NULL";
-                var pk = column.IsPrimaryKey ? " PK" : "";
-                var displayName = column.Name;
+			foreach (var column in table.Columns)
+			{
+				var type = column.Type;
+				var nullable = column.IsNullable ? "" : " NOT NULL";
+				var pk = column.IsPrimaryKey ? " PK" : "";
+				var displayName = column.Name;
 
-                // Truncate long type names
-                if (type.Length > 20)
-                {
-                    type = type.Substring(0, 17) + "...";
-                }
+				// Truncate long type names
+				if (type.Length > 20)
+				{
+					type = type.Substring(0, 17) + "...";
+				}
 
-                sb.AppendLine($"        {type} {displayName}{pk}{nullable}");
-            }
+				sb.AppendLine($"        {type} {displayName}{pk}{nullable}");
+			}
 
-            sb.AppendLine("    }");
-            sb.AppendLine();
-        }
+			sb.AppendLine("    }");
+			sb.AppendLine();
+		}
 
-        // Define relationships (foreign keys)
-        foreach (var table in tables)
-        {
-            var tableName = SanitizeTableName(table.Name);
+		// Define relationships (foreign keys)
+		foreach (var table in tables)
+		{
+			var tableName = SanitizeTableName(table.Name);
 
-            foreach (var fk in table.ForeignKeys)
-            {
-                var referencedTable = SanitizeTableName(fk.ReferencedTable);
-                var relationshipType = GetRelationshipType(fk.DeleteRule);
+			foreach (var fk in table.ForeignKeys)
+			{
+				var referencedTable = SanitizeTableName(fk.ReferencedTable);
+				var relationshipType = GetRelationshipType(fk.DeleteRule);
 
-                // Determine cardinality (simplified - assumes many-to-one)
-                sb.AppendLine($"    {referencedTable} ||--o{{ {tableName} : \"has\"");
-            }
-        }
+				// Determine cardinality (simplified - assumes many-to-one)
+				sb.AppendLine($"    {referencedTable} ||--o{{ {tableName} : \"has\"");
+			}
+		}
 
-        sb.AppendLine("```");
+		sb.AppendLine("```");
 
-        return sb.ToString();
-    }
+		return sb.ToString();
+	}
 
-    /// <summary>
-    /// Sanitizes table name for Mermaid syntax
-    /// </summary>
-    private static string SanitizeTableName(string tableName)
-    {
-        // Replace spaces and special characters with underscores for Mermaid compatibility
-        return tableName.Replace(" ", "_").Replace("-", "_");
-    }
+	/// <summary>
+	/// Sanitizes table name for Mermaid syntax
+	/// </summary>
+	private static string SanitizeTableName(string tableName)
+	{
+		// Replace spaces and special characters with underscores for Mermaid compatibility
+		return tableName.Replace(" ", "_").Replace("-", "_");
+	}
 
-    /// <summary>
-    /// Gets relationship type description from delete rule
-    /// </summary>
-    private static string GetRelationshipType(string deleteRule)
-    {
-        return deleteRule switch
-        {
-            "CASCADE" => "cascades",
-            "SET NULL" => "sets null",
-            "RESTRICT" => "restricts",
-            _ => "has"
-        };
-    }
+	/// <summary>
+	/// Gets relationship type description from delete rule
+	/// </summary>
+	private static string GetRelationshipType(string deleteRule)
+	{
+		return deleteRule switch
+		{
+			"CASCADE" => "cascades",
+			"SET NULL" => "sets null",
+			"RESTRICT" => "restricts",
+			_ => "has"
+		};
+	}
 
-    /// <summary>
-    /// Saves diagram to documentation file in many_faces_backend/README.md
-    /// </summary>
-    private static async Task SaveDiagramToFileAsync(string diagram)
-    {
-        // Try multiple paths to find many_faces_backend/README.md
-        var possiblePaths = new List<string>();
+	/// <summary>
+	/// Saves diagram to documentation file in many_faces_backend/README.md
+	/// </summary>
+	private static async Task SaveDiagramToFileAsync(string diagram)
+	{
+		// Try multiple paths to find many_faces_backend/README.md
+		var possiblePaths = new List<string>();
 
-        // 1. Try relative to current execution directory (from BeDemo.Api)
-        var currentDir = Directory.GetCurrentDirectory();
-        var currentDirReadme = Path.GetFullPath(Path.Combine(currentDir, "..", "README.md"));
-        possiblePaths.Add(currentDirReadme);
+		// 1. Try relative to current execution directory (from BeDemo.Api)
+		var currentDir = Directory.GetCurrentDirectory();
+		var currentDirReadme = Path.GetFullPath(Path.Combine(currentDir, "..", "README.md"));
+		possiblePaths.Add(currentDirReadme);
 
-        // 2. Try from assembly location (for compiled builds)
-        var assemblyDir = Path.GetDirectoryName(typeof(DatabaseDiagramGenerator).Assembly.Location);
-        if (!string.IsNullOrEmpty(assemblyDir))
-        {
-            // From bin/Debug/net10.0 -> BeDemo.Api -> many_faces_backend -> README.md
-            var assemblyReadme = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", "README.md"));
-            possiblePaths.Add(assemblyReadme);
-        }
+		// 2. Try from assembly location (for compiled builds)
+		var assemblyDir = Path.GetDirectoryName(typeof(DatabaseDiagramGenerator).Assembly.Location);
+		if (!string.IsNullOrEmpty(assemblyDir))
+		{
+			// From bin/Debug/net10.0 -> BeDemo.Api -> many_faces_backend -> README.md
+			var assemblyReadme = Path.GetFullPath(Path.Combine(assemblyDir, "..", "..", "..", "README.md"));
+			possiblePaths.Add(assemblyReadme);
+		}
 
-        // 3. Try from BeDemo.Api directory structure
-        var apiDir = Path.Combine(currentDir, "BeDemo.Api");
-        if (Directory.Exists(apiDir) || currentDir.Contains("BeDemo.Api"))
-        {
-            var apiReadme = Path.GetFullPath(Path.Combine(currentDir, "..", "README.md"));
-            possiblePaths.Add(apiReadme);
-        }
+		// 3. Try from BeDemo.Api directory structure
+		var apiDir = Path.Combine(currentDir, "BeDemo.Api");
+		if (Directory.Exists(apiDir) || currentDir.Contains("BeDemo.Api"))
+		{
+			var apiReadme = Path.GetFullPath(Path.Combine(currentDir, "..", "README.md"));
+			possiblePaths.Add(apiReadme);
+		}
 
-        // Find the first existing README.md in many_faces_backend directory
-        string? readmePath = null;
-        foreach (var path in possiblePaths.Distinct())
-        {
-            if (File.Exists(path))
-            {
-                // Verify it's in many_faces_backend directory by checking parent directory name
-                var parentDir = Path.GetDirectoryName(path);
-                if (parentDir != null && (Path.GetFileName(parentDir) == "many_faces_backend" || parentDir.Contains("many_faces_backend")))
-                {
-                    readmePath = path;
-                    break;
-                }
-            }
-        }
+		// Find the first existing README.md in many_faces_backend directory
+		string? readmePath = null;
+		foreach (var path in possiblePaths.Distinct())
+		{
+			if (File.Exists(path))
+			{
+				// Verify it's in many_faces_backend directory by checking parent directory name
+				var parentDir = Path.GetDirectoryName(path);
+				if (parentDir != null && (Path.GetFileName(parentDir) == "many_faces_backend" || parentDir.Contains("many_faces_backend")))
+				{
+					readmePath = path;
+					break;
+				}
+			}
+		}
 
-        // Fallback: try to find many_faces_backend/README.md from common structures
-        if (readmePath == null)
-        {
-            // From current directory, go up to find many_faces_backend
-            var checkDir = currentDir;
-            for (int i = 0; i < 5; i++)
-            {
-                var checkReadme = Path.Combine(checkDir, "README.md");
-                var checkParent = Path.GetDirectoryName(checkDir);
-                if (checkParent != null && Path.GetFileName(checkDir) == "many_faces_backend" && File.Exists(checkReadme))
-                {
-                    readmePath = checkReadme;
-                    break;
-                }
-                if (checkParent == null || checkParent == checkDir) break;
-                checkDir = checkParent;
-            }
-        }
+		// Fallback: try to find many_faces_backend/README.md from common structures
+		if (readmePath == null)
+		{
+			// From current directory, go up to find many_faces_backend
+			var checkDir = currentDir;
+			for (int i = 0; i < 5; i++)
+			{
+				var checkReadme = Path.Combine(checkDir, "README.md");
+				var checkParent = Path.GetDirectoryName(checkDir);
+				if (checkParent != null && Path.GetFileName(checkDir) == "many_faces_backend" && File.Exists(checkReadme))
+				{
+					readmePath = checkReadme;
+					break;
+				}
+				if (checkParent == null || checkParent == checkDir) break;
+				checkDir = checkParent;
+			}
+		}
 
-        if (readmePath == null || !File.Exists(readmePath))
-        {
-            Console.WriteLine($"⚠️  many_faces_backend/README.md not found. Tried paths:");
-            foreach (var path in possiblePaths)
-            {
-                Console.WriteLine($"   - {path}");
-            }
-            Console.WriteLine("   Skipping diagram save");
-            return;
-        }
+		if (readmePath == null || !File.Exists(readmePath))
+		{
+			Console.WriteLine($"⚠️  many_faces_backend/README.md not found. Tried paths:");
+			foreach (var path in possiblePaths)
+			{
+				Console.WriteLine($"   - {path}");
+			}
+			Console.WriteLine("   Skipping diagram save");
+			return;
+		}
 
-        string existingContent = "";
-        if (File.Exists(readmePath))
-        {
-            existingContent = await File.ReadAllTextAsync(readmePath);
-        }
+		string existingContent = "";
+		if (File.Exists(readmePath))
+		{
+			existingContent = await File.ReadAllTextAsync(readmePath);
+		}
 
-        // Check if diagram section already exists
-        var diagramStartMarker = "<!-- AUTO-GENERATED DATABASE DIAGRAM - DO NOT EDIT -->";
-        var diagramEndMarker = "<!-- END AUTO-GENERATED DATABASE DIAGRAM -->";
+		// Check if diagram section already exists
+		var diagramStartMarker = "<!-- AUTO-GENERATED DATABASE DIAGRAM - DO NOT EDIT -->";
+		var diagramEndMarker = "<!-- END AUTO-GENERATED DATABASE DIAGRAM -->";
 
-        var newContent = existingContent;
+		var newContent = existingContent;
 
-        if (existingContent.Contains(diagramStartMarker))
-        {
-            // Replace existing diagram section
-            var startIndex = existingContent.IndexOf(diagramStartMarker);
-            var endIndex = existingContent.IndexOf(diagramEndMarker);
+		if (existingContent.Contains(diagramStartMarker))
+		{
+			// Replace existing diagram section
+			var startIndex = existingContent.IndexOf(diagramStartMarker);
+			var endIndex = existingContent.IndexOf(diagramEndMarker);
 
-            if (endIndex > startIndex)
-            {
-                var beforeDiagram = existingContent.Substring(0, startIndex);
-                var afterDiagram = existingContent.Substring(endIndex + diagramEndMarker.Length);
-                newContent = beforeDiagram + diagramStartMarker + "\n\n" + diagram + "\n\n" + diagramEndMarker + afterDiagram;
-            }
-            else
-            {
-                // End marker not found, append to end
-                newContent = existingContent + "\n\n" + diagramStartMarker + "\n\n" + diagram + "\n\n" + diagramEndMarker;
-            }
-        }
-        else
-        {
-            // Add diagram section at the end
-            newContent = existingContent.TrimEnd() + "\n\n" + diagramStartMarker + "\n\n## Database Schema\n\n" + diagram + "\n\n" + diagramEndMarker;
-        }
+			if (endIndex > startIndex)
+			{
+				var beforeDiagram = existingContent.Substring(0, startIndex);
+				var afterDiagram = existingContent.Substring(endIndex + diagramEndMarker.Length);
+				newContent = beforeDiagram + diagramStartMarker + "\n\n" + diagram + "\n\n" + diagramEndMarker + afterDiagram;
+			}
+			else
+			{
+				// End marker not found, append to end
+				newContent = existingContent + "\n\n" + diagramStartMarker + "\n\n" + diagram + "\n\n" + diagramEndMarker;
+			}
+		}
+		else
+		{
+			// Add diagram section at the end
+			newContent = existingContent.TrimEnd() + "\n\n" + diagramStartMarker + "\n\n## Database Schema\n\n" + diagram + "\n\n" + diagramEndMarker;
+		}
 
-        await File.WriteAllTextAsync(readmePath, newContent);
-        Console.WriteLine($"📊 Database diagram saved to: {readmePath}");
-    }
+		await File.WriteAllTextAsync(readmePath, newContent);
+		Console.WriteLine($"📊 Database diagram saved to: {readmePath}");
+	}
 
-    private class TableInfo
-    {
-        public string Name { get; set; } = string.Empty;
-        public List<ColumnInfo> Columns { get; set; } = new();
-        public List<ForeignKeyInfo> ForeignKeys { get; set; } = new();
-    }
+	private class TableInfo
+	{
+		public string Name { get; set; } = string.Empty;
+		public List<ColumnInfo> Columns { get; set; } = new();
+		public List<ForeignKeyInfo> ForeignKeys { get; set; } = new();
+	}
 
-    private class ColumnInfo
-    {
-        public string Name { get; set; } = string.Empty;
-        public string Type { get; set; } = string.Empty;
-        public bool IsNullable { get; set; }
-        public bool IsPrimaryKey { get; set; }
-        public string? DefaultValue { get; set; }
-    }
+	private class ColumnInfo
+	{
+		public string Name { get; set; } = string.Empty;
+		public string Type { get; set; } = string.Empty;
+		public bool IsNullable { get; set; }
+		public bool IsPrimaryKey { get; set; }
+		public string? DefaultValue { get; set; }
+	}
 
-    private class ForeignKeyInfo
-    {
-        public string ColumnName { get; set; } = string.Empty;
-        public string ReferencedTable { get; set; } = string.Empty;
-        public string ReferencedColumn { get; set; } = string.Empty;
-        public string DeleteRule { get; set; } = string.Empty;
-    }
+	private class ForeignKeyInfo
+	{
+		public string ColumnName { get; set; } = string.Empty;
+		public string ReferencedTable { get; set; } = string.Empty;
+		public string ReferencedColumn { get; set; } = string.Empty;
+		public string DeleteRule { get; set; } = string.Empty;
+	}
 }

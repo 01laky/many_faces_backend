@@ -7,17 +7,17 @@ namespace BeDemo.Api.Utils;
 /// </summary>
 public static class SecurityAuditLogger
 {
-    /// <summary>Logs when a user's password hash changes (tokens revoked via ATV bump).</summary>
-    public static void LogPasswordChanged(string targetUserId) =>
-        Log.Information(
-            "SECURITY_AUDIT event=password_changed targetUserId={TargetUserId}",
-            targetUserId);
+	/// <summary>Logs when a user's password hash changes (tokens revoked via ATV bump).</summary>
+	public static void LogPasswordChanged(string targetUserId) =>
+		Log.Information(
+			"SECURITY_AUDIT event=password_changed targetUserId={TargetUserId}",
+			targetUserId);
 
-    /// <summary>Logs when a user's global role changes (tokens revoked via ATV bump).</summary>
-    public static void LogGlobalRoleChanged(string targetUserId, int previousRoleId, int newRoleId) =>
-        Log.Information(
-            "SECURITY_AUDIT event=global_role_changed targetUserId={TargetUserId} previousRoleId={PreviousRoleId} newRoleId={NewRoleId}",
-            targetUserId,
-            previousRoleId,
-            newRoleId);
+	/// <summary>Logs when a user's global role changes (tokens revoked via ATV bump).</summary>
+	public static void LogGlobalRoleChanged(string targetUserId, int previousRoleId, int newRoleId) =>
+		Log.Information(
+			"SECURITY_AUDIT event=global_role_changed targetUserId={TargetUserId} previousRoleId={PreviousRoleId} newRoleId={NewRoleId}",
+			targetUserId,
+			previousRoleId,
+			newRoleId);
 }

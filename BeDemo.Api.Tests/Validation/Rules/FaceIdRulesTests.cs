@@ -9,13 +9,13 @@ namespace BeDemo.Api.Tests.Validation.Rules;
 
 public sealed class FaceIdRulesTests
 {
-    private sealed class Model { public int FaceId { get; set; } }
-    private sealed class Validator : AbstractValidator<Model>
-    {
-        public Validator() => RuleFor(x => x.FaceId).PositiveFaceId();
-    }
+	private sealed class Model { public int FaceId { get; set; } }
+	private sealed class Validator : AbstractValidator<Model>
+	{
+		public Validator() => RuleFor(x => x.FaceId).PositiveFaceId();
+	}
 
-    [Fact]
-    public void T6_Zero_fails() => new Validator().TestValidate(new Model { FaceId = 0 })
-        .ShouldHaveValidationErrorFor(x => x.FaceId);
+	[Fact]
+	public void T6_Zero_fails() => new Validator().TestValidate(new Model { FaceId = 0 })
+		.ShouldHaveValidationErrorFor(x => x.FaceId);
 }

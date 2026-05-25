@@ -8,50 +8,50 @@ namespace BeDemo.Api.Services.Search;
 /// <summary>Idempotent outbox enqueue for incremental search indexing (§6.1).</summary>
 public sealed class SearchOutboxService : ISearchOutboxService
 {
-    private readonly ApplicationDbContext _db;
-    private readonly IOptions<SearchOptions> _options;
+	private readonly ApplicationDbContext _db;
+	private readonly IOptions<SearchOptions> _options;
 
-    public SearchOutboxService(ApplicationDbContext db, IOptions<SearchOptions> options)
-    {
-        _db = db;
-        _options = options;
-    }
+	public SearchOutboxService(ApplicationDbContext db, IOptions<SearchOptions> options)
+	{
+		_db = db;
+		_options = options;
+	}
 
-    /// <inheritdoc />
-    public async Task EnqueueIndexAsync(string documentType, string entityId, CancellationToken cancellationToken = default)
-    {
-        if (!_options.Value.IsEnabled)
-            return;
+	/// <inheritdoc />
+	public async Task EnqueueIndexAsync(string documentType, string entityId, CancellationToken cancellationToken = default)
+	{
+		if (!_options.Value.IsEnabled)
+			return;
 
-        StageIndex(documentType, entityId);
-        await _db.SaveChangesAsync(cancellationToken);
-    }
+		StageIndex(documentType, entityId);
+		await _db.SaveChangesAsync(cancellationToken);
+	}
 
-    /// <inheritdoc />
-    public async Task EnqueueDeleteAsync(string documentType, string entityId, CancellationToken cancellationToken = default)
-    {
-        if (!_options.Value.IsEnabled)
-            return;
+	/// <inheritdoc />
+	public async Task EnqueueDeleteAsync(string documentType, string entityId, CancellationToken cancellationToken = default)
+	{
+		if (!_options.Value.IsEnabled)
+			return;
 
-        StageDelete(documentType, entityId);
-        await _db.SaveChangesAsync(cancellationToken);
-    }
+		StageDelete(documentType, entityId);
+		await _db.SaveChangesAsync(cancellationToken);
+	}
 
-    /// <inheritdoc />
-    public void StageIndex(string documentType, string entityId)
-    {
-        if (!_options.Value.IsEnabled)
-            return;
+	/// <inheritdoc />
+	public void StageIndex(string documentType, string entityId)
+	{
+		if (!_options.Value.IsEnabled)
+			return;
 
-        SearchOutboxStaging.StageIndex(_db, documentType, entityId);
-    }
+		SearchOutboxStaging.StageIndex(_db, documentType, entityId);
+	}
 
-    /// <inheritdoc />
-    public void StageDelete(string documentType, string entityId)
-    {
-        if (!_options.Value.IsEnabled)
-            return;
+	/// <inheritdoc />
+	public void StageDelete(string documentType, string entityId)
+	{
+		if (!_options.Value.IsEnabled)
+			return;
 
-        SearchOutboxStaging.StageDelete(_db, documentType, entityId);
-    }
+		SearchOutboxStaging.StageDelete(_db, documentType, entityId);
+	}
 }

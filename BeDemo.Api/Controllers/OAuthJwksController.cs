@@ -16,20 +16,20 @@ namespace BeDemo.Api.Controllers;
 [AllowAnonymous]
 public sealed class OAuthJwksController : ControllerBase
 {
-    /// <summary>
-    /// GET /api/oauth2/jwks — JSON Web Key Set for the current signing key (ES512 / P-521).
-    /// </summary>
-    [HttpGet("jwks")]
-    public IActionResult GetJwks([FromServices] IECDSAKeyService keys)
-    {
-        var jwks = new List<JsonWebKey>();
-        foreach (var sk in keys.GetIssuerSigningKeys())
-        {
-            if (sk is ECDsaSecurityKey ek)
-                jwks.Add(JsonWebKeyConverter.ConvertFromECDsaSecurityKey(ek));
-        }
+	/// <summary>
+	/// GET /api/oauth2/jwks — JSON Web Key Set for the current signing key (ES512 / P-521).
+	/// </summary>
+	[HttpGet("jwks")]
+	public IActionResult GetJwks([FromServices] IECDSAKeyService keys)
+	{
+		var jwks = new List<JsonWebKey>();
+		foreach (var sk in keys.GetIssuerSigningKeys())
+		{
+			if (sk is ECDsaSecurityKey ek)
+				jwks.Add(JsonWebKeyConverter.ConvertFromECDsaSecurityKey(ek));
+		}
 
-        var options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
-        return new JsonResult(new { keys = jwks.ToArray() }, options);
-    }
+		var options = new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+		return new JsonResult(new { keys = jwks.ToArray() }, options);
+	}
 }

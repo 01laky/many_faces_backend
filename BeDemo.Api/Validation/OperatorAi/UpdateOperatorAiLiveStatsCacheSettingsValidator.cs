@@ -5,13 +5,13 @@ using FluentValidation;
 namespace BeDemo.Api.Validation.OperatorAi;
 
 public sealed class UpdateOperatorAiLiveStatsCacheSettingsValidator
-    : AbstractValidator<UpdateOperatorAiLiveStatsCacheSettingsRequest>
+	: AbstractValidator<UpdateOperatorAiLiveStatsCacheSettingsRequest>
 {
-    public UpdateOperatorAiLiveStatsCacheSettingsValidator()
-    {
-        RuleFor(x => x.TtlMilliseconds)
-            .InclusiveBetween(
-                OperatorAiLiveStatsCacheConstraints.MinTtlMilliseconds,
-                OperatorAiLiveStatsCacheConstraints.MaxTtlMilliseconds);
-    }
+	public UpdateOperatorAiLiveStatsCacheSettingsValidator()
+	{
+		RuleFor(x => x.TtlMilliseconds)
+			.InclusiveBetween(
+				OperatorAiLiveStatsCacheConstraints.MinTtlMilliseconds,
+				OperatorAiLiveStatsCacheConstraints.MaxTtlMilliseconds);
+	}
 }

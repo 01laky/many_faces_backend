@@ -5,9 +5,9 @@ namespace BeDemo.Api.Validation.Files;
 /// </summary>
 public interface IFileValidator
 {
-    /// <summary>Validates image stream format (PNG/JPEG/GIF/WebP magic bytes).</summary>
-    Task<(bool Ok, string? ErrorCode)> ValidateImageAsync(
-        Stream content,
-        string fileName,
-        CancellationToken cancellationToken = default);
+	/// <summary>Validates image stream format (PNG/JPEG/GIF/WebP magic bytes).</summary>
+	Task<(bool Ok, string? ErrorCode)> ValidateImageAsync(
+		Stream content,
+		string fileName,
+		CancellationToken cancellationToken = default);
 }

@@ -6,13 +6,13 @@ namespace BeDemo.Api.Tests.Validation.Social;
 
 public sealed class SendFriendRequestRequestValidatorTests
 {
-    private readonly SendFriendRequestRequestValidator _sut = new();
+	private readonly SendFriendRequestRequestValidator _sut = new();
 
-    [Fact]
-    public void Empty_instance_has_validation_errors()
-    {
-        var model = new SendFriendRequestDto();
-        var result = _sut.TestValidate(model);
-        result.ShouldHaveValidationErrors();
-    }
+	[Fact]
+	public void Empty_instance_has_validation_errors()
+	{
+		var model = new SendFriendRequestDto();
+		var result = _sut.TestValidate(model);
+		result.ShouldHaveValidationErrors();
+	}
 }

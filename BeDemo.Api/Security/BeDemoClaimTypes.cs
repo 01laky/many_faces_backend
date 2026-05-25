@@ -5,8 +5,8 @@ namespace BeDemo.Api.Security;
 /// </summary>
 public static class BeDemoClaimTypes
 {
-    /// <summary>
-    /// Access-token session version; must match <see cref="Models.ApplicationUser.AccessTokenVersion"/> or the request is rejected.
-    /// </summary>
-    public const string AccessTokenVersion = "atv";
+	/// <summary>
+	/// Access-token session version; must match <see cref="Models.ApplicationUser.AccessTokenVersion"/> or the request is rejected.
+	/// </summary>
+	public const string AccessTokenVersion = "atv";
 }

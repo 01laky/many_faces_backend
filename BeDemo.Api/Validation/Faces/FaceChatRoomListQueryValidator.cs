@@ -6,12 +6,12 @@ namespace BeDemo.Api.Validation.Faces;
 
 public sealed class FaceChatRoomListQueryValidator : AbstractValidator<BeDemo.Api.Models.Requests.Faces.FaceChatRoomListQuery>
 {
-    private static readonly string[] SortWhitelist = ["id", "title", "createdAt", "isPublic"];
+	private static readonly string[] SortWhitelist = ["id", "title", "createdAt", "isPublic"];
 
-    public FaceChatRoomListQueryValidator()
-    {
-        this.ApplyPaginationRules(x => x.Page, x => x.PageSize);
-        this.ApplyListSortRules(x => x.SortBy, x => x.SortDir, SortWhitelist);
-        RuleFor(x => x.Search).MaximumLength(200).NoNullBytes().When(x => !string.IsNullOrEmpty(x.Search));
-    }
+	public FaceChatRoomListQueryValidator()
+	{
+		this.ApplyPaginationRules(x => x.Page, x => x.PageSize);
+		this.ApplyListSortRules(x => x.SortBy, x => x.SortDir, SortWhitelist);
+		RuleFor(x => x.Search).MaximumLength(200).NoNullBytes().When(x => !string.IsNullOrEmpty(x.Search));
+	}
 }

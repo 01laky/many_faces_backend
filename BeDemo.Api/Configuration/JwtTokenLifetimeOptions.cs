@@ -16,31 +16,31 @@ namespace BeDemo.Api.Configuration;
 /// </remarks>
 public sealed class JwtTokenLifetimeOptions
 {
-    /// <summary>Configuration section name (<c>appsettings.json</c> → <c>Jwt</c>).</summary>
-    public const string SectionName = "Jwt";
+	/// <summary>Configuration section name (<c>appsettings.json</c> → <c>Jwt</c>).</summary>
+	public const string SectionName = "Jwt";
 
-    /// <summary>SHV2 BE-A2 recommended access-token lifetime when <c>rememberMe</c> is true: seven days.</summary>
-    public const int RecommendedRememberMeAccessMinutes = 7 * 24 * 60;
+	/// <summary>SHV2 BE-A2 recommended access-token lifetime when <c>rememberMe</c> is true: seven days.</summary>
+	public const int RecommendedRememberMeAccessMinutes = 7 * 24 * 60;
 
-    /// <summary>Maximum allowed <see cref="ExpiresInMinutesRememberMe"/> (same as recommended policy).</summary>
-    public const int MaxRememberMeAccessMinutes = RecommendedRememberMeAccessMinutes;
+	/// <summary>Maximum allowed <see cref="ExpiresInMinutesRememberMe"/> (same as recommended policy).</summary>
+	public const int MaxRememberMeAccessMinutes = RecommendedRememberMeAccessMinutes;
 
-    /// <summary>Legacy value observed in repo before BE-A2 (≈10 years) — used only in validation error messages.</summary>
-    public const int LegacyMisconfiguredRememberMeMinutes = 5_256_000;
+	/// <summary>Legacy value observed in repo before BE-A2 (≈10 years) — used only in validation error messages.</summary>
+	public const int LegacyMisconfiguredRememberMeMinutes = 5_256_000;
 
-    /// <summary>Default access-token lifetime when <c>rememberMe</c> is false, omitted, or null.</summary>
-    public int ExpiresInMinutes { get; set; } = 60;
+	/// <summary>Default access-token lifetime when <c>rememberMe</c> is false, omitted, or null.</summary>
+	public int ExpiresInMinutes { get; set; } = 60;
 
-    /// <summary>Access-token lifetime when <c>rememberMe</c> is true (must be ≤ <see cref="MaxRememberMeAccessMinutes"/>).</summary>
-    public int ExpiresInMinutesRememberMe { get; set; } = RecommendedRememberMeAccessMinutes;
+	/// <summary>Access-token lifetime when <c>rememberMe</c> is true (must be ≤ <see cref="MaxRememberMeAccessMinutes"/>).</summary>
+	public int ExpiresInMinutesRememberMe { get; set; } = RecommendedRememberMeAccessMinutes;
 
-    /// <summary>Opaque refresh-token absolute lifetime (days) for normal session logins.</summary>
-    public int RefreshTokenDaysSession { get; set; } = 14;
+	/// <summary>Opaque refresh-token absolute lifetime (days) for normal session logins.</summary>
+	public int RefreshTokenDaysSession { get; set; } = 14;
 
-    /// <summary>Opaque refresh-token absolute lifetime (days) when access JWT used remember-me minutes.</summary>
-    public int RefreshTokenDaysRememberMe { get; set; } = 90;
+	/// <summary>Opaque refresh-token absolute lifetime (days) when access JWT used remember-me minutes.</summary>
+	public int RefreshTokenDaysRememberMe { get; set; } = 90;
 
-    /// <summary>Resolves configured access-token minutes for the password-grant <c>rememberMe</c> flag.</summary>
-    public int ResolveAccessTokenMinutes(bool useRememberMeAccessLifetime) =>
-        useRememberMeAccessLifetime ? ExpiresInMinutesRememberMe : ExpiresInMinutes;
+	/// <summary>Resolves configured access-token minutes for the password-grant <c>rememberMe</c> flag.</summary>
+	public int ResolveAccessTokenMinutes(bool useRememberMeAccessLifetime) =>
+		useRememberMeAccessLifetime ? ExpiresInMinutesRememberMe : ExpiresInMinutes;
 }

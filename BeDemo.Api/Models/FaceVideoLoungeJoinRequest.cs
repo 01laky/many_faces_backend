@@ -5,30 +5,30 @@ namespace BeDemo.Api.Models;
 
 public enum FaceVideoLoungeJoinRequestStatus
 {
-    Pending = 0,
-    Approved = 1,
-    Denied = 2,
+	Pending = 0,
+	Approved = 1,
+	Denied = 2,
 }
 
 public class FaceVideoLoungeJoinRequest
 {
-    [Key]
-    public int Id { get; set; }
+	[Key]
+	public int Id { get; set; }
 
-    [Required]
-    public int FaceVideoLoungeId { get; set; }
+	[Required]
+	public int FaceVideoLoungeId { get; set; }
 
-    [ForeignKey(nameof(FaceVideoLoungeId))]
-    public FaceVideoLounge Lounge { get; set; } = null!;
+	[ForeignKey(nameof(FaceVideoLoungeId))]
+	public FaceVideoLounge Lounge { get; set; } = null!;
 
-    [Required]
-    [MaxLength(450)]
-    public string UserId { get; set; } = string.Empty;
+	[Required]
+	[MaxLength(450)]
+	public string UserId { get; set; } = string.Empty;
 
-    [ForeignKey(nameof(UserId))]
-    public ApplicationUser User { get; set; } = null!;
+	[ForeignKey(nameof(UserId))]
+	public ApplicationUser User { get; set; } = null!;
 
-    public FaceVideoLoungeJoinRequestStatus Status { get; set; } = FaceVideoLoungeJoinRequestStatus.Pending;
+	public FaceVideoLoungeJoinRequestStatus Status { get; set; } = FaceVideoLoungeJoinRequestStatus.Pending;
 
-    public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
+	public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
 }

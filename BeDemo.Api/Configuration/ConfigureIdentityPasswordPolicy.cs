@@ -11,13 +11,13 @@ namespace BeDemo.Api.Configuration;
 /// </remarks>
 public sealed class ConfigureIdentityPasswordPolicy : IPostConfigureOptions<IdentityOptions>
 {
-    private readonly IdentityPasswordPolicyOptions _policy;
+	private readonly IdentityPasswordPolicyOptions _policy;
 
-    /// <summary>Creates the post-configurator.</summary>
-    public ConfigureIdentityPasswordPolicy(IOptions<IdentityPasswordPolicyOptions> policy) =>
-        _policy = policy.Value;
+	/// <summary>Creates the post-configurator.</summary>
+	public ConfigureIdentityPasswordPolicy(IOptions<IdentityPasswordPolicyOptions> policy) =>
+		_policy = policy.Value;
 
-    /// <inheritdoc />
-    public void PostConfigure(string? name, IdentityOptions options) =>
-        options.Password.RequiredLength = _policy.RequiredLength;
+	/// <inheritdoc />
+	public void PostConfigure(string? name, IdentityOptions options) =>
+		options.Password.RequiredLength = _policy.RequiredLength;
 }

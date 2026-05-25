@@ -12,40 +12,40 @@ namespace BeDemo.Api.Services;
 /// </remarks>
 public static partial class ContentModerationPreviewText
 {
-    /// <summary>Maximum characters returned on moderation queue/detail APIs.</summary>
-    public const int MaxPreviewLength = 4_000;
+	/// <summary>Maximum characters returned on moderation queue/detail APIs.</summary>
+	public const int MaxPreviewLength = 4_000;
 
-    [GeneratedRegex("<[^>]+>", RegexOptions.CultureInvariant)]
-    private static partial Regex HtmlTagRegex();
+	[GeneratedRegex("<[^>]+>", RegexOptions.CultureInvariant)]
+	private static partial Regex HtmlTagRegex();
 
-    /// <summary>
-    /// Converts stored blog HTML or album/reel description into a single-line-safe plain preview string.
-    /// </summary>
-    public static string ToPlainTextPreview(string? htmlOrText)
-    {
-        if (string.IsNullOrWhiteSpace(htmlOrText))
-            return string.Empty;
+	/// <summary>
+	/// Converts stored blog HTML or album/reel description into a single-line-safe plain preview string.
+	/// </summary>
+	public static string ToPlainTextPreview(string? htmlOrText)
+	{
+		if (string.IsNullOrWhiteSpace(htmlOrText))
+			return string.Empty;
 
-        var withoutTags = HtmlTagRegex().Replace(htmlOrText, " ");
-        var decoded = WebUtility.HtmlDecode(withoutTags);
-        var collapsed = string.Join(
-            ' ',
-            decoded.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-        if (collapsed.Length <= MaxPreviewLength)
-            return collapsed;
+		var withoutTags = HtmlTagRegex().Replace(htmlOrText, " ");
+		var decoded = WebUtility.HtmlDecode(withoutTags);
+		var collapsed = string.Join(
+			' ',
+			decoded.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+		if (collapsed.Length <= MaxPreviewLength)
+			return collapsed;
 
-        return string.Concat(collapsed.AsSpan(0, MaxPreviewLength), "…");
-    }
+		return string.Concat(collapsed.AsSpan(0, MaxPreviewLength), "…");
+	}
 
-    /// <summary>Returns a length-capped media URL string for operator preview (no HTML interpretation).</summary>
-    public static string? ToMediaUrlPreview(string? mediaUrl)
-    {
-        if (string.IsNullOrWhiteSpace(mediaUrl))
-            return null;
+	/// <summary>Returns a length-capped media URL string for operator preview (no HTML interpretation).</summary>
+	public static string? ToMediaUrlPreview(string? mediaUrl)
+	{
+		if (string.IsNullOrWhiteSpace(mediaUrl))
+			return null;
 
-        var trimmed = mediaUrl.Trim();
-        return trimmed.Length <= ContentModerationInputSanitizer.MaxMediaUrlLength
-            ? trimmed
-            : string.Concat(trimmed.AsSpan(0, ContentModerationInputSanitizer.MaxMediaUrlLength), "…");
-    }
+		var trimmed = mediaUrl.Trim();
+		return trimmed.Length <= ContentModerationInputSanitizer.MaxMediaUrlLength
+			? trimmed
+			: string.Concat(trimmed.AsSpan(0, ContentModerationInputSanitizer.MaxMediaUrlLength), "…");
+	}
 }

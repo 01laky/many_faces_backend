@@ -12,72 +12,72 @@ namespace BeDemo.Api.Data;
 /// </summary>
 public partial class ApplicationDbContext
 {
-    /// <inheritdoc />
-    public override int SaveChanges(bool acceptAllChangesOnSuccess)
-    {
-        ApplyAccessTokenInvalidationAsync(CancellationToken.None).GetAwaiter().GetResult();
-        return base.SaveChanges(acceptAllChangesOnSuccess);
-    }
+	/// <inheritdoc />
+	public override int SaveChanges(bool acceptAllChangesOnSuccess)
+	{
+		ApplyAccessTokenInvalidationAsync(CancellationToken.None).GetAwaiter().GetResult();
+		return base.SaveChanges(acceptAllChangesOnSuccess);
+	}
 
-    /// <inheritdoc />
-    public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
-    {
-        await ApplyAccessTokenInvalidationAsync(cancellationToken).ConfigureAwait(false);
-        return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
-    }
+	/// <inheritdoc />
+	public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+	{
+		await ApplyAccessTokenInvalidationAsync(cancellationToken).ConfigureAwait(false);
+		return await base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken).ConfigureAwait(false);
+	}
 
-    private async Task ApplyAccessTokenInvalidationAsync(CancellationToken cancellationToken)
-    {
-        var now = DateTime.UtcNow;
-        var userIds = new HashSet<string>();
+	private async Task ApplyAccessTokenInvalidationAsync(CancellationToken cancellationToken)
+	{
+		var now = DateTime.UtcNow;
+		var userIds = new HashSet<string>();
 
-        foreach (var entry in ChangeTracker.Entries<ApplicationUser>())
-        {
-            if (entry.State != EntityState.Modified)
-                continue;
+		foreach (var entry in ChangeTracker.Entries<ApplicationUser>())
+		{
+			if (entry.State != EntityState.Modified)
+				continue;
 
-            var pwdProp = entry.Property(u => u.PasswordHash);
-            var roleProp = entry.Property(u => u.UserRoleId);
+			var pwdProp = entry.Property(u => u.PasswordHash);
+			var roleProp = entry.Property(u => u.UserRoleId);
 
-            // Prefer value comparison for UserRoleId: some providers/tests do not always mark FK IsModified
-            // even when CurrentValue diverges from the snapshot (J6 / AccessTokenVersionTests).
-            var pwdChanged = pwdProp.IsModified
-                || !string.Equals(
-                    pwdProp.OriginalValue as string,
-                    pwdProp.CurrentValue as string,
-                    StringComparison.Ordinal);
-            var roleChanged = roleProp.IsModified
-                || !Equals(roleProp.OriginalValue, roleProp.CurrentValue);
+			// Prefer value comparison for UserRoleId: some providers/tests do not always mark FK IsModified
+			// even when CurrentValue diverges from the snapshot (J6 / AccessTokenVersionTests).
+			var pwdChanged = pwdProp.IsModified
+				|| !string.Equals(
+					pwdProp.OriginalValue as string,
+					pwdProp.CurrentValue as string,
+					StringComparison.Ordinal);
+			var roleChanged = roleProp.IsModified
+				|| !Equals(roleProp.OriginalValue, roleProp.CurrentValue);
 
-            if (pwdChanged || roleChanged)
-            {
-                var atvProp = entry.Property(u => u.AccessTokenVersion);
-                var floor = atvProp.OriginalValue + 1;
-                atvProp.CurrentValue = Math.Max(atvProp.CurrentValue, floor);
-                atvProp.IsModified = true;
-                userIds.Add(entry.Entity.Id);
+			if (pwdChanged || roleChanged)
+			{
+				var atvProp = entry.Property(u => u.AccessTokenVersion);
+				var floor = atvProp.OriginalValue + 1;
+				atvProp.CurrentValue = Math.Max(atvProp.CurrentValue, floor);
+				atvProp.IsModified = true;
+				userIds.Add(entry.Entity.Id);
 
-                if (pwdChanged)
-                    SecurityAuditLogger.LogPasswordChanged(entry.Entity.Id);
-                if (roleChanged)
-                {
-                    SecurityAuditLogger.LogGlobalRoleChanged(
-                        entry.Entity.Id,
-                        roleProp.OriginalValue,
-                        roleProp.CurrentValue);
-                }
-            }
-        }
+				if (pwdChanged)
+					SecurityAuditLogger.LogPasswordChanged(entry.Entity.Id);
+				if (roleChanged)
+				{
+					SecurityAuditLogger.LogGlobalRoleChanged(
+						entry.Entity.Id,
+						roleProp.OriginalValue,
+						roleProp.CurrentValue);
+				}
+			}
+		}
 
-        if (userIds.Count == 0)
-            return;
+		if (userIds.Count == 0)
+			return;
 
-        var tokens = await OAuthRefreshTokens
-            .Where(t => userIds.Contains(t.UserId) && t.RevokedAtUtc == null)
-            .ToListAsync(cancellationToken)
-            .ConfigureAwait(false);
+		var tokens = await OAuthRefreshTokens
+			.Where(t => userIds.Contains(t.UserId) && t.RevokedAtUtc == null)
+			.ToListAsync(cancellationToken)
+			.ConfigureAwait(false);
 
-        foreach (var t in tokens)
-            t.RevokedAtUtc = now;
-    }
+		foreach (var t in tokens)
+			t.RevokedAtUtc = now;
+	}
 }

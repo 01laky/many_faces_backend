@@ -11,34 +11,34 @@ namespace BeDemo.Api.Tests;
 /// </summary>
 public sealed class OAuthExemptPathRegressionTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
-    private readonly CustomWebApplicationFactory<Program> _factory;
+	private readonly CustomWebApplicationFactory<Program> _factory;
 
-    public OAuthExemptPathRegressionTests(CustomWebApplicationFactory<Program> factory) => _factory = factory;
+	public OAuthExemptPathRegressionTests(CustomWebApplicationFactory<Program> factory) => _factory = factory;
 
-    [Fact]
-    public async Task Jwks_OnUnscopedClient_Returns200_Not404()
-    {
-        using var client = _factory.CreateUnscopedClient();
-        var res = await client.GetAsync("/api/oauth2/jwks");
-        res.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
-        res.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
+	[Fact]
+	public async Task Jwks_OnUnscopedClient_Returns200_Not404()
+	{
+		using var client = _factory.CreateUnscopedClient();
+		var res = await client.GetAsync("/api/oauth2/jwks");
+		res.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
+		res.StatusCode.Should().Be(HttpStatusCode.OK);
+	}
 
-    [Fact]
-    public async Task Token_OnUnscopedClient_ReachesOAuth_Not404()
-    {
-        using var client = _factory.CreateUnscopedClient();
-        var res = await client.PostAsJsonAsync(
-            "/api/oauth2/token",
-            new OAuth2TokenRequest
-            {
-                GrantType = "password",
-                ClientId = "be-demo-client",
-                ClientSecret = "wrong",
-                Username = "nobody@test.com",
-                Password = "x",
-            });
-        res.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
-        res.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
+	[Fact]
+	public async Task Token_OnUnscopedClient_ReachesOAuth_Not404()
+	{
+		using var client = _factory.CreateUnscopedClient();
+		var res = await client.PostAsJsonAsync(
+			"/api/oauth2/token",
+			new OAuth2TokenRequest
+			{
+				GrantType = "password",
+				ClientId = "be-demo-client",
+				ClientSecret = "wrong",
+				Username = "nobody@test.com",
+				Password = "x",
+			});
+		res.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
+		res.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+	}
 }

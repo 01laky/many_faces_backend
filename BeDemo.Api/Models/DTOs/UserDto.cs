@@ -15,11 +15,11 @@ namespace BeDemo.Api.Models.DTOs;
 /// </summary>
 public class UserDto
 {
-    public string Id { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
-    public string? FirstName { get; set; }
-    public string? LastName { get; set; }
-    public DateTime CreatedAt { get; set; }
+	public string Id { get; set; } = string.Empty;
+	public string Email { get; set; } = string.Empty;
+	public string? FirstName { get; set; }
+	public string? LastName { get; set; }
+	public DateTime CreatedAt { get; set; }
 }
 
 /// <summary>
@@ -27,17 +27,17 @@ public class UserDto
 /// </summary>
 public class CreateUserDto
 {
-    [Required(ErrorMessage = "Email is required")]
-    [EmailAddress(ErrorMessage = "Invalid email address")]
-    public string Email { get; set; } = string.Empty;
+	[Required(ErrorMessage = "Email is required")]
+	[EmailAddress(ErrorMessage = "Invalid email address")]
+	public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Password is required")]
-    [MinLength(IdentityPasswordPolicyOptions.RecommendedMinimumLength, ErrorMessage = "Password must be at least 12 characters")]
-    public string Password { get; set; } = string.Empty;
+	[Required(ErrorMessage = "Password is required")]
+	[MinLength(IdentityPasswordPolicyOptions.RecommendedMinimumLength, ErrorMessage = "Password must be at least 12 characters")]
+	public string Password { get; set; } = string.Empty;
 
-    public string? FirstName { get; set; }
+	public string? FirstName { get; set; }
 
-    public string? LastName { get; set; }
+	public string? LastName { get; set; }
 }
 
 /// <summary>
@@ -45,13 +45,13 @@ public class CreateUserDto
 /// </summary>
 public class UpdateUserDto
 {
-    [EmailAddress(ErrorMessage = "Invalid email address")]
-    public string? Email { get; set; }
+	[EmailAddress(ErrorMessage = "Invalid email address")]
+	public string? Email { get; set; }
 
-    [MinLength(IdentityPasswordPolicyOptions.RecommendedMinimumLength, ErrorMessage = "Password must be at least 12 characters")]
-    public string? Password { get; set; }
+	[MinLength(IdentityPasswordPolicyOptions.RecommendedMinimumLength, ErrorMessage = "Password must be at least 12 characters")]
+	public string? Password { get; set; }
 
-    public string? FirstName { get; set; }
+	public string? FirstName { get; set; }
 
-    public string? LastName { get; set; }
+	public string? LastName { get; set; }
 }

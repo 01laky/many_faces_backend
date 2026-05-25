@@ -1,22 +1,24 @@
 {
-  "name": "be-demo",
-  "version": "1.0.0",
-  "description": "Backend API for Be Demo",
-  "author": "Ladislav Kostolny <01laky@gmail.com>",
-  "private": true,
-  "packageManager": "yarn@4.12.0+sha512.f45ab632439a67f8bc759bf32ead036a1f413287b9042726b7cc4818b7b49e14e9423ba49b18f9e06ea4941c1ad062385b1d8760a8d5091a1a31e5f6219afca8",
-  "scripts": {
-    "lint": "dotnet format BeDemo.sln --verify-no-changes",
-    "test": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj --verbosity minimal",
-    "test:verbose": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj --verbosity normal",
-    "test:detailed": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj --verbosity detailed",
-    "test:watch": "dotnet watch test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj",
-    "test:coverage": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=opencover",
-    "prepare": "husky"
-  },
-  "devDependencies": {
-    "@commitlint/cli": "^20.5.0",
-    "@commitlint/config-conventional": "^20.5.0",
-    "husky": "^9.1.7"
-  }
+	"name": "be-demo",
+	"version": "1.0.0",
+	"description": "Backend API for Be Demo",
+	"author": "Ladislav Kostolny <01laky@gmail.com>",
+	"private": true,
+	"packageManager": "yarn@4.12.0+sha512.f45ab632439a67f8bc759bf32ead036a1f413287b9042726b7cc4818b7b49e14e9423ba49b18f9e06ea4941c1ad062385b1d8760a8d5091a1a31e5f6219afca8",
+	"scripts": {
+		"format": "dotnet format BeDemo.sln && prettier --write .",
+		"lint": "dotnet format BeDemo.sln --verify-no-changes && prettier --check .",
+		"test": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj --verbosity minimal",
+		"test:verbose": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj --verbosity normal",
+		"test:detailed": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj --verbosity detailed",
+		"test:watch": "dotnet watch test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj",
+		"test:coverage": "dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj /p:CollectCoverage=true /p:CoverletOutputFormat=opencover",
+		"prepare": "husky"
+	},
+	"devDependencies": {
+		"@commitlint/cli": "^20.5.0",
+		"@commitlint/config-conventional": "^20.5.0",
+		"husky": "^9.1.7",
+		"prettier": "^3.8.3"
+	}
 }

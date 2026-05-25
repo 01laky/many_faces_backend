@@ -16,17 +16,17 @@ namespace BeDemo.Api.Configuration;
 /// </remarks>
 public sealed class IdentityPasswordPolicyOptions
 {
-    /// <summary>Configuration section (<c>appsettings.json</c> → <c>Identity:Password</c>).</summary>
-    public const string SectionName = "Identity:Password";
+	/// <summary>Configuration section (<c>appsettings.json</c> → <c>Identity:Password</c>).</summary>
+	public const string SectionName = "Identity:Password";
 
-    /// <summary>SHV2 BE-A3 policy minimum for non-Development environments.</summary>
-    public const int RecommendedMinimumLength = 12;
+	/// <summary>SHV2 BE-A3 policy minimum for non-Development environments.</summary>
+	public const int RecommendedMinimumLength = 12;
 
-    /// <summary>Legacy demo minimum before BE-A3 — referenced in validation messages and tests only.</summary>
-    public const int LegacyWeakMinimumLength = 4;
+	/// <summary>Legacy demo minimum before BE-A3 — referenced in validation messages and tests only.</summary>
+	public const int LegacyWeakMinimumLength = 4;
 
-    /// <summary>
-    /// Minimum password length enforced by Identity on register, password reset, and admin user creation.
-    /// </summary>
-    public int RequiredLength { get; set; } = RecommendedMinimumLength;
+	/// <summary>
+	/// Minimum password length enforced by Identity on register, password reset, and admin user creation.
+	/// </summary>
+	public int RequiredLength { get; set; } = RecommendedMinimumLength;
 }

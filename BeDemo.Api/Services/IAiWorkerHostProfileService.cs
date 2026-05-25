@@ -4,7 +4,7 @@ namespace BeDemo.Api.Services;
 
 public interface IAiWorkerHostProfileService
 {
-    Task RefreshFromWorkerAsync(CancellationToken cancellationToken = default);
+	Task RefreshFromWorkerAsync(CancellationToken cancellationToken = default);
 
-    Task<OperatorAiWorkerHostDto> GetOperatorViewAsync(CancellationToken cancellationToken = default);
+	Task<OperatorAiWorkerHostDto> GetOperatorViewAsync(CancellationToken cancellationToken = default);
 }

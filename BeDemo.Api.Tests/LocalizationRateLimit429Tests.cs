@@ -28,56 +28,56 @@ namespace BeDemo.Api.Tests;
 [Collection(LocalizationRateLimitCollection.Name)]
 public sealed class LocalizationRateLimit429Tests : IDisposable
 {
-    private readonly RateLimitedLocalizationWebApplicationFactory _factory;
-    private readonly HttpClient _client;
+	private readonly RateLimitedLocalizationWebApplicationFactory _factory;
+	private readonly HttpClient _client;
 
-    /// <summary>
-    /// Receives the shared <see cref="RateLimitedLocalizationWebApplicationFactory"/> from
-    /// <see cref="LocalizationRateLimitCollection"/> (one host per collection).
-    /// </summary>
-    public LocalizationRateLimit429Tests(RateLimitedLocalizationWebApplicationFactory factory)
-    {
-        _factory = factory;
-        // Localization is face-prefix exempt — use an unscoped client (bare /api/localization/...).
-        _client = factory.CreateUnscopedClient();
-    }
+	/// <summary>
+	/// Receives the shared <see cref="RateLimitedLocalizationWebApplicationFactory"/> from
+	/// <see cref="LocalizationRateLimitCollection"/> (one host per collection).
+	/// </summary>
+	public LocalizationRateLimit429Tests(RateLimitedLocalizationWebApplicationFactory factory)
+	{
+		_factory = factory;
+		// Localization is face-prefix exempt — use an unscoped client (bare /api/localization/...).
+		_client = factory.CreateUnscopedClient();
+	}
 
-    /// <summary>
-    /// End-to-end: host config, shared IP partition across apps, burst 429 body/headers, window reset.
-    /// </summary>
-    [Fact]
-    public async Task Localization_read_policy_enforces_429_with_retry_after_and_shared_ip_partition()
-    {
-        using (var scope = _factory.Services.CreateScope())
-        {
-            var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-            config["Testing:RateLimitScopeId"].Should().NotBeNullOrEmpty();
-            config.GetValue<bool>("OAuth2:BypassRateLimitInTesting", true).Should().BeFalse();
-            config.GetValue<int>("Localization:RateLimitPermitLimit", 0).Should().Be(2);
-        }
+	/// <summary>
+	/// End-to-end: host config, shared IP partition across apps, burst 429 body/headers, window reset.
+	/// </summary>
+	[Fact]
+	public async Task Localization_read_policy_enforces_429_with_retry_after_and_shared_ip_partition()
+	{
+		using (var scope = _factory.Services.CreateScope())
+		{
+			var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+			config["Testing:RateLimitScopeId"].Should().NotBeNullOrEmpty();
+			config.GetValue<bool>("OAuth2:BypassRateLimitInTesting", true).Should().BeFalse();
+			config.GetValue<int>("Localization:RateLimitPermitLimit", 0).Should().Be(2);
+		}
 
-        // Phase A — portal + admin consume two permits; mobile is rejected (same IP partition, not per-app).
-        (await _client.GetAsync("/api/localization/portal")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await _client.GetAsync("/api/localization/admin")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await _client.GetAsync("/api/localization/mobile")).StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+		// Phase A — portal + admin consume two permits; mobile is rejected (same IP partition, not per-app).
+		(await _client.GetAsync("/api/localization/portal")).StatusCode.Should().Be(HttpStatusCode.OK);
+		(await _client.GetAsync("/api/localization/admin")).StatusCode.Should().Be(HttpStatusCode.OK);
+		(await _client.GetAsync("/api/localization/mobile")).StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
 
-        // Phase B — after the 3s test window, burst again on portal and assert JSON 429 shape.
-        await Task.Delay(TimeSpan.FromSeconds(3.5));
+		// Phase B — after the 3s test window, burst again on portal and assert JSON 429 shape.
+		await Task.Delay(TimeSpan.FromSeconds(3.5));
 
-        (await _client.GetAsync("/api/localization/portal")).StatusCode.Should().Be(HttpStatusCode.OK);
-        (await _client.GetAsync("/api/localization/portal")).StatusCode.Should().Be(HttpStatusCode.OK);
+		(await _client.GetAsync("/api/localization/portal")).StatusCode.Should().Be(HttpStatusCode.OK);
+		(await _client.GetAsync("/api/localization/portal")).StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var limited = await _client.GetAsync("/api/localization/portal");
-        limited.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
-        limited.Headers.RetryAfter.Should().NotBeNull();
-        limited.Headers.RetryAfter!.Delta.Should().NotBeNull();
+		var limited = await _client.GetAsync("/api/localization/portal");
+		limited.StatusCode.Should().Be(HttpStatusCode.TooManyRequests);
+		limited.Headers.RetryAfter.Should().NotBeNull();
+		limited.Headers.RetryAfter!.Delta.Should().NotBeNull();
 
-        limited.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
-        var body = await limited.Content.ReadAsStringAsync();
-        using var doc = JsonDocument.Parse(body);
-        doc.RootElement.GetProperty("error").GetString().Should().Be("rate_limit");
-        doc.RootElement.GetProperty("error_description").GetString().Should().Contain("Too many requests");
-    }
+		limited.Content.Headers.ContentType?.MediaType.Should().Be("application/json");
+		var body = await limited.Content.ReadAsStringAsync();
+		using var doc = JsonDocument.Parse(body);
+		doc.RootElement.GetProperty("error").GetString().Should().Be("rate_limit");
+		doc.RootElement.GetProperty("error_description").GetString().Should().Contain("Too many requests");
+	}
 
-    public void Dispose() => _client.Dispose();
+	public void Dispose() => _client.Dispose();
 }
