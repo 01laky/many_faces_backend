@@ -24,7 +24,8 @@ public sealed class AdminMeFaceRowDto
 	public int FaceId { get; set; }
 	public string FaceIndex { get; set; } = null!;
 	public string FaceTitle { get; set; } = null!;
-	public int UserRoleId { get; set; }
-	public string RoleName { get; set; } = null!;
+	public int? UserRoleId { get; set; }
+	public string? RoleName { get; set; }
+	public bool HasMembership { get; set; }
 	public bool IsActiveParticipant { get; set; }
 }

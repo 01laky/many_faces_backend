@@ -131,15 +131,8 @@ public sealed class OperatorUserModerationService : IOperatorUserModerationServi
 		int faceId,
 		int userRoleId,
 		string correlationId,
-		CancellationToken cancellationToken = default)
-	{
-		var hasMembership = await _context.UserFaceRoles.AsNoTracking()
-			.AnyAsync(ufr => ufr.UserId == userId && ufr.FaceId == faceId, cancellationToken);
-		if (!hasMembership)
-			return (false, "Face membership not found", StatusCodes.Status404NotFound);
-
-		return await ApplyFaceRoleChangeAsync(userId, userId, faceId, userRoleId, correlationId, cancellationToken);
-	}
+		CancellationToken cancellationToken = default) =>
+		await ApplyFaceRoleChangeAsync(userId, userId, faceId, userRoleId, correlationId, cancellationToken);
 
 	private async Task<(bool Success, string? Error, int StatusCode)> ApplyFaceRoleChangeAsync(
 		string operatorUserId,
@@ -186,27 +179,13 @@ public sealed class OperatorUserModerationService : IOperatorUserModerationServi
 		var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == targetUserId, cancellationToken);
 		if (userProfile != null)
 		{
-			var ufp = await _context.UserFaceProfiles
-				.FirstOrDefaultAsync(x => x.UserProfileId == userProfile.Id && x.FaceId == faceId, cancellationToken);
 			var isActive = FaceRoleParticipation.IsActiveForFaceRoleName(role.Name);
-			if (ufp != null)
-			{
-				ufp.IsActive = isActive;
-				ufp.FaceRoleIntroCompleted = true;
-				ufp.UpdatedAt = DateTime.UtcNow;
-			}
-			else
-			{
-				_context.UserFaceProfiles.Add(new UserFaceProfile
-				{
-					UserProfileId = userProfile.Id,
-					FaceId = faceId,
-					IsActive = isActive,
-					Visited = false,
-					FaceRoleIntroCompleted = true,
-					CreatedAt = DateTime.UtcNow,
-				});
-			}
+			await UserFaceProfileEnsure.GetOrCreateAsync(
+				_context,
+				userProfile.Id,
+				faceId,
+				UserFaceProfileEnsure.Options.ForFaceRole(isActive, faceRoleIntroCompleted: true),
+				cancellationToken);
 		}
 
 		await _context.SaveChangesAsync(cancellationToken);

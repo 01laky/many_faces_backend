@@ -38,8 +38,12 @@ public sealed class AdminMeProfileControllerTests : IClassFixture<CustomWebAppli
 		res.StatusCode.Should().Be(HttpStatusCode.OK);
 		var json = await res.Content.ReadFromJsonAsync<JsonElement>();
 		json.GetProperty("email").GetString().Should().Be(IntegrationTestSeed.SuperAdminEmail);
-		json.GetProperty("faces").GetArrayLength().Should().BeGreaterThan(0);
 		json.GetProperty("globalRole").GetProperty("name").GetString().Should().Be(UserRole.GlobalRoleNames.SuperAdmin);
+
+		using var scope = _factory.Services.CreateScope();
+		var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var faceCount = await db.Faces.AsNoTracking().CountAsync();
+		json.GetProperty("faces").GetArrayLength().Should().Be(faceCount);
 	}
 
 	[Fact]
@@ -127,11 +131,278 @@ public sealed class AdminMeProfileControllerTests : IClassFixture<CustomWebAppli
 	}
 
 	[Fact]
-	public async Task SAP_B7_PatchFaceRole_NotMember_Returns404()
+	public async Task SAP_B19_PatchFaceRole_UnknownFace_Returns404()
 	{
 		var token = await GetSuperAdminTokenAsync();
-		var patch = AuthJson(HttpMethod.Patch, "/api/admin/me/faces/999999/role", token, new { userRoleId = 1 });
-		(await _adminFace.SendAsync(patch)).StatusCode.Should().Be(HttpStatusCode.NotFound);
+		using var scope = _factory.Services.CreateScope();
+		var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+		var faceUserRole = await db.UserRoles.AsNoTracking()
+			.FirstAsync(r => r.Name == UserRole.FaceRoleNames.FaceUser);
+
+		var patch = AuthJson(HttpMethod.Patch, "/api/admin/me/faces/999999/role", token, new { userRoleId = faceUserRole.Id });
+		var res = await _adminFace.SendAsync(patch);
+		res.StatusCode.Should().Be(HttpStatusCode.NotFound);
+		var body = await res.Content.ReadAsStringAsync();
+		body.Should().Contain("Face not found");
+	}
+
+	[Fact]
+	public async Task SAP_B15_GetProfile_ReturnsAllFacesWithUnassignedRows()
+	{
+		var token = await GetSuperAdminTokenAsync();
+		var userId = await GetSuperAdminUserIdAsync();
+		UserFaceRole? backup = null;
+		using (var scope = _factory.Services.CreateScope())
+		{
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var tenantFace = await db.Faces.AsNoTracking()
+				.FirstAsync(f => f.Index != "admin");
+			backup = await db.UserFaceRoles
+				.FirstOrDefaultAsync(ufr => ufr.UserId == userId && ufr.FaceId == tenantFace.Id);
+			if (backup != null)
+			{
+				db.UserFaceRoles.Remove(backup);
+				await db.SaveChangesAsync();
+			}
+
+			var res = await _adminFace.SendAsync(AuthGet("/api/admin/me/profile", token));
+			res.StatusCode.Should().Be(HttpStatusCode.OK);
+			var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+			var faceCount = await db.Faces.AsNoTracking().CountAsync();
+			json.GetProperty("faces").GetArrayLength().Should().Be(faceCount);
+
+			var tenantRow = json.GetProperty("faces").EnumerateArray()
+				.First(e => e.GetProperty("faceId").GetInt32() == tenantFace.Id);
+			tenantRow.GetProperty("hasMembership").GetBoolean().Should().BeFalse();
+			tenantRow.GetProperty("userRoleId").ValueKind.Should().Be(JsonValueKind.Null);
+		}
+
+		if (backup != null)
+		{
+			using var scope = _factory.Services.CreateScope();
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			db.UserFaceRoles.Add(backup);
+			await db.SaveChangesAsync();
+		}
+	}
+
+	[Fact]
+	public async Task SAP_B16_PatchFaceRole_WhenNotMember_CreatesMembership()
+	{
+		var token = await GetSuperAdminTokenAsync();
+		var userId = await GetSuperAdminUserIdAsync();
+		List<UserFaceRole> backup = [];
+		try
+		{
+			using (var scope = _factory.Services.CreateScope())
+			{
+				var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+				var tenantFace = await db.Faces.AsNoTracking()
+					.FirstAsync(f => f.Index != "admin");
+				var faceUserRole = await db.UserRoles.AsNoTracking()
+					.FirstAsync(r => r.Name == UserRole.FaceRoleNames.FaceUser);
+
+				backup = await db.UserFaceRoles
+					.Where(ufr => ufr.UserId == userId && ufr.FaceId == tenantFace.Id)
+					.ToListAsync();
+				db.UserFaceRoles.RemoveRange(backup);
+				await db.SaveChangesAsync();
+
+				var patch = AuthJson(
+					HttpMethod.Patch,
+					$"/api/admin/me/faces/{tenantFace.Id}/role",
+					token,
+					new { userRoleId = faceUserRole.Id });
+				(await _adminFace.SendAsync(patch)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+				var row = await db.UserFaceRoles.AsNoTracking()
+					.FirstAsync(ufr => ufr.UserId == userId && ufr.FaceId == tenantFace.Id);
+				row.UserRoleId.Should().Be(faceUserRole.Id);
+
+				var profileId = await db.UserProfiles.AsNoTracking()
+					.Where(p => p.UserId == userId)
+					.Select(p => p.Id)
+					.FirstAsync();
+				var ufp = await db.UserFaceProfiles.AsNoTracking()
+					.FirstOrDefaultAsync(x => x.UserProfileId == profileId && x.FaceId == tenantFace.Id);
+				ufp.Should().NotBeNull();
+			}
+		}
+		finally
+		{
+			using var scope = _factory.Services.CreateScope();
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var tenantFaceId = await db.Faces.AsNoTracking()
+				.Where(f => f.Index != "admin")
+				.Select(f => f.Id)
+				.FirstAsync();
+			var current = await db.UserFaceRoles
+				.Where(ufr => ufr.UserId == userId && ufr.FaceId == tenantFaceId)
+				.ToListAsync();
+			db.UserFaceRoles.RemoveRange(current);
+			db.UserFaceRoles.AddRange(backup);
+			await db.SaveChangesAsync();
+		}
+	}
+
+	[Fact]
+	public async Task SAP_B17_GetProfile_AfterAssign_ShowsMembership()
+	{
+		var token = await GetSuperAdminTokenAsync();
+		var userId = await GetSuperAdminUserIdAsync();
+		List<UserFaceRole> backup = [];
+		try
+		{
+			int tenantFaceId;
+			int faceUserRoleId;
+			using (var scope = _factory.Services.CreateScope())
+			{
+				var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+				tenantFaceId = await db.Faces.AsNoTracking()
+					.Where(f => f.Index != "admin")
+					.Select(f => f.Id)
+					.FirstAsync();
+				faceUserRoleId = await db.UserRoles.AsNoTracking()
+					.Where(r => r.Name == UserRole.FaceRoleNames.FaceUser)
+					.Select(r => r.Id)
+					.FirstAsync();
+				backup = await db.UserFaceRoles
+					.Where(ufr => ufr.UserId == userId && ufr.FaceId == tenantFaceId)
+					.ToListAsync();
+				db.UserFaceRoles.RemoveRange(backup);
+				await db.SaveChangesAsync();
+			}
+
+			var patch = AuthJson(
+				HttpMethod.Patch,
+				$"/api/admin/me/faces/{tenantFaceId}/role",
+				token,
+				new { userRoleId = faceUserRoleId });
+			(await _adminFace.SendAsync(patch)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var res = await _adminFace.SendAsync(AuthGet("/api/admin/me/profile", token));
+			var json = await res.Content.ReadFromJsonAsync<JsonElement>();
+			var row = json.GetProperty("faces").EnumerateArray()
+				.First(e => e.GetProperty("faceId").GetInt32() == tenantFaceId);
+			row.GetProperty("hasMembership").GetBoolean().Should().BeTrue();
+			row.GetProperty("roleName").GetString().Should().Be(UserRole.FaceRoleNames.FaceUser);
+		}
+		finally
+		{
+			using var scope = _factory.Services.CreateScope();
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var tenantFaceId = await db.Faces.AsNoTracking()
+				.Where(f => f.Index != "admin")
+				.Select(f => f.Id)
+				.FirstAsync();
+			var current = await db.UserFaceRoles
+				.Where(ufr => ufr.UserId == userId && ufr.FaceId == tenantFaceId)
+				.ToListAsync();
+			db.UserFaceRoles.RemoveRange(current);
+			db.UserFaceRoles.AddRange(backup);
+			await db.SaveChangesAsync();
+		}
+	}
+
+	[Fact]
+	public async Task SAP_B18_PatchFaceRole_GlobalScopeOnUnassignedFace_Returns400()
+	{
+		var token = await GetSuperAdminTokenAsync();
+		var userId = await GetSuperAdminUserIdAsync();
+		List<UserFaceRole> backup = [];
+		try
+		{
+			using (var scope = _factory.Services.CreateScope())
+			{
+				var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+				var tenantFace = await db.Faces.AsNoTracking()
+					.FirstAsync(f => f.Index != "admin");
+				var superRole = await db.UserRoles.AsNoTracking()
+					.FirstAsync(r => r.Name == UserRole.GlobalRoleNames.SuperAdmin);
+
+				backup = await db.UserFaceRoles
+					.Where(ufr => ufr.UserId == userId && ufr.FaceId == tenantFace.Id)
+					.ToListAsync();
+				db.UserFaceRoles.RemoveRange(backup);
+				await db.SaveChangesAsync();
+
+				var patch = AuthJson(
+					HttpMethod.Patch,
+					$"/api/admin/me/faces/{tenantFace.Id}/role",
+					token,
+					new { userRoleId = superRole.Id });
+				(await _adminFace.SendAsync(patch)).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+			}
+		}
+		finally
+		{
+			using var scope = _factory.Services.CreateScope();
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var tenantFaceId = await db.Faces.AsNoTracking()
+				.Where(f => f.Index != "admin")
+				.Select(f => f.Id)
+				.FirstAsync();
+			var current = await db.UserFaceRoles
+				.Where(ufr => ufr.UserId == userId && ufr.FaceId == tenantFaceId)
+				.ToListAsync();
+			db.UserFaceRoles.RemoveRange(current);
+			db.UserFaceRoles.AddRange(backup);
+			await db.SaveChangesAsync();
+		}
+	}
+
+	[Fact]
+	public async Task SAP_B20_GetProfile_ZeroMemberships_ReturnsFullGridThenPatchOne()
+	{
+		var token = await GetSuperAdminTokenAsync();
+		var userId = await GetSuperAdminUserIdAsync();
+		List<UserFaceRole> backup;
+		using (var scope = _factory.Services.CreateScope())
+		{
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			backup = await db.UserFaceRoles.Where(ufr => ufr.UserId == userId).ToListAsync();
+			db.UserFaceRoles.RemoveRange(backup);
+			await db.SaveChangesAsync();
+		}
+
+		try
+		{
+			using var scope = _factory.Services.CreateScope();
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var faceCount = await db.Faces.AsNoTracking().CountAsync();
+			var tenantFace = await db.Faces.AsNoTracking()
+				.FirstAsync(f => f.Index != "admin");
+			var faceUserRole = await db.UserRoles.AsNoTracking()
+				.FirstAsync(r => r.Name == UserRole.FaceRoleNames.FaceUser);
+
+			var getRes = await _adminFace.SendAsync(AuthGet("/api/admin/me/profile", token));
+			var json = await getRes.Content.ReadFromJsonAsync<JsonElement>();
+			json.GetProperty("faces").GetArrayLength().Should().Be(faceCount);
+			foreach (var row in json.GetProperty("faces").EnumerateArray())
+				row.GetProperty("hasMembership").GetBoolean().Should().BeFalse();
+
+			var patch = AuthJson(
+				HttpMethod.Patch,
+				$"/api/admin/me/faces/{tenantFace.Id}/role",
+				token,
+				new { userRoleId = faceUserRole.Id });
+			(await _adminFace.SendAsync(patch)).StatusCode.Should().Be(HttpStatusCode.OK);
+
+			var getAfter = await _adminFace.SendAsync(AuthGet("/api/admin/me/profile", token));
+			var afterJson = await getAfter.Content.ReadFromJsonAsync<JsonElement>();
+			afterJson.GetProperty("faces").EnumerateArray()
+				.Count(r => r.GetProperty("hasMembership").GetBoolean())
+				.Should().Be(1);
+		}
+		finally
+		{
+			using var scope = _factory.Services.CreateScope();
+			var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+			var current = await db.UserFaceRoles.Where(ufr => ufr.UserId == userId).ToListAsync();
+			db.UserFaceRoles.RemoveRange(current);
+			db.UserFaceRoles.AddRange(backup);
+			await db.SaveChangesAsync();
+		}
 	}
 
 	[Fact]

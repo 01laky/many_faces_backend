@@ -58,7 +58,8 @@ public sealed class AdminMeProfileService : IAdminMeProfileService
 			.Select(p => p.AvatarUrl)
 			.FirstOrDefaultAsync(cancellationToken);
 
-		return MapFromDetail(detail, avatarPath, scheme, host);
+		var faceRows = await BuildSelfFaceRowsAsync(userId, cancellationToken);
+		return MapFromDetail(detail, faceRows, avatarPath, scheme, host);
 	}
 
 	public async Task<(AdminMeProfileDto? Profile, string? Error, int StatusCode, bool EmailChanged)> UpdateProfileAsync(
@@ -231,7 +232,52 @@ public sealed class AdminMeProfileService : IAdminMeProfileService
 		return response is null ? "Mail worker is disabled or misconfigured." : null;
 	}
 
-	private AdminMeProfileDto MapFromDetail(OperatorUserDetailDto detail, string? avatarPath, string scheme, string host) =>
+	private async Task<List<AdminMeFaceRowDto>> BuildSelfFaceRowsAsync(
+		string userId,
+		CancellationToken cancellationToken)
+	{
+		var profileId = await _context.UserProfiles.AsNoTracking()
+			.Where(up => up.UserId == userId)
+			.Select(up => (int?)up.Id)
+			.FirstOrDefaultAsync(cancellationToken);
+
+		var activeMap = profileId == null
+			? new Dictionary<int, bool>()
+			: await _context.UserFaceProfiles.AsNoTracking()
+				.Where(ufp => ufp.UserProfileId == profileId.Value)
+				.ToDictionaryAsync(ufp => ufp.FaceId, ufp => ufp.IsActive, cancellationToken);
+
+		var membershipByFaceId = await (
+			from ufr in _context.UserFaceRoles.AsNoTracking()
+			join r in _context.UserRoles.AsNoTracking() on ufr.UserRoleId equals r.Id
+			where ufr.UserId == userId
+			select new { ufr.FaceId, ufr.UserRoleId, RoleName = r.Name }
+		).ToDictionaryAsync(x => x.FaceId, cancellationToken);
+
+		var faces = await _context.Faces.AsNoTracking().OrderBy(f => f.Index).ToListAsync(cancellationToken);
+
+		return faces.Select(f =>
+		{
+			var hasMembership = membershipByFaceId.TryGetValue(f.Id, out var mem);
+			return new AdminMeFaceRowDto
+			{
+				FaceId = f.Id,
+				FaceIndex = f.Index,
+				FaceTitle = f.Title,
+				UserRoleId = hasMembership ? mem!.UserRoleId : null,
+				RoleName = hasMembership ? mem!.RoleName : null,
+				HasMembership = hasMembership,
+				IsActiveParticipant = hasMembership && activeMap.TryGetValue(f.Id, out var active) && active,
+			};
+		}).ToList();
+	}
+
+	private AdminMeProfileDto MapFromDetail(
+		OperatorUserDetailDto detail,
+		IReadOnlyList<AdminMeFaceRowDto> faceRows,
+		string? avatarPath,
+		string scheme,
+		string host) =>
 		new()
 		{
 			Id = detail.Id,
@@ -246,14 +292,6 @@ public sealed class AdminMeProfileService : IAdminMeProfileService
 			},
 			EmailConfirmed = detail.Badges.EmailConfirmed,
 			GlobalAvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(avatarPath, scheme, host),
-			Faces = detail.Faces.Select(f => new AdminMeFaceRowDto
-			{
-				FaceId = f.FaceId,
-				FaceIndex = f.FaceIndex,
-				FaceTitle = f.FaceTitle,
-				UserRoleId = f.UserRoleId,
-				RoleName = f.RoleName,
-				IsActiveParticipant = f.IsActiveParticipant,
-			}).ToList(),
+			Faces = faceRows,
 		};
 }
