@@ -20,6 +20,7 @@ public sealed class FaceGridSnapshotContractTests : IClassFixture<CustomWebAppli
 		GridBlockKeys.Reels,
 		GridBlockKeys.Stories,
 		GridBlockKeys.ChatRooms,
+		GridBlockKeys.VideoLounges,
 		GridBlockKeys.Profiles,
 		GridBlockKeys.WallTickets);
 
@@ -27,7 +28,7 @@ public sealed class FaceGridSnapshotContractTests : IClassFixture<CustomWebAppli
 
 	public FaceGridSnapshotContractTests(CustomWebApplicationFactory<Program> factory) => _factory = factory;
 
-	/// <summary>BE-RP34-U1 — six block types; snapshot sections deep-equal standalone list endpoints and golden file.</summary>
+	/// <summary>BE-RP34-U1 — all block types; snapshot sections deep-equal standalone list endpoints and golden file.</summary>
 	[Fact]
 	public async Task BE_RP34_U1_SixBlockTypes_MatchStandaloneEndpointsAndGolden()
 	{
@@ -65,6 +66,27 @@ public sealed class FaceGridSnapshotContractTests : IClassFixture<CustomWebAppli
 
 			GridGoldenSchemaAssert.PaginatedEnvelopeMatchesSchema(actualNode[block.Key]!);
 		}
+	}
+
+	/// <summary>MO-RP42-U1 — video-lounges block in snapshot matches standalone list endpoint.</summary>
+	[Fact]
+	public async Task MO_RP42_U1_VideoLoungesBlock_MatchesStandaloneEndpoint()
+	{
+		using var client = _factory.CreateFaceClient("public");
+		var (token, _) = await RegisterMemberAsync(client);
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+		var faceId = await IntegrationTestFaceHelper.GetScopedFaceIdFromConfigAsync(client, token, "public");
+
+		var standalone = await client.GetFromJsonAsync<JsonElement>(
+			$"/api/faces/{faceId}/video-lounges?page={Page}&pageSize={PageSize}");
+		var snapshot = await FetchSnapshotAsync(client, faceId, GridBlockKeys.VideoLounges);
+
+		snapshot.TryGetProperty(GridBlockKeys.VideoLounges, out var loungesBlock).Should().BeTrue();
+		GridJsonComparer.DeepEquals(
+			GridJsonComparer.Parse(loungesBlock.GetRawText()),
+			GridJsonComparer.Parse(standalone!.GetRawText()),
+			out var diff).Should().BeTrue(diff);
+		GridGoldenSchemaAssert.PaginatedEnvelopeMatchesSchema(GridJsonComparer.Parse(loungesBlock.GetRawText()));
 	}
 
 	/// <summary>BE-RP34-U2 — guest vs member ACL for profiles block matches individual endpoint.</summary>
@@ -231,6 +253,8 @@ public sealed class FaceGridSnapshotContractTests : IClassFixture<CustomWebAppli
 			[GridBlockKeys.Stories] = (await client.GetFromJsonAsync<JsonElement>($"/api/stories{qs}"))!,
 			[GridBlockKeys.ChatRooms] = (await client.GetFromJsonAsync<JsonElement>(
 				$"/api/faces/{faceId}/chat-rooms?page={Page}&pageSize={PageSize}"))!,
+			[GridBlockKeys.VideoLounges] = (await client.GetFromJsonAsync<JsonElement>(
+				$"/api/faces/{faceId}/video-lounges?page={Page}&pageSize={PageSize}"))!,
 			[GridBlockKeys.Profiles] = (await client.GetFromJsonAsync<JsonElement>(
 				$"/api/faces/{faceId}/profiles?page={Page}&pageSize={PageSize}"))!,
 			[GridBlockKeys.WallTickets] = (await client.GetFromJsonAsync<JsonElement>(

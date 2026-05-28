@@ -34,6 +34,13 @@
     "totalCount": 0,
     "totalPages": 1
   },
+  "video-lounges": {
+    "items": [],
+    "page": 1,
+    "pageSize": 10,
+    "totalCount": 0,
+    "totalPages": 1
+  },
   "profiles": {
     "items": [],
     "page": 1,

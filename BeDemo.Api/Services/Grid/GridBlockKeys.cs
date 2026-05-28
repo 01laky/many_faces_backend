@@ -8,6 +8,7 @@ public static class GridBlockKeys
 	public const string Reels = "reels";
 	public const string Stories = "stories";
 	public const string ChatRooms = "chat-rooms";
+	public const string VideoLounges = "video-lounges";
 	public const string Profiles = "profiles";
 	public const string WallTickets = "wall-tickets";
 
@@ -18,6 +19,7 @@ public static class GridBlockKeys
 		Reels,
 		Stories,
 		ChatRooms,
+		VideoLounges,
 		Profiles,
 		WallTickets,
 	};
@@ -30,6 +32,7 @@ public static class GridBlockKeys
 		Reels,
 		Stories,
 		ChatRooms,
+		VideoLounges,
 		WallTickets,
 	};
 

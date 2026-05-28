@@ -41,7 +41,7 @@ public class FaceGridSnapshotController : ControllerBase
 		{
 			return BadRequest(new
 			{
-				error = "At least one valid block key is required in blocks= (albums, blogs, reels, stories, chat-rooms, profiles, wall-tickets). Unknown keys are ignored.",
+				error = "At least one valid block key is required in blocks= (albums, blogs, reels, stories, chat-rooms, video-lounges, profiles, wall-tickets). Unknown keys are ignored.",
 			});
 		}
 

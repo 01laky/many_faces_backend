@@ -104,6 +104,14 @@ public sealed class FaceGridSnapshotService : IFaceGridSnapshotService
 						result[block] = chatOutcome.Body!;
 						break;
 					}
+				case GridBlockKeys.VideoLounges:
+					{
+						var loungeOutcome = await GetVideoLoungesBlockAsync(faceId, userId!, page, pageSize, cancellationToken);
+						if (loungeOutcome.Status != FaceGridSnapshotStatus.Success)
+							return new FaceGridSnapshotResult { Status = loungeOutcome.Status };
+						result[block] = loungeOutcome.Body!;
+						break;
+					}
 				case GridBlockKeys.Profiles:
 					{
 						var profilesOutcome = await GetProfilesBlockAsync(
@@ -222,6 +230,108 @@ public sealed class FaceGridSnapshotService : IFaceGridSnapshotService
 			pendingJoinRequestCount,
 			isHostViewer,
 			canParticipate,
+			isMember,
+			hasPendingRequest,
+		};
+
+	private async Task<BlockOutcome> GetVideoLoungesBlockAsync(
+		int faceId,
+		string userId,
+		int page,
+		int pageSize,
+		CancellationToken cancellationToken)
+	{
+		var isHost = await FaceChatRoomAuth.IsHostInFaceAsync(_context, userId, faceId, cancellationToken);
+
+		IQueryable<FaceVideoLounge> loungeQuery = _context.FaceVideoLounges.AsNoTracking()
+			.TagIfEnabled(_perfOptions, EfQueryTags.GridSnapshot)
+			.Where(r => r.FaceId == faceId);
+
+		var totalCount = await loungeQuery.CountAsync(cancellationToken);
+		var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
+		page = clampedPage;
+
+		var lounges = await ListSortApplicators
+			.ApplyFaceVideoLoungesSort(loungeQuery, sortBy: null, sortDir: null)
+			.Skip((page - 1) * pageSize)
+			.Take(pageSize)
+			.ToListAsync(cancellationToken);
+
+		var ids = lounges.Select(r => r.Id).ToList();
+		var memberCounts = await _context.FaceVideoLoungeMembers
+			.AsNoTracking()
+			.Where(m => ids.Contains(m.FaceVideoLoungeId))
+			.GroupBy(m => m.FaceVideoLoungeId)
+			.Select(g => new { LoungeId = g.Key, C = g.Count() })
+			.ToDictionaryAsync(x => x.LoungeId, x => x.C, cancellationToken);
+
+		var sessionByLounge = await _context.FaceVideoLoungeSessions.AsNoTracking()
+			.Where(s => ids.Contains(s.FaceVideoLoungeId) && s.EndedAt == null)
+			.ToDictionaryAsync(s => s.FaceVideoLoungeId, s => s.Id, cancellationToken);
+
+		var liveCounts = new Dictionary<int, int>();
+		foreach (var kv in sessionByLounge)
+		{
+			liveCounts[kv.Key] = await _context.FaceVideoLoungeSessionParticipants.AsNoTracking()
+				.CountAsync(p =>
+					p.FaceVideoLoungeSessionId == kv.Value
+					&& p.LeftAt == null
+					&& p.IsListedInPublicRoster,
+					cancellationToken);
+		}
+
+		var myMemberships = (await _context.FaceVideoLoungeMembers
+			.AsNoTracking()
+			.Where(m => m.UserId == userId && ids.Contains(m.FaceVideoLoungeId))
+			.Select(m => m.FaceVideoLoungeId)
+			.ToListAsync(cancellationToken)).ToHashSet();
+
+		var pending = (await _context.FaceVideoLoungeJoinRequests
+			.AsNoTracking()
+			.Where(j => j.UserId == userId && j.Status == FaceVideoLoungeJoinRequestStatus.Pending && ids.Contains(j.FaceVideoLoungeId))
+			.Select(j => j.FaceVideoLoungeId)
+			.ToListAsync(cancellationToken)).ToHashSet();
+
+		var list = lounges.Select(r =>
+		{
+			var mc = memberCounts.GetValueOrDefault(r.Id);
+			var member = myMemberships.Contains(r.Id);
+			var hasLive = sessionByLounge.ContainsKey(r.Id);
+			var liveN = liveCounts.GetValueOrDefault(r.Id);
+			return VideoLoungeDto(r, isHost, canConnect: !isHost && member, member, pending.Contains(r.Id), mc, hasLive, liveN);
+		}).ToList();
+
+		return new BlockOutcome(
+			FaceGridSnapshotStatus.Success,
+			ListPaginationHelper.BuildEnvelope(list, page, pageSize, totalCount, totalPages));
+	}
+
+	private static object VideoLoungeDto(
+		FaceVideoLounge r,
+		bool isHostViewer,
+		bool canConnect,
+		bool isMember,
+		bool hasPendingRequest,
+		int memberCount,
+		bool hasLiveSession,
+		int liveParticipantCount) =>
+		new
+		{
+			r.Id,
+			r.FaceId,
+			r.Title,
+			r.Description,
+			r.IsPublic,
+			r.IsSystemManaged,
+			r.CreatorUserId,
+			r.MaxParticipants,
+			r.CreatedAt,
+			r.UpdatedAt,
+			memberCount,
+			hasLiveSession,
+			liveParticipantCount,
+			isHostViewer,
+			canConnect,
 			isMember,
 			hasPendingRequest,
 		};
