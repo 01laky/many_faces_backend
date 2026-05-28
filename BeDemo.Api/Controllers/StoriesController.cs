@@ -6,6 +6,7 @@ using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.Requests.Stories;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.Grid;
 using BeDemo.Api.Utils;
 using BeDemo.Api.Validation.Files;
 
@@ -24,6 +25,7 @@ public class StoriesController : ControllerBase
 	private readonly IAccessEvaluator _access;
 	private readonly IFileValidator _fileValidator;
 	private readonly IUploadSignedUrlService _uploadUrls;
+	private readonly IStoryGridListService _storyGridList;
 
 	public StoriesController(
 		ApplicationDbContext context,
@@ -33,7 +35,8 @@ public class StoriesController : ControllerBase
 		IFaceScopeContext faceScope,
 		IAccessEvaluator access,
 		IFileValidator fileValidator,
-		IUploadSignedUrlService uploadUrls)
+		IUploadSignedUrlService uploadUrls,
+		IStoryGridListService storyGridList)
 	{
 		_context = context;
 		_lifecycle = lifecycle;
@@ -43,6 +46,7 @@ public class StoriesController : ControllerBase
 		_access = access;
 		_fileValidator = fileValidator;
 		_uploadUrls = uploadUrls;
+		_storyGridList = storyGridList;
 	}
 
 	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -75,93 +79,8 @@ public class StoriesController : ControllerBase
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		var operatorInventory = CanManageAllFaces();
-		var page = query.Page;
-		var pageSize = query.PageSize;
-
-		IQueryable<Story> dbQuery = _context.Stories.AsNoTracking();
-
-		if (!string.IsNullOrWhiteSpace(query.CreatorId))
-		{
-			var creatorId = query.CreatorId.Trim();
-			dbQuery = dbQuery.Where(s => s.CreatorId == creatorId);
-			if (query.FaceId is > 0)
-			{
-				var scopedFaceId = _faceScope.ResolveDataFaceId(query.FaceId);
-				if (!operatorInventory &&
-					!await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, scopedFaceId, cancellationToken))
-				{
-					return Ok(ListPaginationHelper.BuildEnvelope(Array.Empty<object>(), page, pageSize, 0, 0));
-				}
-
-				dbQuery = dbQuery.Where(s =>
-					!s.StoryFaces.Any() ||
-					s.StoryFaces.Any(sf => sf.FaceId == scopedFaceId));
-			}
-		}
-		else
-		{
-			var effectiveFaceId = _faceScope.ResolveDataFaceId(query.FaceId);
-			if (!operatorInventory &&
-				!await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, effectiveFaceId, cancellationToken))
-			{
-				return Ok(ListPaginationHelper.BuildEnvelope(Array.Empty<object>(), page, pageSize, 0, 0));
-			}
-
-			dbQuery = dbQuery.Where(s =>
-				!s.StoryFaces.Any() ||
-				s.StoryFaces.Any(sf => sf.FaceId == effectiveFaceId));
-		}
-
-		if (!operatorInventory)
-		{
-			var now = DateTime.UtcNow;
-			dbQuery = dbQuery.Where(s =>
-				s.State == StoryState.Published &&
-				s.PublishedAt != null &&
-				s.PublishedAt <= now &&
-				s.ExpiresAt != null &&
-				s.ExpiresAt > now);
-		}
-		else if (query.IsPublished == true)
-		{
-			dbQuery = dbQuery.Where(s => s.State == StoryState.Published);
-		}
-		else if (query.IsPublished == false)
-		{
-			dbQuery = dbQuery.Where(s => s.State != StoryState.Published);
-		}
-
-		if (!string.IsNullOrWhiteSpace(query.Search))
-		{
-			var pattern = $"%{query.Search.Trim()}%";
-			dbQuery = dbQuery.Where(s => EF.Functions.ILike(s.Title, pattern));
-		}
-
-		var totalCount = await dbQuery.CountAsync(cancellationToken);
-		var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
-		page = clampedPage;
-
-		var stories = await ListSortApplicators
-			.ApplyStoriesSort(dbQuery, query.SortBy, query.SortDir)
-			.Skip((page - 1) * pageSize)
-			.Take(pageSize)
-			.Select(s => new
-			{
-				s.Id,
-				s.Title,
-				creatorId = s.CreatorId,
-				creatorName = ((s.Creator.FirstName ?? "") + " " + (s.Creator.LastName ?? "")).Trim(),
-				imageCount = s.Images.Count,
-				isPublished = s.State == StoryState.Published,
-				state = s.State.ToString(),
-				s.PublishedAt,
-				s.ExpiresAt,
-				s.CreatedAt,
-			})
-			.ToListAsync(cancellationToken);
-
-		return Ok(ListPaginationHelper.BuildEnvelope(stories, page, pageSize, totalCount, totalPages));
+		var result = await _storyGridList.GetStoriesAsync(User, UserId, query, cancellationToken);
+		return Ok(result);
 	}
 
 	/// <summary>Current user's stories (all states), optional face targeting filter.</summary>

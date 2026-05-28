@@ -6,6 +6,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Reels;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.Grid;
 using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Utils;
 
@@ -25,6 +26,7 @@ public class ReelsController : ControllerBase
 	/// <summary>Queues in-app notifications when reels enter the moderation pipeline.</summary>
 	private readonly IContentModerationNotifier _moderationNotifier;
 	private readonly IOperatorAiSystemSettingsProvider _systemSettings;
+	private readonly IReelGridListService _reelGridList;
 
 	public ReelsController(
 		ApplicationDbContext context,
@@ -33,7 +35,8 @@ public class ReelsController : ControllerBase
 		IFaceScopeContext faceScope,
 		IAccessEvaluator access,
 		IContentModerationNotifier moderationNotifier,
-		IOperatorAiSystemSettingsProvider systemSettings)
+		IOperatorAiSystemSettingsProvider systemSettings,
+		IReelGridListService reelGridList)
 	{
 		_context = context;
 		_jobQueue = jobQueue;
@@ -42,6 +45,7 @@ public class ReelsController : ControllerBase
 		_access = access;
 		_moderationNotifier = moderationNotifier;
 		_systemSettings = systemSettings;
+		_reelGridList = reelGridList;
 	}
 
 	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -50,80 +54,13 @@ public class ReelsController : ControllerBase
 
 	/// <summary>GET /api/reels?faceId= - Paginated; operator sees all approval statuses for scoped face.</summary>
 	[HttpGet]
-	public async Task<IActionResult> GetReels([FromQuery] ReelListQuery listQuery)
+	public async Task<IActionResult> GetReels([FromQuery] ReelListQuery listQuery, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		var operatorInventory = CanManageAllFaces();
-		var page = listQuery.Page;
-		var pageSize = listQuery.PageSize;
-		var effectiveFaceId = _faceScope.ResolveDataFaceId(listQuery.FaceId);
-
-		IQueryable<Reel> query = _context.Reels.AsNoTracking();
-		query = OperatorContentListFilters.ApplyReelPortalVisibility(query, operatorInventory);
-
-		if (!string.IsNullOrWhiteSpace(listQuery.CreatorId))
-		{
-			var creatorId = listQuery.CreatorId.Trim();
-			query = query.Where(r => r.CreatorId == creatorId);
-			if (listQuery.FaceId is > 0)
-			{
-				var scopedFaceId = _faceScope.ResolveDataFaceId(listQuery.FaceId);
-				query = query.Where(r =>
-					!r.ReelFaces.Any() ||
-					r.ReelFaces.Any(rf => rf.FaceId == scopedFaceId));
-			}
-		}
-		else
-		{
-			query = query.Where(r =>
-				!r.ReelFaces.Any() ||
-				r.ReelFaces.Any(rf => rf.FaceId == effectiveFaceId));
-		}
-
-		if (!string.IsNullOrWhiteSpace(listQuery.Search))
-		{
-			var pattern = $"%{listQuery.Search.Trim()}%";
-			query = query.Where(r =>
-				EF.Functions.ILike(r.Title, pattern) ||
-				(r.Description != null && EF.Functions.ILike(r.Description, pattern)));
-		}
-
-		if (!string.IsNullOrWhiteSpace(listQuery.ApprovalStatus) &&
-			Enum.TryParse<ContentApprovalStatus>(listQuery.ApprovalStatus, true, out var approvalFilter))
-		{
-			query = query.Where(r => r.ApprovalStatus == approvalFilter);
-		}
-
-		var totalCount = await query.CountAsync();
-		var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
-		page = clampedPage;
-
-		var reels = await ListSortApplicators
-			.ApplyReelsSort(query, listQuery.SortBy, listQuery.SortDir)
-			.Skip((page - 1) * pageSize)
-			.Take(pageSize)
-			.Select(r => new
-			{
-				r.Id,
-				r.Title,
-				r.Description,
-				videoUrl = r.VideoUrl,
-				creatorId = r.CreatorId,
-				creatorName = (r.Creator.FirstName ?? "") + " " + (r.Creator.LastName ?? ""),
-				faces = r.ReelFaces.Select(rf => new { rf.FaceId, rf.Face.Title }),
-				likesCount = r.Likes.Count,
-				commentsCount = r.Comments.Count,
-				approvalStatus = r.ApprovalStatus.ToString(),
-				aiReviewStatus = r.AiReviewStatus.ToString(),
-				creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(r.ApprovalStatus, r.AiReviewStatus),
-				r.CreatedAt,
-				r.UpdatedAt,
-			})
-			.ToListAsync();
-
-		return Ok(ListPaginationHelper.BuildEnvelope(reels, page, pageSize, totalCount, totalPages));
+		var result = await _reelGridList.GetReelsAsync(User, UserId, listQuery, cancellationToken);
+		return Ok(result);
 	}
 
 	[HttpGet("{id:int}")]

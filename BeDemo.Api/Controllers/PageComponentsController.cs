@@ -27,6 +27,7 @@ public class PageComponentsController : ControllerBase
 	public async Task<IActionResult> GetByPage(int pageId)
 	{
 		var components = await _context.PageComponents
+			.AsNoTracking()
 			.Where(pc => pc.PageId == pageId)
 			.Include(pc => pc.ComponentType)
 			.Include(pc => pc.DisplayMode)

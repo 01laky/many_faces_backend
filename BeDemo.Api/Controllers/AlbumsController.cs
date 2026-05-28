@@ -5,6 +5,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Albums;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.Grid;
 using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Utils;
 
@@ -24,6 +25,7 @@ public class AlbumsController : ControllerBase
 	/// <summary>Queues in-app notifications when albums enter the moderation pipeline.</summary>
 	private readonly IContentModerationNotifier _moderationNotifier;
 	private readonly IOperatorAiSystemSettingsProvider _systemSettings;
+	private readonly IAlbumGridListService _albumGridList;
 
 	public AlbumsController(
 		ApplicationDbContext context,
@@ -32,7 +34,8 @@ public class AlbumsController : ControllerBase
 		IAccessEvaluator access,
 		IRedisJobQueue jobQueue,
 		IContentModerationNotifier moderationNotifier,
-		IOperatorAiSystemSettingsProvider systemSettings)
+		IOperatorAiSystemSettingsProvider systemSettings,
+		IAlbumGridListService albumGridList)
 	{
 		_context = context;
 		_logger = logger;
@@ -41,6 +44,7 @@ public class AlbumsController : ControllerBase
 		_jobQueue = jobQueue;
 		_moderationNotifier = moderationNotifier;
 		_systemSettings = systemSettings;
+		_albumGridList = albumGridList;
 	}
 
 	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -49,95 +53,13 @@ public class AlbumsController : ControllerBase
 
 	/// <summary>GET /api/albums?faceId= - Paginated list; operator inventory skips portal visibility (§1.1).</summary>
 	[HttpGet]
-	public async Task<IActionResult> GetAlbums([FromQuery] AlbumListQuery listQuery)
+	public async Task<IActionResult> GetAlbums([FromQuery] AlbumListQuery listQuery, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		var operatorInventory = CanManageAllFaces();
-		var page = listQuery.Page;
-		var pageSize = listQuery.PageSize;
-
-		// CanManageAllFaces: full face-bound set for admin Face detail; tenants keep Approved + public-only.
-		IQueryable<Album> query = _context.Albums.AsNoTracking();
-		query = OperatorContentListFilters.ApplyAlbumPortalVisibility(query, operatorInventory, UserId);
-
-		if (!string.IsNullOrWhiteSpace(listQuery.CreatorId))
-		{
-			var creatorId = listQuery.CreatorId.Trim();
-			query = query.Where(a => a.CreatorId == creatorId);
-			if (listQuery.FaceId is > 0)
-			{
-				var scopedFaceId = _faceScope.ResolveDataFaceId(listQuery.FaceId);
-				query = query.Where(a => a.AlbumFaces.Any(af => af.FaceId == scopedFaceId));
-			}
-		}
-		else
-		{
-			var effectiveFaceId = _faceScope.ResolveDataFaceId(listQuery.FaceId);
-			query = query.Where(a => a.AlbumFaces.Any(af => af.FaceId == effectiveFaceId));
-		}
-
-		if (!string.IsNullOrWhiteSpace(listQuery.Search))
-		{
-			var pattern = $"%{listQuery.Search.Trim()}%";
-			query = query.Where(a =>
-				EF.Functions.ILike(a.Title, pattern) ||
-				(a.Description != null && EF.Functions.ILike(a.Description, pattern)));
-		}
-
-		if (!string.IsNullOrWhiteSpace(listQuery.ApprovalStatus) &&
-			Enum.TryParse<ContentApprovalStatus>(listQuery.ApprovalStatus, true, out var approvalFilter))
-		{
-			query = query.Where(a => a.ApprovalStatus == approvalFilter);
-		}
-
-		if (!string.IsNullOrWhiteSpace(listQuery.MediaType) &&
-			int.TryParse(listQuery.MediaType, out var mediaTypeInt) &&
-			Enum.IsDefined(typeof(MediaTypeEnum), mediaTypeInt))
-		{
-			var mediaType = (MediaTypeEnum)mediaTypeInt;
-			query = query.Where(a => a.MediaType == mediaType);
-		}
-
-		if (!string.IsNullOrWhiteSpace(listQuery.AlbumType) &&
-			int.TryParse(listQuery.AlbumType, out var albumTypeInt) &&
-			Enum.IsDefined(typeof(AlbumTypeEnum), albumTypeInt))
-		{
-			var albumType = (AlbumTypeEnum)albumTypeInt;
-			query = query.Where(a => a.AlbumType == albumType);
-		}
-
-		var totalCount = await query.CountAsync();
-		var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
-		page = clampedPage;
-
-		var albums = await ListSortApplicators
-			.ApplyAlbumsSort(query, listQuery.SortBy, listQuery.SortDir)
-			.Skip((page - 1) * pageSize)
-			.Take(pageSize)
-			.Select(a => new
-			{
-				a.Id,
-				a.Title,
-				a.Description,
-				albumType = (int)a.AlbumType,
-				mediaType = (int)a.MediaType,
-				creatorId = a.CreatorId,
-				creatorName = (a.Creator.FirstName ?? "") + " " + (a.Creator.LastName ?? ""),
-				faces = a.AlbumFaces.Select(af => new { af.FaceId, af.Face.Title }),
-				likesCount = a.Likes.Count,
-				commentsCount = a.Comments.Count,
-				mediaCount = a.MediaItems.Count,
-				approvalStatus = a.ApprovalStatus.ToString(),
-				aiReviewStatus = a.AiReviewStatus.ToString(),
-				creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(a.ApprovalStatus, a.AiReviewStatus),
-				a.CreatedAt,
-				a.UpdatedAt,
-			})
-			.ToListAsync();
-
-		return Ok(ListPaginationHelper.BuildEnvelope(albums, page, pageSize, totalCount, totalPages));
+		var result = await _albumGridList.GetAlbumsAsync(User, UserId, listQuery, cancellationToken);
+		return Ok(result);
 	}
 
 	/// <summary>GET /api/albums/{id} - Get album by ID</summary>

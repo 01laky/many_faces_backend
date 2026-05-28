@@ -1,8 +1,10 @@
+using BeDemo.Api.Configuration;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Options;
 
 namespace BeDemo.Api.Controllers;
 
@@ -16,16 +18,19 @@ public class UploadsController : ControllerBase
 	private readonly IUploadSignedUrlService _signedUrls;
 	private readonly IWebHostEnvironment _env;
 	private readonly ILogger<UploadsController> _logger;
+	private readonly PerformanceOptions _perfOptions;
 	private static readonly FileExtensionContentTypeProvider ContentTypes = new();
 
 	public UploadsController(
 		IUploadSignedUrlService signedUrls,
 		IWebHostEnvironment env,
-		ILogger<UploadsController> logger)
+		ILogger<UploadsController> logger,
+		IOptions<PerformanceOptions> perfOptions)
 	{
 		_signedUrls = signedUrls;
 		_env = env;
 		_logger = logger;
+		_perfOptions = perfOptions.Value;
 	}
 
 	/// <summary>
@@ -64,6 +69,17 @@ public class UploadsController : ControllerBase
 
 		if (!ContentTypes.TryGetContentType(fullPath, out var contentType))
 			contentType = "application/octet-stream";
+
+		var maxAge = Math.Max(0, _perfOptions.UploadServeCacheMaxAgeSeconds);
+		var remaining = exp - DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+		var effectiveMaxAge = remaining > 0 ? Math.Min(maxAge, remaining) : 0;
+		if (effectiveMaxAge > 0)
+			Response.Headers.CacheControl = $"private, max-age={effectiveMaxAge}";
+
+		var etag = $"\"{storedPath}:{new FileInfo(fullPath).LastWriteTimeUtc.Ticks}\"";
+		Response.Headers.ETag = etag;
+		if (Request.Headers.IfNoneMatch.Contains(etag))
+			return StatusCode(StatusCodes.Status304NotModified);
 
 		return PhysicalFile(fullPath, contentType, enableRangeProcessing: true);
 	}

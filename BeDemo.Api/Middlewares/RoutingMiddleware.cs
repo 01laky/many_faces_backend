@@ -67,7 +67,7 @@ public class RoutingMiddleware
 		}
 
 		var prefix = segments[0];
-		var faces = GetFaces(serviceProvider);
+		var faces = await GetFacesAsync(serviceProvider, context.RequestAborted).ConfigureAwait(false);
 		var matchingFace = faces.FirstOrDefault(f => Routing.ConvertToKebabCase(f.Index) == prefix);
 
 		if (matchingFace == null)
@@ -134,12 +134,12 @@ public class RoutingMiddleware
 		await _next(context);
 	}
 
-	private List<Face> GetFaces(IServiceProvider serviceProvider)
+	private async Task<List<Face>> GetFacesAsync(IServiceProvider serviceProvider, CancellationToken cancellationToken)
 	{
 		if (!_memoryCache.TryGetValue("Faces", out List<Face>? faces) || faces == null)
 		{
 			var faceService = serviceProvider.GetRequiredService<IFaceService>();
-			faces = faceService.GetFaces();
+			faces = await faceService.GetFacesAsync(cancellationToken).ConfigureAwait(false);
 			_memoryCache.Set("Faces", faces, new MemoryCacheEntryOptions
 			{
 				AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5),

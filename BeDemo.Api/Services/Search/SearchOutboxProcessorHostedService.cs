@@ -1,3 +1,4 @@
+using BeDemo.Api.Configuration;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using ManyFaces.Search.V1;
@@ -11,15 +12,18 @@ public sealed class SearchOutboxProcessorHostedService : BackgroundService
 {
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly IOptions<SearchOptions> _options;
+	private readonly IOptions<PerformanceOptions> _performance;
 	private readonly ILogger<SearchOutboxProcessorHostedService> _logger;
 
 	public SearchOutboxProcessorHostedService(
 		IServiceScopeFactory scopeFactory,
 		IOptions<SearchOptions> options,
+		IOptions<PerformanceOptions> performance,
 		ILogger<SearchOutboxProcessorHostedService> logger)
 	{
 		_scopeFactory = scopeFactory;
 		_options = options;
+		_performance = performance;
 		_logger = logger;
 	}
 
@@ -68,67 +72,213 @@ public sealed class SearchOutboxProcessorHostedService : BackgroundService
 			.Take(50)
 			.ToListAsync(cancellationToken);
 
-		foreach (var entry in batch)
-		{
-			try
-			{
-				if (entry.Operation == SearchOutboxOperation.Delete)
-				{
-					var response = await gateway.DeleteDocumentAsync(new DeleteDocumentRequest
-					{
-						DocumentType = entry.DocumentType,
-						EntityId = entry.EntityId,
-						CorrelationId = SearchWorkerGrpcGateway.NewCorrelationId(),
-					}, cancellationToken);
+		if (batch.Count == 0)
+			return;
 
-					if (response is null || !response.Success)
-						throw new InvalidOperationException(response?.ErrorMessage ?? "DeleteDocument returned null");
-				}
-				else
-				{
-					var document = await BuildDocumentForEntryAsync(db, builder, entry, cancellationToken);
-					if (document is null)
-					{
-						// Row no longer indexable — treat as delete.
-						var del = await gateway.DeleteDocumentAsync(new DeleteDocumentRequest
-						{
-							DocumentType = entry.DocumentType,
-							EntityId = entry.EntityId,
-							CorrelationId = SearchWorkerGrpcGateway.NewCorrelationId(),
-						}, cancellationToken);
-						if (del is null || !del.Success)
-							throw new InvalidOperationException(del?.ErrorMessage ?? "DeleteDocument returned null");
-					}
-					else
-					{
-						var response = await gateway.IndexDocumentAsync(new IndexDocumentRequest
-						{
-							Document = document,
-							CorrelationId = SearchWorkerGrpcGateway.NewCorrelationId(),
-						}, cancellationToken);
-						if (response is null || !response.Success)
-							throw new InvalidOperationException(response?.ErrorMessage ?? "IndexDocument returned null");
-					}
-				}
+		var maxParallel = Math.Max(1, _performance.Value.SearchOutboxMaxParallelGrpc);
+		var prepared = await PrepareBatchAsync(db, builder, batch, maxParallel, cancellationToken);
 
-				entry.ProcessedAtUtc = DateTime.UtcNow;
-				entry.LastError = null;
-			}
-			catch (Exception ex)
-			{
-				entry.AttemptCount++;
-				entry.LastError = ex.Message.Length > 2000 ? ex.Message[..2000] : ex.Message;
-				_logger.LogWarning(
-					ex,
-					"Search outbox entry failed documentType={DocumentType} entityId={EntityId} attempt={Attempt}",
-					entry.DocumentType,
-					entry.EntityId,
-					entry.AttemptCount);
-			}
-		}
+		await ProcessDeletesAsync(gateway, prepared, maxParallel, cancellationToken);
+		await ProcessIndexesAsync(gateway, prepared, maxParallel, cancellationToken);
 
 		await db.SaveChangesAsync(cancellationToken);
 	}
+
+	private static async Task<List<PreparedOutboxEntry>> PrepareBatchAsync(
+		ApplicationDbContext db,
+		SearchDocumentBuilder builder,
+		IReadOnlyList<SearchOutboxEntry> batch,
+		int maxParallel,
+		CancellationToken cancellationToken)
+	{
+		using var semaphore = new SemaphoreSlim(maxParallel);
+		var tasks = batch.Select(async entry =>
+		{
+			await semaphore.WaitAsync(cancellationToken);
+			try
+			{
+				if (entry.Operation == SearchOutboxOperation.Delete)
+					return new PreparedOutboxEntry(entry, null, MustDelete: true);
+
+				var document = await BuildDocumentForEntryAsync(db, builder, entry, cancellationToken);
+				return new PreparedOutboxEntry(entry, document, MustDelete: document is null);
+			}
+			finally
+			{
+				semaphore.Release();
+			}
+		});
+
+		return (await Task.WhenAll(tasks)).ToList();
+	}
+
+	private async Task ProcessDeletesAsync(
+		ISearchQueryGateway gateway,
+		IReadOnlyList<PreparedOutboxEntry> prepared,
+		int maxParallel,
+		CancellationToken cancellationToken)
+	{
+		var deletes = prepared.Where(p => p.MustDelete).ToList();
+		if (deletes.Count == 0)
+			return;
+
+		using var semaphore = new SemaphoreSlim(maxParallel);
+		var tasks = deletes.Select(async item =>
+		{
+			await semaphore.WaitAsync(cancellationToken);
+			try
+			{
+				await TryDeleteEntryAsync(gateway, item.Entry, cancellationToken);
+			}
+			finally
+			{
+				semaphore.Release();
+			}
+		});
+		await Task.WhenAll(tasks);
+	}
+
+	private async Task ProcessIndexesAsync(
+		ISearchQueryGateway gateway,
+		IReadOnlyList<PreparedOutboxEntry> prepared,
+		int maxParallel,
+		CancellationToken cancellationToken)
+	{
+		var indexes = prepared.Where(p => !p.MustDelete && p.Document is not null).ToList();
+		if (indexes.Count == 0)
+			return;
+
+		if (indexes.Count == 1)
+		{
+			await TryIndexSingleAsync(gateway, indexes[0], cancellationToken);
+			return;
+		}
+
+		using var semaphore = new SemaphoreSlim(maxParallel);
+		var chunks = indexes
+			.Select((item, i) => (item, i))
+			.GroupBy(x => x.i / maxParallel, x => x.item)
+			.Select(g => g.ToList())
+			.ToList();
+
+		foreach (var chunk in chunks)
+		{
+			await TryBulkIndexChunkAsync(gateway, chunk, cancellationToken);
+		}
+	}
+
+	private async Task TryBulkIndexChunkAsync(
+		ISearchQueryGateway gateway,
+		IReadOnlyList<PreparedOutboxEntry> chunk,
+		CancellationToken cancellationToken)
+	{
+		var correlationId = SearchWorkerGrpcGateway.NewCorrelationId();
+		var request = new BulkIndexDocumentsRequest { CorrelationId = correlationId };
+		foreach (var item in chunk)
+			request.Documents.Add(item.Document!);
+
+		try
+		{
+			var response = await gateway.BulkIndexDocumentsAsync(request, cancellationToken);
+			if (response is null)
+				throw new InvalidOperationException("BulkIndexDocuments returned null");
+
+			var failedIds = new HashSet<string>(
+				response.Errors.Select(e => e.EntityId),
+				StringComparer.Ordinal);
+
+			if (response.FailedCount > 0 && failedIds.Count == 0 && response.IndexedCount < chunk.Count)
+			{
+				// Worker reported failures without per-item detail — fail entire chunk for retry.
+				throw new InvalidOperationException("BulkIndexDocuments reported failures without item errors");
+			}
+
+			foreach (var item in chunk)
+			{
+				var entityId = item.Document!.EntityId;
+				if (failedIds.Contains(entityId))
+					RecordFailure(item.Entry, "Bulk index item error");
+				else
+					MarkProcessed(item.Entry);
+			}
+		}
+		catch (Exception ex)
+		{
+			foreach (var item in chunk)
+				RecordFailure(item.Entry, ex);
+		}
+	}
+
+	private async Task TryIndexSingleAsync(
+		ISearchQueryGateway gateway,
+		PreparedOutboxEntry item,
+		CancellationToken cancellationToken)
+	{
+		try
+		{
+			var response = await gateway.IndexDocumentAsync(new IndexDocumentRequest
+			{
+				Document = item.Document,
+				CorrelationId = SearchWorkerGrpcGateway.NewCorrelationId(),
+			}, cancellationToken);
+
+			if (response is null || !response.Success)
+				throw new InvalidOperationException(response?.ErrorMessage ?? "IndexDocument returned null");
+
+			MarkProcessed(item.Entry);
+		}
+		catch (Exception ex)
+		{
+			RecordFailure(item.Entry, ex);
+		}
+	}
+
+	private async Task TryDeleteEntryAsync(
+		ISearchQueryGateway gateway,
+		SearchOutboxEntry entry,
+		CancellationToken cancellationToken)
+	{
+		try
+		{
+			var response = await gateway.DeleteDocumentAsync(new DeleteDocumentRequest
+			{
+				DocumentType = entry.DocumentType,
+				EntityId = entry.EntityId,
+				CorrelationId = SearchWorkerGrpcGateway.NewCorrelationId(),
+			}, cancellationToken);
+
+			if (response is null || !response.Success)
+				throw new InvalidOperationException(response?.ErrorMessage ?? "DeleteDocument returned null");
+
+			MarkProcessed(entry);
+		}
+		catch (Exception ex)
+		{
+			RecordFailure(entry, ex);
+		}
+	}
+
+	private void MarkProcessed(SearchOutboxEntry entry)
+	{
+		entry.ProcessedAtUtc = DateTime.UtcNow;
+		entry.LastError = null;
+	}
+
+	private void RecordFailure(SearchOutboxEntry entry, Exception ex) =>
+		RecordFailure(entry, ex.Message);
+
+	private void RecordFailure(SearchOutboxEntry entry, string message)
+	{
+		entry.AttemptCount++;
+		entry.LastError = message.Length > 2000 ? message[..2000] : message;
+		_logger.LogWarning(
+			"Search outbox entry failed documentType={DocumentType} entityId={EntityId} attempt={Attempt}",
+			entry.DocumentType,
+			entry.EntityId,
+			entry.AttemptCount);
+	}
+
+	private sealed record PreparedOutboxEntry(SearchOutboxEntry Entry, SearchDocument? Document, bool MustDelete);
 
 	private static async Task<SearchDocument?> BuildDocumentForEntryAsync(
 		ApplicationDbContext db,

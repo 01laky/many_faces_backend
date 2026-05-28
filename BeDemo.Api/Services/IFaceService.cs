@@ -20,4 +20,6 @@ public interface IFaceService
 	/// </summary>
 	/// <returns>List of all faces</returns>
 	List<Face> GetFaces();
+
+	Task<List<Face>> GetFacesAsync(CancellationToken cancellationToken = default);
 }

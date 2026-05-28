@@ -5,6 +5,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Blogs;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.Grid;
 using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Utils;
 
@@ -24,6 +25,7 @@ public class BlogsController : ControllerBase
 	/// <summary>Queues in-app notifications when user content enters the moderation pipeline.</summary>
 	private readonly IContentModerationNotifier _moderationNotifier;
 	private readonly IOperatorAiSystemSettingsProvider _systemSettings;
+	private readonly IBlogGridListService _blogGridList;
 
 	public BlogsController(
 		ApplicationDbContext context,
@@ -32,7 +34,8 @@ public class BlogsController : ControllerBase
 		IFaceScopeContext faceScope,
 		IAccessEvaluator access,
 		IContentModerationNotifier moderationNotifier,
-		IOperatorAiSystemSettingsProvider systemSettings)
+		IOperatorAiSystemSettingsProvider systemSettings,
+		IBlogGridListService blogGridList)
 	{
 		_context = context;
 		_logger = logger;
@@ -41,6 +44,7 @@ public class BlogsController : ControllerBase
 		_access = access;
 		_moderationNotifier = moderationNotifier;
 		_systemSettings = systemSettings;
+		_blogGridList = blogGridList;
 	}
 
 	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -49,78 +53,13 @@ public class BlogsController : ControllerBase
 
 	/// <summary>GET /api/blogs?faceId= - Paginated blogs for scoped face.</summary>
 	[HttpGet]
-	public async Task<IActionResult> GetBlogs([FromQuery] BlogListQuery listQuery)
+	public async Task<IActionResult> GetBlogs([FromQuery] BlogListQuery listQuery, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		var operatorInventory = CanManageAllFaces();
-		var page = listQuery.Page;
-		var pageSize = listQuery.PageSize;
-
-		IQueryable<Blog> query = _context.Blogs.AsNoTracking();
-		query = OperatorContentListFilters.ApplyBlogPortalVisibility(query, operatorInventory);
-
-		if (!string.IsNullOrWhiteSpace(listQuery.CreatorId))
-		{
-			var creatorId = listQuery.CreatorId.Trim();
-			query = query.Where(b => b.CreatorId == creatorId);
-			if (listQuery.FaceId is > 0)
-			{
-				var scopedFaceId = _faceScope.ResolveDataFaceId(listQuery.FaceId);
-				query = query.Where(b => b.FaceId == scopedFaceId);
-			}
-		}
-		else
-		{
-			var effectiveFaceId = _faceScope.ResolveDataFaceId(listQuery.FaceId);
-			query = query.Where(b => b.FaceId == effectiveFaceId);
-		}
-
-		if (!string.IsNullOrWhiteSpace(listQuery.Search))
-		{
-			var pattern = $"%{listQuery.Search.Trim()}%";
-			query = query.Where(b =>
-				EF.Functions.ILike(b.Title, pattern) ||
-				EF.Functions.ILike(b.Content, pattern));
-		}
-
-		if (!string.IsNullOrWhiteSpace(listQuery.ApprovalStatus) &&
-			Enum.TryParse<ContentApprovalStatus>(listQuery.ApprovalStatus, true, out var approvalFilter))
-		{
-			query = query.Where(b => b.ApprovalStatus == approvalFilter);
-		}
-
-		var totalCount = await query.CountAsync();
-		var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, totalCount);
-		page = clampedPage;
-
-		var blogs = await ListSortApplicators
-			.ApplyBlogsSort(query, listQuery.SortBy, listQuery.SortDir)
-			.Skip((page - 1) * pageSize)
-			.Take(pageSize)
-			.Select(b => new
-			{
-				b.Id,
-				b.Title,
-				b.Content,
-				b.FaceId,
-				faceTitle = b.Face.Title,
-				creatorId = b.CreatorId,
-				creatorName = (b.Creator.FirstName ?? "") + " " + (b.Creator.LastName ?? ""),
-				images = b.Images.OrderBy(i => i.SortOrder).Select(i => new { i.Id, i.ImageUrl, i.SortOrder }),
-				imageCount = b.Images.Count,
-				likesCount = b.Likes.Count,
-				commentsCount = b.Comments.Count,
-				approvalStatus = b.ApprovalStatus.ToString(),
-				aiReviewStatus = b.AiReviewStatus.ToString(),
-				creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(b.ApprovalStatus, b.AiReviewStatus),
-				b.CreatedAt,
-				b.UpdatedAt,
-			})
-			.ToListAsync();
-
-		return Ok(ListPaginationHelper.BuildEnvelope(blogs, page, pageSize, totalCount, totalPages));
+		var result = await _blogGridList.GetBlogsAsync(User, UserId, listQuery, cancellationToken);
+		return Ok(result);
 	}
 
 	/// <summary>GET /api/blogs/{id} - Get blog by ID</summary>

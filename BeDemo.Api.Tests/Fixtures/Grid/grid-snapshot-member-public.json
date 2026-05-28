@@ -1,0 +1,52 @@
+{
+  "albums": {
+    "items": [],
+    "page": 1,
+    "pageSize": 10,
+    "totalCount": 0,
+    "totalPages": 1
+  },
+  "blogs": {
+    "items": [],
+    "page": 1,
+    "pageSize": 10,
+    "totalCount": 0,
+    "totalPages": 1
+  },
+  "reels": {
+    "items": [],
+    "page": 1,
+    "pageSize": 10,
+    "totalCount": 0,
+    "totalPages": 1
+  },
+  "stories": {
+    "items": [],
+    "page": 1,
+    "pageSize": 10,
+    "totalCount": 0,
+    "totalPages": 1
+  },
+  "chat-rooms": {
+    "items": [],
+    "page": 1,
+    "pageSize": 10,
+    "totalCount": 0,
+    "totalPages": 1
+  },
+  "profiles": {
+    "items": [],
+    "page": 1,
+    "pageSize": 10,
+    "totalCount": 0,
+    "totalPages": 1
+  },
+  "wall-tickets": {
+    "items": [],
+    "isHostViewer": true,
+    "page": 1,
+    "pageSize": 10,
+    "totalCount": 0,
+    "totalPages": 0
+  }
+}

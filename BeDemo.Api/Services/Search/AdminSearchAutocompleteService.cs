@@ -1,6 +1,10 @@
+using System.Security.Cryptography;
+using System.Text;
+using BeDemo.Api.Configuration;
 using BeDemo.Api.Models.DTOs.Search;
 using Grpc.Core;
 using ManyFaces.Search.V1;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace BeDemo.Api.Services.Search;
@@ -26,17 +30,26 @@ public sealed class AdminSearchAutocompleteService : IAdminSearchAutocompleteSer
 	private readonly ISearchQueryGateway _gateway;
 	private readonly SearchHitBatchFilter _batchFilter;
 	private readonly IOptions<SearchOptions> _options;
+	private readonly IOptions<PerformanceOptions> _performance;
+	private readonly IMemoryCache _cache;
+	private readonly IFaceScopeContext _faceScope;
 	private readonly ILogger<AdminSearchAutocompleteService> _logger;
 
 	public AdminSearchAutocompleteService(
 		ISearchQueryGateway gateway,
 		SearchHitBatchFilter batchFilter,
 		IOptions<SearchOptions> options,
+		IOptions<PerformanceOptions> performance,
+		IMemoryCache cache,
+		IFaceScopeContext faceScope,
 		ILogger<AdminSearchAutocompleteService> logger)
 	{
 		_gateway = gateway;
 		_batchFilter = batchFilter;
 		_options = options;
+		_performance = performance;
+		_cache = cache;
+		_faceScope = faceScope;
 		_logger = logger;
 	}
 
@@ -69,6 +82,10 @@ public sealed class AdminSearchAutocompleteService : IAdminSearchAutocompleteSer
 				SearchAvailable = true,
 			};
 		}
+
+		var cacheKey = BuildCacheKey(query, offset, pageSize, documentTypes);
+		if (_cache.TryGetValue(cacheKey, out AdminSearchAutocompleteResponse? cached) && cached is not null)
+			return cached;
 
 		try
 		{
@@ -125,7 +142,7 @@ public sealed class AdminSearchAutocompleteService : IAdminSearchAutocompleteSer
 			var durationMs = (long)(DateTime.UtcNow - started).TotalMilliseconds;
 			SearchObservability.LogAutocompleteRequest(_logger, query, offset, pageSize, durationMs, visibleHits.Count);
 
-			return new AdminSearchAutocompleteResponse
+			var result = new AdminSearchAutocompleteResponse
 			{
 				Query = query,
 				Offset = offset,
@@ -135,6 +152,10 @@ public sealed class AdminSearchAutocompleteService : IAdminSearchAutocompleteSer
 				NextOffset = workerHasMore ? workerNextOffset : offset + visibleHits.Count,
 				SearchAvailable = true,
 			};
+
+			var ttl = TimeSpan.FromSeconds(Math.Max(1, _performance.Value.AdminSearchAutocompleteCacheSeconds));
+			_cache.Set(cacheKey, result, ttl);
+			return result;
 		}
 		catch (RpcException ex)
 		{
@@ -146,6 +167,18 @@ public sealed class AdminSearchAutocompleteService : IAdminSearchAutocompleteSer
 			_logger.LogWarning(ex, "Autocomplete failed");
 			return DegradedResponse(query, offset, pageSize, "Search is temporarily unavailable.");
 		}
+	}
+
+	private string BuildCacheKey(string query, int offset, int pageSize, IReadOnlyList<string>? documentTypes)
+	{
+		var types = documentTypes is { Count: > 0 }
+			? string.Join(',', documentTypes.OrderBy(t => t, StringComparer.Ordinal))
+			: "*";
+		var faceId = _faceScope.IsAvailable ? _faceScope.FaceId : 0;
+		var admin = _faceScope.IsAdminFaceScope;
+		var payload = $"{query.Trim().ToLowerInvariant()}|{offset}|{pageSize}|{types}";
+		var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(payload)));
+		return $"admin-ac:{faceId}:{admin}:{hash}";
 	}
 
 	private static AdminSearchAutocompleteResponse DegradedResponse(string query, int offset, int pageSize, string message) =>

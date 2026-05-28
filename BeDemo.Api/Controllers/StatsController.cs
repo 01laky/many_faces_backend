@@ -58,6 +58,7 @@ public sealed class StatsController : ControllerBase
 	[AllowAnonymous]
 	public async Task<ActionResult<PublicStatsSnapshotDto>> GetPublicStats(CancellationToken cancellationToken)
 	{
+		Response.Headers.CacheControl = "public, max-age=60";
 		return Ok(await _statsQuery.GetPublicSnapshotAsync(cancellationToken));
 	}
 

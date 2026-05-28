@@ -1,3 +1,4 @@
+using BeDemo.Api.Configuration;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Services;
@@ -29,6 +30,7 @@ public sealed class SearchOutboxProcessorEdgeTests
 		services.AddDbContext<ApplicationDbContext>(o => o.UseInMemoryDatabase(dbName));
 		services.AddSingleton<ISearchQueryGateway>(fake);
 		services.AddSingleton<IOptions<SearchOptions>>(Options.Create(opts));
+		services.AddSingleton<IOptions<PerformanceOptions>>(Options.Create(new PerformanceOptions()));
 		services.AddScoped<SearchDocumentBuilder>();
 		services.AddScoped<ISearchOutboxService, SearchOutboxService>();
 		services.AddSingleton<SearchOutboxProcessorHostedService>();

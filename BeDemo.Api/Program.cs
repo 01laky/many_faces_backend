@@ -37,6 +37,10 @@ using BeDemo.Api.Models;
 using BeDemo.Api.Security;
 using BeDemo.Api.Middlewares;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.Auth;
+using BeDemo.Api.Services.Faces;
+using BeDemo.Api.Services.Grid;
+using BeDemo.Api.Services.Messenger;
 using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Services.OperatorMail;
 using BeDemo.Api.Services.OperatorPush;
@@ -135,7 +139,22 @@ if (builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("T
 	}
 }
 
-builder.Services.AddScoped<IPlatformStatsQueryService, PlatformStatsQueryService>();
+builder.Services.AddOptions<PerformanceOptions>()
+	.BindConfiguration(PerformanceOptions.SectionName);
+builder.Services.AddScoped<PlatformStatsQueryService>();
+builder.Services.AddScoped<IPlatformStatsQueryService, PlatformStatsCachedQueryService>();
+builder.Services.AddSingleton<AccessTokenVersionCacheInterceptor>();
+builder.Services.AddScoped<IAccessTokenVersionCache, AccessTokenVersionCache>();
+builder.Services.AddScoped<AccessCapabilitiesService>();
+builder.Services.AddScoped<IAccessCapabilitiesService, CapabilitiesCacheService>();
+builder.Services.AddScoped<IFacesConfigService, FacesConfigService>();
+builder.Services.AddScoped<IAlbumGridListService, AlbumGridListService>();
+builder.Services.AddScoped<IBlogGridListService, BlogGridListService>();
+builder.Services.AddScoped<IReelGridListService, ReelGridListService>();
+builder.Services.AddScoped<IStoryGridListService, StoryGridListService>();
+builder.Services.AddScoped<IFaceGridSnapshotService, FaceGridSnapshotService>();
+builder.Services.AddScoped<IConversationListService, ConversationListService>();
+builder.Services.AddScoped<IHubUserDisplayCache, HubUserDisplayCache>();
 builder.Services.AddOptions<BeDemo.Api.Configuration.OperatorAiOptions>()
 	.BindConfiguration(BeDemo.Api.Configuration.OperatorAiOptions.SectionName);
 builder.Services.AddScoped<IOperatorAiConversationService, OperatorAiConversationService>();
@@ -485,10 +504,14 @@ if (builder.Environment.IsEnvironment("Testing"))
 	// In-memory database for integration tests (no PostgreSQL required)
 	builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
 		options.UseInMemoryDatabase("BeDemoTestDb")
-			.AddInterceptors(sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>()));
+			.AddInterceptors(
+				sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>(),
+				sp.GetRequiredService<AccessTokenVersionCacheInterceptor>()));
 	builder.Services.AddDbContextFactory<ApplicationDbContext>(
 		(sp, options) => options.UseInMemoryDatabase("BeDemoTestDb")
-			.AddInterceptors(sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>()),
+			.AddInterceptors(
+				sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>(),
+				sp.GetRequiredService<AccessTokenVersionCacheInterceptor>()),
 		ServiceLifetime.Scoped);
 }
 else
@@ -502,11 +525,15 @@ else
 	builder.Services.AddDbContext<ApplicationDbContext>((sp, options) =>
 		options.UseNpgsql(connectionString)
 			.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
-			.AddInterceptors(sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>()));
+			.AddInterceptors(
+				sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>(),
+				sp.GetRequiredService<AccessTokenVersionCacheInterceptor>()));
 	builder.Services.AddDbContextFactory<ApplicationDbContext>(
 		(sp, options) => options.UseNpgsql(connectionString)
 			.ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
-			.AddInterceptors(sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>()),
+			.AddInterceptors(
+				sp.GetRequiredService<SearchOutboxSaveChangesInterceptor>(),
+				sp.GetRequiredService<AccessTokenVersionCacheInterceptor>()),
 		ServiceLifetime.Scoped);
 }
 
@@ -516,7 +543,6 @@ builder.Services.AddScoped<IProfileDetailTemplatePagesService, ProfileDetailTemp
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IFaceScopeContext, FaceScopeContext>();
 builder.Services.AddScoped<IAccessEvaluator, AccessEvaluator>();
-builder.Services.AddScoped<IAccessCapabilitiesService, AccessCapabilitiesService>();
 builder.Services.AddScoped<IOAuthRefreshTokenStore, OAuthRefreshTokenStore>();
 builder.Services.AddSingleton<IChatHubAiRateLimiter, ChatHubAiRateLimiter>();
 builder.Services.AddScoped<IStoryLifecycleService, StoryLifecycleService>();
@@ -679,15 +705,15 @@ builder.Services.AddAuthentication(options =>
 				return;
 			var versionClaim = context.Principal?.FindFirstValue(BeDemoClaimTypes.AccessTokenVersion);
 			var claimed = int.TryParse(versionClaim, out var v) ? v : 0;
-			var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<ApplicationUser>>();
-			var user = await userManager.FindByIdAsync(userId).ConfigureAwait(false);
-			if (user == null)
+			var atvCache = context.HttpContext.RequestServices.GetRequiredService<IAccessTokenVersionCache>();
+			var dbVersion = await atvCache.GetVersionAsync(userId).ConfigureAwait(false);
+			if (dbVersion is null)
 			{
 				context.Fail("User no longer exists.");
 				return;
 			}
 
-			if (user.AccessTokenVersion != claimed)
+			if (dbVersion.Value != claimed)
 				context.Fail("Access token revoked (session version mismatch).");
 		},
 	};

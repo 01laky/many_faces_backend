@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.1.0](#110) | Backend runtime performance v1 (BE-RP1…35)         |
+| [1.0.2](#102) | README shield badges                               |
 | [1.0.0](#100) | Operator infra settings, global search, live stats |
 | [0.9.0](#090) | Operator consoles, VideoLounge, moderation APIs    |
 | [0.8.0](#080) | SHV2 security, FluentValidation, signed uploads    |
@@ -26,6 +28,29 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.1.0]
+
+### Added
+
+- **Runtime performance v1 (BE-RP1…BE-RP35):** JWT `AccessTokenVersion` cache, faces config
+  cache with `AsSplitQuery`, capabilities cache, messenger SQL pagination envelope,
+  platform stats cache decorator, search outbox parallel/bulk gRPC, admin autocomplete
+  cache, async face routing load, grid snapshot BFF (`/api/faces/{id}/grid-snapshot`) with
+  shared grid list services, upload serve `Cache-Control`/`ETag`, hub user display cache,
+  `Performance` appsettings section, baseline script (`scripts/backend-perf-baseline.mjs`),
+  k6 load stub (`scripts/backend-load-test.k6.js`), docs
+  (`docs/runtime-performance-v1.md`, guides, SVG flow diagram).
+- Edge-case tests: BE-RP1/3/4/22/26/28/34 performance and grid contract suites.
+
+### Changed
+
+- `GET /api/messages/conversations` returns paginated envelope `{ items, page, pageSize,
+  totalCount, totalPages }` (BE-RP3).
+- `FacesController.GetFacesConfig` delegates to `FacesConfigService` with generation-based
+  cache invalidation.
 
 ---
 
@@ -161,7 +186,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.2.0...HEAD
 [1.0.2]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/01laky/many_faces_backend/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/01laky/many_faces_backend/compare/v0.9.0...v1.0.0
@@ -174,3 +199,4 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 [0.3.0]: https://github.com/01laky/many_faces_backend/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
+[1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0

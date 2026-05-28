@@ -5,6 +5,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Social;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.Messenger;
 using BeDemo.Api.Utils;
 
 namespace BeDemo.Api.Controllers;
@@ -17,15 +18,18 @@ public class MessagesController : ControllerBase
 	private readonly ApplicationDbContext _context;
 	private readonly IFaceScopeContext _faceScope;
 	private readonly IFaceModerationService _faceModeration;
+	private readonly IConversationListService _conversations;
 
 	public MessagesController(
 		ApplicationDbContext context,
 		IFaceScopeContext faceScope,
-		IFaceModerationService faceModeration)
+		IFaceModerationService faceModeration,
+		IConversationListService conversations)
 	{
 		_context = context;
 		_faceScope = faceScope;
 		_faceModeration = faceModeration;
+		_conversations = conversations;
 	}
 
 	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -35,63 +39,29 @@ public class MessagesController : ControllerBase
 		_faceScope.IsAvailable &&
 		await _faceModeration.ShouldBlockPeerActivityInFaceAsync(UserId, _faceScope.FaceId, cancellationToken);
 
-	/// <summary>GET /api/messages/conversations - List conversations with last message</summary>
+	/// <summary>GET /api/messages/conversations - Paginated conversation list (BE-RP3)</summary>
 	[HttpGet("conversations")]
-	public async Task<IActionResult> GetConversations(CancellationToken cancellationToken)
+	public async Task<IActionResult> GetConversations(
+		[FromQuery] int page = 1,
+		[FromQuery] int pageSize = 50,
+		CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		// Get blocked user IDs (both directions)
-		var blockedIds = await _context.UserBlocks
-			.Where(b => b.BlockerId == UserId || b.BlockedId == UserId)
-			.Select(b => b.BlockerId == UserId ? b.BlockedId : b.BlockerId)
-			.ToListAsync();
+		var result = await _conversations.GetConversationsAsync(UserId, page, pageSize, cancellationToken);
+		var payload = result.Items.Select(c => new
+		{
+			otherUserId = c.OtherUserId,
+			otherUserName = c.OtherUserName,
+			otherUserEmail = c.OtherUserEmail,
+			lastMessage = c.LastMessage,
+			lastMessageAt = c.LastMessageAt,
+			lastMessageFromMe = c.LastMessageFromMe,
+			unreadCount = c.UnreadCount,
+		}).ToList();
 
-		var messages = await _context.Messages
-			.Where(m => m.SenderId == UserId || m.ReceiverId == UserId)
-			.Where(m => !m.IsMessageRequest || m.MessageRequestStatus == MessageRequestStatus.Accepted)
-			.Where(m => !blockedIds.Contains(m.SenderId) && !blockedIds.Contains(m.ReceiverId) || m.SenderId == UserId || m.ReceiverId == UserId)
-			.Where(m => !blockedIds.Contains(m.SenderId == UserId ? m.ReceiverId : m.SenderId))
-			.Include(m => m.Sender)
-			.Include(m => m.Receiver)
-			.OrderByDescending(m => m.SentAt)
-			.ToListAsync();
-
-		var byOther = messages
-			.GroupBy(m => m.SenderId == UserId ? m.ReceiverId : m.SenderId)
-			.Select(g =>
-			{
-				var otherId = g.Key;
-				var last = g.First();
-				var other = last.SenderId == UserId ? last.Receiver : last.Sender;
-				return new
-				{
-					otherUserId = otherId,
-					otherUserName = (other.FirstName ?? "") + " " + (other.LastName ?? ""),
-					otherUserEmail = other.Email,
-					lastMessage = last.Content,
-					lastMessageAt = last.SentAt,
-					lastMessageFromMe = last.SenderId == UserId,
-					unreadCount = g.Count(m => m.ReceiverId == UserId && m.ReadAt == null),
-				};
-			})
-			.OrderByDescending(c => c.lastMessageAt)
-			.ToList();
-
-		var callerFaceBanned = await IsCallerFaceBannedInScopeAsync(cancellationToken);
-		var superAdminIds = await MessengerModerationHelper.GetSuperAdminUserIdsAsync(
-			_context,
-			byOther.Select(c => c.otherUserId),
-			cancellationToken);
-		var filtered = byOther
-			.Where(c => !MessengerModerationHelper.ShouldHidePeerConversation(
-				callerFaceBanned,
-				c.otherUserId,
-				superAdminIds))
-			.ToList();
-
-		return Ok(filtered);
+		return Ok(ListPaginationHelper.BuildEnvelope(payload, result.Page, result.PageSize, result.TotalCount, result.TotalPages));
 	}
 
 	/// <summary>GET /api/messages/requests - Message requests from non-friends</summary>

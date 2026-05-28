@@ -145,8 +145,9 @@ public class OperatorUsersMessengerIntegrationTests : IClassFixture<CustomWebApp
 
 		var list = await GetConversationsAsync(_publicFace, tokenA);
 		list.StatusCode.Should().Be(HttpStatusCode.OK);
-		var items = await list.Content.ReadFromJsonAsync<JsonElement[]>();
-		items!.Should().NotContain(e => e.GetProperty("otherUserId").GetString() == userB);
+		var envelope = await list.Content.ReadFromJsonAsync<JsonElement>();
+		var items = IntegrationTestPaginatedList.ReadItems(envelope);
+		items.Should().NotContain(e => e.GetProperty("otherUserId").GetString() == userB);
 
 		await DeleteFaceBanAsync(superToken, userA, publicFaceId);
 	}

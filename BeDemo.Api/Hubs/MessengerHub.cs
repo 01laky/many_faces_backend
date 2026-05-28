@@ -35,6 +35,7 @@ public class MessengerHub : Hub
 	private readonly IFaceModerationService _faceModeration;
 	private readonly IPlatformDirectMessageService _platformDirectMessages;
 	private readonly IPlatformChatRateLimiter _platformChatRateLimiter;
+	private readonly IHubUserDisplayCache _hubUserDisplay;
 
 	public MessengerHub(
 		ApplicationDbContext context,
@@ -42,7 +43,8 @@ public class MessengerHub : Hub
 		IFaceScopeContext faceScope,
 		IFaceModerationService faceModeration,
 		IPlatformDirectMessageService platformDirectMessages,
-		IPlatformChatRateLimiter platformChatRateLimiter)
+		IPlatformChatRateLimiter platformChatRateLimiter,
+		IHubUserDisplayCache hubUserDisplay)
 	{
 		_context = context;
 		_logger = logger;
@@ -50,6 +52,7 @@ public class MessengerHub : Hub
 		_faceModeration = faceModeration;
 		_platformDirectMessages = platformDirectMessages;
 		_platformChatRateLimiter = platformChatRateLimiter;
+		_hubUserDisplay = hubUserDisplay;
 	}
 
 	private string? UserId => Context.UserIdentifier ?? Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
@@ -145,7 +148,7 @@ public class MessengerHub : Hub
 
 		var isMessageRequest = !areFriends;
 
-		var senderName = (sender.FirstName ?? "") + " " + (sender.LastName ?? "");
+		var senderName = await ResolveDisplayNameAsync(UserId, sender);
 
 		var message = new Message
 		{
@@ -209,7 +212,7 @@ public class MessengerHub : Hub
 		await _context.SaveChangesAsync();
 
 		var sender = await _context.Users.FindAsync(senderId);
-		var senderName = sender != null ? (sender.FirstName ?? "") + " " + (sender.LastName ?? "") : "";
+		var senderName = await ResolveDisplayNameAsync(senderId, sender);
 
 		await Clients.User(senderId).SendAsync("MessageRequestAccepted", UserId, senderName);
 	}
@@ -231,5 +234,15 @@ public class MessengerHub : Hub
 
 		await _context.SaveChangesAsync();
 		await Clients.User(senderId).SendAsync("MessageRequestRejected", UserId);
+	}
+
+	private async Task<string> ResolveDisplayNameAsync(string userId, ApplicationUser? loaded = null)
+	{
+		var cached = await _hubUserDisplay.GetAsync(userId, Context.ConnectionAborted);
+		if (cached.HasValue)
+			return cached.Value.DisplayName;
+
+		var user = loaded ?? await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+		return user == null ? string.Empty : $"{user.FirstName ?? ""} {user.LastName ?? ""}".Trim();
 	}
 }

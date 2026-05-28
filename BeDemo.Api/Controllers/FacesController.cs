@@ -8,6 +8,7 @@ using Npgsql;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.Faces;
 using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.ProfileDetail;
 using BeDemo.Api.Utils;
@@ -25,6 +26,7 @@ public class FacesController : ControllerBase
 	private readonly IMemoryCache _memoryCache;
 	private readonly IAccessEvaluator _access;
 	private readonly IProfileDetailTemplatePagesService _profileDetailTemplates;
+	private readonly IFacesConfigService _facesConfig;
 
 	public FacesController(
 		ApplicationDbContext context,
@@ -32,7 +34,8 @@ public class FacesController : ControllerBase
 		IFaceScopeContext faceScope,
 		IMemoryCache memoryCache,
 		IAccessEvaluator access,
-		IProfileDetailTemplatePagesService profileDetailTemplates)
+		IProfileDetailTemplatePagesService profileDetailTemplates,
+		IFacesConfigService facesConfig)
 	{
 		_context = context;
 		_logger = logger;
@@ -40,11 +43,13 @@ public class FacesController : ControllerBase
 		_memoryCache = memoryCache;
 		_access = access;
 		_profileDetailTemplates = profileDetailTemplates;
+		_facesConfig = facesConfig;
 	}
 
 	private void InvalidateFacesRoutingCache()
 	{
 		_memoryCache.Remove("Faces");
+		_facesConfig.InvalidateAll();
 	}
 
 	/// <summary>Global Admin or SuperAdmin — used for tenant-scoped elevation (e.g. public faces-config), not admin-face platform APIs.</summary>
@@ -143,177 +148,25 @@ public class FacesController : ControllerBase
 	/// </summary>
 	[HttpGet("config")]
 	[AllowAnonymous]
-	public async Task<IActionResult> GetFacesConfig()
+	[ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = false)]
+	public async Task<IActionResult> GetFacesConfig(CancellationToken cancellationToken)
 	{
 		try
 		{
-			// Face scope rules:
-			// - Admin URL + SuperAdmin JWT: full graph (all faces) for admin SPA.
-			// - Admin URL + anyone else: Forbid (private face + enforcement already blocks anonymous).
-			// - Public tenant + anonymous: all public faces (landing / directory across public tenants only).
-			// - Public tenant + authenticated: public faces + private faces the user may use (portal switcher).
-			// - Otherwise (private tenant): single scoped face only.
+			if (_faceScope.IsAdminFaceScope &&
+				(User.Identity?.IsAuthenticated != true || !CanManageAllFaces()))
+				return Forbid();
+
 			var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-			List<Face> faces;
-			if (_faceScope.IsAdminFaceScope)
-			{
-				if (User.Identity?.IsAuthenticated != true || !CanManageAllFaces())
-					return Forbid();
-
-				faces = await _context.Faces
-					.Include(f => f.Pages)
-					.ThenInclude(p => p.PageType)
-					.Include(f => f.Pages)
-					.ThenInclude(p => p.RouteTranslations)
-					.OrderBy(f => f.Index)
-					.ToListAsync();
-			}
-			else if (_faceScope.IsPublicFace && User.Identity?.IsAuthenticated != true)
-			{
-				faces = await _context.Faces
-					.Where(f => f.IsPublic)
-					.Include(f => f.Pages)
-					.ThenInclude(p => p.PageType)
-					.Include(f => f.Pages)
-					.ThenInclude(p => p.RouteTranslations)
-					.OrderBy(f => f.Index)
-					.ToListAsync();
-			}
-			else if (_faceScope.IsPublicFace)
-			{
-				IQueryable<Face> query = _context.Faces
-					.Include(f => f.Pages)
-					.ThenInclude(p => p.PageType)
-					.Include(f => f.Pages)
-					.ThenInclude(p => p.RouteTranslations);
-
-				if (!string.IsNullOrEmpty(userId) && IsGlobalAdmin())
-				{
-					faces = await query.OrderBy(f => f.Index).ToListAsync();
-				}
-				else if (!string.IsNullOrEmpty(userId))
-				{
-					var privateFaceIds = await _context.UserFaceRoles
-						.AsNoTracking()
-						.Where(ufr => ufr.UserId == userId)
-						.Select(ufr => ufr.FaceId)
-						.ToListAsync();
-
-					faces = await query
-						.Where(f => f.IsPublic || privateFaceIds.Contains(f.Id))
-						.OrderBy(f => f.Index)
-						.ToListAsync();
-				}
-				else
-				{
-					faces = await query
-						.Where(f => f.IsPublic)
-						.OrderBy(f => f.Index)
-						.ToListAsync();
-				}
-			}
-			else
-			{
-				faces = await _context.Faces
-					.Where(f => f.Id == _faceScope.FaceId)
-					.Include(f => f.Pages)
-					.ThenInclude(p => p.PageType)
-					.Include(f => f.Pages)
-					.ThenInclude(p => p.RouteTranslations)
-					.OrderBy(f => f.Index)
-					.ToListAsync();
-			}
-
-			Dictionary<int, (int RoleId, string RoleName)>? myFaceRoles = null;
-			Dictionary<int, (bool Visited, bool FaceRoleIntroCompleted)>? myFaceState = null;
-			if (!string.IsNullOrEmpty(userId))
-			{
-				var userFaceRoles = await _context.UserFaceRoles
-					.Where(ufr => ufr.UserId == userId)
-					.Include(ufr => ufr.UserRole)
-					.ToListAsync();
-				myFaceRoles = userFaceRoles
-					.Where(ufr => ufr.UserRole != null)
-					.ToDictionary(ufr => ufr.FaceId, ufr => (ufr.UserRoleId, ufr.UserRole!.Name));
-
-				var userProfileId = await _context.UserProfiles
-					.AsNoTracking()
-					.Where(up => up.UserId == userId)
-					.Select(up => up.Id)
-					.FirstOrDefaultAsync();
-				if (userProfileId != 0)
-				{
-					var ufRows = await _context.UserFaceProfiles
-						.AsNoTracking()
-						.Where(ufp => ufp.UserProfileId == userProfileId)
-						.Select(ufp => new { ufp.FaceId, ufp.Visited, ufp.FaceRoleIntroCompleted })
-						.ToListAsync();
-					myFaceState = ufRows.ToDictionary(x => x.FaceId, x => (x.Visited, x.FaceRoleIntroCompleted));
-				}
-			}
-
-			var facesConfig = faces.Select(f =>
-			{
-				object? myFaceRoleId = null;
-				object? myFaceRoleName = null;
-				if (myFaceRoles != null && myFaceRoles.TryGetValue(f.Id, out var role))
-				{
-					myFaceRoleId = role.RoleId;
-					myFaceRoleName = role.RoleName;
-				}
-
-				object? myVisited = null;
-				object? myFaceRoleIntroCompleted = null;
-				if (myFaceState != null && myFaceState.TryGetValue(f.Id, out var st))
-				{
-					myVisited = st.Visited;
-					myFaceRoleIntroCompleted = st.FaceRoleIntroCompleted;
-				}
-
-				return new
-				{
-					index = f.Index,
-					id = f.Id,
-					title = f.Title,
-					description = f.Description,
-					gradientSettings = f.GradientSettings,
-					isPublic = f.IsPublic,
-					visibility = f.Visibility.ToString(),
-					allowRecensions = f.AllowRecensions,
-					chatRoomsCreate = f.ChatRoomsCreate,
-					videoLoungesCreate = f.VideoLoungesCreate,
-					myFaceRoleId,
-					myFaceRoleName,
-					myVisited,
-					myFaceRoleIntroCompleted,
-					pages = f.Pages
-						.OrderBy(p => p.Index)
-						.Select(p => new
-						{
-							index = p.Index,
-							id = p.Id,
-							name = p.Name,
-							description = p.Description,
-							path = p.Path,
-							gridSchema = p.GridSchema,
-							pageType = p.PageType != null
-								? new { index = p.PageType.Index, id = p.PageType.Id }
-								: (object?)null,
-							routeTranslations = p.RouteTranslations
-								.OrderBy(rt => rt.LanguageCode)
-								.Select(rt => new
-								{
-									languageCode = rt.LanguageCode,
-									translatedRoute = rt.TranslatedRoute,
-								}).ToList(),
-							createdAt = p.CreatedAt,
-							updatedAt = p.UpdatedAt
-						}).ToList()
-				};
-			}).ToList();
-
-			_logger.LogInformation("Retrieved faces config with {FaceCount} faces", facesConfig.Count);
+			var facesConfig = await _facesConfig.GetFacesConfigAsync(User, userId, cancellationToken);
+			Response.Headers.CacheControl = User.Identity?.IsAuthenticated == true
+				? "private, max-age=60"
+				: "public, max-age=120";
 			return Ok(facesConfig);
+		}
+		catch (UnauthorizedAccessException)
+		{
+			return Forbid();
 		}
 		catch (PostgresException ex) when (ex.SqlState == "28000" && ex.MessageText?.Contains("does not exist", StringComparison.OrdinalIgnoreCase) == true)
 		{
@@ -491,6 +344,7 @@ public class FacesController : ControllerBase
 			UserFaceProfileEnsure.Options.ForVisit);
 
 		await _context.SaveChangesAsync();
+		_facesConfig.InvalidateAll();
 		return Ok(new { visited = true });
 	}
 

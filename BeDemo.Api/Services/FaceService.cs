@@ -32,16 +32,17 @@ public class FaceService : IFaceService
 	/// Used by routing middleware to match face prefixes with face IDs
 	/// </summary>
 	/// <returns>List of all faces</returns>
-	public List<Face> GetFaces()
+	public List<Face> GetFaces() => GetFacesAsync(CancellationToken.None).GetAwaiter().GetResult();
+
+	/// <inheritdoc />
+	public async Task<List<Face>> GetFacesAsync(CancellationToken cancellationToken = default)
 	{
 		try
 		{
-			// Get all faces from database, ordered by Index
-			// AsNoTracking() improves performance since we don't need change tracking for routing
-			var faces = _context.Faces
+			var faces = await _context.Faces
 				.AsNoTracking()
 				.OrderBy(f => f.Index)
-				.ToList();
+				.ToListAsync(cancellationToken);
 
 			_logger.LogDebug("Retrieved {Count} faces from database", faces.Count);
 			return faces;
@@ -49,8 +50,6 @@ public class FaceService : IFaceService
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving faces from database");
-			// Return empty list on error to prevent middleware from failing
-			// Middleware will handle empty list gracefully (no faces = no face routing)
 			return new List<Face>();
 		}
 	}

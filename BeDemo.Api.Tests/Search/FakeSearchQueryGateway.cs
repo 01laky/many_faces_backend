@@ -31,6 +31,15 @@ internal sealed class FakeSearchQueryGateway : BeDemo.Api.Services.Search.ISearc
 
 	public ListDocumentIdsResponse ListDocumentIdsResponse { get; set; } = new();
 
+	/// <summary>Artificial delay for deadline / concurrency edge tests (BE-RP32).</summary>
+	public int BulkIndexDelayMs { get; set; }
+
+	/// <summary>Peak concurrent in-flight bulk index calls observed.</summary>
+	public int MaxObservedBulkConcurrency => Volatile.Read(ref _maxObservedBulkConcurrency);
+
+	private int _bulkInFlight;
+	private int _maxObservedBulkConcurrency;
+
 	public int IndexFailCountBeforeSuccess { get; set; }
 
 	public int DeleteFailCountBeforeSuccess { get; set; }
@@ -72,10 +81,39 @@ internal sealed class FakeSearchQueryGateway : BeDemo.Api.Services.Search.ISearc
 		return Task.FromResult<DeleteDocumentResponse?>(DeleteDocumentResponse);
 	}
 
-	public Task<BulkIndexDocumentsResponse?> BulkIndexDocumentsAsync(BulkIndexDocumentsRequest request, CancellationToken cancellationToken = default)
+	public async Task<BulkIndexDocumentsResponse?> BulkIndexDocumentsAsync(BulkIndexDocumentsRequest request, CancellationToken cancellationToken = default)
 	{
 		BulkIndexCallCount++;
-		return Task.FromResult<BulkIndexDocumentsResponse?>(BulkIndexResponse);
+		var inFlight = Interlocked.Increment(ref _bulkInFlight);
+		while (true)
+		{
+			var currentMax = Volatile.Read(ref _maxObservedBulkConcurrency);
+			if (inFlight <= currentMax || Interlocked.CompareExchange(ref _maxObservedBulkConcurrency, inFlight, currentMax) == currentMax)
+				break;
+		}
+
+		try
+		{
+			if (BulkIndexDelayMs > 0)
+				await Task.Delay(BulkIndexDelayMs, cancellationToken);
+		}
+		finally
+		{
+			Interlocked.Decrement(ref _bulkInFlight);
+		}
+
+		var response = BulkIndexResponse;
+		if (response.IndexedCount == 0 || response.IndexedCount < request.Documents.Count)
+		{
+			response = new BulkIndexDocumentsResponse
+			{
+				IndexedCount = request.Documents.Count,
+				FailedCount = response.FailedCount,
+			};
+			response.Errors.AddRange(BulkIndexResponse.Errors);
+		}
+
+		return response;
 	}
 
 	public Task<ListDocumentIdsResponse?> ListDocumentIdsAsync(ListDocumentIdsRequest request, CancellationToken cancellationToken = default)
