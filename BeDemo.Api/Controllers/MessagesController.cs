@@ -125,14 +125,20 @@ public class MessagesController : ControllerBase
 		if (isBlocked)
 			return Ok(Array.Empty<object>());
 
-		var messages = await _context.Messages
+		var limit = query.Limit;
+		var threadQuery = _context.Messages
 			.Where(m =>
 				((m.SenderId == UserId && m.ReceiverId == otherUserId) ||
 				 (m.SenderId == otherUserId && m.ReceiverId == UserId)) &&
-				(!m.IsMessageRequest || m.MessageRequestStatus == MessageRequestStatus.Accepted))
+				(!m.IsMessageRequest || m.MessageRequestStatus == MessageRequestStatus.Accepted));
+
+		if (query.BeforeId is { } beforeId)
+			threadQuery = threadQuery.Where(m => m.Id < beforeId);
+
+		var messages = await threadQuery
 			.Include(m => m.Sender).ThenInclude(u => u.UserRole)
-			.OrderByDescending(m => m.SentAt)
-			.Take(query.Limit)
+			.OrderByDescending(m => m.Id)
+			.Take(limit)
 			.ToListAsync(cancellationToken);
 
 		messages.Reverse();

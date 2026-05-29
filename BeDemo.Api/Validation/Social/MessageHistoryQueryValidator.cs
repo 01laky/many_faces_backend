@@ -5,6 +5,9 @@ namespace BeDemo.Api.Validation.Social;
 
 public sealed class MessageHistoryQueryValidator : AbstractValidator<MessageHistoryQuery>
 {
-	public MessageHistoryQueryValidator() =>
+	public MessageHistoryQueryValidator()
+	{
 		RuleFor(x => x.Limit).InclusiveBetween(1, ValidationConstants.MessageLimitMax);
+		RuleFor(x => x.BeforeId).GreaterThan(0).When(x => x.BeforeId.HasValue);
+	}
 }

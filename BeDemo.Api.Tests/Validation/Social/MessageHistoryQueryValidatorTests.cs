@@ -15,8 +15,16 @@ public sealed class MessageHistoryQueryValidatorTests
 	}
 
 	[Fact]
-	public void Limit_over_max_fails()
+	public void BeforeId_zero_fails()
 	{
-		_sut.TestValidate(new MessageHistoryQuery { Limit = 201 }).ShouldHaveValidationErrorFor(x => x.Limit);
+		_sut.TestValidate(new MessageHistoryQuery { Limit = 50, BeforeId = 0 })
+			.ShouldHaveValidationErrorFor(x => x.BeforeId);
+	}
+
+	[Fact]
+	public void BeforeId_positive_is_valid()
+	{
+		_sut.TestValidate(new MessageHistoryQuery { Limit = 50, BeforeId = 100 })
+			.ShouldNotHaveValidationErrorFor(x => x.BeforeId);
 	}
 }
