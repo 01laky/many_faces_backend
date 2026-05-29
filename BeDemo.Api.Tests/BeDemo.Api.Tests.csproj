@@ -36,6 +36,7 @@
     <Content Include="Fixtures\portal-auth-flow-golden.en.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Fixtures\Grid\grid-snapshot-member-public.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Fixtures\Grid\grid-snapshot-guest-profiles-public.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Fixtures\Monorepo\**\*.*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
