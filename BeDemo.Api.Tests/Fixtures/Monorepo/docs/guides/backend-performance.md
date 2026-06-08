@@ -6,19 +6,19 @@ Ops guide for **BE-RP1…BE-RP35** (`many_faces_backend` **1.1.0**).
 
 `many_faces_backend/BeDemo.Api/appsettings.json`:
 
-| Key                               | Default | Update   |
-| --------------------------------- | ------- | -------- |
-| `AccessTokenVersionCacheSeconds`  | 45      | BE-RP1   |
-| `FacesConfigCacheSeconds`         | 120     | BE-RP2   |
-| `CapabilitiesCacheSeconds`        | 45      | BE-RP26  |
-| `PlatformStatsCacheSeconds`       | 45      | BE-RP4   |
-| `PublicStatsCacheSeconds`         | 60      | BE-RP4   |
-| `AdminSearchAutocompleteCacheSeconds` | 15  | BE-RP6   |
-| `SearchOutboxMaxParallelGrpc`     | 4       | BE-RP5   |
-| `EfQueryTagsEnabled`              | false   | BE-RP29  |
-| `UploadServeCacheMaxAgeSeconds`   | 300     | BE-RP28  |
-| `HubUserDisplayCacheSeconds`      | 60      | BE-RP14  |
-| `SearchGrpcDeadlineSeconds`       | 15      | BE-RP32  |
+| Key                                   | Default | Update  |
+| ------------------------------------- | ------- | ------- |
+| `AccessTokenVersionCacheSeconds`      | 45      | BE-RP1  |
+| `FacesConfigCacheSeconds`             | 120     | BE-RP2  |
+| `CapabilitiesCacheSeconds`            | 45      | BE-RP26 |
+| `PlatformStatsCacheSeconds`           | 45      | BE-RP4  |
+| `PublicStatsCacheSeconds`             | 60      | BE-RP4  |
+| `AdminSearchAutocompleteCacheSeconds` | 15      | BE-RP6  |
+| `SearchOutboxMaxParallelGrpc`         | 4       | BE-RP5  |
+| `EfQueryTagsEnabled`                  | false   | BE-RP29 |
+| `UploadServeCacheMaxAgeSeconds`       | 300     | BE-RP28 |
+| `HubUserDisplayCacheSeconds`          | 60      | BE-RP14 |
+| `SearchGrpcDeadlineSeconds`           | 15      | BE-RP32 |
 
 ## Cache invalidation
 
@@ -40,12 +40,12 @@ flowchart LR
   UserDel --> ATV
 ```
 
-| Cache              | Invalidation trigger                                      |
-| ------------------ | --------------------------------------------------------- |
-| JWT `atv`          | Password/role change, user delete (`SaveChanges` interceptor) |
-| Faces config       | Face/page CRUD, visit mark, routing `"Faces"` key bump    |
-| Capabilities       | Short TTL; face role changes                              |
-| Platform stats     | TTL only (30–60s)                                         |
+| Cache          | Invalidation trigger                                          |
+| -------------- | ------------------------------------------------------------- |
+| JWT `atv`      | Password/role change, user delete (`SaveChanges` interceptor) |
+| Faces config   | Face/page CRUD, visit mark, routing `"Faces"` key bump        |
+| Capabilities   | Short TTL; face role changes                                  |
+| Platform stats | TTL only (30–60s)                                             |
 
 ## PostgreSQL pool
 

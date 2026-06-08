@@ -90,4 +90,18 @@ public sealed class AiAvailabilityGuardGrpcService : IAiGrpcService
 
 		return await _inner.GetHostProfileAsync(cancellationToken);
 	}
+
+	/// <inheritdoc />
+	public async Task<AiEmbedTextResult> EmbedTextAsync(
+		string text,
+		string? model = null,
+		CancellationToken cancellationToken = default)
+	{
+		// Global AI switch off ⇒ no embeddings. Callers (indexer/retriever) treat the error result as
+		// "embed unavailable" — the retriever then takes the planner fallback (§6) and the indexer skips.
+		if (!await _settings.IsAiEnabledAsync(cancellationToken))
+			return new AiEmbedTextResult(null, null, "ai_disabled");
+
+		return await _inner.EmbedTextAsync(text, model, cancellationToken);
+	}
 }

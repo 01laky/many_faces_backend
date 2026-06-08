@@ -66,6 +66,47 @@ public sealed class OperatorAiOptions
 	/// <summary>Max wall time for startup warm prefetch (seconds).</summary>
 	public int WarmLiveBundleCacheStartupTimeoutSeconds { get; set; } = 120;
 
+	// ── RAG retrieval refactor v1 (operator-ai-rag-retrieval-refactor-v1) ──────
+	// Embedding-based semantic retrieval replaces the LLM planner as the bundle
+	// SELECTION step; the per-bundle map + stitch is retained. The planner is now
+	// only the degraded fallback selector (embed/ES down or index not ready).
+
+	/// <summary>§6.1 — extra selection attempts after a zero-hit RAG result (planner, then relaxed retrieval) before the fixed refusal. Default 2.</summary>
+	public int ZeroHitRetryAttempts { get; set; } = 2;
+
+	/// <summary>§4/§6 — minimum fused RRF score for a SemanticSearch hit to count as usable (below ⇒ zero-hit escalation). Tune during impl.</summary>
+	public double MinRetrievalScore { get; set; }
+
+	/// <summary>§17.4 — TTL (seconds) for the cached KnowledgeIndexStatus readiness probe that gates the planner fallback on cold start.</summary>
+	public int KnowledgeStatusCacheTtlSeconds { get; set; } = 15;
+
+	/// <summary>§17.8 — query-embedding cache TTL (seconds); keyed by normalize(message)+embed_model_version. Default 300.</summary>
+	public int QueryEmbeddingCacheTtlSeconds { get; set; } = 300;
+
+	/// <summary>§17.8 — bounded entry count for the query-embedding IMemoryCache.</summary>
+	public int QueryEmbeddingCacheMaxEntries { get; set; } = 512;
+
+	/// <summary>§17.7 — embed call budget (ms); on timeout ⇒ planner fallback.</summary>
+	public int EmbedTimeoutMs { get; set; } = 8_000;
+
+	/// <summary>§17.7 — SemanticSearch budget (ms); on timeout ⇒ planner fallback.</summary>
+	public int RetrievalTimeoutMs { get; set; } = 8_000;
+
+	/// <summary>§17.7 — per-bundle Generate budget (ms); on timeout ⇒ drop that section + one-line note.</summary>
+	public int PerBundleGenerateTimeoutMs { get; set; } = 60_000;
+
+	/// <summary>§17.7 — overall turn budget (ms); exceeded ⇒ stitch whatever is ready + a note. Never hang.</summary>
+	public int OverallTurnBudgetMs { get; set; } = 240_000;
+
+	/// <summary>§17.1 — emit the per-turn structured retrieval trace (selected ids, RRF scores, stage latencies). Dev:true / prod:false.</summary>
+	public bool RetrievalTraceEnabled { get; set; } = true;
+
+	/// <summary>§17.10 — dev-only "why these bundles" debug payload alongside the assistant message. Off by default.</summary>
+	public bool LiveStatsDebugJson { get; set; }
+
+	/// <summary>RRF constant passed to the worker SemanticSearch (0 ⇒ worker default 60).</summary>
+	public int RetrievalRrfK { get; set; }
+
 	// Global AI master switch — see docs/prompts/admin-global-ai-enable-switch-agent-prompt.md
 
 	/// <summary>Bootstrap default when inserting the singleton row for the first time (Testing always false).</summary>

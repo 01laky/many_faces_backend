@@ -2,11 +2,11 @@
 
 ## Running locally
 
-| Mode | Command / doc |
-| ---- | ------------- |
-| Full stack | `ENABLE_*=1 ./scripts/start-all-dev.sh` from monorepo root — [`development.md`](../../../docs/guides/development.md) |
-| Backend only | `many_faces_backend/README.md` — Docker `be-demo-dev` or `dotnet run` |
-| Ports | API **8000/8001**; see [`dev-https.md`](../../../docs/guides/dev-https.md) |
+| Mode         | Command / doc                                                                                                        |
+| ------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Full stack   | `ENABLE_*=1 ./scripts/start-all-dev.sh` from monorepo root — [`development.md`](../../../docs/guides/development.md) |
+| Backend only | `many_faces_backend/README.md` — Docker `be-demo-dev` or `dotnet run`                                                |
+| Ports        | API **8000/8001**; see [`dev-https.md`](../../../docs/guides/dev-https.md)                                           |
 
 ## OAuth2 and registration
 
@@ -25,11 +25,11 @@ FluentValidation on DTOs → **400** `ValidationProblemDetails` — [`api-reques
 
 ## Platform operator (`/admin/api/...`)
 
-| Gate | Role | Guide |
-| ---- | ---- | ----- |
-| `CanManageAllFaces` | **`SUPER_ADMIN`** + admin face scope | [`admin-superadmin-only-access.md`](../../../docs/guides/admin-superadmin-only-access.md) |
-| `IsGlobalSuperAdmin` | **`SUPER_ADMIN`** | Moderation, operator-users, hard deletes |
-| `IsGlobalAdmin` | **`ADMIN` or `SUPER_ADMIN`** | Tenant `GET …/faces/config` only |
+| Gate                 | Role                                 | Guide                                                                                     |
+| -------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `CanManageAllFaces`  | **`SUPER_ADMIN`** + admin face scope | [`admin-superadmin-only-access.md`](../../../docs/guides/admin-superadmin-only-access.md) |
+| `IsGlobalSuperAdmin` | **`SUPER_ADMIN`**                    | Moderation, operator-users, hard deletes                                                  |
+| `IsGlobalAdmin`      | **`ADMIN` or `SUPER_ADMIN`**         | Tenant `GET …/faces/config` only                                                          |
 
 Examples: `GET /api/Stats`, `GET/POST /api/users`, `GET/POST /api/faces`, `GET /api/admin/infra/worker-config`, operator AI routes — all require **`SUPER_ADMIN`** on admin face.
 

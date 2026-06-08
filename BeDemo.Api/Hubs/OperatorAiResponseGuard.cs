@@ -56,8 +56,10 @@ internal static class OperatorAiResponseGuard
 	{
 		if (IsInfrastructureFailure(raw))
 		{
-			return "Ospravedlňujem sa, momentálne sa nepodarilo spracovať požiadavku (štatistiky alebo AI služba). "
-				+ "Skúste znova o chvíľu alebo v Nastaveniach prepnite štatistiky na „inline“.";
+			// After the RAG refactor (D11) there is no stats-mode to switch to — the chat is always
+			// data-grounded. English-only message (D10), with no reference to the removed `inline` mode.
+			return "Sorry — the request could not be processed right now (statistics or AI service). "
+				+ "Please try again shortly.";
 		}
 
 		if (IsTransientStatusMessage(raw))

@@ -67,43 +67,43 @@ sequenceDiagram
 
 ## BE-RP index
 
-| ID      | Theme                                              | Status in v1        |
-| ------- | -------------------------------------------------- | ------------------- |
-| BE-RP1  | JWT `AccessTokenVersion` IMemoryCache              | Shipped             |
-| BE-RP2  | Faces config cache + AsSplitQuery                  | Shipped             |
-| BE-RP3  | Messenger conversations SQL pagination             | Shipped             |
-| BE-RP4  | Platform stats aggregation + cache                 | Shipped             |
-| BE-RP5  | Search outbox parallel gRPC batch                  | Shipped             |
-| BE-RP6  | Admin search autocomplete cache                    | Shipped             |
-| BE-RP7  | Face routing cache async path                      | Shipped             |
-| BE-RP8  | Grid snapshot BFF                                  | Shipped             |
-| BE-RP9  | AsSplitQuery on heavy Include graphs               | Shipped             |
-| BE-RP10 | DbContext pool evaluation                          | Waived (measured)   |
-| BE-RP11 | Compiled queries for hot paths                     | Partial / follow-up |
-| BE-RP12 | Cache-Control on safe GETs                         | Shipped (partial)   |
-| BE-RP13 | AsNoTracking on read-only paths                    | Shipped             |
-| BE-RP14 | SignalR hub user display cache                       | Shipped             |
-| BE-RP15 | Npgsql connection pool tuning                      | Documented          |
-| BE-RP16 | Search reconciliation batch tuning                 | Shipped (existing)  |
-| BE-RP17 | Operator AI bundle query consolidation             | Waived              |
-| BE-RP18 | Redis distributed ATV cache                        | Waived              |
-| BE-RP19 | Middleware short-circuit audit                     | Partial             |
-| BE-RP20 | Background worker poll interval tuning             | Partial             |
-| BE-RP21 | Baseline script `backend-perf-baseline.mjs`        | Shipped             |
-| BE-RP22 | Hot-path performance integration tests             | Shipped             |
-| BE-RP23 | Chat room / video lounge list projection           | Partial             |
-| BE-RP24 | Shared grid list services                          | Shipped             |
-| BE-RP25 | Observability Activity spans                       | Waived              |
-| BE-RP26 | Capabilities cache                                 | Shipped             |
-| BE-RP27 | OAuth2 token warm path audit                       | Partial             |
-| BE-RP28 | Upload serve Cache-Control + ETag                  | Shipped             |
-| BE-RP29 | EF TagWith query tags                              | Shipped             |
-| BE-RP30 | Read-replica runbook                               | Shipped (doc)       |
-| BE-RP31 | Rate-limit interaction audit                       | Documented          |
-| BE-RP32 | gRPC deadline defaults                             | Shipped             |
-| BE-RP33 | ChatHub Operator AI read reduction                 | Partial             |
-| BE-RP34 | Grid snapshot contract / golden JSON tests         | Shipped             |
-| BE-RP35 | k6 load harness stub                               | Shipped (stub)      |
+| ID      | Theme                                       | Status in v1        |
+| ------- | ------------------------------------------- | ------------------- |
+| BE-RP1  | JWT `AccessTokenVersion` IMemoryCache       | Shipped             |
+| BE-RP2  | Faces config cache + AsSplitQuery           | Shipped             |
+| BE-RP3  | Messenger conversations SQL pagination      | Shipped             |
+| BE-RP4  | Platform stats aggregation + cache          | Shipped             |
+| BE-RP5  | Search outbox parallel gRPC batch           | Shipped             |
+| BE-RP6  | Admin search autocomplete cache             | Shipped             |
+| BE-RP7  | Face routing cache async path               | Shipped             |
+| BE-RP8  | Grid snapshot BFF                           | Shipped             |
+| BE-RP9  | AsSplitQuery on heavy Include graphs        | Shipped             |
+| BE-RP10 | DbContext pool evaluation                   | Waived (measured)   |
+| BE-RP11 | Compiled queries for hot paths              | Partial / follow-up |
+| BE-RP12 | Cache-Control on safe GETs                  | Shipped (partial)   |
+| BE-RP13 | AsNoTracking on read-only paths             | Shipped             |
+| BE-RP14 | SignalR hub user display cache              | Shipped             |
+| BE-RP15 | Npgsql connection pool tuning               | Documented          |
+| BE-RP16 | Search reconciliation batch tuning          | Shipped (existing)  |
+| BE-RP17 | Operator AI bundle query consolidation      | Waived              |
+| BE-RP18 | Redis distributed ATV cache                 | Waived              |
+| BE-RP19 | Middleware short-circuit audit              | Partial             |
+| BE-RP20 | Background worker poll interval tuning      | Partial             |
+| BE-RP21 | Baseline script `backend-perf-baseline.mjs` | Shipped             |
+| BE-RP22 | Hot-path performance integration tests      | Shipped             |
+| BE-RP23 | Chat room / video lounge list projection    | Partial             |
+| BE-RP24 | Shared grid list services                   | Shipped             |
+| BE-RP25 | Observability Activity spans                | Waived              |
+| BE-RP26 | Capabilities cache                          | Shipped             |
+| BE-RP27 | OAuth2 token warm path audit                | Partial             |
+| BE-RP28 | Upload serve Cache-Control + ETag           | Shipped             |
+| BE-RP29 | EF TagWith query tags                       | Shipped             |
+| BE-RP30 | Read-replica runbook                        | Shipped (doc)       |
+| BE-RP31 | Rate-limit interaction audit                | Documented          |
+| BE-RP32 | gRPC deadline defaults                      | Shipped             |
+| BE-RP33 | ChatHub Operator AI read reduction          | Partial             |
+| BE-RP34 | Grid snapshot contract / golden JSON tests  | Shipped             |
+| BE-RP35 | k6 load harness stub                        | Shipped (stub)      |
 
 ## Measurement
 

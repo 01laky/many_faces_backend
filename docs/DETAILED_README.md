@@ -11,11 +11,11 @@ Short runbook lives in **[`../README.md`](../README.md)**. This file is the **lo
 
 ## Reference split
 
-| File | Contents |
-| ---- | -------- |
-| [`reference/01-features-running-and-api.md`](./reference/01-features-running-and-api.md) | Features, HTTP surface pointers, validation, localization |
-| [`reference/02-routing-config-and-workflow.md`](./reference/02-routing-config-and-workflow.md) | Face prefixes, middleware, config keys |
-| [`reference/03-testing-integration-and-troubleshooting.md`](./reference/03-testing-integration-and-troubleshooting.md) | `dotnet test`, integration filters, common failures |
+| File                                                                                                                   | Contents                                                  |
+| ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| [`reference/01-features-running-and-api.md`](./reference/01-features-running-and-api.md)                               | Features, HTTP surface pointers, validation, localization |
+| [`reference/02-routing-config-and-workflow.md`](./reference/02-routing-config-and-workflow.md)                         | Face prefixes, middleware, config keys                    |
+| [`reference/03-testing-integration-and-troubleshooting.md`](./reference/03-testing-integration-and-troubleshooting.md) | `dotnet test`, integration filters, common failures       |
 
 **Route tables:** prefer **Swagger** + integration tests over duplicating every path here.
 
@@ -33,7 +33,7 @@ flowchart LR
 
 ## Submodule vs monorepo
 
-| Keep in submodule | Keep in monorepo `docs/` |
-| ----------------- | ------------------------ |
-| Ports, `dotnet run`, proto regen, project layout | Cross-app policies, worker onboarding, agent prompts |
-| This `docs/reference/` index | Canonical guides linked from [`docs/README.md`](../../docs/README.md) |
+| Keep in submodule                                | Keep in monorepo `docs/`                                              |
+| ------------------------------------------------ | --------------------------------------------------------------------- |
+| Ports, `dotnet run`, proto regen, project layout | Cross-app policies, worker onboarding, agent prompts                  |
+| This `docs/reference/` index                     | Canonical guides linked from [`docs/README.md`](../../docs/README.md) |

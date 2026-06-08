@@ -1224,6 +1224,9 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
 
 	private sealed class FakeAiGrpcService : IAiGrpcService
 	{
+		public Task<AiEmbedTextResult> EmbedTextAsync(string text, string? model = null, CancellationToken cancellationToken = default) =>
+			Task.FromResult(new AiEmbedTextResult(null, null, "test fake"));
+
 		private readonly AiReviewRecommendation? _recommendation;
 		private readonly string? _error;
 

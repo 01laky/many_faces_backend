@@ -28,10 +28,13 @@ public sealed class OperatorAiResponseGuardTests
 	}
 
 	[Fact]
-	public void ToUserFacingMessage_maps_infrastructure_to_sk()
+	public void ToUserFacingMessage_maps_infrastructure_to_english_without_removed_mode()
 	{
+		// After the RAG refactor (D10/D11) the infra-failure message is English and must not
+		// reference the removed `inline` stats mode.
 		var msg = OperatorAiResponseGuard.ToUserFacingMessage("Error: Connection refused");
-		msg.Should().Contain("Ospravedlňujem sa");
+		msg.Should().Contain("Sorry");
 		msg.Should().NotContain("Connection refused");
+		msg.Should().NotContain("inline");
 	}
 }

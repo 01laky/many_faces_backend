@@ -24,20 +24,20 @@
 | **Security (BSH3)**  | **ES512 JWT** + JWKS, **`atv`** session invalidation, face-scope middleware (anti-spoof), refresh rotation, rate limits, **HMAC signed upload URLs**, production **fallback deny**, gRPC **TLS + bearer** to workers. CI: `node ../scripts/verify-backend-security-tests.mjs`. Guide: [`../docs/guides/security-crypto-sockets.md`](../docs/guides/security-crypto-sockets.md). |
 | **AI orchestration** | **Operator chat** (`ChatHub` → `many_faces_ai`), **live stats map-reduce** (61 entity bundles, Redis stage-1 cache), **`ReviewContent`** moderation jobs (Redis queue, sanitization before gRPC). Runbook: [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md).                                                      |
 | **Configuration**    | **Faces** + pages + **`gridSchema`** in PostgreSQL; **operator settings in DB** — mail SMTP ([`admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md)), push FCM ([`admin-push-configuration.md`](../docs/guides/admin-push-configuration.md)), search/AI modes; env bootstrap until admin saves.                                                        |
-| **Performance**      | **BE-RP1…35** (v1.1.0) — faces config + capabilities cache, grid snapshot BFF (**BE-RP8**), JWT `atv` cache, upload cache headers. Docs: [`docs/runtime-performance-v1.md`](./docs/runtime-performance-v1.md) · [`../docs/guides/backend-performance.md`](../docs/guides/backend-performance.md).                                                                                  |
+| **Performance**      | **BE-RP1…35** (v1.1.0) — faces config + capabilities cache, grid snapshot BFF (**BE-RP8**), JWT `atv` cache, upload cache headers. Docs: [`docs/runtime-performance-v1.md`](./docs/runtime-performance-v1.md) · [`../docs/guides/backend-performance.md`](../docs/guides/backend-performance.md).                                                                               |
 
-| Start here          | Link                                                                                                                         |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **Security**        | BSH3 above · [`appsettings.Hardened.json`](./BeDemo.Api/appsettings.Hardened.json) · worker TLS env vars                     |
-| Run in full stack   | `../scripts/start-all-dev.sh` from `many_faces_main`                                                                         |
-| Swagger             | `http://localhost:8000/swagger/index.html`                                                                                   |
-| Local accounts      | [`../docs/guides/local-dev-accounts.md`](../docs/guides/local-dev-accounts.md)                                               |
-| Platform ACL        | [`../docs/guides/admin-superadmin-only-access.md`](../docs/guides/admin-superadmin-only-access.md)                           |
-| Operator AI runbook | [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md)               |
+| Start here          | Link                                                                                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Security**        | BSH3 above · [`appsettings.Hardened.json`](./BeDemo.Api/appsettings.Hardened.json) · worker TLS env vars                                                |
+| Run in full stack   | `../scripts/start-all-dev.sh` from `many_faces_main`                                                                                                    |
+| Swagger             | `http://localhost:8000/swagger/index.html`                                                                                                              |
+| Local accounts      | [`../docs/guides/local-dev-accounts.md`](../docs/guides/local-dev-accounts.md)                                                                          |
+| Platform ACL        | [`../docs/guides/admin-superadmin-only-access.md`](../docs/guides/admin-superadmin-only-access.md)                                                      |
+| Operator AI runbook | [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md)                                          |
 | Runtime performance | [`docs/runtime-performance-v1.md`](./docs/runtime-performance-v1.md) · [`../docs/guides/backend-performance.md`](../docs/guides/backend-performance.md) |
-| Admin mail settings | [`../docs/guides/admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md)                               |
-| Admin push settings | [`../docs/guides/admin-push-configuration.md`](../docs/guides/admin-push-configuration.md)                                   |
-| Infra smoke APIs    | [`../docs/guides/admin-settings-infrastructure-smoke-tests.md`](../docs/guides/admin-settings-infrastructure-smoke-tests.md) |
+| Admin mail settings | [`../docs/guides/admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md)                                                          |
+| Admin push settings | [`../docs/guides/admin-push-configuration.md`](../docs/guides/admin-push-configuration.md)                                                              |
+| Infra smoke APIs    | [`../docs/guides/admin-settings-infrastructure-smoke-tests.md`](../docs/guides/admin-settings-infrastructure-smoke-tests.md)                            |
 
 ```mermaid
 flowchart LR

@@ -161,6 +161,31 @@ builder.Services.AddScoped<IOperatorAiConversationService, OperatorAiConversatio
 builder.Services.AddScoped<IOperatorAiEntityBundleLoader, OperatorAiEntityBundleLoader>();
 builder.Services.AddScoped<IOperatorAiLiveStatsPrefetcher, OperatorAiLiveStatsPrefetcher>();
 builder.Services.AddScoped<IOperatorAiLiveStatsOrchestrator, OperatorAiLiveStatsOrchestrator>();
+
+// ── Operator AI RAG retrieval (operator-ai-rag-retrieval-refactor-v1, §8) ──────
+// Embedding-based semantic retrieval replaces the LLM planner as the bundle
+// SELECTION step; the per-bundle map + stitch is retained. All deps below are
+// singletons (gRPC channel + IMemoryCache + IAiGrpcService), so these are
+// registered as singletons to mirror the search gateway / host-profile lifetimes.
+//
+//   - ISearchWorkerKnowledgeClient : the only door to the operator-ai-knowledge
+//     ES index (IndexKnowledge / SemanticSearch / KnowledgeIndexStatus); owns a
+//     gRPC channel like SearchWorkerGrpcGateway → singleton + IDisposable.
+//   - IOperatorAiKnowledgeStatusCache : short-TTL readiness/health cache (§17.4/§17.9).
+//   - IOperatorAiPlannerFallbackSelector : the legacy planner demoted to fallback (§6/D12).
+//   - IOperatorAiRetriever : EmbedText → SemanticSearch → ordered bundle indices (§8).
+//   - IOperatorAiKnowledgeIndexer : builds + embeds + bulk-upserts the 61 descriptors (§7).
+builder.Services.AddSingleton<ISearchWorkerKnowledgeClient, SearchWorkerKnowledgeClient>();
+builder.Services.AddSingleton<IOperatorAiKnowledgeStatusCache, OperatorAiKnowledgeStatusCache>();
+builder.Services.AddSingleton<IOperatorAiPlannerFallbackSelector, OperatorAiPlannerFallbackSelector>();
+builder.Services.AddSingleton<IOperatorAiRetriever, OperatorAiRetriever>();
+builder.Services.AddSingleton<IOperatorAiKnowledgeIndexer, OperatorAiKnowledgeIndexer>();
+
+// Startup hosted services (§5.5 dim assertion + §7.2 trigger 1 index refresh).
+// Both are non-blocking BackgroundServices that degrade gracefully if the worker
+// is not yet reachable; retrieval falls back to the planner until the index is ready.
+builder.Services.AddHostedService<OperatorAiEmbeddingDimStartupAssertion>();
+builder.Services.AddHostedService<OperatorAiKnowledgeIndexStartupRefresh>();
 builder.Services.AddScoped<IFaceModerationService, FaceModerationService>();
 builder.Services.AddScoped<IOperatorUserModerationService, OperatorUserModerationService>();
 builder.Services.AddScoped<IAdminMeProfileService, AdminMeProfileService>();

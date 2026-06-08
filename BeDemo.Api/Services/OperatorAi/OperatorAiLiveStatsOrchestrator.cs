@@ -18,6 +18,27 @@ public interface IOperatorAiLiveStatsOrchestrator
 		string responseLocale,
 		int maxParallelBundleAiCalls,
 		CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// RAG path (§3.1 query plane, §6): execute the retained map + stitch over a pre-SELECTED set of bundle
+	/// indices (chosen upstream by <see cref="IOperatorAiRetriever"/>, not the planner). Fresh-loads ONLY those K
+	/// bundles, runs one focused Generate per bundle (max <see cref="OperatorAiOptions.MaxParallelBundleAiCalls"/>
+	/// in parallel), then stitches + synthesizes one English reply.
+	///
+	/// <para>Timeout policy (§17.7):</para>
+	/// Per-bundle Generate is bounded by <see cref="OperatorAiOptions.PerBundleGenerateTimeoutMs"/> — a timeout
+	/// drops that section with a one-line note rather than failing the turn. The whole turn is bounded by
+	/// <see cref="OperatorAiOptions.OverallTurnBudgetMs"/>: when exceeded we stitch whatever sub-answers are ready
+	/// and append a coverage note. Never hangs, never empty-errors.
+	/// </summary>
+	/// <param name="indices">Ordered, deduped, top-K-capped bundle indices from the retriever.</param>
+	/// <param name="appendCoverageNote">True for broad-overview answers — appends a "covers the top-K" note (§6).</param>
+	Task<string> RunWithSelectedIndicesAsync(
+		string userMessage,
+		IReadOnlyList<int> indices,
+		int maxParallelBundleAiCalls,
+		bool appendCoverageNote,
+		CancellationToken cancellationToken = default);
 }
 
 /// <inheritdoc />
@@ -148,6 +169,102 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		var parts = await Task.WhenAll(partTasks);
 		var draft = OperatorAiLiveStatsStitch.Stitch(parts);
 		return await SynthesizeAsync(userMessage, responseLocale, draft, timeoutCts.Token);
+	}
+
+	/// <inheritdoc />
+	public async Task<string> RunWithSelectedIndicesAsync(
+		string userMessage,
+		IReadOnlyList<int> indices,
+		int maxParallelBundleAiCalls,
+		bool appendCoverageNote,
+		CancellationToken cancellationToken = default)
+	{
+		// Always-English (D10): the AI is never sent a language; the locale arg downstream is fixed "en".
+		const string responseLocale = "en";
+
+		// Overall turn budget (§17.7): the whole map+stitch must finish within OverallTurnBudgetMs. On overrun the
+		// linked token cancels in-flight Generates; we still stitch whatever sub-answers completed in time.
+		using var budgetCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+		budgetCts.CancelAfter(TimeSpan.FromMilliseconds(Math.Max(1_000, _options.OverallTurnBudgetMs)));
+
+		if (indices.Count == 0)
+			return string.Empty; // Caller (ChatHub) decides the zero-hit refusal; this method only maps + stitches.
+
+		var parallel = Math.Clamp(maxParallelBundleAiCalls, 1, _options.MaxParallelBundleAiCalls);
+
+		// Stage 1 — fresh-load ONLY the K selected bundles (drop the always-all-61 prefetch, §3.3 / RT-6).
+		var prefetch = await _prefetcher.PrefetchSelectedAsync(indices, budgetCts.Token);
+		var cache = prefetch.Entries;
+
+		// Stage 4 — per-bundle map: one focused Generate per bundle, max N concurrent (RETAINED, D6).
+		using var gate = new SemaphoreSlim(parallel, parallel);
+		var partTasks = indices.Select(index => RunBundleAiWithTimeoutAsync(
+			index,
+			userMessage,
+			responseLocale,
+			cache,
+			gate,
+			budgetCts.Token)).ToArray();
+
+		OperatorAiLiveStatsStitch.Part[] parts;
+		try
+		{
+			parts = await Task.WhenAll(partTasks);
+		}
+		catch (OperationCanceledException)
+		{
+			// Overall budget exceeded mid-flight: salvage the sub-answers that already completed (§17.7).
+			parts = partTasks
+				.Where(t => t.IsCompletedSuccessfully)
+				.Select(t => t.Result)
+				.ToArray();
+		}
+
+		// Stage 5 — deterministic stitch, then optional AI synthesis into one operator-friendly reply.
+		var draft = OperatorAiLiveStatsStitch.Stitch(parts);
+
+		// Broad-overview coverage note (§6): tell the operator the answer is limited to the top-K bundles.
+		if (appendCoverageNote && indices.Count > 0)
+			draft += $"\n\n_(This answer covers the {indices.Count} most relevant data areas for your question.)_";
+
+		// Synthesis is also bounded by the overall budget; on overrun/failure it returns the stitched draft.
+		try
+		{
+			return await SynthesizeAsync(userMessage, responseLocale, draft, budgetCts.Token);
+		}
+		catch (OperationCanceledException)
+		{
+			return draft;
+		}
+	}
+
+	/// <summary>
+	/// Wrap <see cref="RunBundleAiAsync"/> with the per-bundle Generate timeout (§17.7). On timeout (but not an
+	/// overall-budget cancel) we return a Failed part so the stitch emits a one-line "data unavailable" note for
+	/// just that section instead of failing the whole turn.
+	/// </summary>
+	private async Task<OperatorAiLiveStatsStitch.Part> RunBundleAiWithTimeoutAsync(
+		int index,
+		string userMessage,
+		string responseLocale,
+		IReadOnlyDictionary<int, OperatorAiBundleCacheEntry> cache,
+		SemaphoreSlim gate,
+		CancellationToken turnToken)
+	{
+		var meta = OperatorAiEntityBundleCatalog.GetByIndex(index);
+		using var perBundleCts = CancellationTokenSource.CreateLinkedTokenSource(turnToken);
+		perBundleCts.CancelAfter(TimeSpan.FromMilliseconds(Math.Max(1_000, _options.PerBundleGenerateTimeoutMs)));
+
+		try
+		{
+			return await RunBundleAiAsync(index, userMessage, responseLocale, cache, gate, perBundleCts.Token);
+		}
+		catch (OperationCanceledException) when (!turnToken.IsCancellationRequested)
+		{
+			// Per-bundle timeout only — the turn budget is still alive; degrade this one section.
+			_logger.LogWarning("Per-bundle Generate timed out for index {Index} ({Id}); dropping section.", index, meta.Id);
+			return new OperatorAiLiveStatsStitch.Part(index, meta.Id, string.Empty, Failed: true);
+		}
 	}
 
 	private async Task<string> SynthesizeAsync(

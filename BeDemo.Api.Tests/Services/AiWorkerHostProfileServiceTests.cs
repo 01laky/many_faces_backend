@@ -119,6 +119,9 @@ public sealed class AiWorkerHostProfileServiceTests
 
 	private sealed class FakeAiGrpcService : IAiGrpcService
 	{
+		public Task<AiEmbedTextResult> EmbedTextAsync(string text, string? model = null, CancellationToken cancellationToken = default) =>
+			Task.FromResult(new AiEmbedTextResult(null, null, "test fake"));
+
 		public string? HostProfileJson { get; set; }
 		public string? HostProfileError { get; set; }
 

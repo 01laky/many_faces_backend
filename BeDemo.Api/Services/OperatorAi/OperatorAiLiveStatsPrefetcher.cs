@@ -4,10 +4,20 @@ using BeDemo.Api.Configuration;
 
 namespace BeDemo.Api.Services.OperatorAi;
 
-/// <summary>Stage 1 — prefetch all 61 entity bundles (Redis L2 + DB on miss).</summary>
+/// <summary>Stage 1 — prefetch entity bundles (Redis L2 + DB on miss).</summary>
 public interface IOperatorAiLiveStatsPrefetcher
 {
+	/// <summary>Prefetch all 61 bundles (legacy broad-overview / planner path).</summary>
 	Task<OperatorAiLiveStatsPrefetchResult> PrefetchAllAsync(CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// RAG path (§3.3): fresh-load ONLY the retrieved top-K bundle indices — never the always-all-61 prefetch.
+	/// Values are loaded from the same Redis L2 → Postgres loaders as <see cref="PrefetchAllAsync"/>, so counts
+	/// stay exact (§4 rule 2). Out-of-range / duplicate indices are ignored; an empty input yields an empty map.
+	/// </summary>
+	Task<OperatorAiLiveStatsPrefetchResult> PrefetchSelectedAsync(
+		IReadOnlyList<int> indices,
+		CancellationToken cancellationToken = default);
 }
 
 /// <inheritdoc />
@@ -34,12 +44,37 @@ public sealed class OperatorAiLiveStatsPrefetcher : IOperatorAiLiveStatsPrefetch
 	}
 
 	/// <inheritdoc />
-	public async Task<OperatorAiLiveStatsPrefetchResult> PrefetchAllAsync(
+	public Task<OperatorAiLiveStatsPrefetchResult> PrefetchAllAsync(
+		CancellationToken cancellationToken = default) =>
+		PrefetchManyAsync(
+			Enumerable.Range(0, OperatorAiEntityBundleCatalog.BundleCount).ToArray(),
+			cancellationToken);
+
+	/// <inheritdoc />
+	public Task<OperatorAiLiveStatsPrefetchResult> PrefetchSelectedAsync(
+		IReadOnlyList<int> indices,
 		CancellationToken cancellationToken = default)
 	{
+		// Dedupe + drop out-of-range indices so the loader is only hit for valid catalog bundles.
+		var selected = indices
+			.Where(i => i >= 0 && i < OperatorAiEntityBundleCatalog.BundleCount)
+			.Distinct()
+			.ToArray();
+		return PrefetchManyAsync(selected, cancellationToken);
+	}
+
+	/// <summary>Shared prefetch core — loads exactly the supplied catalog indices in parallel (Redis L2 → DB).</summary>
+	private async Task<OperatorAiLiveStatsPrefetchResult> PrefetchManyAsync(
+		IReadOnlyList<int> indicesToLoad,
+		CancellationToken cancellationToken)
+	{
 		var started = DateTime.UtcNow;
-		var entries = new Dictionary<int, OperatorAiBundleCacheEntry>(OperatorAiEntityBundleCatalog.BundleCount);
+		var entries = new Dictionary<int, OperatorAiBundleCacheEntry>(indicesToLoad.Count);
 		var timeout = TimeSpan.FromSeconds(_options.LivePrefetchTimeoutSeconds);
+
+		if (indicesToLoad.Count == 0)
+			return new OperatorAiLiveStatsPrefetchResult(entries, 0, 0, 0, 0);
+
 		var ttlMs = await _cacheSettings.GetTtlMillisecondsAsync(cancellationToken);
 
 		_cache.BeginPrefetchRequest();
@@ -48,7 +83,7 @@ public sealed class OperatorAiLiveStatsPrefetcher : IOperatorAiLiveStatsPrefetch
 		var misses = 0;
 		var statsLock = new object();
 
-		var tasks = Enumerable.Range(0, OperatorAiEntityBundleCatalog.BundleCount)
+		var tasks = indicesToLoad
 			.Select(index => PrefetchOneAsync(
 				index,
 				entries,

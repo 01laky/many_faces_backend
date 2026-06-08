@@ -396,6 +396,74 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
 		return new AiContentReviewResult(null, "AI service unavailable");
 	}
 
+	/// <inheritdoc />
+	public async Task<AiEmbedTextResult> EmbedTextAsync(
+		string text,
+		string? model = null,
+		CancellationToken cancellationToken = default)
+	{
+		// Thin pass-through to the AI worker EmbedText RPC (AI-UP15). Single-text convenience:
+		// we send a one-element batch and unwrap the first EmbeddingVector. The backend owns the
+		// model name (AiService:EmbeddingModel) so worker/ES/config dims stay aligned (§5.5/§5.6).
+		if (string.IsNullOrWhiteSpace(text))
+			return new AiEmbedTextResult(null, null, "empty text");
+
+		var request = new EmbedTextRequest();
+		request.Texts.Add(text);
+		if (!string.IsNullOrWhiteSpace(model))
+			request.Model = model.Trim();
+
+		// Embedding is fast relative to Generate; use a tighter 30s deadline so a stuck worker
+		// surfaces quickly and the caller can fall back to the planner (§17.7).
+		var callOptions = CreateCallOptions(cancellationToken, TimeSpan.FromSeconds(30));
+
+		for (int attempt = 1; attempt <= 2; attempt++)
+		{
+			try
+			{
+				var channel = GetOrCreateChannel();
+				var client = new HealthService.HealthServiceClient(channel);
+				var response = await client.EmbedTextAsync(request, callOptions);
+
+				if (!string.IsNullOrEmpty(response.Error))
+				{
+					_logger.LogWarning("AI EmbedText returned error: {Error}", response.Error);
+					return new AiEmbedTextResult(null, response.ModelVersion, response.Error);
+				}
+
+				var first = response.Vectors.Count > 0 ? response.Vectors[0] : null;
+				if (first is null || first.Values.Count == 0)
+					return new AiEmbedTextResult(null, response.ModelVersion, "empty embedding");
+
+				return new AiEmbedTextResult(first.Values.ToArray(), response.ModelVersion, null);
+			}
+			catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable || ex.StatusCode == StatusCode.Unimplemented)
+			{
+				_logger.LogWarning(ex, "EmbedText gRPC unavailable/unimplemented (attempt {Attempt})", attempt);
+				InvalidateChannel();
+				if (attempt == 2)
+					return new AiEmbedTextResult(null, null, $"AI service unavailable ({ex.StatusCode})");
+			}
+			catch (RpcException ex)
+			{
+				_logger.LogError(ex, "EmbedText gRPC failed: Status={Status}", ex.StatusCode);
+				return new AiEmbedTextResult(null, null, $"AI service unavailable ({ex.StatusCode})");
+			}
+			catch (OperationCanceledException)
+			{
+				_logger.LogWarning("AI EmbedText timed out");
+				return new AiEmbedTextResult(null, null, "AI service timed out");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "AI EmbedText failed");
+				return new AiEmbedTextResult(null, null, ex.Message);
+			}
+		}
+
+		return new AiEmbedTextResult(null, null, "AI service unavailable");
+	}
+
 	private static AiReviewDecision ParseDecision(string? value) =>
 		value?.Trim().ToLowerInvariant() switch
 		{

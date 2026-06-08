@@ -1,8 +1,14 @@
 /*
  * ChatHub.cs - SignalR Hub for real-time chat communication
  *
- * Operator AI: shared support inbox via SendToAiWithOperatorStats(conversationId, message, statsMode, responseLocale, maxParallelBundleAiCalls?)
+ * Operator AI: shared support inbox via SendToAiWithOperatorStats(conversationId, message, maxParallelBundleAiCalls?)
  * with DB persistence and operator_ai_operators group broadcasts.
+ *
+ * RAG retrieval refactor v1 (operator-ai-rag-retrieval-refactor-v1):
+ *   The operator chat is now ALWAYS data-grounded (retrieve → map → stitch). The off/inline stats modes and the
+ *   responseLocale arg are removed (D10/D11). One unified orchestrator: IOperatorAiRetriever does SELECTION
+ *   (RAG-first, planner fallback when embed/ES is down or the index isn't ready, zero-hit escalation), and the
+ *   retained per-bundle map + stitch turns the fresh-loaded top-K bundles into one English reply.
  */
 
 using System.Security.Claims;
@@ -26,21 +32,27 @@ namespace BeDemo.Api.Hubs;
 [Authorize]
 public class ChatHub : Hub
 {
-	private static readonly JsonSerializerOptions PublicStatsJsonOptions = new()
-	{
-		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-	};
+	/// <summary>
+	/// Fixed English refusal (§6.1) returned after RAG + all zero-hit escalation attempts find nothing usable.
+	/// Lives here as a const (no locale variants, D10); the parent may relocate it to the operator-AI resource set.
+	/// </summary>
+	private const string ZeroHitRefusal =
+		"Many Faces AI only answers questions about data within the application. " +
+		"I couldn't find anything in the platform data that matches your question.";
+
+	/// <summary>The chat is always grounded + English now (D10/D11); persistence pins these to keep the DB contract.</summary>
+	private const string PersistedResponseLocale = "en";
+	private const string PersistedStatsMode = "live";
 
 	private readonly ILogger<ChatHub> _logger;
 	private readonly IAiGrpcService _aiGrpcService;
 	private readonly IChatHubAiRateLimiter _aiRateLimiter;
 	private readonly ApplicationDbContext _context;
 	private readonly IFaceScopeContext _faceScope;
-	private readonly IPlatformStatsQueryService _platformStats;
 	private readonly IConfiguration _configuration;
 	private readonly IOperatorAiConversationService _operatorAi;
 	private readonly IOperatorAiLiveStatsOrchestrator _liveStatsOrchestrator;
+	private readonly IOperatorAiRetriever _retriever;
 	private readonly IOperatorAiSystemSettingsProvider _systemSettings;
 	private readonly OperatorAiOptions _operatorAiOptions;
 
@@ -50,10 +62,10 @@ public class ChatHub : Hub
 		IChatHubAiRateLimiter aiRateLimiter,
 		ApplicationDbContext context,
 		IFaceScopeContext faceScope,
-		IPlatformStatsQueryService platformStats,
 		IConfiguration configuration,
 		IOperatorAiConversationService operatorAi,
 		IOperatorAiLiveStatsOrchestrator liveStatsOrchestrator,
+		IOperatorAiRetriever retriever,
 		IOperatorAiSystemSettingsProvider systemSettings,
 		IOptions<OperatorAiOptions> operatorAiOptions)
 	{
@@ -62,10 +74,10 @@ public class ChatHub : Hub
 		_aiRateLimiter = aiRateLimiter;
 		_context = context;
 		_faceScope = faceScope;
-		_platformStats = platformStats;
 		_configuration = configuration;
 		_operatorAi = operatorAi;
 		_liveStatsOrchestrator = liveStatsOrchestrator;
+		_retriever = retriever;
 		_systemSettings = systemSettings;
 		_operatorAiOptions = operatorAiOptions.Value;
 	}
@@ -200,25 +212,37 @@ public class ChatHub : Hub
 	}
 
 	/// <summary>
-	/// Operator shared inbox: persists turns to DB, loads history server-side, broadcasts to <see cref="OperatorAiHubGroups.Operators"/>.
+	/// Operator shared inbox — the single, always-data-grounded operator AI turn (RAG refactor v1, §6/§17).
+	///
+	/// <para>Removed (D10/D11):</para>
+	/// the <c>statsMode</c> (off/inline) and <c>responseLocale</c> parameters. The chat is always
+	/// <c>retrieve → map → stitch</c> and always answers in English; there is no free-chat / dashboard-dump path.
+	///
+	/// <para>Pipeline:</para>
+	/// guards (global-enable, ACL, message length, conversation, rate-limit, model-ready) — unchanged →
+	/// <see cref="IOperatorAiRetriever"/> SELECTION (RAG-first; planner fallback when embed/ES is down or the index
+	/// isn't ready; up to <c>ZeroHitRetryAttempts</c> escalation; else the fixed English refusal) →
+	/// fresh-load ONLY the selected K bundles + retained per-bundle map + stitch (one English reply) →
+	/// persist ONE assistant message + SignalR broadcast (unchanged).
 	/// </summary>
+	/// <param name="conversationId">Target shared-inbox thread.</param>
+	/// <param name="message">Operator question.</param>
+	/// <param name="maxParallelBundleAiCalls">Optional per-turn cap on concurrent bundle Generates (clamped to options).</param>
 	public async Task SendToAiWithOperatorStats(
 		int conversationId,
 		string message,
-		string? statsMode,
-		string? responseLocale,
 		int? maxParallelBundleAiCalls = null)
 	{
 		var userId = Context.UserIdentifier ?? Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 		_logger.LogInformation(
-			"User {UserId} sent operator stats AI message (conversation {ConversationId}, mode {Mode}, locale {Locale})",
+			"User {UserId} sent operator stats AI message (conversation {ConversationId}, {MessageMeta})",
 			userId,
 			conversationId,
-			statsMode ?? "off",
-			responseLocale ?? "(missing)");
+			PiiLogRedaction.FormatChatMessageForLog(message));
 
 		var trimmed = (message ?? string.Empty).Trim();
 
+		// ── Guards (unchanged): global enable, SUPER_ADMIN ACL, length, conversation, rate-limit, model-ready ──
 		if (!await _systemSettings.IsAiEnabledAsync(Context.ConnectionAborted))
 		{
 			await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.AiDisabled);
@@ -233,12 +257,6 @@ public class ChatHub : Hub
 
 		if (string.IsNullOrEmpty(userId))
 			return;
-
-		if (!OperatorAiLocaleValidator.TryNormalize(responseLocale, out var locale))
-		{
-			await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.InvalidLocale);
-			return;
-		}
 
 		if (trimmed.Length == 0)
 			return;
@@ -279,45 +297,65 @@ public class ChatHub : Hub
 			return;
 		}
 
-		var mode = (statsMode ?? "off").Trim().ToLowerInvariant();
-		if (mode is not ("off" or "inline" or "live"))
-			mode = "off";
-
-		var history = await _operatorAi.GetRecentHistoryPairsAsync(
-			conversationId,
-			_operatorAiOptions.MaxHistoryPairs,
-			Context.ConnectionAborted);
-
-		var maxTokens = _operatorAiOptions.MaxNewTokens;
 		var effectiveParallel = Math.Clamp(
 			maxParallelBundleAiCalls ?? 2,
 			1,
 			_operatorAiOptions.MaxParallelBundleAiCalls);
+
 		string aiResponse;
 		try
 		{
-			if (mode == "live")
+			// ── SELECTION (§6/§17): RAG-first; planner fallback / zero-hit escalation handled inside the retriever ──
+			var retrieval = await _retriever.RetrieveBundleIndicesAsync(trimmed, Context.ConnectionAborted);
+
+			// §17.1 retrieval trace (debug only; ids + scores are PII-safe, message body is never logged here).
+			if (_operatorAiOptions.RetrievalTraceEnabled)
 			{
-				// Live map-reduce: prefetch cache → planner indices → queued per-bundle AI → stitch.
-				aiResponse = await _liveStatsOrchestrator.RunAsync(
-					trimmed,
-					locale,
-					effectiveParallel,
-					Context.ConnectionAborted);
+				_logger.LogDebug(
+					"Operator AI retrieval: strategy={Strategy} indices=[{Indices}] degraded={Degraded} cacheHit={CacheHit} embedMs={EmbedMs} searchMs={SearchMs} hits=[{Hits}]",
+					retrieval.Strategy,
+					string.Join(", ", retrieval.BundleIndices),
+					retrieval.Degraded,
+					retrieval.EmbedCacheHit,
+					retrieval.EmbedMs,
+					retrieval.SearchMs,
+					string.Join(", ", retrieval.Hits.Select(h => $"{h.KnowledgeId}:{h.RrfScore:0.###}")));
+			}
+
+			// §17.10 dev-only "why these bundles" debug payload (off by default; operator-only, never shown to
+			// non-operators and redacted from Info). Logged rather than persisted to avoid a schema change here.
+			if (_operatorAiOptions.LiveStatsDebugJson)
+			{
+				var debug = new
+				{
+					selectedKnowledgeIds = retrieval.Hits.Select(h => h.KnowledgeId).ToArray(),
+					rrfScores = retrieval.Hits.Select(h => h.RrfScore).ToArray(),
+					fallbackUsed = retrieval.Strategy.ToString(),
+					embedMs = retrieval.EmbedMs,
+					searchMs = retrieval.SearchMs,
+				};
+				_logger.LogDebug(
+					"Operator AI routing debug (conversation {ConversationId}): {DebugJson}",
+					conversationId,
+					System.Text.Json.JsonSerializer.Serialize(debug));
+			}
+
+			// Zero-hit after all escalation attempts (§6.1): the fixed English refusal — never free-chat.
+			if (retrieval.IsZeroHit || retrieval.BundleIndices.Count == 0)
+			{
+				aiResponse = ZeroHitRefusal;
 			}
 			else
 			{
-				var prompt = BuildPromptWithHistory(trimmed, history.ToArray());
-				string? statsJson = null;
-				if (mode == "inline" && ShouldAttachStatsContext(trimmed))
-					statsJson = await BuildOperatorStatsContextJsonAsync(trimmed, Context.ConnectionAborted);
-
-				aiResponse = await _aiGrpcService.GenerateAsync(
-					prompt,
-					maxNewTokens: maxTokens,
-					statsContextJson: statsJson,
-					responseLocale: locale,
-					cancellationToken: Context.ConnectionAborted);
+				// ── RETAINED map + stitch over ONLY the fresh-loaded top-K bundles (§3.3 / D6) ──
+				// Broad-overview questions cap at top-K and get a one-line coverage note (§6).
+				var appendCoverageNote = OperatorAiStatsIntent.IsBroadOverviewQuestion(trimmed);
+				aiResponse = await _liveStatsOrchestrator.RunWithSelectedIndicesAsync(
+					trimmed,
+					retrieval.BundleIndices,
+					effectiveParallel,
+					appendCoverageNote,
+					Context.ConnectionAborted);
 			}
 
 			if (string.IsNullOrWhiteSpace(aiResponse))
@@ -341,14 +379,17 @@ public class ChatHub : Hub
 
 		aiResponse = OperatorAiResponseGuard.ToUserFacingMessage(aiResponse);
 
+		// Persist ONE assistant message + the user turn. The chat is always grounded/English now, so the locale
+		// and stats-mode columns are pinned to "en" / "live" (no off/inline, D11) — preserving the persistence
+		// contract without a schema change.
 		var (userDto, assistantDto) = await _operatorAi.AppendExchangeAsync(
 			conversationId,
 			userId,
 			operatorEmail,
-			locale,
+			PersistedResponseLocale,
 			trimmed,
 			aiResponse,
-			mode,
+			PersistedStatsMode,
 			Context.ConnectionAborted);
 
 		var updatedConversation = await _operatorAi.GetConversationAsync(conversationId, Context.ConnectionAborted)
@@ -382,34 +423,6 @@ public class ChatHub : Hub
 			return email.Trim();
 
 		return Context.User?.FindFirstValue(ClaimTypes.Email)?.Trim();
-	}
-
-	private bool ShouldAttachStatsContext(string userMessage)
-	{
-		if (!_operatorAiOptions.AttachStatsOnlyForMetricsQuestions)
-			return true;
-		return OperatorAiStatsIntent.IsMetricsQuestion(userMessage);
-	}
-
-	private async Task<string> BuildOperatorStatsContextJsonAsync(
-		string userMessage,
-		CancellationToken cancellationToken)
-	{
-		var dashboard = await _platformStats.GetOperatorDashboardSummaryAsync(cancellationToken);
-		OperatorAiTimeseriesHintsDto? timeseries = null;
-		if (_operatorAiOptions.IncludeTimeseriesInStatsContext
-			&& OperatorAiStatsIntent.IsMetricsQuestion(userMessage))
-		{
-			timeseries = await _platformStats.GetOperatorAiTimeseriesHintsAsync(cancellationToken);
-		}
-
-		var payload = new OperatorAiStatsContextDto
-		{
-			SnapshotUtc = DateTime.UtcNow,
-			Dashboard = dashboard,
-			TimeseriesLast7Days = timeseries,
-		};
-		return JsonSerializer.Serialize(payload, PublicStatsJsonOptions);
 	}
 
 	private static string BuildPromptWithHistory(string message, ChatHistoryEntry[]? history)

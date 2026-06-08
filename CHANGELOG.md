@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.2.0](#120) | Operator AI RAG retrieval (Elasticsearch kNN+BM25) |
 | [1.1.0](#110) | Backend runtime performance v1 (BE-RP1…35)         |
 | [1.0.2](#102) | README shield badges                               |
 | [1.0.0](#100) | Operator infra settings, global search, live stats |
@@ -31,6 +32,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 ---
 
+## [1.2.0]
+
+### Added
+
+- **Operator AI RAG retrieval.** Embedding retrieval (Elasticsearch kNN + BM25, RRF) replaces the LLM planner for selecting which stat bundles answer an operator question; the per-bundle map + stitch is retained. New `ISearchWorkerKnowledgeClient` (4 `SearchService` RPCs: `IndexKnowledge`/`DeleteKnowledge`/`SemanticSearch`/`KnowledgeIndexStatus`), `IOperatorAiKnowledgeIndexer` (+ startup hosted service, single-flight, content-hash idempotency), `IOperatorAiRetriever` (query-embedding cache, readiness gate → planner fallback, zero-hit escalation), and `IOperatorAiPlannerFallbackSelector` (the legacy planner, now the degraded fallback). `EmbedText` (AI-UP15) is now consumed.
+- `AiService:EmbeddingModel` + `EmbeddingDim` single source of truth with a startup probe assertion; new `OperatorAi:*` knobs (`MinRetrievalScore`, `ZeroHitRetryAttempts`, `QueryEmbeddingCacheTtlSeconds`, `Embed/RetrievalTimeoutMs`, `OverallTurnBudgetMs`, `RetrievalTraceEnabled`, `LiveStatsDebugJson`).
+- Admin endpoints `POST /api/operator-ai/knowledge/reindex` and `GET /api/operator-ai/knowledge/status` (`CanManageAllFaces`); admin i18n labels for the knowledge panel (en/sk/cs/de/fr/it).
+- Per-bundle authored RAG descriptors (synonyms + sample questions) for all 61 stat bundles, with a coverage lint test.
+- Extended edge-case tests: retriever ordering/fallback/zero-hit escalation + query-embedding cache; status-cache readiness drift + caching; indexer single-flight coalesce, content-hash idempotency, embed/worker-unavailable and partial-failure paths; reindex/status controller (Forbid/409/503/Ok); orchestrator per-bundle timeout partial-stitch + coverage note. Full suite **1697 passing**.
+
+### Changed
+
+- Operator AI chat is now **always data-grounded**: the unified live orchestrator runs `select → fresh-load K → map → stitch`, selecting via RAG (planner only as the degraded fallback). Only the selected bundles are loaded (the always-all-61 prefetch is dropped).
+
+### Removed
+
+- Operator chat `off` and `inline` stats modes and the `responseLocale` argument (`SendToAiWithOperatorStats` is now `(conversationId, message, maxParallelBundleAiCalls?)`); the AI answers in English. The infra-failure message no longer references the removed `inline` mode.
+
+### Fixed
+
+---
+
 ## [1.1.0]
 
 ### Added
@@ -48,7 +71,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 - `GET /api/messages/conversations` returns paginated envelope `{ items, page, pageSize,
-  totalCount, totalPages }` (BE-RP3).
+totalCount, totalPages }` (BE-RP3).
 - `FacesController.GetFacesConfig` delegates to `FacesConfigService` with generation-based
   cache invalidation.
 

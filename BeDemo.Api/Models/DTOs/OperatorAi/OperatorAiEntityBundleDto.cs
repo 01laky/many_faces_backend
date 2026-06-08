@@ -35,8 +35,19 @@ public sealed class OperatorAiBundleCatalogEntryDto
 	public required int Index { get; init; }
 	public required string Id { get; init; }
 	public required string EntityName { get; init; }
+
+	/// <summary>The reused 61 PlannerDescriptions — embedded descriptor text (RAG retrieval §7.1).</summary>
 	public required string Description { get; init; }
 	public required string EndpointKey { get; init; }
+
+	/// <summary>Stable knowledge id for the ES upsert key, e.g. <c>bundle:entity.albums</c> (RAG retrieval §5.1).</summary>
+	public string KnowledgeId => $"bundle:{Id}";
+
+	/// <summary>Entity aliases / alternate phrasings that improve routing recall (RAG retrieval §7.1). Authored per bundle.</summary>
+	public IReadOnlyList<string> Synonyms { get; init; } = Array.Empty<string>();
+
+	/// <summary>Example operator questions this bundle can answer (RAG retrieval §7.1). Authored per bundle.</summary>
+	public IReadOnlyList<string> SampleQuestions { get; init; } = Array.Empty<string>();
 }
 
 public sealed class OperatorAiBundleCatalogDto

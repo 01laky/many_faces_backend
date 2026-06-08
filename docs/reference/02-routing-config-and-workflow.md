@@ -4,11 +4,11 @@
 
 Requests are scoped by **`RoutingMiddleware`** to a face context (`public`, `admin`, tenant slug, …).
 
-| Prefix | Typical client | Notes |
-| ------ | -------------- | ----- |
-| `/public/api/...` | Portal (default face) | Anonymous + authenticated tenant APIs |
-| `/admin/api/...` | **`many_faces_admin`** | Platform operator — **`SUPER_ADMIN` only** |
-| `/{tenant}/api/...` | Portal on tenant face | Face-scoped roles |
+| Prefix              | Typical client         | Notes                                      |
+| ------------------- | ---------------------- | ------------------------------------------ |
+| `/public/api/...`   | Portal (default face)  | Anonymous + authenticated tenant APIs      |
+| `/admin/api/...`    | **`many_faces_admin`** | Platform operator — **`SUPER_ADMIN` only** |
+| `/{tenant}/api/...` | Portal on tenant face  | Face-scoped roles                          |
 
 See [`authentication-and-sessions.md`](../../../docs/guides/authentication-and-sessions.md) and [`admin-superadmin-only-access.md`](../../../docs/guides/admin-superadmin-only-access.md).
 
@@ -22,12 +22,12 @@ Examples (see middleware source for full list):
 
 ## Configuration highlights
 
-| Section | Purpose |
-| ------- | ------- |
-| `Jwt:*` | Access + refresh lifetimes, signing keys |
-| `Search:*` | Optional Elasticsearch worker gRPC |
-| `Push:*` / `Mail:*` | Optional push/mailer workers |
-| `AiStats:*` | Admin dashboard + SignalR stats modes |
+| Section             | Purpose                                  |
+| ------------------- | ---------------------------------------- |
+| `Jwt:*`             | Access + refresh lifetimes, signing keys |
+| `Search:*`          | Optional Elasticsearch worker gRPC       |
+| `Push:*` / `Mail:*` | Optional push/mailer workers             |
+| `AiStats:*`         | Admin dashboard + SignalR stats modes    |
 
 Worker env matrices: monorepo [`docker-and-compose.md`](../../../docs/guides/docker-and-compose.md).
 

@@ -155,6 +155,9 @@ public sealed class ContentModerationProductionPathTests
 
 	private sealed class CapturingAiGrpcService : IAiGrpcService
 	{
+		public Task<AiEmbedTextResult> EmbedTextAsync(string text, string? model = null, CancellationToken cancellationToken = default) =>
+			Task.FromResult(new AiEmbedTextResult(null, null, "test fake"));
+
 		private readonly AiReviewRecommendation _recommendation;
 
 		public CapturingAiGrpcService(AiReviewRecommendation? recommendation = null) =>

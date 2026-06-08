@@ -28,6 +28,22 @@ public sealed class AiServiceOptions
 	/// <summary>Metadata key for AI worker bearer token (align with many_faces_ai when server auth is enabled).</summary>
 	public const string WorkerAuthMetadataKey = "x-ai-worker-token";
 
+	// ── Embeddings (RAG retrieval v1, §5.5) ───────────────────────────────────
+	// Single source of truth for the embedding model + dimension. The backend
+	// embeds descriptors (index plane) and operator questions (query plane) via
+	// the AI worker EmbedText RPC; the Go search-worker creates the ES dense_vector
+	// mapping with EmbeddingDim and rejects any KnowledgeDocument whose vector_dim
+	// differs — so backend, worker and ES mapping can never silently drift.
+
+	/// <summary>Ollama embedding model name (must match <c>OLLAMA_MODEL_EMBED</c> on the worker), e.g. <c>nomic-embed-text</c>.</summary>
+	public string EmbeddingModel { get; set; } = "nomic-embed-text";
+
+	/// <summary>Embedding vector dimension the worker/ES mapping is pinned to (e.g. 768 for nomic-embed-text). Startup probe asserts this.</summary>
+	public int EmbeddingDim { get; set; } = 768;
+
+	/// <summary>When true (default), run the startup probe that embeds a fixed string and asserts the returned length == <see cref="EmbeddingDim"/> (fail loud on drift).</summary>
+	public bool AssertEmbeddingDimOnStartup { get; set; } = true;
+
 	/// <summary>When true, refresh host profile from the worker on backend startup.</summary>
 	public bool HostProfileRefreshOnStartup { get; set; } = true;
 

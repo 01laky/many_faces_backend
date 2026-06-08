@@ -3802,4 +3802,64 @@
   <data name="pages.adminProfile.facesFilterNoMatch" xml:space="preserve"><value>No faces match your filter.</value></data>
   <data name="pages.adminProfile.roleAssigned" xml:space="preserve"><value>Face membership created.</value></data>
   <data name="pages.adminProfile.roleUpdated" xml:space="preserve"><value>Face role updated.</value></data>
+  <data name="pages.settings.aiKnowledge.sectionTitle" xml:space="preserve">
+    <value>Indice delle conoscenze</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.description" xml:space="preserve">
+    <value>Indice di ricerca che indirizza le domande dell'operatore alle statistiche giuste. Reindicizza dopo aver cambiato il modello di embedding.</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.reindex.button" xml:space="preserve">
+    <value>Reindicizza conoscenze</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.reindex.running" xml:space="preserve">
+    <value>Reindicizzazione…</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.reindex.error" xml:space="preserve">
+    <value>Reindicizzazione non riuscita.</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.reindex.alreadyRunning" xml:space="preserve">
+    <value>Una reindicizzazione è già in corso.</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.reindex.indexedCount" xml:space="preserve">
+    <value>Indicizzati</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.reindex.failedCount" xml:space="preserve">
+    <value>Falliti</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.reindex.embedModel" xml:space="preserve">
+    <value>Modello di embedding</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.status.title" xml:space="preserve">
+    <value>Stato dell'indice</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.status.hint" xml:space="preserve">
+    <value>Stato dell'indice di conoscenze dell'IA operatore.</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.status.error" xml:space="preserve">
+    <value>Impossibile caricare lo stato dell'indice.</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.status.neverIndexed" xml:space="preserve">
+    <value>Mai</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.status.docCount" xml:space="preserve">
+    <value>Documenti: {{count}} / {{expected}}</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.status.activeIndex" xml:space="preserve">
+    <value>Indice: {{index}} (alias {{alias}})</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.status.embedModel" xml:space="preserve">
+    <value>Modello: {{model}}</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.status.vectorDim" xml:space="preserve">
+    <value>Dimensione: {{dim}}</value>
+  </data>
+  <data name="pages.settings.aiKnowledge.status.lastIndexed" xml:space="preserve">
+    <value>Ultima indicizzazione: {{time}}</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.sectionTitle" xml:space="preserve">
+    <value>Chiamate IA dei bundle in parallelo</value>
+  </data>
+  <data name="pages.settings.aiStats.liveParallel.sectionDesc" xml:space="preserve">
+    <value>Quanti bundle di statistiche l'IA elabora in parallelo. Valori più alti richiedono GPU/RAM più potenti.</value>
+  </data>
 </root>

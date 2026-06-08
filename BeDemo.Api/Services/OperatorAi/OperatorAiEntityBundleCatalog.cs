@@ -95,13 +95,24 @@ public static class OperatorAiEntityBundleCatalog
 		string id,
 		string entity,
 		string dbSet,
-		string description) =>
-		new()
+		string description)
+	{
+		// RAG retrieval (§7.1): merge the authored synonyms + sample questions (single source of truth,
+		// OperatorAiKnowledgeDescriptors) onto the catalog metadata so the indexer can build content_text.
+		var (synonyms, sampleQuestions) =
+			OperatorAiKnowledgeDescriptors.ByIndex.TryGetValue(index, out var d)
+				? (d.Synonyms, d.SampleQuestions)
+				: (Array.Empty<string>(), Array.Empty<string>());
+
+		return new()
 		{
 			Index = index,
 			Id = id,
 			EntityName = entity,
 			Description = description,
 			EndpointKey = id,
+			Synonyms = synonyms,
+			SampleQuestions = sampleQuestions,
 		};
+	}
 }

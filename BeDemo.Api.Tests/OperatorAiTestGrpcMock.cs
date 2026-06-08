@@ -7,6 +7,9 @@ namespace BeDemo.Api.Tests;
 
 public sealed class CapturingOperatorAiGrpcService : IAiGrpcService, IAiModelStatusClient
 {
+	public Task<AiEmbedTextResult> EmbedTextAsync(string text, string? model = null, CancellationToken cancellationToken = default) =>
+		Task.FromResult(new AiEmbedTextResult(null, null, "test fake"));
+
 	public string? LastResponseLocale { get; private set; }
 	public string? LastPrompt { get; private set; }
 

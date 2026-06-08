@@ -187,6 +187,9 @@ public class ContentModerationPayloadLogRedactionTests
 
 	private sealed class NoOpAiGrpcService : IAiGrpcService
 	{
+		public Task<AiEmbedTextResult> EmbedTextAsync(string text, string? model = null, CancellationToken cancellationToken = default) =>
+			Task.FromResult(new AiEmbedTextResult(null, null, "test fake"));
+
 		public Task<string> GenerateAsync(
 			string prompt,
 			int maxNewTokens = 50,
