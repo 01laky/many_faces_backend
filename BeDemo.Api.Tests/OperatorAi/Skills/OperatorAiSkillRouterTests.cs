@@ -61,10 +61,40 @@ public sealed class OperatorAiSkillRouterTests
 
 		var router = new OperatorAiSkillRouter(
 			registry, cache, ai.Object,
+			new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()),
 			Options.Create(new AiServiceOptions { EmbeddingModel = "model-a", EmbeddingDim = 4 }),
 			Options.Create(new OperatorAiOptions { SkillRoutingMinScore = threshold, EmbedTimeoutMs = 2000 }),
 			NullLogger<OperatorAiSkillRouter>.Instance);
 		return (router, ai);
+	}
+
+	// PF-9 / O8 — embed-once: the router seeds the retriever's shared query-embedding cache with the RAW vector so
+	// the stats skill does not embed the same message a second time.
+	[Fact]
+	public async Task PF9_router_seeds_retriever_query_embedding_cache()
+	{
+		var skills = new IOperatorAiSkill[]
+		{
+			new FakeSkill("stats", "M0"),
+			new FakeSkill(OperatorAiSkillRegistry.GeneralAssistantId, "Mgen"),
+		};
+		using var memoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+		var ai = new Mock<IAiGrpcService>();
+		var embedCalls = 0;
+		ai.Setup(a => a.EmbedTextAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((string t, string? _, CancellationToken __) => { embedCalls++; return new AiEmbedTextResult(EmbedFor(t), "model-a", null); });
+
+		var router = new OperatorAiSkillRouter(
+			new OperatorAiSkillRegistry(skills), new OperatorAiSkillVectorCache(), ai.Object, memoryCache,
+			Options.Create(new AiServiceOptions { EmbeddingModel = "model-a", EmbeddingDim = 4 }),
+			Options.Create(new OperatorAiOptions { SkillRoutingMinScore = 0.5, QueryEmbeddingCacheTtlSeconds = 300 }),
+			NullLogger<OperatorAiSkillRouter>.Instance);
+
+		await router.RouteAsync("M0 question");
+
+		var key = BeDemo.Api.Services.OperatorAi.OperatorAiRetriever.BuildEmbedCacheKey("M0 question", "model-a");
+		memoryCache.TryGetValue(key, out float[]? seeded).Should().BeTrue("the router seeds the retriever cache (embed-once)");
+		seeded.Should().NotBeNull();
 	}
 
 	[Theory]

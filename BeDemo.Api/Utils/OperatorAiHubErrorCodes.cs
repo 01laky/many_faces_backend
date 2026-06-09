@@ -13,4 +13,7 @@ public static class OperatorAiHubErrorCodes
 	public const string AiGenerationFailed = "ai_generation_failed";
 	public const string AiGuardRejected = "ai_guard_rejected";
 	public const string AiDisabled = "ai_disabled";
+
+	/// <summary>7B-perf O17 — a turn is already generating for this conversation (single-active-generation guard).</summary>
+	public const string GenerationInProgress = "generation_in_progress";
 }

@@ -161,6 +161,11 @@ builder.Services.AddScoped<IOperatorAiConversationService, OperatorAiConversatio
 builder.Services.AddScoped<IOperatorAiEntityBundleLoader, OperatorAiEntityBundleLoader>();
 builder.Services.AddScoped<IOperatorAiLiveStatsPrefetcher, OperatorAiLiveStatsPrefetcher>();
 builder.Services.AddScoped<IOperatorAiLiveStatsOrchestrator, OperatorAiLiveStatsOrchestrator>();
+// 7B-perf: decision helper (O19 Role A — deterministic + optional helper model), single-active-generation guard
+// (O17, singleton in-process state), and the optional exact-repeat answer cache (O18, singleton over IMemoryCache).
+builder.Services.AddScoped<IOperatorAiDecisionHelper, OperatorAiDecisionHelper>();
+builder.Services.AddSingleton<IOperatorAiActiveGenerationGuard, OperatorAiActiveGenerationGuard>();
+builder.Services.AddSingleton<IOperatorAiAnswerCache, OperatorAiAnswerCache>();
 
 // ── Operator AI RAG retrieval (operator-ai-rag-retrieval-refactor-v1, §8) ──────
 // Embedding-based semantic retrieval replaces the LLM planner as the bundle
@@ -199,6 +204,9 @@ builder.Services.AddScoped<BeDemo.Api.Services.OperatorAi.Skills.IOperatorAiSkil
 // is not yet reachable; retrieval falls back to the planner until the index is ready.
 builder.Services.AddHostedService<OperatorAiEmbeddingDimStartupAssertion>();
 builder.Services.AddHostedService<OperatorAiKnowledgeIndexStartupRefresh>();
+// 7B-perf O8/O10 — warm the 4 skill routing vectors + issue one tiny throwaway Generate at startup so the first
+// operator turn pays neither the descriptor-embed warm nor a cold model load. Non-blocking, AI-gated, best-effort.
+builder.Services.AddHostedService<OperatorAiStartupWarmService>();
 builder.Services.AddScoped<IFaceModerationService, FaceModerationService>();
 builder.Services.AddScoped<IOperatorUserModerationService, OperatorUserModerationService>();
 builder.Services.AddScoped<IAdminMeProfileService, AdminMeProfileService>();

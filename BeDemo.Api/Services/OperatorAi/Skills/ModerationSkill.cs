@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using BeDemo.Api.Configuration;
 using BeDemo.Api.Services;
@@ -12,8 +14,10 @@ namespace BeDemo.Api.Services.OperatorAi.Skills;
 /// (<see cref="IContentModerationMetrics"/>) — it does NOT run or replace the async review pipeline (D9). v1 pulls
 /// no raw user content, so it is <see cref="OperatorAiSkillTrust.Trusted"/>; the untrusted "explain a specific
 /// decision" excerpt path is deferred (§6.3).
+///
+/// 7B-perf O4: its single terminal generation streams token by token (<see cref="IOperatorAiStreamingSkill"/>).
 /// </summary>
-public sealed class ModerationSkill : IOperatorAiSkill
+public sealed class ModerationSkill : IOperatorAiStreamingSkill
 {
 	private static readonly JsonSerializerOptions Json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -49,10 +53,47 @@ public sealed class ModerationSkill : IOperatorAiSkill
 	public async Task<OperatorAiSkillResult> RunAsync(OperatorAiSkillRequest request, CancellationToken cancellationToken)
 	{
 		var sw = Stopwatch.StartNew();
+		var (prompt, fallback) = await BuildAsync(request.UserMessage, cancellationToken);
 
+		var answer = await _ai.GenerateAsync(prompt, _options.MaxNewTokens, responseLocale: "en", cancellationToken: cancellationToken);
+		if (string.IsNullOrWhiteSpace(answer) || answer.StartsWith("Error:", StringComparison.Ordinal))
+			answer = fallback;
+
+		return new OperatorAiSkillResult(answer, Trace: Trace(sw));
+	}
+
+	/// <inheritdoc />
+	public async IAsyncEnumerable<OperatorAiStreamChunk> RunStreamingAsync(
+		OperatorAiSkillRequest request,
+		[EnumeratorCancellation] CancellationToken cancellationToken)
+	{
+		var sw = Stopwatch.StartNew();
+		var (prompt, fallback) = await BuildAsync(request.UserMessage, cancellationToken);
+
+		var acc = new StringBuilder();
+		var sawError = false;
+		await foreach (var delta in _ai.GenerateStreamAsync(
+			prompt, _options.MaxNewTokens, responseLocale: "en", cancellationToken: cancellationToken).WithCancellation(cancellationToken))
+		{
+			if (delta.HasError) { sawError = true; break; }
+			if (!string.IsNullOrEmpty(delta.TextDelta))
+			{
+				acc.Append(delta.TextDelta);
+				yield return new OperatorAiStreamChunk(delta.TextDelta, IsFinal: false);
+			}
+			if (delta.IsFinal) break;
+		}
+
+		var streamed = acc.ToString().Trim();
+		var final = sawError || streamed.Length == 0 ? fallback : streamed;
+		yield return new OperatorAiStreamChunk(null, IsFinal: true, FinalAnswer: final, Trace: Trace(sw));
+	}
+
+	/// <summary>Assemble the aggregate-only moderation prompt + a deterministic fallback answer (no raw content / PII).</summary>
+	private async Task<(string Prompt, string Fallback)> BuildAsync(string userMessage, CancellationToken cancellationToken)
+	{
 		var snap = await _metrics.GetSnapshotAsync(cancellationToken);
 
-		// Compact, aggregate-only summary (no individual submissions / user content / PII).
 		var summary = new
 		{
 			snap.PendingSubmissions,
@@ -77,20 +118,14 @@ public sealed class ModerationSkill : IOperatorAiSkill
 			+ "moderation summary below — these are aggregate counts, with no individual content. Reply concisely in "
 			+ "English and do not invent numbers.\n\nModeration summary (JSON):\n"
 			+ summaryJson
-			+ $"\n\nOperator: {request.UserMessage}\nAssistant:";
+			+ $"\n\nOperator: {userMessage}\nAssistant:";
 
-		var answer = await _ai.GenerateAsync(
-			prompt,
-			_options.MaxNewTokens,
-			responseLocale: "en",
-			cancellationToken: cancellationToken);
+		return (prompt, $"Moderation backlog: {snap.PendingSubmissions} pending submission(s).");
+	}
 
-		if (string.IsNullOrWhiteSpace(answer))
-			answer = $"Moderation backlog: {snap.PendingSubmissions} pending submission(s).";
-
+	private OperatorAiSkillTrace Trace(Stopwatch sw)
+	{
 		sw.Stop();
-		return new OperatorAiSkillResult(
-			answer,
-			Trace: new OperatorAiSkillTrace(Id, UsedRetrieval: false, FellBackInternally: false, sw.ElapsedMilliseconds));
+		return new OperatorAiSkillTrace(Id, UsedRetrieval: false, FellBackInternally: false, sw.ElapsedMilliseconds, FastPath: "moderation", Generations: 1);
 	}
 }

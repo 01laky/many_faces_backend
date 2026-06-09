@@ -17,11 +17,33 @@ public interface IAiGrpcService
 	/// Calls the AI service Generate RPC and returns the generated text (or error message).
 	/// </summary>
 	/// <param name="statsContextJson">When set, forwarded to the Python worker as read-only aggregate context (admin AI).</param>
+	/// <param name="temperature">7B-perf O11 — per-call sampling override (e.g. low for the terse per-bundle MAP step). Null ⇒ worker default.</param>
+	/// <param name="stopSequences">7B-perf O11 — per-call stop sequences so the MAP step stops early. Null/empty ⇒ none.</param>
+	/// <param name="model">7B-perf O19 — per-call model override (e.g. the CPU-resident helper). Null ⇒ worker default model.</param>
 	Task<string> GenerateAsync(
 		string prompt,
 		int maxNewTokens = 50,
 		string? statsContextJson = null,
 		string? responseLocale = null,
+		double? temperature = null,
+		IReadOnlyList<string>? stopSequences = null,
+		string? model = null,
+		CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// 7B-perf O4 — streaming variant of <see cref="GenerateAsync"/> over the worker <c>GenerateStream</c> RPC.
+	/// Yields incremental <see cref="AiGenerateDelta"/> chunks so the operator-visible answer can stream token by
+	/// token. Callers MUST treat a delta carrying <see cref="AiGenerateDelta.Error"/> as terminal and fall back to
+	/// the non-streaming <see cref="GenerateAsync"/> path (never break the chat).
+	/// </summary>
+	IAsyncEnumerable<AiGenerateDelta> GenerateStreamAsync(
+		string prompt,
+		int maxNewTokens = 50,
+		string? statsContextJson = null,
+		string? responseLocale = null,
+		double? temperature = null,
+		IReadOnlyList<string>? stopSequences = null,
+		string? model = null,
 		CancellationToken cancellationToken = default);
 
 	/// <summary>
@@ -79,6 +101,17 @@ public interface IAiGrpcService
 
 /// <summary>Local Qwen model readiness reported by many_faces_ai HealthCheck.</summary>
 public sealed record AiModelStatus(bool Ready, bool Loading, bool Unavailable, string? ModelName);
+
+/// <summary>
+/// 7B-perf O4 — one streamed chunk from <c>GenerateStream</c>. <see cref="TextDelta"/> is the incremental text;
+/// <see cref="IsFinal"/> marks the last chunk; <see cref="Error"/>/<see cref="ErrorCode"/> are set when the worker
+/// reports a streaming failure (terminal — the caller falls back to non-streaming generation).
+/// </summary>
+public sealed record AiGenerateDelta(string? TextDelta, bool IsFinal, string? FinishReason, string? Error, string? ErrorCode)
+{
+	/// <summary>True when this chunk reports a worker-side streaming error.</summary>
+	public bool HasError => !string.IsNullOrEmpty(Error) || !string.IsNullOrEmpty(ErrorCode);
+}
 
 /// <summary>Raw host profile payload from GetHostProfile.</summary>
 public sealed record AiHostProfileFetchResult(string? JsonBody, string? Error);

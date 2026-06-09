@@ -22,17 +22,20 @@ public sealed class ReportsSkill : IOperatorAiSkill
 	private readonly IAiGrpcService _ai;
 	private readonly IContentModerationMetrics _metrics;
 	private readonly IDbContextFactory<ApplicationDbContext> _dbFactory;
+	private readonly IOperatorAiDecisionHelper _decisions;
 	private readonly OperatorAiOptions _options;
 
 	public ReportsSkill(
 		IAiGrpcService ai,
 		IContentModerationMetrics metrics,
 		IDbContextFactory<ApplicationDbContext> dbFactory,
+		IOperatorAiDecisionHelper decisions,
 		IOptions<OperatorAiOptions> options)
 	{
 		_ai = ai;
 		_metrics = metrics;
 		_dbFactory = dbFactory;
+		_decisions = decisions;
 		_options = options.Value;
 	}
 
@@ -57,7 +60,8 @@ public sealed class ReportsSkill : IOperatorAiSkill
 	{
 		var sw = Stopwatch.StartNew();
 
-		var reportType = DetectReportType(request.UserMessage);
+		// O19 Role A — the helper refines the type when configured; otherwise the deterministic heuristic decides.
+		var reportType = await _decisions.DetectReportTypeAsync(request.UserMessage, cancellationToken);
 		if (reportType is null)
 		{
 			sw.Stop();
@@ -85,24 +89,8 @@ public sealed class ReportsSkill : IOperatorAiSkill
 			Trace: new OperatorAiSkillTrace(Id, UsedRetrieval: false, FellBackInternally: false, sw.ElapsedMilliseconds));
 	}
 
-	/// <summary>Map the message to one of the 3 supported report types, or null when ambiguous (→ help message).</summary>
-	internal static string? DetectReportType(string message)
-	{
-		var m = (message ?? string.Empty).ToLowerInvariant();
-		if (m.Contains("backlog") || (m.Contains("moderation") && (m.Contains("report") || m.Contains("queue"))))
-			return "moderation_backlog";
-		if (m.Contains("grid") || m.Contains("completeness") || m.Contains("component"))
-			return "grid_completeness";
-		if (m.Contains("face") && m.Contains("health"))
-			return "face_health";
-		if (m.Contains("report"))
-		{
-			if (m.Contains("moderation")) return "moderation_backlog";
-			if (m.Contains("face")) return "face_health";
-			if (m.Contains("grid")) return "grid_completeness";
-		}
-		return null;
-	}
+	/// <summary>Map the message to one of the 3 supported report types, or null when ambiguous (→ help message). Deterministic heuristic shared with the decision helper (O19) as its fallback.</summary>
+	internal static string? DetectReportType(string message) => OperatorAiReportTypeHeuristic.Detect(message);
 
 	/// <summary>Assemble the deterministic input_json for the report type from existing aggregate data (camelCase keys).</summary>
 	private async Task<string> BuildInputJsonAsync(string reportType, CancellationToken cancellationToken)

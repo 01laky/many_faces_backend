@@ -5,6 +5,7 @@ using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Services.OperatorAi.Skills;
+using BeDemo.Api.Utils;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +27,17 @@ public sealed class OperatorAiSkillsExtendedTests
 
 	private static OperatorAiOptions Opts(int maxNewTokens = 2048) =>
 		new() { MaxNewTokens = maxNewTokens, LiveStitchMaxNewTokens = 512 };
+
+	/// <summary>Decision helper stub: helper disabled ⇒ deterministic heuristics (7B-perf O19 fallback).</summary>
+	private static IOperatorAiDecisionHelper Decisions()
+	{
+		var d = new Mock<IOperatorAiDecisionHelper>();
+		d.Setup(x => x.DetectReportTypeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((string m, CancellationToken _) => OperatorAiReportTypeHeuristic.Detect(m));
+		d.Setup(x => x.IsSimpleCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((string m, CancellationToken _) => OperatorAiStatsIntent.IsSimpleCountQuestion(m));
+		return d.Object;
+	}
 
 	private sealed class FakeSkill : IOperatorAiSkill
 	{
@@ -71,7 +83,7 @@ public sealed class OperatorAiSkillsExtendedTests
 		ai.Setup(a => a.GenerateReportAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync((string t, string j, int _, CancellationToken __) => { type = t; json = j; return new AiGenerateReportResult("# Face health", "{}", "report-v1", null); });
 
-		var skill = new ReportsSkill(ai.Object, Mock.Of<IContentModerationMetrics>(), factory, Options.Create(Opts()));
+		var skill = new ReportsSkill(ai.Object, Mock.Of<IContentModerationMetrics>(), factory, Decisions(), Options.Create(Opts()));
 		await skill.RunAsync(Req("produce a face health report"), default);
 
 		type.Should().Be("face_health");
@@ -91,7 +103,7 @@ public sealed class OperatorAiSkillsExtendedTests
 		ai.Setup(a => a.GenerateReportAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync((string t, string j, int _, CancellationToken __) => { type = t; json = j; return new AiGenerateReportResult("# Grid", "{}", "report-v1", null); });
 
-		var skill = new ReportsSkill(ai.Object, Mock.Of<IContentModerationMetrics>(), factory, Options.Create(Opts()));
+		var skill = new ReportsSkill(ai.Object, Mock.Of<IContentModerationMetrics>(), factory, Decisions(), Options.Create(Opts()));
 		await skill.RunAsync(Req("grid completeness report"), default);
 
 		type.Should().Be("grid_completeness");
@@ -116,7 +128,7 @@ public sealed class OperatorAiSkillsExtendedTests
 	public async Task Moderation_empty_generate_falls_back_deterministically()
 	{
 		var ai = new Mock<IAiGrpcService>();
-		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(string.Empty);
 		var metrics = new Mock<IContentModerationMetrics>();
 		metrics.Setup(m => m.GetSnapshotAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Snap(pending: 7));
@@ -130,8 +142,8 @@ public sealed class OperatorAiSkillsExtendedTests
 	{
 		var ai = new Mock<IAiGrpcService>();
 		string? prompt = null;
-		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-			.ReturnsAsync((string p, int _, string? __, string? ___, CancellationToken ____) => { prompt = p; return "ok"; });
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((string p, int _, string? __, string? ___, double? _t, IReadOnlyList<string>? _s, string? _m, CancellationToken ____) => { prompt = p; return "ok"; });
 		var metrics = new Mock<IContentModerationMetrics>();
 		metrics.Setup(m => m.GetSnapshotAsync(It.IsAny<CancellationToken>()))
 			.ReturnsAsync(Snap(pending: 5, flags: new[] { new FlagCountDto("spam", 4) }));
@@ -150,8 +162,8 @@ public sealed class OperatorAiSkillsExtendedTests
 		var ai = new Mock<IAiGrpcService>();
 		string? prompt = null;
 		var maxTokens = -1;
-		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-			.ReturnsAsync((string p, int mt, string? _, string? __, CancellationToken ___) => { prompt = p; maxTokens = mt; return "hi"; });
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((string p, int mt, string? _, string? __, double? _t, IReadOnlyList<string>? _s, string? _m, CancellationToken ___) => { prompt = p; maxTokens = mt; return "hi"; });
 
 		await new GeneralAssistantSkill(ai.Object, Options.Create(Opts(maxNewTokens: 2048))).RunAsync(Req("hello"), default);
 
@@ -164,8 +176,8 @@ public sealed class OperatorAiSkillsExtendedTests
 	[Fact]
 	public void All_v1_skills_are_trusted()
 	{
-		new StatsSkill(Mock.Of<IOperatorAiRetriever>(), Mock.Of<IOperatorAiLiveStatsOrchestrator>()).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
-		new ReportsSkill(Mock.Of<IAiGrpcService>(), Mock.Of<IContentModerationMetrics>(), Mock.Of<IDbContextFactory<ApplicationDbContext>>(), Options.Create(Opts())).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
+		new StatsSkill(Mock.Of<IOperatorAiRetriever>(), Mock.Of<IOperatorAiLiveStatsOrchestrator>(), Mock.Of<IAiGrpcService>()).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
+		new ReportsSkill(Mock.Of<IAiGrpcService>(), Mock.Of<IContentModerationMetrics>(), Mock.Of<IDbContextFactory<ApplicationDbContext>>(), Decisions(), Options.Create(Opts())).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
 		new ModerationSkill(Mock.Of<IContentModerationMetrics>(), Mock.Of<IAiGrpcService>(), Options.Create(Opts())).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
 		new GeneralAssistantSkill(Mock.Of<IAiGrpcService>(), Options.Create(Opts())).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
 	}
@@ -207,6 +219,7 @@ public sealed class OperatorAiSkillsExtendedTests
 			});
 		var router = new OperatorAiSkillRouter(
 			new OperatorAiSkillRegistry(skills), new OperatorAiSkillVectorCache(), ai.Object,
+			new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()),
 			Options.Create(new AiServiceOptions { EmbeddingModel = "model-a", EmbeddingDim = 4 }),
 			Options.Create(new OperatorAiOptions { SkillRoutingMinScore = threshold, EmbedTimeoutMs = 2000 }),
 			Microsoft.Extensions.Logging.Abstractions.NullLogger<OperatorAiSkillRouter>.Instance);

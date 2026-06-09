@@ -92,9 +92,11 @@ public sealed class OperatorAiPublicStatsSettingsService : IOperatorAiPublicStat
 		MaxLiveMaxParallelBundleCalls = OperatorAiPublicStatsConstraints.MaxLiveMaxParallelBundleCalls,
 	};
 
+	// Public-stats snapshot parallelism is its own admin-configurable knob with its own default constant; it is
+	// decoupled from the operator-chat map parallelism (which 7B-perf O13 lowers to 1 for the local serial GPU).
 	private OperatorAiPublicStatsSettingsValues FallbackValues() => new(
 		OperatorAiPublicStatsConstraints.DefaultPublicStatsMode,
-		ClampParallel(_options.MaxParallelBundleAiCalls));
+		ClampParallel(OperatorAiPublicStatsConstraints.DefaultLiveMaxParallelBundleCalls));
 
 	private static int ClampParallel(int value) =>
 		Math.Min(

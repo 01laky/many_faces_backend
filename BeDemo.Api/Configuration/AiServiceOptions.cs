@@ -44,8 +44,26 @@ public sealed class AiServiceOptions
 	/// <summary>When true (default), run the startup probe that embeds a fixed string and asserts the returned length == <see cref="EmbeddingDim"/> (fail loud on drift).</summary>
 	public bool AssertEmbeddingDimOnStartup { get; set; } = true;
 
+	// ── 7B performance: optional CPU-resident helper model (7B-perf O19) ───────
+	// A small model (e.g. qwen2.5:3b) the worker loads CPU-only (num_gpu=0) alongside
+	// the GPU-resident 7B, used only for small routing/gating decisions (advisory; it
+	// never changes numbers). Empty ⇒ helper disabled, everything falls back to the
+	// deterministic heuristics. Must match OLLAMA_MODEL_HELPER on the worker.
+
+	/// <summary>O19 — optional helper model name (e.g. <c>qwen2.5:3b-instruct-q4_K_M</c>). Empty disables the helper.</summary>
+	public string? HelperModel { get; set; }
+
+	/// <summary>O19 — generation budget (ms) for a helper decision call (kept short — single-label classification on CPU).</summary>
+	public int HelperTimeoutMs { get; set; } = 6_000;
+
 	/// <summary>When true, refresh host profile from the worker on backend startup.</summary>
 	public bool HostProfileRefreshOnStartup { get; set; } = true;
+
+	/// <summary>O10 — issue a tiny throwaway Generate at startup (num_predict=1) to force the model fully loaded + GPU layers allocated, so the first operator turn isn't cold. Best-effort, time-boxed.</summary>
+	public bool WarmUpGenerationOnStartup { get; set; } = true;
+
+	/// <summary>O10 — max seconds to spend on the startup warm-up Generate before giving up (never blocks boot).</summary>
+	public int WarmUpStartupTimeoutSeconds { get; set; } = 60;
 
 	/// <summary>Max seconds to retry GetHostProfile during startup before giving up.</summary>
 	public int HostProfileStartupTimeoutSeconds { get; set; } = 30;

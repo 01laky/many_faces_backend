@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.4.0](#140) | Operator AI 7B performance (fast-paths, streaming) |
 | [1.3.0](#130) | Operator AI skills (router + 4 skills)             |
 | [1.2.0](#120) | Operator AI RAG retrieval (Elasticsearch kNN+BM25) |
 | [1.1.0](#110) | Backend runtime performance v1 (BE-RP1…35)         |
@@ -28,6 +29,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Added
 
 ### Changed
+
+### Fixed
+
+---
+
+## [1.4.0]
+
+### Added
+
+- **Operator AI 7B performance optimizations.** Fewer generations, faster generations, and token streaming for the local-7B operator chat. A **deterministic count fast-path** (`OperatorAiStatsIntent.IsSimpleCountQuestion` + `OperatorAiCountFastPath`) answers a simple single-metric count over one bundle with **0** generations; a **single-bundle fast-path** answers a one-bundle question with **1** generation and no synthesis (both via the orchestrator's new `PrepareSelectedAsync` terminal-plan seam, which also carries a per-turn stage trace — fast-path, generation count, load/map latencies).
+- **End-to-end token streaming** (`IAiGrpcService.GenerateStreamAsync` over the worker `GenerateStream` RPC; `IOperatorAiStreamingSkill` + `StatsSkill.RunStreamingAsync`; `ChatHub` emits `OperatorAiMessageDelta` SignalR events and persists the full message once on completion). Gated by `OperatorAi:StreamingEnabled` (default on) with a clean non-streaming fallback.
+- **CPU-resident helper model (O19)** via `AiServiceOptions.HelperModel`: an `IOperatorAiDecisionHelper` makes the small routing/gating decisions (simple-count gate, report-type) with the deterministic heuristic as the fallback (advisory only — never alters numbers); plus an experimental heterogeneous parallel map behind `OperatorAi:HelperParallelMapEnabled` (default off). Per-call `temperature` / `stop` / `model` overrides added to `GenerateAsync` and the proto `GenerateRequest`.
+- **Safety + observability:** a single-active-generation guard (`IOperatorAiActiveGenerationGuard`, `OperatorAi:SingleActiveGenerationGuardEnabled`) rejecting overlapping turns per conversation; an optional exact-repeat answer cache (`IOperatorAiAnswerCache`, `OperatorAi:AnswerCacheEnabled`, default off); a startup warm service (`OperatorAiStartupWarmService`) that warms the 4 skill vectors and issues one throwaway Generate to preload the model; and embed-once per turn (the router seeds the retriever's query-embedding cache).
+- New `OperatorAi:*` knobs (`MapTemperature`, `MapStopSequences`, `StreamingEnabled`, `SingleActiveGenerationGuardEnabled`, `AnswerCache*`, `HelperForDecisions`, `HelperParallelMapEnabled`) and `AiService:*` knobs (`HelperModel`, `HelperTimeoutMs`, `WarmUpGenerationOnStartup`, `WarmUpStartupTimeoutSeconds`).
+- Extended edge-case tests (PF-1…PF-20): strict count-intent detection, count + single-bundle fast-paths (0/1 generations), map token-cap/temperature/stop, the count formatter, the single-flight guard, the answer cache (off/on/clear), the decision-helper fallback, the streaming skill (delta forwarding + worker-error fallback + zero-hit), and router embed-once. Full suite **1761 passing**.
+
+### Changed
+
+- Per-bundle map generations now use a **96-token cap** (`LiveBundleMaxNewTokens`), **low temperature 0.2** + stop sequences, and a trimmed prompt; the default map parallelism is **1** (`MaxParallelBundleAiCalls`) since a single Ollama serialises map calls anyway. Timeout budgets retuned to the measured ~90–120s baseline (per-bundle 30s, overall turn 180s). Public-stats snapshot parallelism is decoupled from the operator-chat default.
 
 ### Fixed
 
@@ -225,7 +245,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...HEAD
 [1.0.2]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/01laky/many_faces_backend/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/01laky/many_faces_backend/compare/v0.9.0...v1.0.0
@@ -239,3 +259,4 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0

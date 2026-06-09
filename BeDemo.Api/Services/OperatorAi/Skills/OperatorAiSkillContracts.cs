@@ -30,12 +30,32 @@ public sealed record OperatorAiSkillResult(
 	object? StructuredPayload = null,
 	OperatorAiSkillTrace? Trace = null);
 
-/// <summary>Skill trace for observability / dev debug (which skill ran, whether it retrieved, fallback, timing).</summary>
+/// <summary>
+/// Skill trace for observability / dev debug (which skill ran, whether it retrieved, fallback, timing). The 7B-perf
+/// fields (O9) record which fast-path fired, how many LLM generations the turn actually used, per-stage latencies,
+/// and whether the CPU-resident decision helper (O19) was consulted.
+/// </summary>
 public sealed record OperatorAiSkillTrace(
 	string SkillId,
 	bool UsedRetrieval,
 	bool FellBackInternally,
-	long ElapsedMs);
+	long ElapsedMs,
+	string? FastPath = null,
+	int Generations = 0,
+	long LoadMs = 0,
+	long MapMs = 0,
+	bool HelperUsed = false);
+
+/// <summary>
+/// 7B-perf O4 — one chunk from a streaming skill run. During generation, <see cref="Delta"/> carries incremental
+/// text and <see cref="IsFinal"/> is false. The terminal chunk has <see cref="IsFinal"/> true plus the full
+/// <see cref="FinalAnswer"/> (what the backend persists) and the <see cref="Trace"/>.
+/// </summary>
+public sealed record OperatorAiStreamChunk(
+	string? Delta,
+	bool IsFinal,
+	string? FinalAnswer = null,
+	OperatorAiSkillTrace? Trace = null);
 
 /// <summary>
 /// A named, discoverable operator-AI capability (§3). Identity metadata (<see cref="Id"/>/<see cref="Description"/>/
@@ -62,6 +82,19 @@ public interface IOperatorAiSkill
 
 	/// <summary>Run the skill for one operator turn and return a single answer.</summary>
 	Task<OperatorAiSkillResult> RunAsync(OperatorAiSkillRequest request, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// 7B-perf O4 — implemented by skills whose terminal step is a single operator-visible generation that can stream
+/// token by token (stats, moderation, general-assistant). The ChatHub forwards each <see cref="OperatorAiStreamChunk.Delta"/>
+/// to the admin as a SignalR delta event, then persists the final <see cref="OperatorAiStreamChunk.FinalAnswer"/> once.
+/// Skills without a terminal generation (reports — deterministic markdown) do not implement this and use the
+/// non-streaming <see cref="IOperatorAiSkill.RunAsync"/>.
+/// </summary>
+public interface IOperatorAiStreamingSkill : IOperatorAiSkill
+{
+	/// <summary>Run the skill streaming the terminal generation; the last chunk carries the full answer + trace.</summary>
+	IAsyncEnumerable<OperatorAiStreamChunk> RunStreamingAsync(OperatorAiSkillRequest request, CancellationToken cancellationToken);
 }
 
 /// <summary>

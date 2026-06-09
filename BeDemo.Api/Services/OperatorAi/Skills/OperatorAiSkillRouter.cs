@@ -1,5 +1,6 @@
 using BeDemo.Api.Configuration;
 using BeDemo.Api.Services;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
 namespace BeDemo.Api.Services.OperatorAi.Skills;
@@ -15,6 +16,9 @@ public sealed record OperatorAiSkillRoute(IOperatorAiSkill Skill, double Score, 
 public interface IOperatorAiSkillRouter
 {
 	Task<OperatorAiSkillRoute> RouteAsync(string userMessage, CancellationToken cancellationToken = default);
+
+	/// <summary>7B-perf O8 — warm the 4 descriptor vectors ahead of the first turn (startup). True when warmed.</summary>
+	Task<bool> WarmAsync(CancellationToken cancellationToken = default);
 }
 
 /// <inheritdoc />
@@ -23,6 +27,7 @@ public sealed class OperatorAiSkillRouter : IOperatorAiSkillRouter
 	private readonly IOperatorAiSkillRegistry _registry;
 	private readonly IOperatorAiSkillVectorCache _vectorCache;
 	private readonly IAiGrpcService _ai;
+	private readonly IMemoryCache _memoryCache;
 	private readonly AiServiceOptions _aiOptions;
 	private readonly OperatorAiOptions _options;
 	private readonly ILogger<OperatorAiSkillRouter> _logger;
@@ -31,6 +36,7 @@ public sealed class OperatorAiSkillRouter : IOperatorAiSkillRouter
 		IOperatorAiSkillRegistry registry,
 		IOperatorAiSkillVectorCache vectorCache,
 		IAiGrpcService ai,
+		IMemoryCache memoryCache,
 		IOptions<AiServiceOptions> aiOptions,
 		IOptions<OperatorAiOptions> options,
 		ILogger<OperatorAiSkillRouter> logger)
@@ -38,9 +44,20 @@ public sealed class OperatorAiSkillRouter : IOperatorAiSkillRouter
 		_registry = registry;
 		_vectorCache = vectorCache;
 		_ai = ai;
+		_memoryCache = memoryCache;
 		_aiOptions = aiOptions.Value;
 		_options = options.Value;
 		_logger = logger;
+	}
+
+	/// <inheritdoc />
+	public async Task<bool> WarmAsync(CancellationToken cancellationToken = default)
+	{
+		var descriptors = _registry.All
+			.Select(s => (s.Id, Text: OperatorAiSkillRouter.BuildDescriptorText(s)))
+			.ToList();
+		var vectors = await _vectorCache.GetOrWarmAsync(descriptors, _aiOptions.EmbeddingModel, EmbedAsync, cancellationToken);
+		return vectors is { Count: > 0 };
 	}
 
 	/// <inheritdoc />
@@ -60,7 +77,7 @@ public sealed class OperatorAiSkillRouter : IOperatorAiSkillRouter
 			return new OperatorAiSkillRoute(fallback, 0, Fallback: true);
 		}
 
-		var query = await EmbedAsync(userMessage, cancellationToken);
+		var query = await EmbedQueryAsync(userMessage, cancellationToken);
 		if (query is null)
 		{
 			_logger.LogInformation("Skill router: query embed unavailable → general-assistant fallback.");
@@ -106,6 +123,50 @@ public sealed class OperatorAiSkillRouter : IOperatorAiSkillRouter
 			_logger.LogWarning("Skill router embed timed out after {Ms}ms.", _options.EmbedTimeoutMs);
 			return null;
 		}
+	}
+
+	/// <summary>
+	/// 7B-perf O8 — embed the OPERATOR QUESTION once per turn. The router embeds it for cosine routing; the stats
+	/// retriever needs the same embedding for kNN. We populate the retriever's shared query-embedding cache with the
+	/// RAW vector under its exact key, so when the stats skill runs the retriever gets a cache HIT instead of a second
+	/// EmbedText round-trip. The router still uses a normalized copy for cosine.
+	/// </summary>
+	private async Task<float[]?> EmbedQueryAsync(string userMessage, CancellationToken cancellationToken)
+	{
+		var key = OperatorAiRetriever.BuildEmbedCacheKey(userMessage, _aiOptions.EmbeddingModel);
+		float[]? raw;
+
+		if (_memoryCache.TryGetValue<float[]>(key, out var cachedRaw) && cachedRaw is { Length: > 0 })
+		{
+			raw = cachedRaw;
+		}
+		else
+		{
+			using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+			cts.CancelAfter(TimeSpan.FromMilliseconds(Math.Max(500, _options.EmbedTimeoutMs)));
+			try
+			{
+				var embed = await _ai.EmbedTextAsync(userMessage, _aiOptions.EmbeddingModel, cts.Token);
+				raw = embed.HasVector ? embed.Vector : null;
+			}
+			catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+			{
+				_logger.LogWarning("Skill router query embed timed out after {Ms}ms.", _options.EmbedTimeoutMs);
+				return null;
+			}
+
+			if (raw is { Length: > 0 })
+			{
+				// Seed the retriever's cache (raw, un-normalized) so the stats skill embeds the message zero times.
+				_memoryCache.Set(key, raw, new MemoryCacheEntryOptions
+				{
+					AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(Math.Max(1, _options.QueryEmbeddingCacheTtlSeconds)),
+					Size = 1,
+				});
+			}
+		}
+
+		return raw is { Length: > 0 } ? Normalize(raw) : null;
 	}
 
 	internal static float[] Normalize(float[] v)

@@ -20,8 +20,13 @@ public sealed class OperatorAiOptions
 
 	// Live map-reduce (statsMode=live) — see docs/prompts/admin-operator-ai-live-stats-bundle-map-reduce-agent-prompt.md
 
-	/// <summary>Max concurrent per-bundle AI Generate calls (server-side hard cap).</summary>
-	public int MaxParallelBundleAiCalls { get; set; } = 2;
+	/// <summary>
+	/// Max concurrent per-bundle AI Generate calls (server-side hard cap). Default 1 (7B-perf O13): on a single
+	/// Ollama instance without OLLAMA_NUM_PARALLEL the map calls serialize anyway, so &gt;1 only adds scheduling
+	/// overhead and (on a VRAM-constrained GPU) reduces offload per request. Raise only on a host that runs
+	/// concurrent model slots. Speed comes from FEWER calls (O2/O3) + SHORTER calls (O7/O11/O12), not concurrency.
+	/// </summary>
+	public int MaxParallelBundleAiCalls { get; set; } = 1;
 
 	/// <summary>Planner may select at most this many bundle indices per message.</summary>
 	public int MaxSelectedBundleIndices { get; set; } = 4;
@@ -32,7 +37,12 @@ public sealed class OperatorAiOptions
 
 	public int LivePlannerMaxNewTokens { get; set; } = 128;
 
-	public int LiveBundleMaxNewTokens { get; set; } = 256;
+	/// <summary>
+	/// Per-bundle MAP generation token cap. Default 96 (7B-perf O7): map answers are terse facts, so a tight cap
+	/// makes each of the K map calls faster. The operator-visible synthesis / single-bundle answer keep the larger
+	/// <see cref="LiveStitchMaxNewTokens"/> budget.
+	/// </summary>
+	public int LiveBundleMaxNewTokens { get; set; } = 96;
 
 	/// <summary>Final AI pass that turns stitched bundle facts into one operator-friendly reply.</summary>
 	public bool LiveUseAiSynthesisStitch { get; set; } = true;
@@ -95,11 +105,11 @@ public sealed class OperatorAiOptions
 	/// <summary>§17.7 — SemanticSearch budget (ms); on timeout ⇒ planner fallback.</summary>
 	public int RetrievalTimeoutMs { get; set; } = 8_000;
 
-	/// <summary>§17.7 — per-bundle Generate budget (ms); on timeout ⇒ drop that section + one-line note.</summary>
-	public int PerBundleGenerateTimeoutMs { get; set; } = 60_000;
+	/// <summary>§17.7 / 7B-perf O15 — per-bundle Generate budget (ms); on timeout ⇒ drop that section + one-line note. Default 30s: with the 96-token map cap (O7) a bundle answers well within this, while a hung worker still aborts.</summary>
+	public int PerBundleGenerateTimeoutMs { get; set; } = 30_000;
 
-	/// <summary>§17.7 — overall turn budget (ms); exceeded ⇒ stitch whatever is ready + a note. Never hang.</summary>
-	public int OverallTurnBudgetMs { get; set; } = 240_000;
+	/// <summary>§17.7 / 7B-perf O15 — overall turn budget (ms); exceeded ⇒ stitch whatever is ready + a note. Never hang. Default 180s ≈ the measured 90–120s baseline plus headroom, so a correct-but-slow turn completes.</summary>
+	public int OverallTurnBudgetMs { get; set; } = 180_000;
 
 	/// <summary>§17.1 — emit the per-turn structured retrieval trace (selected ids, RRF scores, stage latencies). Dev:true / prod:false.</summary>
 	public bool RetrievalTraceEnabled { get; set; } = true;
@@ -120,4 +130,36 @@ public sealed class OperatorAiOptions
 
 	/// <summary>Delay between GetModelStatus polls while model is Loading during Activate AI.</summary>
 	public int EnableHealthPollIntervalSeconds { get; set; } = 2;
+
+	// ── 7B performance optimizations v1 (operator-ai-7b-performance-v1) ─────────
+	// Speed up the operator chat on a local 7B: fewer generations (count / single-bundle
+	// fast-paths), faster generations (lower map sampling), streaming, a single-flight
+	// guard, an optional answer cache, and an optional CPU-resident helper model.
+
+	/// <summary>O11 — sampling temperature for the per-bundle MAP Generate (facts only). Low ⇒ terse + deterministic. Default 0.2. The operator-visible synthesis keeps the worker's default sampling.</summary>
+	public double MapTemperature { get; set; } = 0.2;
+
+	/// <summary>O11 — stop sequences for the MAP Generate so it stops early instead of padding to the token cap or drifting into a new turn.</summary>
+	public string[] MapStopSequences { get; set; } = ["\nUser:", "\nQuestion:", "\n\n\n"];
+
+	/// <summary>O4 — wire the worker GenerateStream so the operator-visible answer streams token-by-token. When false (or the worker can't stream), the non-streaming Generate path is used. Default true.</summary>
+	public bool StreamingEnabled { get; set; } = true;
+
+	/// <summary>O17 — reject a second concurrent operator turn for the same conversation while one is still generating (the GPU is a serial resource). Default true.</summary>
+	public bool SingleActiveGenerationGuardEnabled { get; set; } = true;
+
+	/// <summary>O18 — optional short-TTL exact-repeat answer cache (skip the whole turn on an identical repeat). Off by default; the freshness window must align with the bundle cache.</summary>
+	public bool AnswerCacheEnabled { get; set; }
+
+	/// <summary>O18 — TTL (seconds) for the answer cache; keep ≤ the bundle-cache freshness window so a cached count never outlives the live data.</summary>
+	public int AnswerCacheTtlSeconds { get; set; } = 30;
+
+	/// <summary>O18 — bounded entry count for the answer cache.</summary>
+	public int AnswerCacheMaxEntries { get; set; } = 256;
+
+	/// <summary>O19 Role A — let the CPU-resident helper model (when <see cref="AiServiceOptions.HelperModel"/> is set) make the small routing/gating decisions (simple-count gate, report-type). Falls back to the deterministic heuristic when the helper is unset/unavailable. Default true (no-op unless a helper model is configured).</summary>
+	public bool HelperForDecisions { get; set; } = true;
+
+	/// <summary>O19 Role B — experimental heterogeneous parallel map (split bundles across the GPU 7B and the CPU helper). Off by default; enable only if the O9 benchmark shows a net win at acceptable quality.</summary>
+	public bool HelperParallelMapEnabled { get; set; }
 }

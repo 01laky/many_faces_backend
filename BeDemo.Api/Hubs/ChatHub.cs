@@ -54,6 +54,8 @@ public class ChatHub : Hub
 	private readonly IOperatorAiConversationService _operatorAi;
 	private readonly IOperatorAiSkillRouter _skillRouter;
 	private readonly IOperatorAiSystemSettingsProvider _systemSettings;
+	private readonly IOperatorAiActiveGenerationGuard _activeGenerationGuard;
+	private readonly IOperatorAiAnswerCache _answerCache;
 	private readonly OperatorAiOptions _operatorAiOptions;
 
 	public ChatHub(
@@ -66,6 +68,8 @@ public class ChatHub : Hub
 		IOperatorAiConversationService operatorAi,
 		IOperatorAiSkillRouter skillRouter,
 		IOperatorAiSystemSettingsProvider systemSettings,
+		IOperatorAiActiveGenerationGuard activeGenerationGuard,
+		IOperatorAiAnswerCache answerCache,
 		IOptions<OperatorAiOptions> operatorAiOptions)
 	{
 		_logger = logger;
@@ -77,6 +81,8 @@ public class ChatHub : Hub
 		_operatorAi = operatorAi;
 		_skillRouter = skillRouter;
 		_systemSettings = systemSettings;
+		_activeGenerationGuard = activeGenerationGuard;
+		_answerCache = answerCache;
 		_operatorAiOptions = operatorAiOptions.Value;
 	}
 
@@ -296,76 +302,137 @@ public class ChatHub : Hub
 		}
 
 		var effectiveParallel = Math.Clamp(
-			maxParallelBundleAiCalls ?? 2,
+			maxParallelBundleAiCalls ?? 1,
 			1,
 			_operatorAiOptions.MaxParallelBundleAiCalls);
 
-		string aiResponse;
+		// 7B-perf O17 — single-active-generation guard: the local GPU is serial, so reject a second concurrent turn
+		// for this conversation (rather than thrashing both). Released in the finally below.
+		if (_operatorAiOptions.SingleActiveGenerationGuardEnabled && !_activeGenerationGuard.TryBegin(conversationId))
+		{
+			await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.GenerationInProgress);
+			return;
+		}
+
 		try
 		{
-			// -- SKILL ROUTING (operator-ai-skills v1): route to one skill, then run it --
-			var route = await _skillRouter.RouteAsync(trimmed, Context.ConnectionAborted);
-			if (_operatorAiOptions.RetrievalTraceEnabled)
+			string aiResponse;
+			string routedSkillId;
+			try
 			{
-				_logger.LogDebug(
-					"Operator AI skill route: skill={SkillId} score={Score:0.###} fallback={Fallback}",
-					route.Skill.Id,
-					route.Score,
-					route.Fallback);
+				// -- SKILL ROUTING (operator-ai-skills v1): route to one skill, then run it --
+				var route = await _skillRouter.RouteAsync(trimmed, Context.ConnectionAborted);
+				routedSkillId = route.Skill.Id;
+				if (_operatorAiOptions.RetrievalTraceEnabled)
+				{
+					_logger.LogDebug(
+						"Operator AI skill route: skill={SkillId} score={Score:0.###} fallback={Fallback}",
+						route.Skill.Id,
+						route.Score,
+						route.Fallback);
+				}
+
+				var skillRequest = new OperatorAiSkillRequest(
+					trimmed, conversationId, Array.Empty<ChatHistoryEntry>(), effectiveParallel, route.Score);
+
+				// 7B-perf O18 — exact-repeat answer cache: an identical (skill, message) within TTL skips the turn.
+				if (_answerCache.TryGet(routedSkillId, trimmed, out var cachedAnswer))
+				{
+					aiResponse = cachedAnswer;
+				}
+				// 7B-perf O4 — stream the terminal generation when the routed skill supports it.
+				else if (_operatorAiOptions.StreamingEnabled && route.Skill is IOperatorAiStreamingSkill streamingSkill)
+				{
+					aiResponse = await RunStreamingSkillAsync(streamingSkill, skillRequest, conversationId);
+				}
+				else
+				{
+					var skillResult = await route.Skill.RunAsync(skillRequest, Context.ConnectionAborted);
+					aiResponse = skillResult.AnswerMarkdown;
+				}
+
+				if (string.IsNullOrWhiteSpace(aiResponse))
+					aiResponse = "...";
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "SendToAiWithOperatorStats failed for user {UserId}", userId);
+				await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.AiGenerationFailed);
+				return;
 			}
 
-			var skillResult = await route.Skill.RunAsync(
-				new OperatorAiSkillRequest(trimmed, conversationId, Array.Empty<ChatHistoryEntry>(), effectiveParallel, route.Score),
+			if (OperatorAiResponseGuard.ShouldNotPersist(aiResponse))
+			{
+				_logger.LogWarning(
+					"Non-chat AI status returned for conversation {ConversationId}, not persisting.",
+					conversationId);
+				await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.AiGuardRejected);
+				return;
+			}
+
+			aiResponse = OperatorAiResponseGuard.ToUserFacingMessage(aiResponse);
+
+			// 7B-perf O18 — remember this answer for identical repeats (no-op when the cache is disabled).
+			_answerCache.Set(routedSkillId, trimmed, aiResponse);
+
+			// Persist ONE assistant message + the user turn. The chat is always grounded/English now, so the locale
+			// and stats-mode columns are pinned to "en" / "live" (no off/inline, D11) — preserving the persistence
+			// contract without a schema change.
+			var (userDto, assistantDto) = await _operatorAi.AppendExchangeAsync(
+				conversationId,
+				userId,
+				operatorEmail,
+				PersistedResponseLocale,
+				trimmed,
+				aiResponse,
+				PersistedStatsMode,
 				Context.ConnectionAborted);
-			aiResponse = skillResult.AnswerMarkdown;
 
-			if (string.IsNullOrWhiteSpace(aiResponse))
-				aiResponse = "...";
+			var updatedConversation = await _operatorAi.GetConversationAsync(conversationId, Context.ConnectionAborted)
+				?? conversation;
+
+			var appended = new OperatorAiMessageAppendedEventDto
+			{
+				ConversationId = conversationId,
+				UserMessage = userDto,
+				AssistantMessage = assistantDto,
+				Conversation = updatedConversation,
+			};
+
+			await Clients.Group(OperatorAiHubGroups.Operators).SendAsync("OperatorAiMessageAppended", appended);
+			await Clients.Group(OperatorAiHubGroups.Operators).SendAsync("OperatorAiConversationListChanged", updatedConversation);
 		}
-		catch (Exception ex)
+		finally
 		{
-			_logger.LogError(ex, "SendToAiWithOperatorStats failed for user {UserId}", userId);
-			await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.AiGenerationFailed);
-			return;
+			// O17 — always release the conversation, even on early return / exception.
+			_activeGenerationGuard.End(conversationId);
 		}
+	}
 
-		if (OperatorAiResponseGuard.ShouldNotPersist(aiResponse))
+	/// <summary>
+	/// 7B-perf O4 — run a streaming skill, forwarding each token delta to the operator group as an
+	/// <c>OperatorAiMessageDelta</c> event, and return the full accumulated answer (which the caller persists once).
+	/// </summary>
+	private async Task<string> RunStreamingSkillAsync(
+		IOperatorAiStreamingSkill skill,
+		OperatorAiSkillRequest request,
+		int conversationId)
+	{
+		var finalAnswer = string.Empty;
+		await foreach (var chunk in skill
+			.RunStreamingAsync(request, Context.ConnectionAborted)
+			.WithCancellation(Context.ConnectionAborted))
 		{
-			_logger.LogWarning(
-				"Non-chat AI status returned for conversation {ConversationId}, not persisting.",
-				conversationId);
-			await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.AiGuardRejected);
-			return;
+			if (!string.IsNullOrEmpty(chunk.Delta))
+			{
+				await Clients.Group(OperatorAiHubGroups.Operators).SendAsync(
+					"OperatorAiMessageDelta",
+					new OperatorAiMessageDeltaEventDto { ConversationId = conversationId, Delta = chunk.Delta! });
+			}
+			if (chunk.IsFinal)
+				finalAnswer = chunk.FinalAnswer ?? finalAnswer;
 		}
-
-		aiResponse = OperatorAiResponseGuard.ToUserFacingMessage(aiResponse);
-
-		// Persist ONE assistant message + the user turn. The chat is always grounded/English now, so the locale
-		// and stats-mode columns are pinned to "en" / "live" (no off/inline, D11) — preserving the persistence
-		// contract without a schema change.
-		var (userDto, assistantDto) = await _operatorAi.AppendExchangeAsync(
-			conversationId,
-			userId,
-			operatorEmail,
-			PersistedResponseLocale,
-			trimmed,
-			aiResponse,
-			PersistedStatsMode,
-			Context.ConnectionAborted);
-
-		var updatedConversation = await _operatorAi.GetConversationAsync(conversationId, Context.ConnectionAborted)
-			?? conversation;
-
-		var appended = new OperatorAiMessageAppendedEventDto
-		{
-			ConversationId = conversationId,
-			UserMessage = userDto,
-			AssistantMessage = assistantDto,
-			Conversation = updatedConversation,
-		};
-
-		await Clients.Group(OperatorAiHubGroups.Operators).SendAsync("OperatorAiMessageAppended", appended);
-		await Clients.Group(OperatorAiHubGroups.Operators).SendAsync("OperatorAiConversationListChanged", updatedConversation);
+		return finalAnswer;
 	}
 
 	private async Task SendOperatorAiEphemeralAsync(string userText, string hubErrorCode)

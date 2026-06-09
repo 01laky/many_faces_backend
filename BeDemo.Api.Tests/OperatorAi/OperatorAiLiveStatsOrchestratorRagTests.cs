@@ -27,7 +27,11 @@ public sealed class OperatorAiLiveStatsOrchestratorRagTests
 			OverallTurnBudgetMs = overallBudgetMs,
 			LiveUseAiSynthesisStitch = false, // assert the deterministic stitch, not a synthesized rewrite
 		});
-		return new OperatorAiLiveStatsOrchestrator(prefetcher.Object, ai.Object, options, NullLogger<OperatorAiLiveStatsOrchestrator>.Instance);
+		// 7B-perf: decision helper stubbed to "never a simple count" so these tests exercise the map/stitch path,
+		// not the deterministic count fast-path (covered by its own dedicated tests).
+		var decisions = new Mock<IOperatorAiDecisionHelper>();
+		decisions.Setup(d => d.IsSimpleCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+		return new OperatorAiLiveStatsOrchestrator(prefetcher.Object, ai.Object, decisions.Object, options, Options.Create(new AiServiceOptions()), NullLogger<OperatorAiLiveStatsOrchestrator>.Instance);
 	}
 
 	private static OperatorAiBundleCacheEntry ReadyEntry(int index)
@@ -63,11 +67,13 @@ public sealed class OperatorAiLiveStatsOrchestratorRagTests
 	public async Task Coverage_note_is_appended_for_broad_overview()
 	{
 		var ai = new Mock<IAiGrpcService>();
-		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync("Users: 1,234 total.");
 
+		// Two indices ⇒ the multi-bundle map/stitch path (the single-bundle fast-path, O3, intentionally skips the
+		// stitch + coverage note since there is nothing to stitch across).
 		var result = await Build(ai, PrefetcherReturningReady())
-			.RunWithSelectedIndicesAsync("platform overview", new[] { 0 }, 2, appendCoverageNote: true);
+			.RunWithSelectedIndicesAsync("platform overview", new[] { 0, 1 }, 2, appendCoverageNote: true);
 
 		result.Should().Contain("most relevant data areas", "broad-overview answers note the top-K coverage (§6)");
 	}
@@ -76,8 +82,8 @@ public sealed class OperatorAiLiveStatsOrchestratorRagTests
 	public async Task Per_bundle_timeout_degrades_one_section_and_turn_still_completes()
 	{
 		var ai = new Mock<IAiGrpcService>();
-		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-			.Returns(async (string prompt, int _, string? statsCtx, string? __, CancellationToken ct) =>
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.Returns(async (string prompt, int _, string? statsCtx, string? __, double? _t, IReadOnlyList<string>? _s, string? _m, CancellationToken ct) =>
 			{
 				// The slow bundle (carrying SLOWMARKER) blocks past the per-bundle timeout → it is dropped.
 				if ((prompt + statsCtx).Contains("SLOWMARKER"))

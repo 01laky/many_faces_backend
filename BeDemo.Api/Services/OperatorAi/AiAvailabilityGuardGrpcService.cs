@@ -28,6 +28,9 @@ public sealed class AiAvailabilityGuardGrpcService : IAiGrpcService
 		int maxNewTokens = 50,
 		string? statsContextJson = null,
 		string? responseLocale = null,
+		double? temperature = null,
+		IReadOnlyList<string>? stopSequences = null,
+		string? model = null,
 		CancellationToken cancellationToken = default)
 	{
 		if (!await _settings.IsAiEnabledAsync(cancellationToken))
@@ -38,7 +41,41 @@ public sealed class AiAvailabilityGuardGrpcService : IAiGrpcService
 			maxNewTokens,
 			statsContextJson,
 			responseLocale,
+			temperature,
+			stopSequences,
+			model,
 			cancellationToken);
+	}
+
+	/// <inheritdoc />
+	public async IAsyncEnumerable<AiGenerateDelta> GenerateStreamAsync(
+		string prompt,
+		int maxNewTokens = 50,
+		string? statsContextJson = null,
+		string? responseLocale = null,
+		double? temperature = null,
+		IReadOnlyList<string>? stopSequences = null,
+		string? model = null,
+		[System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+	{
+		if (!await _settings.IsAiEnabledAsync(cancellationToken))
+		{
+			yield return new AiGenerateDelta(null, true, null, DisabledGenerateMessage, "ai_disabled");
+			yield break;
+		}
+
+		await foreach (var delta in _inner.GenerateStreamAsync(
+			prompt,
+			maxNewTokens,
+			statsContextJson,
+			responseLocale,
+			temperature,
+			stopSequences,
+			model,
+			cancellationToken).WithCancellation(cancellationToken))
+		{
+			yield return delta;
+		}
 	}
 
 	/// <inheritdoc />

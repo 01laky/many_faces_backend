@@ -59,6 +59,72 @@ public static class OperatorAiStatsIntent
 		return false;
 	}
 
+	// 7B-perf O2 — a single-metric COUNT/total ask whose answer is a number already in the bundle, so the LLM
+	// adds nothing and we can answer deterministically (0 generations). DELIBERATELY STRICT: a false negative just
+	// runs the normal LLM path (no harm); a false positive returns a templated answer where nuance was needed
+	// (worse), so anything comparative / trend / qualitative / breakdown disqualifies and we bias to false.
+
+	private static readonly string[] CountTriggers =
+	[
+		"how many", "how much", "number of", "total number", "count of", "count",
+		"koľko", "kolko", "počet", "pocet",
+	];
+
+	private static readonly string[] CountDisqualifiers =
+	[
+		// comparative
+		"compare", "comparison", " vs ", " vs.", "versus", "difference between", "more than", "less than",
+		// trend / time
+		"trend", "over time", "growth", "rate", "per day", "per week", "last week", "last month",
+		"yesterday", "today", "this week", "timeseries", "graph", "chart",
+		// qualitative / reasoning
+		"why", "how come", "explain", "reason", "should", "recommend", "best", "worst", "healthy", "problem",
+		// breakdown / grouping (needs structure, not a single number)
+		"breakdown", "break down", "group by", "grouped", " by ", "per ", "each ", "distribution",
+		"average", "median", "percentage", "percent", "ratio", "list", "list all", "show all", "every",
+		// Slovak — the count triggers (koľko / počet) are bilingual, so the disqualifiers must be too:
+		// average / why / compare / breakdown-by / trend + time windows.
+		"priemer", "prečo", "preco", "porovn", "podľa", "podla", "rozdelen", "vývoj", "vyvoj", "rast",
+		"týžd", "tyzd", "mesiac", "za posledn", "minul", "pribud",
+	];
+
+	/// <summary>
+	/// 7B-perf O2 — true only for a genuinely simple single-metric count/total question (e.g. "how many users",
+	/// "albums pending count"). Strict by design; returns false for anything comparative, trend-based, qualitative,
+	/// or that asks for a breakdown/overview. Used to take the deterministic count fast-path (no Generate).
+	/// </summary>
+	public static bool IsSimpleCountQuestion(string? message)
+	{
+		if (string.IsNullOrWhiteSpace(message))
+			return false;
+
+		var m = message.Trim().ToLowerInvariant();
+
+		// A broad overview is never a "simple count" — it spans many metrics.
+		if (IsBroadOverviewQuestion(message))
+			return false;
+
+		// Must look like a metrics question at all.
+		if (!IsMetricsQuestion(message))
+			return false;
+
+		// Any disqualifier ⇒ defer to the LLM.
+		foreach (var phrase in CountDisqualifiers)
+		{
+			if (m.Contains(phrase, StringComparison.Ordinal))
+				return false;
+		}
+
+		// Must contain an explicit count/total trigger.
+		foreach (var trigger in CountTriggers)
+		{
+			if (m.Contains(trigger, StringComparison.Ordinal))
+				return true;
+		}
+
+		return false;
+	}
+
 	/// <summary>User wants a wide platform snapshot (use compact all-bundle overview, not 4 bundle picks).</summary>
 	public static bool IsBroadOverviewQuestion(string? message)
 	{

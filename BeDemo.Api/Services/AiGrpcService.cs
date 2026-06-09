@@ -91,12 +91,36 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
 		}
 	}
 
+	/// <summary>Apply the shared per-call overrides (7B-perf O11 sampling/stop, O19 model) onto a request.</summary>
+	private static void ApplyGenerateOverrides(
+		GenerateRequest request,
+		double? temperature,
+		IReadOnlyList<string>? stopSequences,
+		string? model)
+	{
+		if (temperature is { } t && t >= 0)
+			request.Temperature = t;
+		if (stopSequences is { Count: > 0 })
+		{
+			foreach (var stop in stopSequences)
+			{
+				if (!string.IsNullOrEmpty(stop))
+					request.Stop.Add(stop);
+			}
+		}
+		if (!string.IsNullOrWhiteSpace(model))
+			request.Model = model.Trim();
+	}
+
 	/// <inheritdoc />
 	public async Task<string> GenerateAsync(
 		string prompt,
 		int maxNewTokens = 50,
 		string? statsContextJson = null,
 		string? responseLocale = null,
+		double? temperature = null,
+		IReadOnlyList<string>? stopSequences = null,
+		string? model = null,
 		CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrWhiteSpace(prompt))
@@ -111,6 +135,7 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
 			request.StatsContextJson = statsContextJson.Trim();
 		if (!string.IsNullOrWhiteSpace(responseLocale))
 			request.ResponseLocale = responseLocale.Trim();
+		ApplyGenerateOverrides(request, temperature, stopSequences, model);
 
 		var callOptions = CreateCallOptions(cancellationToken);
 
@@ -165,6 +190,112 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
 			}
 		}
 		return "Error: AI service unavailable";
+	}
+
+	/// <inheritdoc />
+	public async IAsyncEnumerable<AiGenerateDelta> GenerateStreamAsync(
+		string prompt,
+		int maxNewTokens = 50,
+		string? statsContextJson = null,
+		string? responseLocale = null,
+		double? temperature = null,
+		IReadOnlyList<string>? stopSequences = null,
+		string? model = null,
+		[System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+	{
+		if (string.IsNullOrWhiteSpace(prompt))
+			yield break;
+
+		var request = new GenerateRequest
+		{
+			Prompt = prompt,
+			MaxNewTokens = maxNewTokens <= 0 ? 50 : maxNewTokens,
+		};
+		if (!string.IsNullOrWhiteSpace(statsContextJson))
+			request.StatsContextJson = statsContextJson.Trim();
+		if (!string.IsNullOrWhiteSpace(responseLocale))
+			request.ResponseLocale = responseLocale.Trim();
+		ApplyGenerateOverrides(request, temperature, stopSequences, model);
+
+		var callOptions = CreateCallOptions(cancellationToken);
+
+		// Channel/call creation rarely throws (errors surface on MoveNext); guard anyway so a stream-init
+		// failure becomes a terminal error delta the caller can fall back on rather than an exception.
+		AsyncServerStreamingCall<GenerateStreamChunk>? call = null;
+		string? initError = null;
+		try
+		{
+			var channel = GetOrCreateChannel();
+			var client = new HealthService.HealthServiceClient(channel);
+			call = client.GenerateStream(request, callOptions);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "AI GenerateStream init failed");
+			initError = ex.Message;
+		}
+
+		if (initError is not null || call is null)
+		{
+			yield return new AiGenerateDelta(null, true, null, initError ?? "stream init failed", "stream_init_failed");
+			yield break;
+		}
+
+		using (call)
+		{
+			var stream = call.ResponseStream;
+			while (true)
+			{
+				// C# forbids `yield` inside a catch, so capture the outcome here and yield AFTER the try/catch.
+				AiGenerateDelta? delta = null;
+				AiGenerateDelta? terminalError = null;
+				var finished = false;
+				try
+				{
+					if (await stream.MoveNext(cancellationToken))
+					{
+						var chunk = stream.Current;
+						delta = new AiGenerateDelta(
+							chunk.TextDelta ?? string.Empty,
+							chunk.IsFinal,
+							chunk.HasFinishReason ? chunk.FinishReason : null,
+							chunk.HasError ? chunk.Error : null,
+							chunk.HasErrorCode ? chunk.ErrorCode : null);
+					}
+					else
+					{
+						finished = true;
+					}
+				}
+				catch (RpcException ex) when (ex.StatusCode is StatusCode.Unavailable or StatusCode.Unimplemented)
+				{
+					_logger.LogWarning(ex, "AI GenerateStream unavailable; invalidating channel");
+					InvalidateChannel();
+					terminalError = new AiGenerateDelta(null, true, null, ex.Status.Detail, "stream_unavailable");
+				}
+				catch (OperationCanceledException)
+				{
+					finished = true;
+				}
+				catch (Exception ex)
+				{
+					_logger.LogWarning(ex, "AI GenerateStream failed");
+					terminalError = new AiGenerateDelta(null, true, null, ex.Message, "stream_failed");
+				}
+
+				if (terminalError is not null)
+				{
+					yield return terminalError;
+					yield break;
+				}
+				if (finished)
+					yield break;
+
+				yield return delta!;
+				if (delta!.IsFinal)
+					yield break;
+			}
+		}
 	}
 
 	/// <inheritdoc />

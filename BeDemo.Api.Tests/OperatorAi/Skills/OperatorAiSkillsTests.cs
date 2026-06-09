@@ -4,6 +4,7 @@ using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Services.OperatorAi.Skills;
+using BeDemo.Api.Utils;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -24,6 +25,17 @@ public sealed class OperatorAiSkillsTests
 
 	private static OperatorAiOptions Opts() => new() { MaxNewTokens = 256, LiveStitchMaxNewTokens = 512 };
 
+	/// <summary>Decision helper stub: helper disabled ⇒ report-type detection uses the deterministic heuristic (7B-perf O19 fallback).</summary>
+	private static IOperatorAiDecisionHelper Decisions()
+	{
+		var d = new Mock<IOperatorAiDecisionHelper>();
+		d.Setup(x => x.DetectReportTypeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((string m, CancellationToken _) => OperatorAiReportTypeHeuristic.Detect(m));
+		d.Setup(x => x.IsSimpleCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((string m, CancellationToken _) => OperatorAiStatsIntent.IsSimpleCountQuestion(m));
+		return d.Object;
+	}
+
 	// ── StatsSkill ──────────────────────────────────────────────────────────
 
 	[Fact]
@@ -35,10 +47,10 @@ public sealed class OperatorAiSkillsTests
 				Array.Empty<int>(), OperatorAiSelectionStrategy.ZeroHit, Array.Empty<OperatorAiRetrievalHit>(), false, false, 0, 0));
 		var orch = new Mock<IOperatorAiLiveStatsOrchestrator>();
 
-		var result = await new StatsSkill(retriever.Object, orch.Object).RunAsync(Req("what is the weather"), default);
+		var result = await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>()).RunAsync(Req("what is the weather"), default);
 
 		result.AnswerMarkdown.Should().Be(StatsSkill.ZeroHitRefusal);
-		orch.Verify(o => o.RunWithSelectedIndicesAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never());
+		orch.Verify(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never());
 	}
 
 	[Fact]
@@ -49,10 +61,11 @@ public sealed class OperatorAiSkillsTests
 			.ReturnsAsync(new OperatorAiRetrievalResult(
 				new[] { 0, 12 }, OperatorAiSelectionStrategy.Rag, Array.Empty<OperatorAiRetrievalHit>(), false, false, 5, 7));
 		var orch = new Mock<IOperatorAiLiveStatsOrchestrator>();
-		orch.Setup(o => o.RunWithSelectedIndicesAsync("how many users?", It.Is<IReadOnlyList<int>>(i => i.SequenceEqual(new[] { 0, 12 })), 2, false, It.IsAny<CancellationToken>()))
-			.ReturnsAsync("There are 1,234 users.");
+		// The skill now drives the terminal plan; a ready CompleteAnswer (count fast-path style) is returned as-is.
+		orch.Setup(o => o.PrepareSelectedAsync("how many users?", It.Is<IReadOnlyList<int>>(i => i.SequenceEqual(new[] { 0, 12 })), 2, false, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new OperatorAiTerminalPlan("There are 1,234 users.", null, 0, new OperatorAiLiveTurnTrace("count", 0, 0, 0, 2)));
 
-		var result = await new StatsSkill(retriever.Object, orch.Object).RunAsync(Req("how many users?"), default);
+		var result = await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>()).RunAsync(Req("how many users?"), default);
 
 		result.AnswerMarkdown.Should().Be("There are 1,234 users.");
 		result.Trace!.SkillId.Should().Be("stats");
@@ -83,7 +96,7 @@ public sealed class OperatorAiSkillsTests
 		var metrics = new Mock<IContentModerationMetrics>();
 		metrics.Setup(m => m.GetSnapshotAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Snap(pending: 5, oldest: 9));
 
-		var skill = new ReportsSkill(ai.Object, metrics.Object, Mock.Of<IDbContextFactory<ApplicationDbContext>>(), Options.Create(Opts()));
+		var skill = new ReportsSkill(ai.Object, metrics.Object, Mock.Of<IDbContextFactory<ApplicationDbContext>>(), Decisions(), Options.Create(Opts()));
 		var result = await skill.RunAsync(Req("generate a moderation backlog report"), default);
 
 		capturedType.Should().Be("moderation_backlog");
@@ -94,7 +107,7 @@ public sealed class OperatorAiSkillsTests
 	[Fact]
 	public async Task Reports_ambiguous_request_offers_the_choices()
 	{
-		var skill = new ReportsSkill(Mock.Of<IAiGrpcService>(), Mock.Of<IContentModerationMetrics>(), Mock.Of<IDbContextFactory<ApplicationDbContext>>(), Options.Create(Opts()));
+		var skill = new ReportsSkill(Mock.Of<IAiGrpcService>(), Mock.Of<IContentModerationMetrics>(), Mock.Of<IDbContextFactory<ApplicationDbContext>>(), Decisions(), Options.Create(Opts()));
 		var result = await skill.RunAsync(Req("make me a report"), default);
 		result.AnswerMarkdown.Should().Contain("face health").And.Contain("moderation backlog").And.Contain("grid completeness");
 	}
@@ -108,7 +121,7 @@ public sealed class OperatorAiSkillsTests
 		var metrics = new Mock<IContentModerationMetrics>();
 		metrics.Setup(m => m.GetSnapshotAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Snap());
 
-		var skill = new ReportsSkill(ai.Object, metrics.Object, Mock.Of<IDbContextFactory<ApplicationDbContext>>(), Options.Create(Opts()));
+		var skill = new ReportsSkill(ai.Object, metrics.Object, Mock.Of<IDbContextFactory<ApplicationDbContext>>(), Decisions(), Options.Create(Opts()));
 		var result = await skill.RunAsync(Req("moderation backlog report"), default);
 		result.AnswerMarkdown.Should().Contain("could not be generated");
 	}
@@ -120,8 +133,8 @@ public sealed class OperatorAiSkillsTests
 	{
 		var ai = new Mock<IAiGrpcService>();
 		string? prompt = null;
-		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-			.ReturnsAsync((string p, int _, string? __, string? ___, CancellationToken ____) => { prompt = p; return "There are 5 pending submissions."; });
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((string p, int _, string? __, string? ___, double? _t, IReadOnlyList<string>? _s, string? _m, CancellationToken ____) => { prompt = p; return "There are 5 pending submissions."; });
 		var metrics = new Mock<IContentModerationMetrics>();
 		metrics.Setup(m => m.GetSnapshotAsync(It.IsAny<CancellationToken>())).ReturnsAsync(Snap(pending: 5));
 
@@ -139,7 +152,7 @@ public sealed class OperatorAiSkillsTests
 	public async Task General_assistant_replies_without_retrieval()
 	{
 		var ai = new Mock<IAiGrpcService>();
-		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync("Hi! I can help with platform statistics, reports, and the moderation backlog.");
 
 		var skill = new GeneralAssistantSkill(ai.Object, Options.Create(Opts()));
@@ -153,7 +166,7 @@ public sealed class OperatorAiSkillsTests
 	public async Task General_assistant_has_a_safe_fallback_when_model_returns_empty()
 	{
 		var ai = new Mock<IAiGrpcService>();
-		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(string.Empty);
 		var result = await new GeneralAssistantSkill(ai.Object, Options.Create(Opts())).RunAsync(Req("hmm"), default);
 		result.AnswerMarkdown.Should().NotBeNullOrWhiteSpace();

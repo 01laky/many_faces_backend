@@ -1250,8 +1250,38 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
 			int maxNewTokens = 50,
 			string? statsContextJson = null,
 			string? responseLocale = null,
+			double? temperature = null,
+			IReadOnlyList<string>? stopSequences = null,
+			string? model = null,
 			CancellationToken cancellationToken = default) =>
 			Task.FromResult(string.Empty);
+
+		public async System.Collections.Generic.IAsyncEnumerable<AiGenerateDelta> GenerateStreamAsync(
+
+			string prompt,
+
+			int maxNewTokens = 50,
+
+			string? statsContextJson = null,
+
+			string? responseLocale = null,
+
+			double? temperature = null,
+
+			IReadOnlyList<string>? stopSequences = null,
+
+			string? model = null,
+
+			[System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+
+		{
+
+			var text = await GenerateAsync(prompt, maxNewTokens, statsContextJson, responseLocale, temperature, stopSequences, model, cancellationToken);
+
+			yield return new AiGenerateDelta(text, true, "stop", null, null);
+
+		}
+
 
 		public Task<string> OperatorStatsChatAsync(
 			string userMessage,
