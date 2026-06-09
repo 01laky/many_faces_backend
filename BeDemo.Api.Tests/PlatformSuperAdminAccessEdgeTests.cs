@@ -193,6 +193,23 @@ public sealed class PlatformSuperAdminAccessEdgeTests
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
+	/// <summary>
+	/// ACC-B15b — SUPER_ADMIN on a PUBLIC (non-admin) face → infra worker-config 403 (wrong scope). Locks the scope
+	/// edge of the X5/X6 migration: the ManageAllFaces policy requires admin face scope, so a super-admin operating
+	/// under a tenant face prefix must still be refused (mirrors the old CanManageAllFaces = IsAdminFaceScope &amp;&amp;
+	/// super-admin gate).
+	/// </summary>
+	[Fact]
+	public async Task InfraWorkerConfig_ReturnsForbidden_ForSuperAdmin_OnPublicFace()
+	{
+		var client = _factory.CreateFaceClient("public");
+		var token = await IntegrationTestSeed.GetSuperAdminAccessTokenAsync(client);
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+		var response = await client.GetAsync("/api/admin/infra/worker-config");
+		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
 	/// <summary>ACC-B16 — unauthenticated Stats on admin face → 401.</summary>
 	[Fact]
 	public async Task Stats_ReturnsUnauthorized_WithoutJwt_OnAdminFace()

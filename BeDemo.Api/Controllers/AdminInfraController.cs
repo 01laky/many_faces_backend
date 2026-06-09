@@ -1,4 +1,4 @@
-using BeDemo.Api.Services;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services.OperatorMail;
 using BeDemo.Api.Services.OperatorPush;
 using Microsoft.AspNetCore.Authorization;
@@ -16,21 +16,23 @@ namespace BeDemo.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/admin/infra")]
-[Authorize]
+// Backend-refactor X5/X6: the operator gate (admin face scope + global SUPER_ADMIN) is now enforced declaratively by
+// the ManageAllFaces policy instead of an in-body `if (!_access.CanManageAllFaces(User)) return Forbid();`. The policy
+// reproduces PlatformAccessRules.CanManageAllFaces exactly (see ManageAllFacesAuthorizationHandler), so the
+// authorization matrix is unchanged — anonymous → 401, authenticated-but-insufficient → 403, super-admin-in-admin-
+// scope → allowed. Covered by the AdminInfraController / PlatformSuperAdminAccessEdge integration matrix.
+[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 public sealed class AdminInfraController : ControllerBase
 {
-	private readonly IAccessEvaluator _access;
 	private readonly ApplicationDbContext _db;
 	private readonly IOperatorMailSettingsProvider _mailSettings;
 	private readonly IOperatorPushSettingsProvider _pushSettings;
 
 	public AdminInfraController(
-		IAccessEvaluator access,
 		ApplicationDbContext db,
 		IOperatorMailSettingsProvider mailSettings,
 		IOperatorPushSettingsProvider pushSettings)
 	{
-		_access = access;
 		_db = db;
 		_mailSettings = mailSettings;
 		_pushSettings = pushSettings;
@@ -46,11 +48,8 @@ public sealed class AdminInfraController : ControllerBase
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	public async Task<ActionResult<AdminInfraWorkerConfigDto>> GetWorkerConfig(CancellationToken cancellationToken)
 	{
-		if (!_access.CanManageAllFaces(User))
-		{
-			return Forbid();
-		}
-
+		// Authorization is enforced by the ManageAllFaces policy on the controller. This remaining guard is not an
+		// authz gate — it ensures the principal carries a NameIdentifier claim the device-count query below needs.
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 		if (string.IsNullOrEmpty(userId))
 		{

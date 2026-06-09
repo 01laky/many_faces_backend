@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using BeDemo.Api.Data;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorPush;
 using ManyFaces.Push.V1;
@@ -14,24 +15,24 @@ namespace BeDemo.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/admin/push")]
-[Authorize]
+// Backend-refactor X5/X6: operator gate (admin face scope + global SUPER_ADMIN) enforced by the ManageAllFaces policy
+// rather than an in-body CanManageAllFaces check. Same authorization matrix (anonymous → 401, insufficient → 403,
+// super-admin-in-admin-scope → allowed) — see AdminPushTestController / PlatformSuperAdminAccessEdge integration tests.
+[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 public sealed class AdminPushTestController : ControllerBase
 {
 	private readonly ApplicationDbContext _db;
-	private readonly IAccessEvaluator _access;
 	private readonly IPushWorkerClient _pushWorker;
 	private readonly IOperatorPushSettingsProvider _pushSettings;
 	private readonly ILogger<AdminPushTestController> _logger;
 
 	public AdminPushTestController(
 		ApplicationDbContext db,
-		IAccessEvaluator access,
 		IPushWorkerClient pushWorker,
 		IOperatorPushSettingsProvider pushSettings,
 		ILogger<AdminPushTestController> logger)
 	{
 		_db = db;
-		_access = access;
 		_pushWorker = pushWorker;
 		_pushSettings = pushSettings;
 		_logger = logger;
@@ -47,11 +48,8 @@ public sealed class AdminPushTestController : ControllerBase
 	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> TestSelf(CancellationToken cancellationToken)
 	{
-		if (!_access.CanManageAllFaces(User))
-		{
-			return Forbid();
-		}
-
+		// Authorization enforced by the ManageAllFaces policy on the controller. This guard only ensures a
+		// NameIdentifier claim exists for the per-account device lookup below — it is not an authz gate.
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 		if (string.IsNullOrEmpty(userId))
 		{

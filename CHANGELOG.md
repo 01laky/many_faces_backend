@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.4.9](#149) | Backend refactor X5/X6 auth-policy migration (1)   |
 | [1.4.8](#148) | Backend refactor X4 ProblemDetails errors (flag)   |
 | [1.4.7](#147) | Backend refactor X14 health/readiness probes       |
 | [1.4.6](#146) | Backend refactor X13 correlation-id middleware     |
@@ -39,6 +40,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.9]
+
+### Changed
+
+- **Backend refactor — authorization-policy migration, batch 1 (X5/X6).** Migrated the two clean blanket-gate operator controllers from an in-body imperative gate to the declarative `ManageAllFaces` policy: `AdminInfraController` (`GET /api/admin/infra/worker-config`) and `AdminPushTestController` (`POST /api/admin/push/test-self`) now carry `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]` and the `if (!_access.CanManageAllFaces(User)) return Forbid();` check (plus the now-unused `IAccessEvaluator` dependency) was removed. The policy reproduces `PlatformAccessRules.CanManageAllFaces` (admin face scope AND global SUPER_ADMIN) exactly, so the authorization matrix is unchanged: anonymous → 401, authenticated-but-insufficient (global ADMIN) → 403, SUPER_ADMIN on a non-admin face → 403, SUPER_ADMIN in admin scope → allowed. The secondary `NameIdentifier`-claim guard inside each action is kept (it protects a per-account query; it is not an authz gate). The existing `AdminInfraController` / `AdminPushTestController` / `PlatformSuperAdminAccessEdge` integration suites already pin the full matrix and stay green; a new `InfraWorkerConfig_ReturnsForbidden_ForSuperAdmin_OnPublicFace` test locks the scope edge. (Branching `CanManageAllFaces()` usages in Pages/Stories/Reels controllers are deliberately left — they drive per-item logic, not a blanket gate, so they are not attribute-replaceable.)
 
 ---
 
@@ -340,6 +349,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.9]: https://github.com/01laky/many_faces_backend/compare/v1.4.8...v1.4.9
 [1.4.8]: https://github.com/01laky/many_faces_backend/compare/v1.4.7...v1.4.8
 [1.4.7]: https://github.com/01laky/many_faces_backend/compare/v1.4.6...v1.4.7
 [1.4.6]: https://github.com/01laky/many_faces_backend/compare/v1.4.5...v1.4.6
