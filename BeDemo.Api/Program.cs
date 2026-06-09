@@ -810,6 +810,19 @@ builder.Services.AddHealthChecks()
 		tags: new[] { "ready" });
 
 // ============================================================================
+// GLOBAL EXCEPTION HANDLING — RFC 7807 ProblemDetails (backend-refactor X4)
+// ============================================================================
+// Opt-in behind a flag (default off) so existing error behaviour is unchanged until an operator enables it. When on,
+// an unhandled exception becomes a consistent application/problem+json 500 (generic title + traceId; detail only in
+// Development). The same flag also gates UseExceptionHandler() in the request pipeline below.
+var useProblemDetails = builder.Configuration.GetValue("ErrorHandling:UseProblemDetails", false);
+if (useProblemDetails)
+{
+	builder.Services.AddExceptionHandler<BeDemo.Api.Middlewares.ProblemDetailsExceptionHandler>();
+	builder.Services.AddProblemDetails();
+}
+
+// ============================================================================
 // OPENAPI CONFIGURATION
 // ============================================================================
 
@@ -1031,6 +1044,11 @@ if (useTransportHardening)
 // X13: assign/propagate a correlation id as early as possible so every subsequent log line is scoped with it
 // (after forwarded-headers so a trusted proxy's client info is already applied).
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+// X4: global ProblemDetails exception handler (flag-gated). Placed right after the correlation-id middleware so a
+// handled exception's response carries the request's traceId, and before everything that might throw downstream.
+if (useProblemDetails)
+	app.UseExceptionHandler();
 
 app.UseMiddleware<HubQueryTokenRedactionMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();

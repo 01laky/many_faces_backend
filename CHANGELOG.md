@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.4.8](#148) | Backend refactor X4 ProblemDetails errors (flag)   |
 | [1.4.7](#147) | Backend refactor X14 health/readiness probes       |
 | [1.4.6](#146) | Backend refactor X13 correlation-id middleware     |
 | [1.4.5](#145) | Backend refactor X5 declarative auth policies      |
@@ -38,6 +39,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.8]
+
+### Added
+
+- **Backend refactor — global ProblemDetails exception handler (X4, flag-gated).** New `Middlewares/ProblemDetailsExceptionHandler` (`IExceptionHandler`) turns an unhandled exception into a consistent RFC 7807 `application/problem+json` 500 (generic title + `traceId` set to the X13 correlation id + request path as `instance`) instead of a bare/blank 500. The exception is logged server-side with the correlation id; the response body never carries the exception detail except in the Development environment. Opt-in behind a new `ErrorHandling:UseProblemDetails` flag (**default `false`** in `appsettings.json`) — `AddExceptionHandler` / `AddProblemDetails` and the pipeline `UseExceptionHandler()` (placed right after the correlation-id middleware) are wired only when the flag is on, so existing error behaviour is unchanged until an operator enables it (prompt §10: ship cross-cutting changes behind a flag). Covered by 3 handler tests (problem+json 500 shape with traceId; Production does not leak the exception message/detail; Development includes it).
 
 ---
 
@@ -331,6 +340,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.8]: https://github.com/01laky/many_faces_backend/compare/v1.4.7...v1.4.8
 [1.4.7]: https://github.com/01laky/many_faces_backend/compare/v1.4.6...v1.4.7
 [1.4.6]: https://github.com/01laky/many_faces_backend/compare/v1.4.5...v1.4.6
 [1.4.5]: https://github.com/01laky/many_faces_backend/compare/v1.4.4...v1.4.5
