@@ -53,6 +53,13 @@ public sealed class VideoLoungeTokenService : IVideoLoungeTokenService
 
 		var canPublish = joinMode is VideoLoungeJoinMode.Listener or VideoLoungeJoinMode.Full;
 		var canPublishVideo = joinMode == VideoLoungeJoinMode.Full;
+		// A Listener is audio-only by intent — restrict the publishable sources so the grant actually enforces it
+		// (backend-refactor §4.6 fix). Full may publish camera + microphone; non-publishers get no sources.
+		var canPublishSources = !canPublish
+			? Array.Empty<string>()
+			: canPublishVideo
+				? new[] { "camera", "microphone" }
+				: new[] { "microphone" };
 		var claims = new List<Claim>
 		{
 			new("sub", userId),
@@ -62,6 +69,7 @@ public sealed class VideoLoungeTokenService : IVideoLoungeTokenService
 				room = roomName,
 				roomJoin = true,
 				canPublish,
+				canPublishSources,
 				canSubscribe = true,
 				canPublishData = false,
 			})),
@@ -74,11 +82,6 @@ public sealed class VideoLoungeTokenService : IVideoLoungeTokenService
 			claims: claims,
 			expires: expires,
 			signingCredentials: creds);
-
-		if (!canPublishVideo)
-		{
-			// LiveKit uses nested grant object; stub path documents intent for real SDK swap later.
-		}
 
 		var token = new JwtSecurityTokenHandler().WriteToken(jwt);
 		return new VideoLoungeTokenResult

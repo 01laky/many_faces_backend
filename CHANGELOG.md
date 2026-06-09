@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.4.1](#141) | Backend refactor Phase 0a (test safety nets)       |
 | [1.4.0](#140) | Operator AI 7B performance (fast-paths, streaming) |
 | [1.3.0](#130) | Operator AI skills (router + 4 skills)             |
 | [1.2.0](#120) | Operator AI RAG retrieval (Elasticsearch kNN+BM25) |
@@ -31,6 +32,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.1]
+
+### Added
+
+- **Backend refactor — Phase 0a (test safety nets, no behaviour change).** Following the whole-backend analysis (`docs/prompts/backend-code-analysis-and-refactor-v1-agent-prompt.md`), added **39 characterization edge-case tests** for previously-untested security-critical units: `FaceScopeContext.ResolveDataFaceId` (cross-tenant anti-spoof), `VideoLoungeTokenService` (stub-vs-signed, TTL clamp, join-mode→publish-grant — the Listener-can-publish-video case is documented + flagged `// REVIEW` for the Phase 1 fix), `SearchHitAclFilter` (tenant-isolation: soft-removed/inactive/banned/nonexistent rows hidden), `ContentRetentionCleanupService` (dry-run counts == execute, persists nothing on dry-run, clears AI-review fields on execute), the operator mail/push secret protectors (round-trip + cross-purpose isolation), and `FirebaseServiceAccountValidator` (untrusted-JSON validation, every rejection branch).
+- Test-time infrastructure under `BeDemo.Api.Tests/TestDoubles/`: a deterministic `FakeClock` (`IClock` seam) and an `InMemoryDb` helper; a `coverage.runsettings` (Cobertura, generated/migration code excluded) so coverage becomes measurable.
+- Architecture Decision Records `docs/adr/0001-backend-refactor-program.md` (phased, discipline-gated program) and `docs/adr/0002-test-safety-nets-and-determinism.md`.
+
+### Changed
+
+### Fixed
+
+- **Backend refactor — Phase 1 bug fixes (each with a regression test).** (1) `VideoLoungeTokenService`: a Listener join now publishes audio only — the LiveKit grant carries `canPublishSources` (`microphone` for Listener, `camera`+`microphone` for Full) so a Listener can no longer publish video (the `canPublishVideo` distinction was previously computed and dropped). (2) `OperatorAiLiveStatsPrefetcher`: the per-bundle results map is now a `ConcurrentDictionary` — it is written from parallel `Task.WhenAll` tasks and a plain `Dictionary` is not thread-safe even for distinct keys. (3) `Routing.IsExemptFromFaceScope`: the `/api/*` face-scope exemptions are now segment-aware, so a path like `/api/profile-evil` or `/api/profiles` no longer inherits the `/api/profile` exemption and bypasses tenant enforcement (`/swagger`/`/openapi`/`/favicon` keep a plain prefix match). (4) `OperatorAiResponseGuard`: dropped the bare `"grpc"` infrastructure marker that false-positived any legitimate answer mentioning gRPC; real transport failures still surface via the `Error:` prefix / `ai service unavailable` markers.
 
 ---
 
@@ -245,7 +262,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...HEAD
 [1.0.2]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/01laky/many_faces_backend/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/01laky/many_faces_backend/compare/v0.9.0...v1.0.0
@@ -259,4 +276,5 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0

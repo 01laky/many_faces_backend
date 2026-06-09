@@ -51,8 +51,20 @@ public static class Routing
 
 		foreach (var prefix in ExemptPathPrefixes)
 		{
-			if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+			// Backend-refactor §2 (Security) fix: segment-aware match for the /api/* exemptions so a path like
+			// "/api/profile-evil" or "/api/profiles" does NOT inherit the "/api/profile" exemption and silently
+			// bypass face-scope enforcement. /swagger, /openapi, /favicon are dev/static (not tenant data) and keep
+			// a plain prefix match (e.g. /favicon.ico).
+			if (prefix.StartsWith("/api/", StringComparison.Ordinal))
+			{
+				if (path.Equals(prefix, StringComparison.OrdinalIgnoreCase) ||
+					path.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase))
+					return true;
+			}
+			else if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+			{
 				return true;
+			}
 		}
 
 		return false;

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backend-refactor v1, Phase 0 (§5.3/§10.1): coverage measurement so the gaps in the analysis become quantifiable
+  and later phases can prove they raise coverage. Run with:
+    dotnet test BeDemo.Api.Tests/BeDemo.Api.Tests.csproj --settings BeDemo.Api.Tests/coverage.runsettings
+  Generates Cobertura under TestResults/; wire a CI threshold once a baseline is recorded (do NOT let it regress).
+-->
+<RunSettings>
+	<DataCollectionRunSettings>
+		<DataCollectors>
+			<DataCollector friendlyName="XPlat Code Coverage">
+				<Configuration>
+					<Format>cobertura</Format>
+					<!-- Exclude generated / non-hand-written code from the denominator. -->
+					<ExcludeByFile>**/Migrations/**/*.cs,**/obj/**/*.cs,**/*.g.cs,**/*.Designer.cs</ExcludeByFile>
+					<Exclude>[*]BeDemo.Api.Migrations.*,[*]*.Protos.*,[*]ManyFaces.*</Exclude>
+					<ExcludeByAttribute>GeneratedCodeAttribute,CompilerGeneratedAttribute,ExcludeFromCodeCoverageAttribute</ExcludeByAttribute>
+					<SingleHit>false</SingleHit>
+					<UseSourceLink>false</UseSourceLink>
+				</Configuration>
+			</DataCollector>
+		</DataCollectors>
+	</DataCollectionRunSettings>
+</RunSettings>

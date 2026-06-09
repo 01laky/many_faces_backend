@@ -15,7 +15,9 @@ internal static class OperatorAiResponseGuard
 		"ai service timed out",
 		"error: ai service",
 		"public_stats_absolute_url",
-		"grpc",
+		// Backend-refactor §5 fix: dropped the bare "grpc" marker — it false-positived any legitimate answer
+		// mentioning gRPC (e.g. an operator asking the AI about the gRPC workers). Real transport failures still
+		// surface via the "Error:" prefix and the "ai service unavailable/timed out" markers above.
 	];
 
 	/// <summary>True when the text is a technical failure, not a real assistant reply.</summary>
@@ -43,6 +45,9 @@ internal static class OperatorAiResponseGuard
 		if (string.IsNullOrWhiteSpace(text))
 			return false;
 
+		// Backend-refactor §5 REVIEW: these Slovak markers are a locale leak vs the D10 English-only decision, but a
+		// test relies on them and the worker historically emitted them — keep them (defensive) pending a coordinated
+		// worker change; only the unsafe bare-"grpc" infrastructure marker was removed.
 		return text.Contains("načítava", StringComparison.OrdinalIgnoreCase)
 			|| text.Contains("nacitava", StringComparison.OrdinalIgnoreCase)
 			|| text.Contains("MODEL_LOAD", StringComparison.OrdinalIgnoreCase)

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using BeDemo.Api.Configuration;
@@ -69,7 +70,9 @@ public sealed class OperatorAiLiveStatsPrefetcher : IOperatorAiLiveStatsPrefetch
 		CancellationToken cancellationToken)
 	{
 		var started = DateTime.UtcNow;
-		var entries = new Dictionary<int, OperatorAiBundleCacheEntry>(indicesToLoad.Count);
+		// 7B-perf / backend-refactor §4.1 fix: ConcurrentDictionary — the entries map is written from parallel
+		// PrefetchOneAsync tasks (Task.WhenAll), and a plain Dictionary is not thread-safe even for distinct keys.
+		var entries = new ConcurrentDictionary<int, OperatorAiBundleCacheEntry>();
 		var timeout = TimeSpan.FromSeconds(_options.LivePrefetchTimeoutSeconds);
 
 		if (indicesToLoad.Count == 0)
@@ -124,7 +127,7 @@ public sealed class OperatorAiLiveStatsPrefetcher : IOperatorAiLiveStatsPrefetch
 
 	private async Task PrefetchOneAsync(
 		int index,
-		Dictionary<int, OperatorAiBundleCacheEntry> entries,
+		ConcurrentDictionary<int, OperatorAiBundleCacheEntry> entries,
 		long ttlMs,
 		TimeSpan timeout,
 		Action onCacheHit,
