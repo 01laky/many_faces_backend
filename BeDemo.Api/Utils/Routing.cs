@@ -39,6 +39,10 @@ public static class Routing
 		"/openapi",
 		"/favicon",
 		"/api/uploads",
+		// Backend-refactor X14: liveness/readiness probes are infrastructure, not tenant data — they must answer
+		// without a face prefix (an orchestrator probe has no face context). Plain-prefix match covers /health,
+		// /health/live and /health/ready.
+		"/health",
 	};
 
 	/// <summary>

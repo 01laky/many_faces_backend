@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.4.7](#147) | Backend refactor X14 health/readiness probes       |
 | [1.4.6](#146) | Backend refactor X13 correlation-id middleware     |
 | [1.4.5](#145) | Backend refactor X5 declarative auth policies      |
 | [1.4.4](#144) | Backend refactor PII redaction + dead-code cleanup |
@@ -37,6 +38,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.7]
+
+### Added
+
+- **Backend refactor — health/readiness probes (X14).** Two anonymous infrastructure endpoints for orchestrator/load-balancer probes: `GET /health/live` (liveness — 200 while the process can serve a request, no dependency checks) and `GET /health/ready` (readiness — runs the `ready`-tagged checks and returns 503 when a hard dependency is down). Backed by a new `HealthChecks/DatabaseReadinessHealthCheck` that pings PostgreSQL via `ApplicationDbContext.Database.CanConnectAsync` (resolved in a per-check DI scope) and degrades failures to `Unhealthy` rather than throwing. Registered via `AddHealthChecks().AddCheck<…>("database", tags: ["ready"])` and mapped with `.AllowAnonymous()` so the default-deny `FallbackPolicy` does not 401 the probes; `/health` is added to `Routing` face-scope exemptions so the probes answer without a face prefix. Responses are the bare status word only — no check/exception detail leaks to an anonymous caller. Covered by 8 tests (routing-exemption matrix, readiness reachable + throws→Unhealthy branches, and anonymous end-to-end liveness/readiness through the real pipeline).
 
 ---
 
@@ -322,6 +331,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.7]: https://github.com/01laky/many_faces_backend/compare/v1.4.6...v1.4.7
 [1.4.6]: https://github.com/01laky/many_faces_backend/compare/v1.4.5...v1.4.6
 [1.4.5]: https://github.com/01laky/many_faces_backend/compare/v1.4.4...v1.4.5
 [1.4.4]: https://github.com/01laky/many_faces_backend/compare/v1.4.3...v1.4.4

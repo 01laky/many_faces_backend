@@ -798,6 +798,18 @@ builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHand
 builder.Services.AddSignalR();
 
 // ============================================================================
+// HEALTH CHECKS (backend-refactor X14)
+// ============================================================================
+// Two probe surfaces, mapped below as anonymous endpoints:
+//   /health/live  — liveness: the process is up and the pipeline responds (no dependency checks).
+//   /health/ready — readiness: dependencies that must be up to serve traffic (DB), tagged "ready".
+builder.Services.AddHealthChecks()
+	.AddCheck<BeDemo.Api.HealthChecks.DatabaseReadinessHealthCheck>(
+		"database",
+		failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
+		tags: new[] { "ready" });
+
+// ============================================================================
 // OPENAPI CONFIGURATION
 // ============================================================================
 
@@ -1094,6 +1106,24 @@ app.MapHub<VideoLoungeHub>("/hubs/video-lounge").RequireRateLimiting("signalr-ne
 // Per-endpoint policies (oauth-token, oauth-register, localization-read, auth-login) use [EnableRateLimiting]; avoid a
 // global MapControllers policy so it does not stack with those named policies (BSH3-A4 partial).
 app.MapControllers();
+
+// ----------------------------------------------------------------------------
+// Health probe endpoints (backend-refactor X14)
+// ----------------------------------------------------------------------------
+// Anonymous so orchestrator/load-balancer probes work without a token (the default-deny FallbackPolicy would
+// otherwise 401 them). /health is exempt from face routing (Routing.IsExemptFromFaceScope). Responses are the bare
+// status word — no check details — so nothing about the dependency graph leaks to an anonymous caller.
+//   live  : no predicate checks → always 200 while the process can serve a request (pure liveness).
+//   ready : only the "ready"-tagged checks (DB) → 503 when a hard dependency is down.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+	Predicate = _ => false,
+}).AllowAnonymous();
+
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+	Predicate = check => check.Tags.Contains("ready"),
+}).AllowAnonymous();
 
 // Runs the application - application starts listening on configured ports
 try
