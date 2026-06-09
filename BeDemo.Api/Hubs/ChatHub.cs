@@ -474,19 +474,4 @@ public class ChatHub : Hub
 		sb.Append("AI:");
 		return sb.ToString();
 	}
-
-	private static string BuildHistoryPlainText(ChatHistoryEntry[]? history)
-	{
-		if (history == null || history.Length == 0)
-			return string.Empty;
-
-		var sb = new StringBuilder();
-		foreach (var entry in history)
-		{
-			sb.Append("User: ").AppendLine(entry.UserMessage ?? string.Empty);
-			sb.Append("AI: ").AppendLine(entry.AiResponse ?? string.Empty);
-		}
-
-		return sb.ToString();
-	}
 }

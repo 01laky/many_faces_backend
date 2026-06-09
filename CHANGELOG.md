@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.4.4](#144) | Backend refactor PII redaction + dead-code cleanup |
 | [1.4.3](#143) | Backend refactor Phase 1 options validation        |
 | [1.4.2](#142) | Backend refactor Phase 1 security hardening        |
 | [1.4.1](#141) | Backend refactor Phase 0a (test safety nets)       |
@@ -34,6 +35,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.4]
+
+### Fixed
+
+- **Backend refactor — PII redaction (§2).** `OAuth2Middleware` no longer logs the raw OAuth `client_id` on an invalid-client 401 — it is hashed via the shared `PiiLogRedaction.FormatCredentialIdentifierForLog` (length + SHA-256 prefix), consistent with the repo's PII-redaction house rule.
+- **Backend refactor — dead code (§6).** Removed the unused `ChatHub.BuildHistoryPlainText` (zero callers). (`ChatHub.SendToAi` / `OperatorAiHubErrorCodes.InvalidLocale` are left pending — each has a contract/value test or a client-side dependency to confirm first.)
 
 ---
 
@@ -280,7 +290,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.3...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.4...HEAD
 [1.0.2]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/01laky/many_faces_backend/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/01laky/many_faces_backend/compare/v0.9.0...v1.0.0
@@ -294,6 +304,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.4]: https://github.com/01laky/many_faces_backend/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/01laky/many_faces_backend/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1

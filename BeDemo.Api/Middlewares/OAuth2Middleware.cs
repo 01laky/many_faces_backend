@@ -83,9 +83,11 @@ public class OAuth2Middleware
 					// If client credentials are not valid, returns 401 Unauthorized
 					if (!isValidClient)
 					{
+						// Backend-refactor §2 (Security/PII) fix: never log the raw client id — hash it via the shared
+						// redaction helper, consistent with the project's PII-redaction house rule.
 						_logger.LogWarning(
 							"authFailureReason=invalid_client clientIdHint={ClientIdHint}",
-							string.IsNullOrWhiteSpace(request.ClientId) ? "missing" : request.ClientId);
+							BeDemo.Api.Utils.PiiLogRedaction.FormatCredentialIdentifierForLog(request.ClientId));
 						context.Response.StatusCode = 401;
 						await context.Response.WriteAsync(JsonSerializer.Serialize(new OAuth2ErrorResponse
 						{
