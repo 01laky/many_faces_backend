@@ -156,7 +156,10 @@ builder.Services.AddScoped<IFaceGridSnapshotService, FaceGridSnapshotService>();
 builder.Services.AddScoped<IConversationListService, ConversationListService>();
 builder.Services.AddScoped<IHubUserDisplayCache, HubUserDisplayCache>();
 builder.Services.AddOptions<BeDemo.Api.Configuration.OperatorAiOptions>()
-	.BindConfiguration(BeDemo.Api.Configuration.OperatorAiOptions.SectionName);
+	.BindConfiguration(BeDemo.Api.Configuration.OperatorAiOptions.SectionName)
+	.ValidateOnStart(); // backend-refactor X3 — fail fast on a misconfigured bounded value
+builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<BeDemo.Api.Configuration.OperatorAiOptions>,
+	BeDemo.Api.Configuration.OperatorAiOptionsValidator>();
 builder.Services.AddScoped<IOperatorAiConversationService, OperatorAiConversationService>();
 builder.Services.AddScoped<IOperatorAiEntityBundleLoader, OperatorAiEntityBundleLoader>();
 builder.Services.AddScoped<IOperatorAiLiveStatsPrefetcher, OperatorAiLiveStatsPrefetcher>();
@@ -220,8 +223,11 @@ builder.Services.AddScoped<IPlatformDirectMessageService, PlatformDirectMessageS
 builder.Services.AddScoped<IOperatorUserChatService, OperatorUserChatService>();
 builder.Services.AddSingleton<IPlatformChatRateLimiter, PlatformChatRateLimiter>();
 builder.Services.AddScoped<IChatRoomLifecycleService, ChatRoomLifecycleService>();
-builder.Services.Configure<BeDemo.Api.Configuration.VideoLoungeOptions>(
-	builder.Configuration.GetSection(BeDemo.Api.Configuration.VideoLoungeOptions.SectionName));
+builder.Services.AddOptions<BeDemo.Api.Configuration.VideoLoungeOptions>()
+	.BindConfiguration(BeDemo.Api.Configuration.VideoLoungeOptions.SectionName)
+	.ValidateOnStart(); // backend-refactor X3
+builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<BeDemo.Api.Configuration.VideoLoungeOptions>,
+	BeDemo.Api.Configuration.VideoLoungeOptionsValidator>();
 builder.Services.AddScoped<IVideoLoungeTokenService, VideoLoungeTokenService>();
 builder.Services.AddScoped<IVideoLoungeLifecycleService, VideoLoungeLifecycleService>();
 // User-generated content moderation: AI job worker, dashboard metrics, in-app notifications, and optional retention cleanup.
@@ -677,7 +683,9 @@ builder.Services.AddSingleton<IValidateOptions<HardenedSecurityOptions>, Hardene
 
 // AI gRPC client - singleton to reuse the HTTP/2 channel across requests
 builder.Services.AddOptions<AiServiceOptions>()
-	.BindConfiguration(AiServiceOptions.SectionName);
+	.BindConfiguration(AiServiceOptions.SectionName)
+	.ValidateOnStart(); // backend-refactor X3
+builder.Services.AddSingleton<IValidateOptions<AiServiceOptions>, AiServiceOptionsValidator>();
 builder.Services.AddSingleton<AiGrpcService>();
 builder.Services.AddSingleton<IAiModelStatusClient>(sp => sp.GetRequiredService<AiGrpcService>());
 builder.Services.AddSingleton<IAiGrpcService, AiAvailabilityGuardGrpcService>();

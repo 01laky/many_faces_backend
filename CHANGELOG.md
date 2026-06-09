@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.4.3](#143) | Backend refactor Phase 1 options validation        |
 | [1.4.2](#142) | Backend refactor Phase 1 security hardening        |
 | [1.4.1](#141) | Backend refactor Phase 0a (test safety nets)       |
 | [1.4.0](#140) | Operator AI 7B performance (fast-paths, streaming) |
@@ -33,6 +34,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.3]
+
+### Added
+
+- **Backend refactor — Phase 1 options validation (X3).** Startup validators (`IValidateOptions` + `ValidateOnStart`) for `OperatorAiOptions`, `AiServiceOptions`, and `VideoLoungeOptions`: a misconfigured bounded value — non-positive parallelism / top-K / token cap / timeout, a routing score outside `[0,1]`, a map temperature outside `[0,2]`, or a sub-32-byte HMAC secret under real (non-stub) video-lounge signing — now **fails fast at boot** instead of being silently clamped at ~30 call sites. The shipped defaults are validated in range; `VideoLoungeOptions` moved from `Configure<>` to `AddOptions().BindConfiguration().ValidateOnStart()`. With unit tests + a boot smoke.
 
 ---
 
@@ -271,7 +280,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.3...HEAD
 [1.0.2]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/01laky/many_faces_backend/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/01laky/many_faces_backend/compare/v0.9.0...v1.0.0
@@ -285,6 +294,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.3]: https://github.com/01laky/many_faces_backend/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0
