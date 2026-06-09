@@ -64,12 +64,21 @@ public static class OutboundUrlAllowlist
 
 	private static bool IsBlockedIp(IPAddress address)
 	{
+		// Backend-refactor §2 (Security) hardening: normalize IPv4-mapped IPv6 (e.g. ::ffff:10.0.0.1) to its IPv4
+		// form so the private-range checks below actually apply — a mapped address would otherwise slip the v4 guard.
+		if (address.IsIPv4MappedToIPv6)
+			address = address.MapToIPv4();
+
 		if (IPAddress.IsLoopback(address))
+			return true;
+		if (address.Equals(IPAddress.Any) || address.Equals(IPAddress.IPv6Any))
 			return true;
 
 		if (address.AddressFamily == AddressFamily.InterNetwork)
 		{
 			var bytes = address.GetAddressBytes();
+			if (bytes[0] == 0)
+				return true; // 0.0.0.0/8 "this network"
 			if (bytes[0] == 10)
 				return true;
 			if (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31)
@@ -80,11 +89,21 @@ public static class OutboundUrlAllowlist
 				return true;
 			if (bytes[0] == 169 && bytes[1] == 254)
 				return true;
+			if (bytes[0] == 100 && bytes[1] >= 64 && bytes[1] <= 127)
+				return true; // 100.64/10 carrier-grade NAT
 		}
 
-		if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal)
-			return true;
+		if (address.AddressFamily == AddressFamily.InterNetworkV6)
+		{
+			if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal)
+				return true;
+			var b = address.GetAddressBytes();
+			if ((b[0] & 0xfe) == 0xfc)
+				return true; // unique local address fc00::/7
+		}
 
+		// NOTE: this guards literal-IP SSRF only. DNS rebinding (a public hostname resolving to a private IP) is not
+		// caught here — the fetching worker must validate the RESOLVED address at connect time (follow-up).
 		return false;
 	}
 }

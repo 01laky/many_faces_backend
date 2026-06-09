@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.4.2](#142) | Backend refactor Phase 1 security hardening        |
 | [1.4.1](#141) | Backend refactor Phase 0a (test safety nets)       |
 | [1.4.0](#140) | Operator AI 7B performance (fast-paths, streaming) |
 | [1.3.0](#130) | Operator AI skills (router + 4 skills)             |
@@ -32,6 +33,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.2]
+
+### Fixed
+
+- **Backend refactor — Phase 1 security hardening (each with a regression test).** (1) `OutboundUrlAllowlist` SSRF guard now also blocks IPv4-mapped IPv6 (`::ffff:10.0.0.1`, normalized to IPv4 before the private-range check), IPv6 ULA (`fc00::/7`), the IPv6 unspecified address (`::`), `0.0.0.0/8`, and CGNAT (`100.64/10`); genuine public IPv4/IPv6 hosts stay allowed (literal-IP only — DNS rebinding remains the fetching worker's responsibility, noted in code). (2) `ECDSAKeyService` now **fails fast** when `Jwt:SigningPemPath` is configured but the file is missing in any non-Development environment, instead of silently falling back to an ephemeral key (which breaks JWKS stability and token persistence across restarts); Development keeps the ephemeral fallback.
 
 ---
 
@@ -262,7 +271,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.2...HEAD
 [1.0.2]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/01laky/many_faces_backend/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/01laky/many_faces_backend/compare/v0.9.0...v1.0.0
@@ -276,5 +285,6 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0

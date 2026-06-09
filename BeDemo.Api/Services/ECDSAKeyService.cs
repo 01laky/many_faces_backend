@@ -68,6 +68,14 @@ public class ECDSAKeyService : IECDSAKeyService
 			}
 			else
 			{
+				// Backend-refactor §4.3 fix: a configured-but-missing signing PEM must FAIL FAST outside Development —
+				// silently falling back to an ephemeral key breaks JWKS stability and token persistence across
+				// restarts with no error. Development keeps the ephemeral fallback for local convenience.
+				if (!IsDevelopmentEnvironment(environment))
+					throw new InvalidOperationException(
+						$"Jwt:SigningPemPath is configured ('{pemPath}') but no file exists at '{fullPath}'. "
+						+ $"Provide the signing PEM or unset Jwt:SigningPemPath — refusing to start with an ephemeral "
+						+ $"key in environment '{environment.EnvironmentName}'.");
 				ecdsa = CreateEphemeralP521();
 				keyId = Guid.NewGuid().ToString();
 			}
@@ -92,6 +100,9 @@ public class ECDSAKeyService : IECDSAKeyService
 			_issuerSigningKeys = new ReadOnlyCollection<SecurityKey>(new[] { (SecurityKey)_signingKey });
 		}
 	}
+
+	private static bool IsDevelopmentEnvironment(IHostEnvironment environment) =>
+		string.Equals(environment.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase);
 
 	private static ECDsaSecurityKey? TryLoadPreviousKey(IConfiguration configuration, IHostEnvironment environment)
 	{
