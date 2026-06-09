@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.4.6](#146) | Backend refactor X13 correlation-id middleware     |
 | [1.4.5](#145) | Backend refactor X5 declarative auth policies      |
 | [1.4.4](#144) | Backend refactor PII redaction + dead-code cleanup |
 | [1.4.3](#143) | Backend refactor Phase 1 options validation        |
@@ -36,6 +37,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.6]
+
+### Added
+
+- **Backend refactor — correlation-id middleware (X13).** New `Middlewares/CorrelationIdMiddleware` assigns every request a stable correlation id, taken from a **safe** inbound `X-Correlation-Id` / `X-Request-Id` header (so a trace can be followed across gateway/frontend/worker hops) or freshly generated (`Guid` `N` format) when absent. The id is pushed into the logging scope as `CorrelationId` (every log line for the request carries it), mirrored back on the response `X-Correlation-Id` header, and copied into `HttpContext.TraceIdentifier` so framework diagnostics line up. Inbound values are validated against a conservative allow-list (non-empty, ≤ 128 chars, only `A–Z a–z 0–9 - _ .`) before being echoed or logged — an unsafe value (whitespace, CR/LF, control or other punctuation) is discarded and a server id generated instead, closing a log-injection / response-header-reflection vector. Registered early in the pipeline (after forwarded-headers, before the redaction/security-header middleware) so the scope wraps the whole request. Covered by 17 tests (allow-list matrix + end-to-end echo: generate-when-absent, honour-safe-inbound on both headers, discard-unsafe-inbound).
 
 ---
 
@@ -313,6 +322,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.6]: https://github.com/01laky/many_faces_backend/compare/v1.4.5...v1.4.6
 [1.4.5]: https://github.com/01laky/many_faces_backend/compare/v1.4.4...v1.4.5
 [1.4.4]: https://github.com/01laky/many_faces_backend/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/01laky/many_faces_backend/compare/v1.4.2...v1.4.3

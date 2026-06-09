@@ -1016,6 +1016,10 @@ app.UseCors();
 if (useTransportHardening)
 	app.UseForwardedHeaders();
 
+// X13: assign/propagate a correlation id as early as possible so every subsequent log line is scoped with it
+// (after forwarded-headers so a trusted proxy's client info is already applied).
+app.UseMiddleware<CorrelationIdMiddleware>();
+
 app.UseMiddleware<HubQueryTokenRedactionMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 
