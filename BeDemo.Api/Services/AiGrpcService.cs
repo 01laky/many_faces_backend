@@ -464,6 +464,73 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
 		return new AiEmbedTextResult(null, null, "AI service unavailable");
 	}
 
+	/// <inheritdoc />
+	public async Task<AiGenerateReportResult> GenerateReportAsync(
+		string reportType,
+		string inputJson,
+		int maxNewTokens,
+		CancellationToken cancellationToken = default)
+	{
+		// Thin pass-through to the AI worker GenerateReport RPC (AI-UP11). The worker renders deterministic markdown
+		// from the backend-supplied inputJson; English-only (D10). Figures come from inputJson — never invented.
+		if (string.IsNullOrWhiteSpace(reportType))
+			return new AiGenerateReportResult(null, null, null, "empty report_type");
+		if (string.IsNullOrWhiteSpace(inputJson))
+			return new AiGenerateReportResult(null, null, null, "empty input_json");
+
+		var request = new GenerateReportRequest
+		{
+			ReportType = reportType.Trim(),
+			ReportLocale = "en",
+			InputJson = inputJson,
+			MaxNewTokens = Math.Max(0, maxNewTokens),
+		};
+
+		var callOptions = CreateCallOptions(cancellationToken, TimeSpan.FromSeconds(60));
+
+		for (int attempt = 1; attempt <= 2; attempt++)
+		{
+			try
+			{
+				var channel = GetOrCreateChannel();
+				var client = new HealthService.HealthServiceClient(channel);
+				var response = await client.GenerateReportAsync(request, callOptions);
+
+				if (!string.IsNullOrEmpty(response.Error))
+				{
+					_logger.LogWarning("AI GenerateReport returned error: {Error}", response.Error);
+					return new AiGenerateReportResult(null, null, response.SchemaVersion, response.Error);
+				}
+
+				return new AiGenerateReportResult(response.ReportMarkdown, response.ReportJson, response.SchemaVersion, null);
+			}
+			catch (RpcException ex) when (ex.StatusCode == StatusCode.Unavailable || ex.StatusCode == StatusCode.Unimplemented)
+			{
+				_logger.LogWarning(ex, "GenerateReport gRPC unavailable/unimplemented (attempt {Attempt})", attempt);
+				InvalidateChannel();
+				if (attempt == 2)
+					return new AiGenerateReportResult(null, null, null, $"AI service unavailable ({ex.StatusCode})");
+			}
+			catch (RpcException ex)
+			{
+				_logger.LogError(ex, "GenerateReport gRPC failed: Status={Status}", ex.StatusCode);
+				return new AiGenerateReportResult(null, null, null, $"AI service unavailable ({ex.StatusCode})");
+			}
+			catch (OperationCanceledException)
+			{
+				_logger.LogWarning("AI GenerateReport timed out");
+				return new AiGenerateReportResult(null, null, null, "AI service timed out");
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(ex, "AI GenerateReport failed");
+				return new AiGenerateReportResult(null, null, null, ex.Message);
+			}
+		}
+
+		return new AiGenerateReportResult(null, null, null, "AI service unavailable");
+	}
+
 	private static AiReviewDecision ParseDecision(string? value) =>
 		value?.Trim().ToLowerInvariant() switch
 		{

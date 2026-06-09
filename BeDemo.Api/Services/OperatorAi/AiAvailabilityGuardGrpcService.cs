@@ -104,4 +104,17 @@ public sealed class AiAvailabilityGuardGrpcService : IAiGrpcService
 
 		return await _inner.EmbedTextAsync(text, model, cancellationToken);
 	}
+
+	public async Task<AiGenerateReportResult> GenerateReportAsync(
+		string reportType,
+		string inputJson,
+		int maxNewTokens,
+		CancellationToken cancellationToken = default)
+	{
+		// Global AI switch off ⇒ no reports. The reports skill surfaces a graceful "AI disabled" message.
+		if (!await _settings.IsAiEnabledAsync(cancellationToken))
+			return new AiGenerateReportResult(null, null, null, "ai_disabled");
+
+		return await _inner.GenerateReportAsync(reportType, inputJson, maxNewTokens, cancellationToken);
+	}
 }

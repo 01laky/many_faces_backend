@@ -181,6 +181,19 @@ builder.Services.AddSingleton<IOperatorAiPlannerFallbackSelector, OperatorAiPlan
 builder.Services.AddSingleton<IOperatorAiRetriever, OperatorAiRetriever>();
 builder.Services.AddSingleton<IOperatorAiKnowledgeIndexer, OperatorAiKnowledgeIndexer>();
 
+// Operator AI skills (operator-ai-skills v1): the chat front door routes a request to one skill and runs it.
+//   - Skills live in the backend (worker stays thin); discovery = in-memory cosine over 4 cached descriptor
+//     vectors (D2); single-skill routing → general-assistant fallback below threshold (D5). No per-skill ACL (D10).
+//   - Skills are Scoped (StatsSkill/ReportsSkill/ModerationSkill use scoped orchestrator / metrics); the router is
+//     Scoped, backed by a Singleton vector cache so the 4 descriptors are embedded once, not per request.
+builder.Services.AddSingleton<BeDemo.Api.Services.OperatorAi.Skills.IOperatorAiSkillVectorCache, BeDemo.Api.Services.OperatorAi.Skills.OperatorAiSkillVectorCache>();
+builder.Services.AddScoped<BeDemo.Api.Services.OperatorAi.Skills.IOperatorAiSkill, BeDemo.Api.Services.OperatorAi.Skills.StatsSkill>();
+builder.Services.AddScoped<BeDemo.Api.Services.OperatorAi.Skills.IOperatorAiSkill, BeDemo.Api.Services.OperatorAi.Skills.ReportsSkill>();
+builder.Services.AddScoped<BeDemo.Api.Services.OperatorAi.Skills.IOperatorAiSkill, BeDemo.Api.Services.OperatorAi.Skills.ModerationSkill>();
+builder.Services.AddScoped<BeDemo.Api.Services.OperatorAi.Skills.IOperatorAiSkill, BeDemo.Api.Services.OperatorAi.Skills.GeneralAssistantSkill>();
+builder.Services.AddScoped<BeDemo.Api.Services.OperatorAi.Skills.IOperatorAiSkillRegistry, BeDemo.Api.Services.OperatorAi.Skills.OperatorAiSkillRegistry>();
+builder.Services.AddScoped<BeDemo.Api.Services.OperatorAi.Skills.IOperatorAiSkillRouter, BeDemo.Api.Services.OperatorAi.Skills.OperatorAiSkillRouter>();
+
 // Startup hosted services (§5.5 dim assertion + §7.2 trigger 1 index refresh).
 // Both are non-blocking BackgroundServices that degrade gracefully if the worker
 // is not yet reachable; retrieval falls back to the planner until the index is ready.

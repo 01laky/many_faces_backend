@@ -77,6 +77,9 @@ public sealed class OperatorAiOptions
 	/// <summary>§4/§6 — minimum fused RRF score for a SemanticSearch hit to count as usable (below ⇒ zero-hit escalation). Tune during impl.</summary>
 	public double MinRetrievalScore { get; set; }
 
+	/// <summary>Skills §4/§6 — minimum cosine similarity for the top skill to be selected; below ⇒ general-assistant fallback. Default 0.35; tune during impl.</summary>
+	public double SkillRoutingMinScore { get; set; } = 0.35;
+
 	/// <summary>§17.4 — TTL (seconds) for the cached KnowledgeIndexStatus readiness probe that gates the planner fallback on cold start.</summary>
 	public int KnowledgeStatusCacheTtlSeconds { get; set; } = 15;
 

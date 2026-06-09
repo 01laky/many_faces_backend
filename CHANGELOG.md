@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.3.0](#130) | Operator AI skills (router + 4 skills)             |
 | [1.2.0](#120) | Operator AI RAG retrieval (Elasticsearch kNN+BM25) |
 | [1.1.0](#110) | Backend runtime performance v1 (BE-RP1…35)         |
 | [1.0.2](#102) | README shield badges                               |
@@ -29,6 +30,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.3.0]
+
+### Added
+
+- **Operator AI skills.** The operator chat front door now routes each request to one **skill** and runs it. New `IOperatorAiSkill` framework (`OperatorAiSkillRequest`/`Result`/`Trace`/`Trust`), `IOperatorAiSkillRegistry`, and an `IOperatorAiSkillRouter` that routes by **in-memory cosine** over the 4 skill descriptor vectors (cached in a singleton `IOperatorAiSkillVectorCache`, re-warmed on embed-model change) — below `OperatorAi:SkillRoutingMinScore` (default 0.35) or when embeddings are unavailable it falls back to general-assistant (never a hard refusal). No per-skill ACL (single SUPER_ADMIN gate); skills live in the backend (worker stays thin).
+- Four skills: **stats** (a thin wrapper over the shipped RAG v1 retrieve→map→stitch — behaviour unchanged), **reports** (detect type → assemble aggregates → worker `GenerateReport`, 3 deterministic types), **moderation** (aggregate moderation metrics Q&A — trusted, no raw content), and **general-assistant** (context-free fallback reply).
+- `IAiGrpcService.GenerateReportAsync` wraps the worker `GenerateReport` RPC (AI-UP11). `OperatorAi:SkillRoutingMinScore` config.
+- Extended edge-case tests: router (routing/threshold-boundary/threshold-above-max/embed-unavailable, cosine + dimension-mismatch), registry (case-insensitive resolution, fallback guarantee), vector-cache (warm-once + model-change re-warm + all-fail→null); stats (zero-hit/happy/fallback trace); reports (type detection across cases, moderation-backlog/face_health/grid_completeness assembly via EF, ambiguous + worker-error); moderation (aggregate-only, empty→deterministic fallback, no-raw-content guarantee); general-assistant (no-fabrication prompt + token cap); and per-skill trust declarations. Full suite **1736 passing**.
+
+### Changed
+
+- `ChatHub` operator branch is now `route → skill.RunAsync → persist`; the direct RAG selection + map/stitch moved into `StatsSkill`. The operator-visible contract (one English message) is unchanged.
 
 ---
 

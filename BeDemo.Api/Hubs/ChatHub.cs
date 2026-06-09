@@ -15,6 +15,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using BeDemo.Api.Services.OperatorAi.Skills;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -51,8 +52,7 @@ public class ChatHub : Hub
 	private readonly IFaceScopeContext _faceScope;
 	private readonly IConfiguration _configuration;
 	private readonly IOperatorAiConversationService _operatorAi;
-	private readonly IOperatorAiLiveStatsOrchestrator _liveStatsOrchestrator;
-	private readonly IOperatorAiRetriever _retriever;
+	private readonly IOperatorAiSkillRouter _skillRouter;
 	private readonly IOperatorAiSystemSettingsProvider _systemSettings;
 	private readonly OperatorAiOptions _operatorAiOptions;
 
@@ -64,8 +64,7 @@ public class ChatHub : Hub
 		IFaceScopeContext faceScope,
 		IConfiguration configuration,
 		IOperatorAiConversationService operatorAi,
-		IOperatorAiLiveStatsOrchestrator liveStatsOrchestrator,
-		IOperatorAiRetriever retriever,
+		IOperatorAiSkillRouter skillRouter,
 		IOperatorAiSystemSettingsProvider systemSettings,
 		IOptions<OperatorAiOptions> operatorAiOptions)
 	{
@@ -76,8 +75,7 @@ public class ChatHub : Hub
 		_faceScope = faceScope;
 		_configuration = configuration;
 		_operatorAi = operatorAi;
-		_liveStatsOrchestrator = liveStatsOrchestrator;
-		_retriever = retriever;
+		_skillRouter = skillRouter;
 		_systemSettings = systemSettings;
 		_operatorAiOptions = operatorAiOptions.Value;
 	}
@@ -305,58 +303,21 @@ public class ChatHub : Hub
 		string aiResponse;
 		try
 		{
-			// ── SELECTION (§6/§17): RAG-first; planner fallback / zero-hit escalation handled inside the retriever ──
-			var retrieval = await _retriever.RetrieveBundleIndicesAsync(trimmed, Context.ConnectionAborted);
-
-			// §17.1 retrieval trace (debug only; ids + scores are PII-safe, message body is never logged here).
+			// -- SKILL ROUTING (operator-ai-skills v1): route to one skill, then run it --
+			var route = await _skillRouter.RouteAsync(trimmed, Context.ConnectionAborted);
 			if (_operatorAiOptions.RetrievalTraceEnabled)
 			{
 				_logger.LogDebug(
-					"Operator AI retrieval: strategy={Strategy} indices=[{Indices}] degraded={Degraded} cacheHit={CacheHit} embedMs={EmbedMs} searchMs={SearchMs} hits=[{Hits}]",
-					retrieval.Strategy,
-					string.Join(", ", retrieval.BundleIndices),
-					retrieval.Degraded,
-					retrieval.EmbedCacheHit,
-					retrieval.EmbedMs,
-					retrieval.SearchMs,
-					string.Join(", ", retrieval.Hits.Select(h => $"{h.KnowledgeId}:{h.RrfScore:0.###}")));
+					"Operator AI skill route: skill={SkillId} score={Score:0.###} fallback={Fallback}",
+					route.Skill.Id,
+					route.Score,
+					route.Fallback);
 			}
 
-			// §17.10 dev-only "why these bundles" debug payload (off by default; operator-only, never shown to
-			// non-operators and redacted from Info). Logged rather than persisted to avoid a schema change here.
-			if (_operatorAiOptions.LiveStatsDebugJson)
-			{
-				var debug = new
-				{
-					selectedKnowledgeIds = retrieval.Hits.Select(h => h.KnowledgeId).ToArray(),
-					rrfScores = retrieval.Hits.Select(h => h.RrfScore).ToArray(),
-					fallbackUsed = retrieval.Strategy.ToString(),
-					embedMs = retrieval.EmbedMs,
-					searchMs = retrieval.SearchMs,
-				};
-				_logger.LogDebug(
-					"Operator AI routing debug (conversation {ConversationId}): {DebugJson}",
-					conversationId,
-					System.Text.Json.JsonSerializer.Serialize(debug));
-			}
-
-			// Zero-hit after all escalation attempts (§6.1): the fixed English refusal — never free-chat.
-			if (retrieval.IsZeroHit || retrieval.BundleIndices.Count == 0)
-			{
-				aiResponse = ZeroHitRefusal;
-			}
-			else
-			{
-				// ── RETAINED map + stitch over ONLY the fresh-loaded top-K bundles (§3.3 / D6) ──
-				// Broad-overview questions cap at top-K and get a one-line coverage note (§6).
-				var appendCoverageNote = OperatorAiStatsIntent.IsBroadOverviewQuestion(trimmed);
-				aiResponse = await _liveStatsOrchestrator.RunWithSelectedIndicesAsync(
-					trimmed,
-					retrieval.BundleIndices,
-					effectiveParallel,
-					appendCoverageNote,
-					Context.ConnectionAborted);
-			}
+			var skillResult = await route.Skill.RunAsync(
+				new OperatorAiSkillRequest(trimmed, conversationId, Array.Empty<ChatHistoryEntry>(), effectiveParallel, route.Score),
+				Context.ConnectionAborted);
+			aiResponse = skillResult.AnswerMarkdown;
 
 			if (string.IsNullOrWhiteSpace(aiResponse))
 				aiResponse = "...";

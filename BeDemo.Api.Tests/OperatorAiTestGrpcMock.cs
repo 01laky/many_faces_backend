@@ -10,6 +10,9 @@ public sealed class CapturingOperatorAiGrpcService : IAiGrpcService, IAiModelSta
 	public Task<AiEmbedTextResult> EmbedTextAsync(string text, string? model = null, CancellationToken cancellationToken = default) =>
 		Task.FromResult(new AiEmbedTextResult(null, null, "test fake"));
 
+	public Task<AiGenerateReportResult> GenerateReportAsync(string reportType, string inputJson, int maxNewTokens, CancellationToken cancellationToken = default) =>
+		Task.FromResult(new AiGenerateReportResult(null, null, null, "test fake"));
+
 	public string? LastResponseLocale { get; private set; }
 	public string? LastPrompt { get; private set; }
 

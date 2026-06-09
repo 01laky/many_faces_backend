@@ -122,6 +122,9 @@ public sealed class AiWorkerHostProfileServiceTests
 		public Task<AiEmbedTextResult> EmbedTextAsync(string text, string? model = null, CancellationToken cancellationToken = default) =>
 			Task.FromResult(new AiEmbedTextResult(null, null, "test fake"));
 
+		public Task<AiGenerateReportResult> GenerateReportAsync(string reportType, string inputJson, int maxNewTokens, CancellationToken cancellationToken = default) =>
+			Task.FromResult(new AiGenerateReportResult(null, null, null, "test fake"));
+
 		public string? HostProfileJson { get; set; }
 		public string? HostProfileError { get; set; }
 

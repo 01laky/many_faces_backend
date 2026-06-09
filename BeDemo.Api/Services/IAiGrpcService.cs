@@ -63,6 +63,18 @@ public interface IAiGrpcService
 		string text,
 		string? model = null,
 		CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// Generate a structured admin report via the worker <c>GenerateReport</c> RPC (AI-UP11). Used by the
+	/// operator-AI <c>reports</c> skill: the backend assembles a small <paramref name="inputJson"/> for a
+	/// supported <paramref name="reportType"/> (face_health, moderation_backlog, grid_completeness) and the worker
+	/// renders deterministic markdown (English; figures come from the supplied data, the AI never invents them).
+	/// </summary>
+	Task<AiGenerateReportResult> GenerateReportAsync(
+		string reportType,
+		string inputJson,
+		int maxNewTokens,
+		CancellationToken cancellationToken = default);
 }
 
 /// <summary>Local Qwen model readiness reported by many_faces_ai HealthCheck.</summary>
@@ -79,6 +91,15 @@ public sealed record AiEmbedTextResult(float[]? Vector, string? ModelVersion, st
 {
 	/// <summary>True when a usable, non-empty vector was returned.</summary>
 	public bool HasVector => Vector is { Length: > 0 };
+}
+
+/// <summary>
+/// Result of a <c>GenerateReport</c> call. <see cref="Markdown"/> is null/empty when the worker returned an error
+/// or is unavailable (the reports skill then surfaces a graceful message).
+/// </summary>
+public sealed record AiGenerateReportResult(string? Markdown, string? ReportJson, string? SchemaVersion, string? Error)
+{
+	public bool HasReport => !string.IsNullOrWhiteSpace(Markdown);
 }
 
 public sealed record AiContentReviewRequest(
