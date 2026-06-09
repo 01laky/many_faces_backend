@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version       | Theme                                              |
 | ------------- | -------------------------------------------------- |
+| [1.4.5](#145) | Backend refactor X5 declarative auth policies      |
 | [1.4.4](#144) | Backend refactor PII redaction + dead-code cleanup |
 | [1.4.3](#143) | Backend refactor Phase 1 options validation        |
 | [1.4.2](#142) | Backend refactor Phase 1 security hardening        |
@@ -35,6 +36,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.5]
+
+### Added
+
+- **Backend refactor — declarative authorization policies (X5).** New `Security/PlatformAuthorizationPolicies` registers three named policies that mirror the imperative `PlatformAccessRules` checks: `SuperAdmin` and `GlobalAdmin` (claims-based `RequireAssertion`), and `ManageAllFaces` (a `ManageAllFacesRequirement` + scoped `ManageAllFacesAuthorizationHandler` that injects the request-scoped `IFaceScopeContext` and reproduces `CanManageAllFaces` = admin face scope AND global super-admin). Wired into `Program.cs` `AddAuthorization` alongside the existing default-deny fallback. **Additive and behaviour-preserving** — no controller enforces the policies yet; the per-controller migration from in-body `Forbid()` checks to `[Authorize(Policy = …)]` follows incrementally (ADR 0001 / prompt §10.3: keep the imperative gate until each policy has a passing negative test, never delete a gate and add a policy in the same commit). Covered by 9 tests (handler scope/role matrix, policy-registration smoke, and `IAuthorizationService` parity for the claims policies).
 
 ---
 
@@ -304,6 +313,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.5]: https://github.com/01laky/many_faces_backend/compare/v1.4.4...v1.4.5
 [1.4.4]: https://github.com/01laky/many_faces_backend/compare/v1.4.3...v1.4.4
 [1.4.3]: https://github.com/01laky/many_faces_backend/compare/v1.4.2...v1.4.3
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2

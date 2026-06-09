@@ -779,7 +779,15 @@ builder.Services.AddAuthorization(options =>
 	options.FallbackPolicy = new AuthorizationPolicyBuilder()
 		.RequireAuthenticatedUser()
 		.Build();
+
+	// Backend-refactor X5: declarative platform policies (SuperAdmin/GlobalAdmin/ManageAllFaces) mirroring
+	// PlatformAccessRules. Additive only — no controller enforces them yet; the per-controller migration follows.
+	BeDemo.Api.Security.PlatformAuthorizationPolicies.Configure(options);
 });
+
+// X5: ManageAllFaces needs the request-scoped IFaceScopeContext, so it is a scoped handler (not a static assertion).
+builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
+	BeDemo.Api.Security.ManageAllFacesAuthorizationHandler>();
 
 // ============================================================================
 // SIGNALR CONFIGURATION
