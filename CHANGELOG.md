@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.29](#1429) | Backend refactor Phase 3 Program.cs modularise (6)|
 | [1.4.28](#1428) | Backend refactor Phase 3 Program.cs modularise (5)|
 | [1.4.27](#1427) | Backend refactor Phase 3 Program.cs modularise (4)|
 | [1.4.26](#1426) | Backend refactor Phase 3 Program.cs modularise (3)|
@@ -59,6 +60,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.29]
+
+### Changed
+
+- **Backend refactor — Program.cs modularisation, slice 6 (Phase 3).** Extracted the performance options + stats / access-token-version / capabilities / faces-config / grid-list / conversation-list / hub-display service registrations into `Configuration/GridAndStatsServiceCollectionExtensions.AddManyFacesGridAndStatsServices()`. Moved verbatim; behaviour-preserving (DI order-independence + boot tests), full backend suite 1942 passing. `Program.cs` drops to **870 lines** (from ~1150 at the start of Phase 3 — six slices have now lifted ~280 lines of registration into focused `AddManyFaces*` extensions). `dotnet format` clean.
 
 ---
 
@@ -536,6 +545,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.29]: https://github.com/01laky/many_faces_backend/compare/v1.4.28...v1.4.29
 [1.4.28]: https://github.com/01laky/many_faces_backend/compare/v1.4.27...v1.4.28
 [1.4.27]: https://github.com/01laky/many_faces_backend/compare/v1.4.26...v1.4.27
 [1.4.26]: https://github.com/01laky/many_faces_backend/compare/v1.4.25...v1.4.26

@@ -139,22 +139,9 @@ if (builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("T
 	}
 }
 
-builder.Services.AddOptions<PerformanceOptions>()
-	.BindConfiguration(PerformanceOptions.SectionName);
-builder.Services.AddScoped<PlatformStatsQueryService>();
-builder.Services.AddScoped<IPlatformStatsQueryService, PlatformStatsCachedQueryService>();
-builder.Services.AddSingleton<AccessTokenVersionCacheInterceptor>();
-builder.Services.AddScoped<IAccessTokenVersionCache, AccessTokenVersionCache>();
-builder.Services.AddScoped<AccessCapabilitiesService>();
-builder.Services.AddScoped<IAccessCapabilitiesService, CapabilitiesCacheService>();
-builder.Services.AddScoped<IFacesConfigService, FacesConfigService>();
-builder.Services.AddScoped<IAlbumGridListService, AlbumGridListService>();
-builder.Services.AddScoped<IBlogGridListService, BlogGridListService>();
-builder.Services.AddScoped<IReelGridListService, ReelGridListService>();
-builder.Services.AddScoped<IStoryGridListService, StoryGridListService>();
-builder.Services.AddScoped<IFaceGridSnapshotService, FaceGridSnapshotService>();
-builder.Services.AddScoped<IConversationListService, ConversationListService>();
-builder.Services.AddScoped<IHubUserDisplayCache, HubUserDisplayCache>();
+// Performance options + stats / capabilities / grid-list / conversation-list service registrations — extracted to
+// AddManyFacesGridAndStatsServices (Phase 3 Program.cs modularisation).
+builder.Services.AddManyFacesGridAndStatsServices();
 
 // Operator-AI stack (options + conversation/RAG/skills/startup services) — extracted to AddManyFacesOperatorAi
 // (Phase 3 Program.cs modularisation).
