@@ -15,7 +15,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class BlogsController : ControllerBase
+public class BlogsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<BlogsController> _logger;
@@ -46,8 +46,6 @@ public class BlogsController : ControllerBase
 		_systemSettings = systemSettings;
 		_blogGridList = blogGridList;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	private bool CanManageAllFaces() => _access.CanManageAllFaces(User);
 

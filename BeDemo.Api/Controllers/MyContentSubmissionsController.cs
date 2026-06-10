@@ -14,7 +14,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/my/content-submissions")]
 [Authorize]
-public sealed class MyContentSubmissionsController : ControllerBase
+public sealed class MyContentSubmissionsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 
@@ -22,8 +22,6 @@ public sealed class MyContentSubmissionsController : ControllerBase
 	{
 		_context = context;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	[HttpGet]
 	public async Task<IActionResult> GetMine()

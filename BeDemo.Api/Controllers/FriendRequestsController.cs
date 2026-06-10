@@ -11,7 +11,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class FriendRequestsController : ControllerBase
+public class FriendRequestsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly IHubContext<MessengerHub> _hubContext;
@@ -26,8 +26,6 @@ public class FriendRequestsController : ControllerBase
 		_hubContext = hubContext;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	/// <summary>GET /api/friendrequests - Pending requests received by current user</summary>
 	[HttpGet]

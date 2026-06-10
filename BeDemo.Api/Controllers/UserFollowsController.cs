@@ -9,7 +9,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class UserFollowsController : ControllerBase
+public class UserFollowsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<UserFollowsController> _logger;
@@ -21,8 +21,6 @@ public class UserFollowsController : ControllerBase
 		_context = context;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	/// <summary>GET /api/userfollows/following - Users I follow</summary>
 	[HttpGet("following")]

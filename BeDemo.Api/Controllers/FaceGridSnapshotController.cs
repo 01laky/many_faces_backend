@@ -10,13 +10,11 @@ namespace BeDemo.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/faces/{faceId:int}/grid-snapshot")]
-public class FaceGridSnapshotController : ControllerBase
+public class FaceGridSnapshotController : ApiControllerBase
 {
 	private readonly IFaceGridSnapshotService _snapshot;
 
 	public FaceGridSnapshotController(IFaceGridSnapshotService snapshot) => _snapshot = snapshot;
-
-	private string? UserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
 	/// <summary>
 	/// GET /api/faces/{faceId}/grid-snapshot?blocks=albums,blogs,...&amp;page=1&amp;pageSize=10

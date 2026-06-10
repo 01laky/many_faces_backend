@@ -13,7 +13,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class MessagesController : ControllerBase
+public class MessagesController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly IFaceScopeContext _faceScope;
@@ -31,8 +31,6 @@ public class MessagesController : ControllerBase
 		_faceModeration = faceModeration;
 		_conversations = conversations;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	private async Task<bool> IsCallerFaceBannedInScopeAsync(CancellationToken cancellationToken) =>
 		!string.IsNullOrEmpty(UserId) &&

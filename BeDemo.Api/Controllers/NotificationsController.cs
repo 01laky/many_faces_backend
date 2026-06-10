@@ -10,7 +10,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class NotificationsController : ControllerBase
+public class NotificationsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 
@@ -18,8 +18,6 @@ public class NotificationsController : ControllerBase
 	{
 		_context = context;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	/// <summary>GET /api/notifications - User's notification history (newest first)</summary>
 	[HttpGet]

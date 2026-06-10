@@ -23,7 +23,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
-public sealed class ContentModerationController : ControllerBase
+public sealed class ContentModerationController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly IAccessEvaluator _access;
@@ -59,8 +59,6 @@ public sealed class ContentModerationController : ControllerBase
 		_operatorBlogs = operatorBlogs;
 		_systemSettings = systemSettings;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	private bool CanModerate() => _access.IsGlobalSuperAdmin(User);
 

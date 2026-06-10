@@ -11,7 +11,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/stories/{storyId:int}/comments")]
 [Authorize]
-public class StoryCommentsController : ControllerBase
+public class StoryCommentsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<StoryCommentsController> _logger;
@@ -21,8 +21,6 @@ public class StoryCommentsController : ControllerBase
 		_context = context;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	[HttpGet]
 	public async Task<IActionResult> GetComments(int storyId, [FromQuery] StoryScopedQuery scopedQuery, CancellationToken cancellationToken)

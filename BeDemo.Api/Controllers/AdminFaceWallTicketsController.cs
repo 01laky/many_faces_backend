@@ -14,7 +14,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/admin/faces/{faceId:int}/wall-tickets")]
 [Authorize]
-public class AdminFaceWallTicketsController : ControllerBase
+public class AdminFaceWallTicketsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly IFaceWallTicketLifecycleService _lifecycle;
@@ -29,8 +29,6 @@ public class AdminFaceWallTicketsController : ControllerBase
 		_lifecycle = lifecycle;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
 	private static string StatusString(FaceWallTicketStatus s) =>
 		s switch

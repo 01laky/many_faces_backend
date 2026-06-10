@@ -15,7 +15,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class StoriesController : ControllerBase
+public class StoriesController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly IStoryLifecycleService _lifecycle;
@@ -48,8 +48,6 @@ public class StoriesController : ControllerBase
 		_uploadUrls = uploadUrls;
 		_storyGridList = storyGridList;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	/// <summary>Maps stored <c>/uploads/...</c> DB paths to HMAC-signed serve URLs for clients (BE-U3).</summary>
 	private string? SignStoredImageUrl(string? storedPath) =>

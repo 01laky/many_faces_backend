@@ -8,7 +8,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class FriendsController : ControllerBase
+public class FriendsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 
@@ -16,8 +16,6 @@ public class FriendsController : ControllerBase
 	{
 		_context = context;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	/// <summary>GET /api/friends - List current user's friends</summary>
 	[HttpGet]

@@ -12,7 +12,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/faces/{faceId:int}/wall-tickets")]
 [Authorize]
-public class FaceWallTicketsController : ControllerBase
+public class FaceWallTicketsController : ApiControllerBase
 {
 	public const int MaxTicketsPerUserPerFace = 20;
 	public const int MaxDescriptionLength = 8000;
@@ -26,8 +26,6 @@ public class FaceWallTicketsController : ControllerBase
 		_context = context;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
 	private static string StatusString(FaceWallTicketStatus s) =>
 		s switch

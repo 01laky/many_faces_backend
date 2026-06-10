@@ -9,7 +9,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/albums/{albumId}/comments")]
 [Authorize]
-public class AlbumCommentsController : ControllerBase
+public class AlbumCommentsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<AlbumCommentsController> _logger;
@@ -21,8 +21,6 @@ public class AlbumCommentsController : ControllerBase
 		_context = context;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	/// <summary>GET /api/albums/{albumId}/comments - Get comments for album</summary>
 	[HttpGet]

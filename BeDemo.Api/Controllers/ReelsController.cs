@@ -16,7 +16,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class ReelsController : ControllerBase
+public class ReelsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly IRedisJobQueue _jobQueue;
@@ -47,8 +47,6 @@ public class ReelsController : ControllerBase
 		_systemSettings = systemSettings;
 		_reelGridList = reelGridList;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	private bool CanManageAllFaces() => _access.CanManageAllFaces(User);
 

@@ -19,7 +19,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/faces/{faceId:int}/video-lounges")]
 [Authorize]
-public class FaceVideoLoungesController : ControllerBase
+public class FaceVideoLoungesController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly IVideoLoungeLifecycleService _lifecycle;
@@ -46,8 +46,6 @@ public class FaceVideoLoungesController : ControllerBase
 		_access = access;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
 	private bool CanManageAllFaces() => _access.CanManageAllFaces(User);
 

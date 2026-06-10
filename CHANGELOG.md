@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.19](#1419) | Backend refactor X6 ApiControllerBase (UserId)   |
 | [1.4.18](#1418) | Backend refactor Phase 0 AI test fake (complete) |
 | [1.4.17](#1417) | Backend refactor Phase 0 shared AI test fake     |
 | [1.4.16](#1416) | Backend refactor X5/X6 dual-policy migration (8)  |
@@ -49,6 +50,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.19]
+
+### Added
+
+- **Backend refactor — `ApiControllerBase` (X6).** New `Controllers/ApiControllerBase : ControllerBase` centralises the authenticated caller's user id via a single `protected string? UserId => User.FindFirst(NameIdentifier)?.Value`, which had been copy-pasted as a private `UserId` accessor in 25 controllers.
+
+### Changed
+
+- **Backend refactor — controllers inherit `ApiControllerBase` (X6).** Migrated the 25 controllers that carried the identical private `UserId` accessor (both the `FindFirst(...).Value` and the functionally-equivalent `FindFirstValue(...)` spellings) to derive from `ApiControllerBase` and dropped their local accessor. Because the inherited member keeps the same name (`UserId`) and identical semantics, no call sites changed — purely structural de-duplication, behaviour-preserving (full backend suite 1939 passing). The five controllers using a differently-named accessor (`OperatorUserId` / `CurrentUserId` / `CallerUserId`) are intentionally left for a follow-up that renames their call sites.
 
 ---
 
@@ -433,6 +446,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.19]: https://github.com/01laky/many_faces_backend/compare/v1.4.18...v1.4.19
 [1.4.18]: https://github.com/01laky/many_faces_backend/compare/v1.4.17...v1.4.18
 [1.4.17]: https://github.com/01laky/many_faces_backend/compare/v1.4.16...v1.4.17
 [1.4.16]: https://github.com/01laky/many_faces_backend/compare/v1.4.15...v1.4.16

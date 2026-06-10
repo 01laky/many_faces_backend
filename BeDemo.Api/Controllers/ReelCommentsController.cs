@@ -11,7 +11,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/reels/{reelId:int}/comments")]
 [Authorize]
-public class ReelCommentsController : ControllerBase
+public class ReelCommentsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<ReelCommentsController> _logger;
@@ -21,8 +21,6 @@ public class ReelCommentsController : ControllerBase
 		_context = context;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	[HttpGet]
 	public async Task<IActionResult> GetComments(int reelId, [FromQuery] ReelCommentCreateQuery commentQuery)

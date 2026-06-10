@@ -9,7 +9,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/albums/{albumId}/likes")]
 [Authorize]
-public class AlbumLikesController : ControllerBase
+public class AlbumLikesController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<AlbumLikesController> _logger;
@@ -21,8 +21,6 @@ public class AlbumLikesController : ControllerBase
 		_context = context;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	/// <summary>GET /api/albums/{albumId}/likes - Get likes for album</summary>
 	[HttpGet]

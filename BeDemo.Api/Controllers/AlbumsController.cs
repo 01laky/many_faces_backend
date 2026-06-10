@@ -15,7 +15,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class AlbumsController : ControllerBase
+public class AlbumsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<AlbumsController> _logger;
@@ -46,8 +46,6 @@ public class AlbumsController : ControllerBase
 		_systemSettings = systemSettings;
 		_albumGridList = albumGridList;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	private bool CanManageAllFaces() => _access.CanManageAllFaces(User);
 

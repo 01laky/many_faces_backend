@@ -16,7 +16,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/faces/{faceId:int}/chat-rooms")]
 [Authorize]
-public class FaceChatRoomsController : ControllerBase
+public class FaceChatRoomsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly IChatRoomLifecycleService _lifecycle;
@@ -37,8 +37,6 @@ public class FaceChatRoomsController : ControllerBase
 		_access = access;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
 	private bool CanManageAllFaces() => _access.CanManageAllFaces(User);
 

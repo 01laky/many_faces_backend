@@ -10,7 +10,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/stories/{storyId:int}/likes")]
 [Authorize]
-public class StoryLikesController : ControllerBase
+public class StoryLikesController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<StoryLikesController> _logger;
@@ -20,8 +20,6 @@ public class StoryLikesController : ControllerBase
 		_context = context;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	[HttpGet]
 	public async Task<IActionResult> GetLikes(int storyId, [FromQuery] int faceId, CancellationToken cancellationToken)

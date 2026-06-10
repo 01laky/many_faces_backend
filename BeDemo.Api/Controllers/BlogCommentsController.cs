@@ -9,7 +9,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/blogs/{blogId}/comments")]
 [Authorize]
-public class BlogCommentsController : ControllerBase
+public class BlogCommentsController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<BlogCommentsController> _logger;
@@ -21,8 +21,6 @@ public class BlogCommentsController : ControllerBase
 		_context = context;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	/// <summary>GET /api/blogs/{blogId}/comments - Get comments for blog</summary>
 	[HttpGet]

@@ -9,7 +9,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/blogs/{blogId}/likes")]
 [Authorize]
-public class BlogLikesController : ControllerBase
+public class BlogLikesController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<BlogLikesController> _logger;
@@ -21,8 +21,6 @@ public class BlogLikesController : ControllerBase
 		_context = context;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	/// <summary>GET /api/blogs/{blogId}/likes - Get likes for blog</summary>
 	[HttpGet]

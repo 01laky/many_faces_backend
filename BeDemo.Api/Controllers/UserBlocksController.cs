@@ -9,7 +9,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class UserBlocksController : ControllerBase
+public class UserBlocksController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<UserBlocksController> _logger;
@@ -21,8 +21,6 @@ public class UserBlocksController : ControllerBase
 		_context = context;
 		_logger = logger;
 	}
-
-	private string? UserId => User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
 	/// <summary>GET /api/userblocks - List users blocked by current user</summary>
 	[HttpGet]
