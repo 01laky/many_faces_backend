@@ -5,6 +5,7 @@ using BeDemo.Api.Models.DTOs.OperatorUsers;
 using BeDemo.Api.Models.Requests.OperatorUsers;
 using BeDemo.Api.Security;
 using BeDemo.Api.Services;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -25,15 +26,18 @@ public sealed class OperatorUsersController : ApiControllerBase
 	}
 
 	[HttpGet("users/{id}/detail")]
+	[ProducesResponseType(typeof(OperatorUserDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<ActionResult<OperatorUserDetailDto>> GetDetail(string id, CancellationToken cancellationToken)
 	{
 		var dto = await _moderation.GetDetailAsync(id, cancellationToken);
 		if (dto == null)
-			return NotFound(new { error = "User not found" });
+			return NotFound(new ErrorResponseDto { Error = "User not found" });
 		return Ok(dto);
 	}
 
 	[HttpPatch("users/{id}/faces/{faceId}/role")]
+	[ProducesResponseType(typeof(UserRoleIdResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> SetFaceRole(
 		string id,
 		int faceId,
@@ -45,11 +49,12 @@ public sealed class OperatorUsersController : ApiControllerBase
 		var result = await _moderation.SetFaceRoleAsync(
 			UserId, id, faceId, request.UserRoleId, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
-			return StatusCode(result.StatusCode, new { error = result.Error });
-		return Ok(new { userRoleId = request.UserRoleId });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
+		return Ok(new UserRoleIdResultDto { UserRoleId = request.UserRoleId });
 	}
 
 	[HttpPost("users/{id}/global-ban")]
+	[ProducesResponseType(typeof(BanResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GlobalBan(
 		string id,
 		[FromBody] OperatorBanReasonRequest request,
@@ -60,11 +65,13 @@ public sealed class OperatorUsersController : ApiControllerBase
 		var result = await _moderation.GlobalBanAsync(
 			UserId, id, request.Reason, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
-			return StatusCode(result.StatusCode, new { error = result.Error });
-		return Ok(new { banned = true, alreadyBanned = result.AlreadyBanned });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
+		return Ok(new BanResultDto { Banned = true, AlreadyBanned = result.AlreadyBanned });
 	}
 
 	[HttpDelete("users/{id}/global-ban")]
+	[ProducesResponseType(typeof(BanResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> GlobalUnban(string id, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -72,11 +79,12 @@ public sealed class OperatorUsersController : ApiControllerBase
 		var result = await _moderation.GlobalUnbanAsync(
 			UserId, id, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
-			return StatusCode(result.StatusCode, new { error = result.Error });
-		return result.StatusCode == StatusCodes.Status204NoContent ? NoContent() : Ok(new { banned = false });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
+		return result.StatusCode == StatusCodes.Status204NoContent ? NoContent() : Ok(new BanResultDto { Banned = false });
 	}
 
 	[HttpPost("users/{id}/faces/{faceId}/ban")]
+	[ProducesResponseType(typeof(FaceBanResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> FaceBan(
 		string id,
 		int faceId,
@@ -88,11 +96,13 @@ public sealed class OperatorUsersController : ApiControllerBase
 		var result = await _moderation.FaceBanAsync(
 			UserId, id, faceId, request.Reason, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
-			return StatusCode(result.StatusCode, new { error = result.Error });
-		return Ok(new { faceBanned = true, alreadyBanned = result.AlreadyBanned });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
+		return Ok(new FaceBanResultDto { FaceBanned = true, AlreadyBanned = result.AlreadyBanned });
 	}
 
 	[HttpDelete("users/{id}/faces/{faceId}/ban")]
+	[ProducesResponseType(typeof(FaceBanResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> FaceUnban(string id, int faceId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -100,11 +110,12 @@ public sealed class OperatorUsersController : ApiControllerBase
 		var result = await _moderation.FaceUnbanAsync(
 			UserId, id, faceId, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
-			return StatusCode(result.StatusCode, new { error = result.Error });
-		return result.StatusCode == StatusCodes.Status204NoContent ? NoContent() : Ok(new { faceBanned = false });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
+		return result.StatusCode == StatusCodes.Status204NoContent ? NoContent() : Ok(new FaceBanResultDto { FaceBanned = false });
 	}
 
 	[HttpPost("users/{id}/platform-messages")]
+	[ProducesResponseType(typeof(MessageIdResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> SendPlatformMessage(
 		string id,
 		[FromBody] OperatorPlatformMessageRequest request,
@@ -115,7 +126,7 @@ public sealed class OperatorUsersController : ApiControllerBase
 		var result = await _moderation.SendPlatformMessageAsync(
 			UserId, id, request.Content, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
-			return StatusCode(result.StatusCode, new { error = result.Error });
-		return Ok(new { messageId = result.MessageId });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
+		return Ok(new MessageIdResultDto { MessageId = result.MessageId });
 	}
 }

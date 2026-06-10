@@ -11,6 +11,7 @@ using BeDemo.Api.Models.Requests.Profile;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 using BeDemo.Api.Validation.Files;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -50,6 +51,7 @@ public class ProfileController : ControllerBase
 	/// Returns current user profile. Optional ?faceId= for resolved avatar (local for that face, else global).
 	/// </summary>
 	[HttpGet("me")]
+	[ProducesResponseType(typeof(UserProfileResponseDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetMyProfile([FromQuery] ProfileMeQuery query)
 	{
 		var userId = _userManager.GetUserId(User);
@@ -80,16 +82,16 @@ public class ProfileController : ControllerBase
 			faceAvatarUrl = faceProfile?.AvatarUrl;
 		}
 
-		return Ok(new
+		return Ok(new UserProfileResponseDto
 		{
-			firstName = user.FirstName,
-			lastName = user.LastName,
-			email = user.Email,
-			enableAnimatedGradient = profile.EnableAnimatedGradient,
-			preferredUiLanguage = profile.PreferredUiLanguage,
-			lastSelectedFaceId = profile.LastSelectedFaceId,
-			globalAvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(profile.AvatarUrl, Request.Scheme, Request.Host.Value!),
-			faceAvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(faceAvatarUrl, Request.Scheme, Request.Host.Value!),
+			FirstName = user.FirstName,
+			LastName = user.LastName,
+			Email = user.Email,
+			EnableAnimatedGradient = profile.EnableAnimatedGradient,
+			PreferredUiLanguage = profile.PreferredUiLanguage,
+			LastSelectedFaceId = profile.LastSelectedFaceId,
+			GlobalAvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(profile.AvatarUrl, Request.Scheme, Request.Host.Value!),
+			FaceAvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(faceAvatarUrl, Request.Scheme, Request.Host.Value!),
 		});
 	}
 
@@ -97,6 +99,8 @@ public class ProfileController : ControllerBase
 	/// PUT /api/profile/me - update name
 	/// </summary>
 	[HttpPut("me")]
+	[ProducesResponseType(typeof(MessageResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UpdateMyProfile([FromBody] UpdateProfileRequest model)
 	{
 		var userId = _userManager.GetUserId(User);
@@ -152,7 +156,7 @@ public class ProfileController : ControllerBase
 			}
 			else if (!PortalSupportedUiLanguages.IsAllowed(lang))
 			{
-				return BadRequest(new { error = "Unsupported UI language" });
+				return BadRequest(new ErrorResponseDto { Error = "Unsupported UI language" });
 			}
 			else
 			{
@@ -181,13 +185,16 @@ public class ProfileController : ControllerBase
 			await _context.SaveChangesAsync();
 		}
 
-		return Ok(new { message = "Profile updated" });
+		return Ok(new MessageResultDto { Message = "Profile updated" });
 	}
 
 	/// <summary>
 	/// GET /api/profile/me/faces/{faceId}/settings — grid component UI prefs for the current user on a face.
 	/// </summary>
 	[HttpGet("me/faces/{faceId:int}/settings")]
+	[ProducesResponseType(typeof(GridComponentsResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetMyFaceGridSettings(int faceId)
 	{
 		var userId = _userManager.GetUserId(User);
@@ -204,15 +211,18 @@ public class ProfileController : ControllerBase
 			.FirstOrDefaultAsync(x => x.UserProfileId == profile.Id && x.FaceId == faceId);
 
 		if (!ProfileGridSettingsJson.TryParseResponse(ufp?.Settings, out var gridComponents, out var parseError))
-			return BadRequest(new { error = parseError });
+			return BadRequest(new ErrorResponseDto { Error = parseError ?? string.Empty });
 
-		return Ok(new { gridComponents });
+		return Ok(new GridComponentsResultDto { GridComponents = gridComponents });
 	}
 
 	/// <summary>
 	/// PUT /api/profile/me/faces/{faceId}/settings — merge grid component UI prefs (e.g. carousel autoplay).
 	/// </summary>
 	[HttpPut("me/faces/{faceId:int}/settings")]
+	[ProducesResponseType(typeof(GridComponentsResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> UpdateMyFaceGridSettings(int faceId, [FromBody] UpdateFaceGridSettingsRequest model)
 	{
 		var userId = _userManager.GetUserId(User);
@@ -245,7 +255,7 @@ public class ProfileController : ControllerBase
 			UserFaceProfileEnsure.Options.Passive);
 
 		if (!ProfileGridSettingsJson.TryMergePatch(ufp.Settings, patch, out var merged, out var mergeError))
-			return BadRequest(new { error = mergeError });
+			return BadRequest(new ErrorResponseDto { Error = mergeError ?? string.Empty });
 
 		ufp.Settings = merged;
 		ufp.UpdatedAt = DateTime.UtcNow;
@@ -254,7 +264,7 @@ public class ProfileController : ControllerBase
 		if (!ProfileGridSettingsJson.TryParseResponse(merged, out var gridComponents, out _))
 			gridComponents = new JsonObject();
 
-		return Ok(new { gridComponents });
+		return Ok(new GridComponentsResultDto { GridComponents = gridComponents });
 	}
 
 	private async Task<UserProfile> EnsureUserProfileAsync(string userId)
@@ -274,7 +284,7 @@ public class ProfileController : ControllerBase
 	{
 		var face = await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Id == faceId);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		if (face.IsPublic)
 			return null;
@@ -288,7 +298,7 @@ public class ProfileController : ControllerBase
 		if (hasProfile)
 			return null;
 
-		return StatusCode(StatusCodes.Status403Forbidden, new { error = "Face not accessible" });
+		return StatusCode(StatusCodes.Status403Forbidden, new ErrorResponseDto { Error = "Face not accessible" });
 	}
 
 	/// <summary>
@@ -296,6 +306,8 @@ public class ProfileController : ControllerBase
 	/// </summary>
 	[HttpPost("me/avatar")]
 	[EnableRateLimiting("upload-write")]
+	[ProducesResponseType(typeof(AvatarUploadResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> UploadMyAvatar([FromForm] AvatarUploadRequest request)
 	{
 		var userId = _userManager.GetUserId(User);
@@ -305,7 +317,7 @@ public class ProfileController : ControllerBase
 		var file = request.File!;
 		var (path, error) = await SaveAvatarFile(file, userId, null);
 		if (error != null)
-			return BadRequest(new { error });
+			return BadRequest(new ErrorResponseDto { Error = error ?? string.Empty });
 
 		var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
 		if (profile == null)
@@ -319,10 +331,7 @@ public class ProfileController : ControllerBase
 		profile.UpdatedAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync();
 
-		return Ok(new
-		{
-			avatarUrl = _uploadUrls.ToAbsoluteSignedUrl(path, Request.Scheme, Request.Host.Value!),
-		});
+		return Ok(new AvatarUploadResultDto { AvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(path, Request.Scheme, Request.Host.Value!) });
 	}
 
 	/// <summary>
@@ -330,6 +339,9 @@ public class ProfileController : ControllerBase
 	/// </summary>
 	[HttpPost("me/faces/{faceId:int}/avatar")]
 	[EnableRateLimiting("upload-write")]
+	[ProducesResponseType(typeof(AvatarUploadResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> UploadMyFaceAvatar(int faceId, [FromForm] AvatarUploadRequest request)
 	{
 		var userId = _userManager.GetUserId(User);
@@ -347,11 +359,11 @@ public class ProfileController : ControllerBase
 
 		var faceExists = await _context.Faces.AnyAsync(f => f.Id == faceId);
 		if (!faceExists)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var (path, error) = await SaveAvatarFile(file, userId, faceId);
 		if (error != null)
-			return BadRequest(new { error });
+			return BadRequest(new ErrorResponseDto { Error = error ?? string.Empty });
 
 		var faceProfile = await UserFaceProfileEnsure.GetOrCreateAsync(
 			_context,
@@ -363,10 +375,7 @@ public class ProfileController : ControllerBase
 
 		await _context.SaveChangesAsync();
 
-		return Ok(new
-		{
-			avatarUrl = _uploadUrls.ToAbsoluteSignedUrl(path, Request.Scheme, Request.Host.Value!),
-		});
+		return Ok(new AvatarUploadResultDto { AvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(path, Request.Scheme, Request.Host.Value!) });
 	}
 
 	/// <summary>

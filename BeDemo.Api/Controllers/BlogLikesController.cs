@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -24,6 +25,7 @@ public class BlogLikesController : ApiControllerBase
 
 	/// <summary>GET /api/blogs/{blogId}/likes - Get likes for blog</summary>
 	[HttpGet]
+	[ProducesResponseType(typeof(IReadOnlyList<ContentLikeItemDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetLikes(int blogId)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -31,18 +33,18 @@ public class BlogLikesController : ApiControllerBase
 
 		var blog = await _context.Blogs.FindAsync(blogId);
 		if (blog == null)
-			return NotFound(new { error = "Blog not found" });
+			return NotFound(new ErrorResponseDto { Error = "Blog not found" });
 
 		var likes = await _context.BlogLikes
 			.Where(l => l.BlogId == blogId)
 			.Include(l => l.User)
 			.OrderByDescending(l => l.CreatedAt)
-			.Select(l => new
+			.Select(l => new ContentLikeItemDto
 			{
-				l.Id,
-				l.UserId,
-				userName = (l.User.FirstName ?? "") + " " + (l.User.LastName ?? ""),
-				l.CreatedAt,
+				Id = l.Id,
+				UserId = l.UserId,
+				UserName = (l.User.FirstName ?? "") + " " + (l.User.LastName ?? ""),
+				CreatedAt = l.CreatedAt,
 			})
 			.ToListAsync();
 
@@ -51,6 +53,7 @@ public class BlogLikesController : ApiControllerBase
 
 	/// <summary>POST /api/blogs/{blogId}/likes - Like blog</summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> LikeBlog(int blogId)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -58,13 +61,13 @@ public class BlogLikesController : ApiControllerBase
 
 		var blog = await _context.Blogs.FindAsync(blogId);
 		if (blog == null)
-			return NotFound(new { error = "Blog not found" });
+			return NotFound(new ErrorResponseDto { Error = "Blog not found" });
 
 		var exists = await _context.BlogLikes
 			.AnyAsync(l => l.BlogId == blogId && l.UserId == UserId);
 
 		if (exists)
-			return BadRequest(new { error = "Already liked" });
+			return BadRequest(new ErrorResponseDto { Error = "Already liked" });
 
 		_context.BlogLikes.Add(new BlogLike
 		{
@@ -74,11 +77,12 @@ public class BlogLikesController : ApiControllerBase
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("User {UserId} liked blog {BlogId}", UserId, blogId);
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 
 	/// <summary>DELETE /api/blogs/{blogId}/likes - Unlike blog</summary>
 	[HttpDelete]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> UnlikeBlog(int blogId)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -88,12 +92,12 @@ public class BlogLikesController : ApiControllerBase
 			.FirstOrDefaultAsync(l => l.BlogId == blogId && l.UserId == UserId);
 
 		if (like == null)
-			return NotFound(new { error = "Like not found" });
+			return NotFound(new ErrorResponseDto { Error = "Like not found" });
 
 		_context.BlogLikes.Remove(like);
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("User {UserId} unliked blog {BlogId}", UserId, blogId);
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 }

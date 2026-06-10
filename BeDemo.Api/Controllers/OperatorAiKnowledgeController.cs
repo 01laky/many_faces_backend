@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Security;
 using BeDemo.Api.Services.OperatorAi;
 
@@ -51,18 +52,19 @@ public sealed class OperatorAiKnowledgeController : ControllerBase
 	/// surface HTTP 409 (§17.5) so the caller can retry once it finishes.
 	/// </summary>
 	[HttpPost("reindex")]
+	[ProducesResponseType(typeof(KnowledgeReindexResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Reindex(CancellationToken cancellationToken)
 	{
 		// Authorization enforced by the ManageAllFaces policy on the controller.
 		// Mirror the other operator-AI mutations: gate index work behind the global AI switch (RT-13).
 		if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
-			return Conflict(new { error = "Enable AI support in Settings before reindexing operator knowledge." });
+			return Conflict(new ErrorResponseDto { Error = "Enable AI support in Settings before reindexing operator knowledge." });
 
 		var result = await _indexer.RebuildAsync(force: true, cancellationToken);
 
 		// Single-flight conflict → 409 (§17.5). The rebuild that won the lock keeps serving.
 		if (result.Coalesced)
-			return Conflict(new { error = "A knowledge reindex is already running.", errorCode = "reindex_already_running" });
+			return Conflict(new ErrorCodeResponseDto { Error = "A knowledge reindex is already running.", ErrorCode = "reindex_already_running" });
 
 		// Worker/embed unavailable (e.g. search disabled, AI worker down) → 503; the admin can retry later.
 		if (result.Error is not null && result.IndexedCount == 0 && !result.Skipped)
@@ -70,15 +72,15 @@ public sealed class OperatorAiKnowledgeController : ControllerBase
 			_logger.LogWarning("Operator AI knowledge reindex could not complete: {Error}", result.Error);
 			return StatusCode(
 				StatusCodes.Status503ServiceUnavailable,
-				new { error = "Knowledge reindex could not complete.", errorCode = result.Error });
+				new ErrorCodeResponseDto { Error = "Knowledge reindex could not complete.", ErrorCode = result.Error });
 		}
 
 		// Happy path (and idempotent skip): report the §7.2/§8.1 contract shape.
-		return Ok(new
+		return Ok(new KnowledgeReindexResultDto
 		{
-			indexedCount = result.IndexedCount,
-			failedCount = result.FailedCount,
-			embedModelVersion = result.EmbedModelVersion,
+			IndexedCount = result.IndexedCount,
+			FailedCount = result.FailedCount,
+			EmbedModelVersion = result.EmbedModelVersion,
 		});
 	}
 
@@ -88,6 +90,7 @@ public sealed class OperatorAiKnowledgeController : ControllerBase
 	/// the search worker is disabled/unreachable so the panel can show a degraded state.
 	/// </summary>
 	[HttpGet("status")]
+	[ProducesResponseType(typeof(KnowledgeIndexStatusDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Status(CancellationToken cancellationToken)
 	{
 		// Authorization enforced by the ManageAllFaces policy on the controller.
@@ -97,26 +100,26 @@ public sealed class OperatorAiKnowledgeController : ControllerBase
 		{
 			return StatusCode(
 				StatusCodes.Status503ServiceUnavailable,
-				new { error = "Knowledge index status unavailable (search worker disabled or unreachable)." });
+				new ErrorResponseDto { Error = "Knowledge index status unavailable (search worker disabled or unreachable)." });
 		}
 
 		// Project the proto message to a stable camelCase admin payload (doc count vs the expected 61, last-indexed
 		// UTC, model, dim, ready/degraded) — §17.9 / RT-22.
-		return Ok(new
+		return Ok(new KnowledgeIndexStatusDto
 		{
-			alias = status.Alias,
-			activeIndex = status.ActiveIndex,
-			docCount = status.DocCount,
-			expectedDocCount = status.ExpectedDocCount,
-			embedModelVersion = status.EmbedModelVersion,
-			vectorDim = status.VectorDim,
-			ready = status.Ready,
-			degraded = status.Degraded,
-			lastIndexedUtc = status.LastIndexedUnixMs > 0
+			Alias = status.Alias,
+			ActiveIndex = status.ActiveIndex,
+			DocCount = status.DocCount,
+			ExpectedDocCount = status.ExpectedDocCount,
+			EmbedModelVersion = status.EmbedModelVersion,
+			VectorDim = status.VectorDim,
+			Ready = status.Ready,
+			Degraded = status.Degraded,
+			LastIndexedUtc = status.LastIndexedUnixMs > 0
 				? DateTimeOffset.FromUnixTimeMilliseconds(status.LastIndexedUnixMs).UtcDateTime
 				: (DateTime?)null,
-			rebuildInProgress = _indexer.IsRebuildInProgress,
-			errorMessage = string.IsNullOrEmpty(status.ErrorMessage) ? null : status.ErrorMessage,
+			RebuildInProgress = _indexer.IsRebuildInProgress,
+			ErrorMessage = string.IsNullOrEmpty(status.ErrorMessage) ? null : status.ErrorMessage,
 		});
 	}
 }

@@ -1,4 +1,3 @@
-using System.Security.Cryptography.X509Certificates;
 using BeDemo.Api.Services.OperatorMail;
 using Grpc.Core;
 using Grpc.Net.Client;
@@ -10,17 +9,14 @@ namespace BeDemo.Api.Services;
 
 /// <summary>
 /// gRPC client for <see cref="MailerService.MailerServiceClient"/> (many_faces_mailer). Returns null from send/test when
-/// operator mail settings disallow sends.
+/// operator mail settings disallow sends. Channel cache and disposal are handled by <see cref="WorkerGrpcClientBase{TClient}"/>.
 /// </summary>
-public sealed class MailerWorkerGrpcClient : IMailerWorkerClient, IDisposable
+public sealed class MailerWorkerGrpcClient : WorkerGrpcClientBase<MailerService.MailerServiceClient>, IMailerWorkerClient
 {
 	private readonly IOperatorMailSettingsProvider _settings;
 	private readonly IOptions<MailOptions> _envOptions;
 	private readonly ILogger<MailerWorkerGrpcClient> _logger;
 	private readonly IHttpContextAccessor _httpContextAccessor;
-	private readonly object _channelLock = new();
-	private readonly List<X509Certificate2> _tlsCertificatesToDispose = [];
-	private ActiveChannel? _active;
 
 	public MailerWorkerGrpcClient(
 		IOperatorMailSettingsProvider settings,
@@ -44,7 +40,7 @@ public sealed class MailerWorkerGrpcClient : IMailerWorkerClient, IDisposable
 			return null;
 
 		request = OperatorMailProtoMapper.EnrichRequest(request, runtime);
-		var client = await GetClientAsync(runtime, cancellationToken).ConfigureAwait(false);
+		var client = GetClientOrNull(runtime);
 		if (client is null)
 			return null;
 
@@ -68,7 +64,7 @@ public sealed class MailerWorkerGrpcClient : IMailerWorkerClient, IDisposable
 		if (!settings.IsWorkerAddressValid)
 			return new TestSmtpConnectionResponse { Reachable = false, Detail = "Worker gRPC URL invalid." };
 
-		var client = await GetClientAsync(settings, cancellationToken).ConfigureAwait(false);
+		var client = GetClientOrNull(settings);
 		if (client is null)
 			return new TestSmtpConnectionResponse { Reachable = false, Detail = "Mail worker client unavailable." };
 
@@ -77,28 +73,16 @@ public sealed class MailerWorkerGrpcClient : IMailerWorkerClient, IDisposable
 		return await client.TestSmtpConnectionAsync(req, callOptions).ConfigureAwait(false);
 	}
 
-	private async Task<MailerService.MailerServiceClient?> GetClientAsync(
-		OperatorMailSettingsValues runtime,
-		CancellationToken cancellationToken)
+	private MailerService.MailerServiceClient? GetClientOrNull(OperatorMailSettingsValues runtime)
 	{
-		_ = cancellationToken;
 		if (!runtime.IsWorkerAddressValid)
 			return null;
 
-		var cacheKey = runtime.ChannelCacheKey;
-		lock (_channelLock)
-		{
-			if (_active?.CacheKey == cacheKey)
-				return _active.Client;
-
-			_active?.Dispose();
-			var merged = MergeTlsMailOptions(runtime);
-			var channel = GrpcWorkerChannelFactory.CreateChannel(
-				GrpcWorkerChannelFactory.FromMail(merged),
-				_tlsCertificatesToDispose);
-			_active = new ActiveChannel(cacheKey, channel, new MailerService.MailerServiceClient(channel));
-			return _active.Client;
-		}
+		var merged = MergeTlsMailOptions(runtime);
+		return GetOrReplaceClient(
+			runtime.ChannelCacheKey,
+			() => GrpcWorkerChannelFactory.CreateChannel(GrpcWorkerChannelFactory.FromMail(merged), CertificatesToDispose),
+			ch => new MailerService.MailerServiceClient(ch));
 	}
 
 	private MailOptions MergeTlsMailOptions(OperatorMailSettingsValues runtime)
@@ -126,29 +110,5 @@ public sealed class MailerWorkerGrpcClient : IMailerWorkerClient, IDisposable
 
 		var deadlineSeconds = Math.Clamp(_envOptions.Value.GrpcDeadlineSeconds, 1, 120);
 		return new CallOptions(headers, DateTime.UtcNow.AddSeconds(deadlineSeconds), cancellationToken);
-	}
-
-	/// <inheritdoc />
-	public void Dispose()
-	{
-		lock (_channelLock)
-		{
-			_active?.Dispose();
-			_active = null;
-		}
-
-		foreach (var c in _tlsCertificatesToDispose)
-			c.Dispose();
-
-		_tlsCertificatesToDispose.Clear();
-	}
-
-	private sealed class ActiveChannel(string cacheKey, GrpcChannel channel, MailerService.MailerServiceClient client) : IDisposable
-	{
-		public string CacheKey { get; } = cacheKey;
-		public MailerService.MailerServiceClient Client { get; } = client;
-		private readonly GrpcChannel _channel = channel;
-
-		public void Dispose() => _channel.Dispose();
 	}
 }

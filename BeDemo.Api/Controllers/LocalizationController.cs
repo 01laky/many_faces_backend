@@ -4,6 +4,7 @@ using BeDemo.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -42,24 +43,17 @@ public class LocalizationController : ControllerBase
 	public IActionResult GetBundle(string app, [FromQuery] LocalizationBundleQuery query)
 	{
 		if (!LocalizationAppParser.TryParse(app, out var parsed))
-			return NotFound(new { error = "unknown_app", app });
+			return NotFound(new AppScopedErrorDto { Error = "unknown_app", App = app });
 
 		var bundle = _bundles.GetBundle(parsed);
 		if (bundle == null)
-			return StatusCode(StatusCodes.Status500InternalServerError, new { error = "bundle_empty", app });
+			return StatusCode(StatusCodes.Status500InternalServerError, new AppScopedErrorDto { Error = "bundle_empty", App = app });
 
 		var v = query.V;
 		if (!string.IsNullOrEmpty(v) && string.Equals(v, bundle.Version, StringComparison.OrdinalIgnoreCase))
 			return StatusCode(StatusCodes.Status304NotModified);
 
 		Response.Headers.CacheControl = "public, max-age=300";
-		return Ok(new
-		{
-			app = bundle.App,
-			version = bundle.Version,
-			defaultNamespace = bundle.DefaultNamespace,
-			supportedLanguages = bundle.SupportedLanguages,
-			resources = bundle.Resources,
-		});
+		return Ok(bundle);
 	}
 }

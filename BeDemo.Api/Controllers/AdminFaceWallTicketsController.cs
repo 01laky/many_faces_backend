@@ -8,6 +8,7 @@ using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 using BeDemo.Api.Validation.Rules;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -73,6 +74,7 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 
 	/// <summary>Operator creates an idea ticket on the face backlog (exempt from end-user 20-ticket cap).</summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(WallTicketCreatedDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> Create(
 		int faceId,
 		[FromBody] WallTicketWriteDto dto,
@@ -84,7 +86,7 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 
 		var faceExists = await _context.Faces.AsNoTracking().AnyAsync(f => f.Id == faceId, cancellationToken);
 		if (!faceExists)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var title = dto.Title.Trim();
 		var description = dto.Description.Trim();
@@ -110,16 +112,17 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 		return CreatedAtAction(
 			nameof(Get),
 			new { faceId, ticketId = ticket.Id },
-			new
+			new WallTicketCreatedDto
 			{
-				ticket.Id,
-				ticket.Title,
-				status = StatusString(ticket.Status),
-				ticket.CreatedAt,
+				Id = ticket.Id,
+				Title = ticket.Title,
+				Status = StatusString(ticket.Status),
+				CreatedAt = ticket.CreatedAt,
 			});
 	}
 
 	[HttpGet]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> List(
 		int faceId,
 		[FromQuery] WallTicketListQuery listQuery,
@@ -130,11 +133,11 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 			return denied;
 
 		if (!TryParseStatusFilter(listQuery.Status, out var statusFilter))
-			return BadRequest(new { error = "Invalid status filter; use active, approved, or denied" });
+			return BadRequest(new ErrorResponseDto { Error = "Invalid status filter; use active, approved, or denied" });
 
 		var faceExists = await _context.Faces.AsNoTracking().AnyAsync(f => f.Id == faceId, cancellationToken);
 		if (!faceExists)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var page = listQuery.Page;
 		var pageSize = listQuery.PageSize;
@@ -179,17 +182,17 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 		var items = await query
 			.Skip((page - 1) * pageSize)
 			.Take(pageSize)
-			.Select(t => new
+			.Select(t => new AdminWallTicketListItemDto
 			{
-				t.Id,
-				t.Title,
-				descriptionPreview = t.Description.Length > 200 ? t.Description.Substring(0, 200) + "…" : t.Description,
-				status = StatusString(t.Status),
-				creatorId = t.CreatorUserId,
-				creatorName = ((t.Creator.FirstName ?? "") + " " + (t.Creator.LastName ?? "")).Trim(),
-				likesCount = t.Likes.Count,
-				commentsCount = t.Comments.Count,
-				t.CreatedAt,
+				Id = t.Id,
+				Title = t.Title,
+				DescriptionPreview = t.Description.Length > 200 ? t.Description.Substring(0, 200) + "…" : t.Description,
+				Status = StatusString(t.Status),
+				CreatorId = t.CreatorUserId,
+				CreatorName = ((t.Creator.FirstName ?? "") + " " + (t.Creator.LastName ?? "")).Trim(),
+				LikesCount = t.Likes.Count,
+				CommentsCount = t.Comments.Count,
+				CreatedAt = t.CreatedAt,
 			})
 			.ToListAsync(cancellationToken);
 
@@ -197,6 +200,8 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 	}
 
 	[HttpGet("{ticketId:int}")]
+	[ProducesResponseType(typeof(WallTicketDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> Get(int faceId, int ticketId, CancellationToken cancellationToken = default)
 	{
 		var denied = await RequireGlobalAdminAsync(cancellationToken);
@@ -212,37 +217,38 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 			.FirstOrDefaultAsync(t => t.Id == ticketId && t.FaceId == faceId, cancellationToken);
 
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		var comments = ticket.Comments
 			.OrderBy(c => c.CreatedAt)
-			.Select(c => new
+			.Select(c => new WallTicketDetailCommentDto
 			{
-				c.Id,
-				c.Content,
-				userId = c.UserId,
-				authorName = ((c.User.FirstName ?? "") + " " + (c.User.LastName ?? "")).Trim(),
-				c.CreatedAt,
+				Id = c.Id,
+				Content = c.Content,
+				UserId = c.UserId,
+				AuthorName = ((c.User.FirstName ?? "") + " " + (c.User.LastName ?? "")).Trim(),
+				CreatedAt = c.CreatedAt,
 			})
 			.ToList();
 
-		return Ok(new
+		return Ok(new WallTicketDetailDto
 		{
-			ticket.Id,
-			ticket.Title,
-			ticket.Description,
-			status = StatusString(ticket.Status),
-			creatorId = ticket.CreatorUserId,
-			creatorName = ((ticket.Creator.FirstName ?? "") + " " + (ticket.Creator.LastName ?? "")).Trim(),
-			likesCount = ticket.Likes.Count,
-			commentsCount = ticket.Comments.Count,
-			ticket.CreatedAt,
-			ticket.UpdatedAt,
-			comments,
+			Id = ticket.Id,
+			Title = ticket.Title,
+			Description = ticket.Description,
+			Status = StatusString(ticket.Status),
+			CreatorId = ticket.CreatorUserId,
+			CreatorName = ((ticket.Creator.FirstName ?? "") + " " + (ticket.Creator.LastName ?? "")).Trim(),
+			LikesCount = ticket.Likes.Count,
+			CommentsCount = ticket.Comments.Count,
+			CreatedAt = ticket.CreatedAt,
+			UpdatedAt = ticket.UpdatedAt,
+			Comments = comments,
 		});
 	}
 
 	[HttpPost("{ticketId:int}/approve")]
+	[ProducesResponseType(typeof(WallTicketStatusResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Approve(int faceId, int ticketId, CancellationToken cancellationToken = default)
 	{
 		var denied = await RequireGlobalAdminAsync(cancellationToken);
@@ -253,19 +259,20 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 			t => t.Id == ticketId && t.FaceId == faceId,
 			cancellationToken);
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		if (ticket.Status != FaceWallTicketStatus.Active)
-			return BadRequest(new { error = "Only active tickets can be approved" });
+			return BadRequest(new ErrorResponseDto { Error = "Only active tickets can be approved" });
 
 		ticket.Status = FaceWallTicketStatus.Approved;
 		ticket.UpdatedAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync(cancellationToken);
 		_logger.LogInformation("Wall ticket {TicketId} approved by admin {UserId}", ticketId, UserId);
-		return Ok(new { ticket.Id, status = StatusString(ticket.Status) });
+		return Ok(new WallTicketStatusResultDto { Id = ticket.Id, Status = StatusString(ticket.Status) });
 	}
 
 	[HttpPost("{ticketId:int}/deny")]
+	[ProducesResponseType(typeof(WallTicketStatusResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Deny(int faceId, int ticketId, CancellationToken cancellationToken = default)
 	{
 		var denied = await RequireGlobalAdminAsync(cancellationToken);
@@ -276,20 +283,21 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 			t => t.Id == ticketId && t.FaceId == faceId,
 			cancellationToken);
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		if (ticket.Status != FaceWallTicketStatus.Active)
-			return BadRequest(new { error = "Only active tickets can be denied" });
+			return BadRequest(new ErrorResponseDto { Error = "Only active tickets can be denied" });
 
 		ticket.Status = FaceWallTicketStatus.Denied;
 		ticket.UpdatedAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync(cancellationToken);
 		await _lifecycle.ScheduleDeniedTicketDeletionAsync(ticketId, cancellationToken);
 		_logger.LogInformation("Wall ticket {TicketId} denied by admin {UserId}", ticketId, UserId);
-		return Ok(new { ticket.Id, status = StatusString(ticket.Status) });
+		return Ok(new WallTicketStatusResultDto { Id = ticket.Id, Status = StatusString(ticket.Status) });
 	}
 
 	[HttpDelete("{ticketId:int}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeleteTicket(int faceId, int ticketId, CancellationToken cancellationToken = default)
 	{
 		var denied = await RequireGlobalAdminAsync(cancellationToken);
@@ -300,7 +308,7 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 			t => t.Id == ticketId && t.FaceId == faceId,
 			cancellationToken);
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		_context.FaceWallTickets.Remove(ticket);
 		await _context.SaveChangesAsync(cancellationToken);
@@ -309,6 +317,7 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 
 	/// <summary>Operator staff reply on an active ticket (admin route — avoids host-forbidden user comment API).</summary>
 	[HttpPost("{ticketId:int}/comments")]
+	[ProducesResponseType(typeof(WallTicketDetailCommentDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> AddComment(
 		int faceId,
 		int ticketId,
@@ -323,14 +332,14 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 			.Include(t => t.Creator)
 			.FirstOrDefaultAsync(t => t.Id == ticketId && t.FaceId == faceId, cancellationToken);
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		if (ticket.Status != FaceWallTicketStatus.Active)
-			return BadRequest(new { error = "Comments are frozen for this ticket" });
+			return BadRequest(new ErrorResponseDto { Error = "Comments are frozen for this ticket" });
 
 		var content = dto.Content.Trim();
 		if (content.Length > FaceWallTicketsController.MaxCommentLength)
-			return BadRequest(new { error = $"Comment must be at most {FaceWallTicketsController.MaxCommentLength} characters" });
+			return BadRequest(new ErrorResponseDto { Error = $"Comment must be at most {FaceWallTicketsController.MaxCommentLength} characters" });
 
 		var user = await _context.Users.AsNoTracking()
 			.FirstAsync(u => u.Id == UserId, cancellationToken);
@@ -348,17 +357,18 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 		var authorName = ((user.FirstName ?? "") + " " + (user.LastName ?? "")).Trim();
 		return StatusCode(
 			StatusCodes.Status201Created,
-			new
+			new WallTicketDetailCommentDto
 			{
-				comment.Id,
-				comment.Content,
-				userId = comment.UserId,
-				authorName,
-				comment.CreatedAt,
+				Id = comment.Id,
+				Content = comment.Content,
+				UserId = comment.UserId,
+				AuthorName = authorName,
+				CreatedAt = comment.CreatedAt,
 			});
 	}
 
 	[HttpDelete("{ticketId:int}/comments/{commentId:int}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeleteComment(
 		int faceId,
 		int ticketId,
@@ -373,10 +383,10 @@ public class AdminFaceWallTicketsController : ApiControllerBase
 			.Include(c => c.Ticket)
 			.FirstOrDefaultAsync(c => c.Id == commentId && c.FaceWallTicketId == ticketId, cancellationToken);
 		if (comment == null)
-			return NotFound(new { error = "Comment not found" });
+			return NotFound(new ErrorResponseDto { Error = "Comment not found" });
 
 		if (comment.Ticket.FaceId != faceId)
-			return NotFound(new { error = "Comment not found" });
+			return NotFound(new ErrorResponseDto { Error = "Comment not found" });
 
 		_context.FaceWallTicketComments.Remove(comment);
 		await _context.SaveChangesAsync(cancellationToken);

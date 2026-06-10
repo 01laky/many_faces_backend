@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -24,6 +25,7 @@ public class UserFollowsController : ApiControllerBase
 
 	/// <summary>GET /api/userfollows/following - Users I follow</summary>
 	[HttpGet("following")]
+	[ProducesResponseType(typeof(IReadOnlyList<UserFollowItemDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetFollowing()
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -33,13 +35,13 @@ public class UserFollowsController : ApiControllerBase
 			.Where(f => f.FollowerId == UserId)
 			.Include(f => f.Followed)
 			.OrderByDescending(f => f.CreatedAt)
-			.Select(f => new
+			.Select(f => new UserFollowItemDto
 			{
-				id = f.Id,
-				userId = f.FollowedId,
-				email = f.Followed.Email,
-				name = (f.Followed.FirstName ?? "") + " " + (f.Followed.LastName ?? ""),
-				createdAt = f.CreatedAt,
+				Id = f.Id,
+				UserId = f.FollowedId,
+				Email = f.Followed.Email,
+				Name = (f.Followed.FirstName ?? "") + " " + (f.Followed.LastName ?? ""),
+				CreatedAt = f.CreatedAt,
 			})
 			.ToListAsync();
 
@@ -48,6 +50,7 @@ public class UserFollowsController : ApiControllerBase
 
 	/// <summary>GET /api/userfollows/followers - Users who follow me</summary>
 	[HttpGet("followers")]
+	[ProducesResponseType(typeof(IReadOnlyList<UserFollowItemDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetFollowers()
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -57,13 +60,13 @@ public class UserFollowsController : ApiControllerBase
 			.Where(f => f.FollowedId == UserId)
 			.Include(f => f.Follower)
 			.OrderByDescending(f => f.CreatedAt)
-			.Select(f => new
+			.Select(f => new UserFollowItemDto
 			{
-				id = f.Id,
-				userId = f.FollowerId,
-				email = f.Follower.Email,
-				name = (f.Follower.FirstName ?? "") + " " + (f.Follower.LastName ?? ""),
-				createdAt = f.CreatedAt,
+				Id = f.Id,
+				UserId = f.FollowerId,
+				Email = f.Follower.Email,
+				Name = (f.Follower.FirstName ?? "") + " " + (f.Follower.LastName ?? ""),
+				CreatedAt = f.CreatedAt,
 			})
 			.ToListAsync();
 
@@ -72,6 +75,7 @@ public class UserFollowsController : ApiControllerBase
 
 	/// <summary>GET /api/userfollows/status/{userId} - Check if I follow a user</summary>
 	[HttpGet("status/{userId}")]
+	[ProducesResponseType(typeof(IsFollowingDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetFollowStatus(string userId)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -80,23 +84,24 @@ public class UserFollowsController : ApiControllerBase
 		var isFollowing = await _context.UserFollows
 			.AnyAsync(f => f.FollowerId == UserId && f.FollowedId == userId);
 
-		return Ok(new { isFollowing });
+		return Ok(new IsFollowingDto { IsFollowing = isFollowing });
 	}
 
 	/// <summary>POST /api/userfollows - Follow a user</summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> FollowUser([FromBody] FollowUserDto dto)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 		if (string.IsNullOrEmpty(dto?.FollowedId) || dto.FollowedId == UserId)
-			return BadRequest(new { error = "Invalid user" });
+			return BadRequest(new ErrorResponseDto { Error = "Invalid user" });
 
 		var exists = await _context.UserFollows
 			.AnyAsync(f => f.FollowerId == UserId && f.FollowedId == dto.FollowedId);
 
 		if (exists)
-			return BadRequest(new { error = "Already following" });
+			return BadRequest(new ErrorResponseDto { Error = "Already following" });
 
 		_context.UserFollows.Add(new UserFollow
 		{
@@ -106,11 +111,12 @@ public class UserFollowsController : ApiControllerBase
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("User {Follower} followed user {Followed}", UserId, dto.FollowedId);
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 
 	/// <summary>DELETE /api/userfollows/{userId} - Unfollow a user</summary>
 	[HttpDelete("{userId}")]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> UnfollowUser(string userId)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -120,12 +126,12 @@ public class UserFollowsController : ApiControllerBase
 			.FirstOrDefaultAsync(f => f.FollowerId == UserId && f.FollowedId == userId);
 
 		if (follow == null)
-			return NotFound(new { error = "Follow not found" });
+			return NotFound(new ErrorResponseDto { Error = "Follow not found" });
 
 		_context.UserFollows.Remove(follow);
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("User {Follower} unfollowed user {Followed}", UserId, userId);
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 }

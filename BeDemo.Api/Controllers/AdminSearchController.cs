@@ -3,6 +3,7 @@ using BeDemo.Api.Services;
 using BeDemo.Api.Services.Search;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -46,13 +47,13 @@ public sealed class AdminSearchController : ControllerBase
 			return Forbid();
 
 		if (offset < 0)
-			return BadRequest(new { error = "offset must be a non-negative integer." });
+			return BadRequest(new ErrorResponseDto { Error = "offset must be a non-negative integer." });
 
 		if (pageSize <= 0)
-			return BadRequest(new { error = "pageSize must be a positive integer." });
+			return BadRequest(new ErrorResponseDto { Error = "pageSize must be a positive integer." });
 
 		if (string.IsNullOrWhiteSpace(q))
-			return BadRequest(new { error = "q is required." });
+			return BadRequest(new ErrorResponseDto { Error = "q is required." });
 
 		pageSize = Math.Min(pageSize, AdminSearchAutocompleteService.MaxPageSize);
 

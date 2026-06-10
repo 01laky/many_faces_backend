@@ -690,91 +690,115 @@ public sealed class ContentAiReviewService : IContentAiReviewService
 /// </summary>
 public sealed class ContentModerationMetrics : IContentModerationMetrics
 {
-	private readonly ApplicationDbContext _context;
+	private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
 
-	public ContentModerationMetrics(ApplicationDbContext context)
+	public ContentModerationMetrics(IDbContextFactory<ApplicationDbContext> dbContextFactory)
+		=> _dbContextFactory = dbContextFactory;
+
+	private async Task<T> RunAsync<T>(Func<ApplicationDbContext, CancellationToken, Task<T>> fn, CancellationToken ct)
 	{
-		_context = context;
+		await using var ctx = _dbContextFactory.CreateDbContext();
+		return await fn(ctx, ct);
 	}
 
 	public async Task<ContentModerationMetricsSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
 	{
 		// Pending = still awaiting human decision (AI may already have recommended approve/reject).
-		var pendingAlbums = _context.Albums.Where(a => a.ApprovalStatus == ContentApprovalStatus.PendingApproval);
-		var pendingBlogs = _context.Blogs.Where(b => b.ApprovalStatus == ContentApprovalStatus.PendingApproval);
-		var pendingReels = _context.Reels.Where(r => r.ApprovalStatus == ContentApprovalStatus.PendingApproval);
-		var pendingCount =
-			await pendingAlbums.CountAsync(cancellationToken) +
-			await pendingBlogs.CountAsync(cancellationToken) +
-			await pendingReels.CountAsync(cancellationToken);
+		var pendingAlbumCountT  = RunAsync((c, ct) => c.Albums.AsNoTracking().CountAsync(a => a.ApprovalStatus == ContentApprovalStatus.PendingApproval, ct), cancellationToken);
+		var pendingBlogCountT   = RunAsync((c, ct) => c.Blogs.AsNoTracking().CountAsync(b => b.ApprovalStatus == ContentApprovalStatus.PendingApproval, ct), cancellationToken);
+		var pendingReelCountT   = RunAsync((c, ct) => c.Reels.AsNoTracking().CountAsync(r => r.ApprovalStatus == ContentApprovalStatus.PendingApproval, ct), cancellationToken);
 		// Oldest submission timestamp drives queue-age SLAs in the alert evaluator.
-		var oldestDates = new[]
-		{
-			await pendingAlbums.MinAsync(a => (DateTime?)a.SubmittedAtUtc, cancellationToken),
-			await pendingBlogs.MinAsync(b => (DateTime?)b.SubmittedAtUtc, cancellationToken),
-			await pendingReels.MinAsync(r => (DateTime?)r.SubmittedAtUtc, cancellationToken),
-		};
-
-		var latencies = await CollectReviewLatenciesHoursAsync(cancellationToken);
-		var p95 = Percentile95(latencies);
-		var topFlags = await CollectTopFlagsAsync(cancellationToken);
-		var pendingFaces = await CollectPendingByFaceAsync(cancellationToken);
+		var pendingAlbumOldestT = RunAsync((c, ct) => c.Albums.AsNoTracking().Where(a => a.ApprovalStatus == ContentApprovalStatus.PendingApproval).MinAsync(a => (DateTime?)a.SubmittedAtUtc, ct), cancellationToken);
+		var pendingBlogOldestT  = RunAsync((c, ct) => c.Blogs.AsNoTracking().Where(b => b.ApprovalStatus == ContentApprovalStatus.PendingApproval).MinAsync(b => (DateTime?)b.SubmittedAtUtc, ct), cancellationToken);
+		var pendingReelOldestT  = RunAsync((c, ct) => c.Reels.AsNoTracking().Where(r => r.ApprovalStatus == ContentApprovalStatus.PendingApproval).MinAsync(r => (DateTime?)r.SubmittedAtUtc, ct), cancellationToken);
+		// AiReviewJob pipeline health
+		var aiQueuedT       = RunAsync((c, ct) => c.AiReviewJobs.AsNoTracking().CountAsync(j => j.Status == AiReviewJobStatus.Queued || j.Status == AiReviewJobStatus.RetryScheduled, ct), cancellationToken);
+		var aiProcessingT   = RunAsync((c, ct) => c.AiReviewJobs.AsNoTracking().CountAsync(j => j.Status == AiReviewJobStatus.Processing, ct), cancellationToken);
+		var aiFailedT       = RunAsync((c, ct) => c.AiReviewJobs.AsNoTracking().CountAsync(j => j.Status == AiReviewJobStatus.Failed, ct), cancellationToken);
 		// Heuristic: failed jobs whose LastError mentions "timeout" (case-insensitive) for ops dashboards.
-		var timeoutJobs = await _context.AiReviewJobs.CountAsync(
-			j => j.Status == AiReviewJobStatus.Failed &&
-				j.LastError != null &&
-				j.LastError.ToLower().Contains("timeout"),
-			cancellationToken);
+		var timeoutJobsT    = RunAsync((c, ct) => c.AiReviewJobs.AsNoTracking().CountAsync(j => j.Status == AiReviewJobStatus.Failed && j.LastError != null && j.LastError.ToLower().Contains("timeout"), ct), cancellationToken);
+		// Terminal approval status counts (9 = 3 statuses × 3 entity types)
+		var albumApprovedT  = RunAsync((c, ct) => c.Albums.AsNoTracking().CountAsync(a => a.ApprovalStatus == ContentApprovalStatus.Approved, ct), cancellationToken);
+		var blogApprovedT   = RunAsync((c, ct) => c.Blogs.AsNoTracking().CountAsync(b => b.ApprovalStatus == ContentApprovalStatus.Approved, ct), cancellationToken);
+		var reelApprovedT   = RunAsync((c, ct) => c.Reels.AsNoTracking().CountAsync(r => r.ApprovalStatus == ContentApprovalStatus.Approved, ct), cancellationToken);
+		var albumRejectedT  = RunAsync((c, ct) => c.Albums.AsNoTracking().CountAsync(a => a.ApprovalStatus == ContentApprovalStatus.Rejected, ct), cancellationToken);
+		var blogRejectedT   = RunAsync((c, ct) => c.Blogs.AsNoTracking().CountAsync(b => b.ApprovalStatus == ContentApprovalStatus.Rejected, ct), cancellationToken);
+		var reelRejectedT   = RunAsync((c, ct) => c.Reels.AsNoTracking().CountAsync(r => r.ApprovalStatus == ContentApprovalStatus.Rejected, ct), cancellationToken);
+		var albumRemovedT   = RunAsync((c, ct) => c.Albums.AsNoTracking().CountAsync(a => a.ApprovalStatus == ContentApprovalStatus.Removed, ct), cancellationToken);
+		var blogRemovedT    = RunAsync((c, ct) => c.Blogs.AsNoTracking().CountAsync(b => b.ApprovalStatus == ContentApprovalStatus.Removed, ct), cancellationToken);
+		var reelRemovedT    = RunAsync((c, ct) => c.Reels.AsNoTracking().CountAsync(r => r.ApprovalStatus == ContentApprovalStatus.Removed, ct), cancellationToken);
+		// AI review recommendation counts (9 = 3 recommendations × 3 entity types)
+		var albumAiApproveT = RunAsync((c, ct) => c.Albums.AsNoTracking().CountAsync(a => a.AiReviewStatus == AiReviewStatus.RecommendedApprove, ct), cancellationToken);
+		var blogAiApproveT  = RunAsync((c, ct) => c.Blogs.AsNoTracking().CountAsync(b => b.AiReviewStatus == AiReviewStatus.RecommendedApprove, ct), cancellationToken);
+		var reelAiApproveT  = RunAsync((c, ct) => c.Reels.AsNoTracking().CountAsync(r => r.AiReviewStatus == AiReviewStatus.RecommendedApprove, ct), cancellationToken);
+		var albumAiRejectT  = RunAsync((c, ct) => c.Albums.AsNoTracking().CountAsync(a => a.AiReviewStatus == AiReviewStatus.RecommendedReject, ct), cancellationToken);
+		var blogAiRejectT   = RunAsync((c, ct) => c.Blogs.AsNoTracking().CountAsync(b => b.AiReviewStatus == AiReviewStatus.RecommendedReject, ct), cancellationToken);
+		var reelAiRejectT   = RunAsync((c, ct) => c.Reels.AsNoTracking().CountAsync(r => r.AiReviewStatus == AiReviewStatus.RecommendedReject, ct), cancellationToken);
+		var albumAiHumanT   = RunAsync((c, ct) => c.Albums.AsNoTracking().CountAsync(a => a.AiReviewStatus == AiReviewStatus.NeedsHumanReview, ct), cancellationToken);
+		var blogAiHumanT    = RunAsync((c, ct) => c.Blogs.AsNoTracking().CountAsync(b => b.AiReviewStatus == AiReviewStatus.NeedsHumanReview, ct), cancellationToken);
+		var reelAiHumanT    = RunAsync((c, ct) => c.Reels.AsNoTracking().CountAsync(r => r.AiReviewStatus == AiReviewStatus.NeedsHumanReview, ct), cancellationToken);
+		// Richer helpers (internal parallelism where possible)
+		var latenciesT      = CollectReviewLatenciesHoursAsync(cancellationToken);
+		var topFlagsT       = CollectTopFlagsAsync(cancellationToken);
+		var pendingFacesT   = CollectPendingByFaceAsync(cancellationToken);
+
+		await Task.WhenAll(
+			pendingAlbumCountT, pendingBlogCountT, pendingReelCountT,
+			pendingAlbumOldestT, pendingBlogOldestT, pendingReelOldestT,
+			aiQueuedT, aiProcessingT, aiFailedT, timeoutJobsT,
+			albumApprovedT, blogApprovedT, reelApprovedT,
+			albumRejectedT, blogRejectedT, reelRejectedT,
+			albumRemovedT, blogRemovedT, reelRemovedT,
+			albumAiApproveT, blogAiApproveT, reelAiApproveT,
+			albumAiRejectT, blogAiRejectT, reelAiRejectT,
+			albumAiHumanT, blogAiHumanT, reelAiHumanT,
+			latenciesT, topFlagsT, pendingFacesT);
+
+		var latencies = latenciesT.Result;
+		var oldestDates = new[] { pendingAlbumOldestT.Result, pendingBlogOldestT.Result, pendingReelOldestT.Result };
+		var oldest = oldestDates.Where(d => d.HasValue).DefaultIfEmpty().Min();
 
 		return new ContentModerationMetricsSnapshot(
-			pendingCount,
-			await _context.AiReviewJobs.CountAsync(j => j.Status == AiReviewJobStatus.Queued || j.Status == AiReviewJobStatus.RetryScheduled, cancellationToken),
-			await _context.AiReviewJobs.CountAsync(j => j.Status == AiReviewJobStatus.Processing, cancellationToken),
-			await _context.AiReviewJobs.CountAsync(j => j.Status == AiReviewJobStatus.Failed, cancellationToken),
-			oldestDates.Where(d => d.HasValue).DefaultIfEmpty().Min(),
-			CalculateAgeHours(oldestDates.Where(d => d.HasValue).DefaultIfEmpty().Min(), DateTime.UtcNow),
+			pendingAlbumCountT.Result + pendingBlogCountT.Result + pendingReelCountT.Result,
+			aiQueuedT.Result,
+			aiProcessingT.Result,
+			aiFailedT.Result,
+			oldest,
+			CalculateAgeHours(oldest, DateTime.UtcNow),
 			latencies.Count == 0 ? null : latencies.Average(),
-			p95,
-			await CountApprovalStatusAsync(ContentApprovalStatus.Approved, cancellationToken),
-			await CountApprovalStatusAsync(ContentApprovalStatus.Rejected, cancellationToken),
-			await CountApprovalStatusAsync(ContentApprovalStatus.Removed, cancellationToken),
-			await CountAiStatusAsync(AiReviewStatus.RecommendedApprove, cancellationToken),
-			await CountAiStatusAsync(AiReviewStatus.RecommendedReject, cancellationToken),
-			await CountAiStatusAsync(AiReviewStatus.NeedsHumanReview, cancellationToken),
-			timeoutJobs,
-			topFlags,
-			pendingFaces);
+			Percentile95(latencies),
+			albumApprovedT.Result + blogApprovedT.Result + reelApprovedT.Result,
+			albumRejectedT.Result + blogRejectedT.Result + reelRejectedT.Result,
+			albumRemovedT.Result + blogRemovedT.Result + reelRemovedT.Result,
+			albumAiApproveT.Result + blogAiApproveT.Result + reelAiApproveT.Result,
+			albumAiRejectT.Result + blogAiRejectT.Result + reelAiRejectT.Result,
+			albumAiHumanT.Result + blogAiHumanT.Result + reelAiHumanT.Result,
+			timeoutJobsT.Result,
+			topFlagsT.Result,
+			pendingFacesT.Result);
 	}
-
-	/// <summary>Counts entities in a terminal approval status across all moderated types.</summary>
-	private async Task<int> CountApprovalStatusAsync(ContentApprovalStatus status, CancellationToken cancellationToken) =>
-		await _context.Albums.CountAsync(a => a.ApprovalStatus == status, cancellationToken) +
-		await _context.Blogs.CountAsync(b => b.ApprovalStatus == status, cancellationToken) +
-		await _context.Reels.CountAsync(r => r.ApprovalStatus == status, cancellationToken);
-
-	/// <summary>Counts rows whose AI pipeline is in a particular <see cref="AiReviewStatus"/>.</summary>
-	private async Task<int> CountAiStatusAsync(AiReviewStatus status, CancellationToken cancellationToken) =>
-		await _context.Albums.CountAsync(a => a.AiReviewStatus == status, cancellationToken) +
-		await _context.Blogs.CountAsync(b => b.AiReviewStatus == status, cancellationToken) +
-		await _context.Reels.CountAsync(r => r.AiReviewStatus == status, cancellationToken);
 
 	/// <summary>Human review latency samples (hours) used for average and P95 dashboard cards.</summary>
 	private async Task<List<double>> CollectReviewLatenciesHoursAsync(CancellationToken cancellationToken)
 	{
-		var latencies = new List<double>();
-		latencies.AddRange(await _context.Albums
+		var albumT = RunAsync((c, ct) => c.Albums.AsNoTracking()
 			.Where(a => a.SubmittedAtUtc.HasValue && a.HumanReviewedAtUtc.HasValue)
 			.Select(a => (a.HumanReviewedAtUtc!.Value - a.SubmittedAtUtc!.Value).TotalHours)
-			.ToListAsync(cancellationToken));
-		latencies.AddRange(await _context.Blogs
+			.ToListAsync(ct), cancellationToken);
+		var blogT = RunAsync((c, ct) => c.Blogs.AsNoTracking()
 			.Where(b => b.SubmittedAtUtc.HasValue && b.HumanReviewedAtUtc.HasValue)
 			.Select(b => (b.HumanReviewedAtUtc!.Value - b.SubmittedAtUtc!.Value).TotalHours)
-			.ToListAsync(cancellationToken));
-		latencies.AddRange(await _context.Reels
+			.ToListAsync(ct), cancellationToken);
+		var reelT = RunAsync((c, ct) => c.Reels.AsNoTracking()
 			.Where(r => r.SubmittedAtUtc.HasValue && r.HumanReviewedAtUtc.HasValue)
 			.Select(r => (r.HumanReviewedAtUtc!.Value - r.SubmittedAtUtc!.Value).TotalHours)
-			.ToListAsync(cancellationToken));
-		return latencies;
+			.ToListAsync(ct), cancellationToken);
+		await Task.WhenAll(albumT, blogT, reelT);
+		var result = new List<double>(albumT.Result.Count + blogT.Result.Count + reelT.Result.Count);
+		result.AddRange(albumT.Result);
+		result.AddRange(blogT.Result);
+		result.AddRange(reelT.Result);
+		return result;
 	}
 
 	/// <summary>Nearest-rank P95 over latency samples; null when there is no completed human review data.</summary>
@@ -793,22 +817,27 @@ public sealed class ContentModerationMetrics : IContentModerationMetrics
 	/// </summary>
 	private async Task<IReadOnlyList<FlagCountDto>> CollectTopFlagsAsync(CancellationToken cancellationToken)
 	{
-		var jsonSamples = new List<string?>();
-		jsonSamples.AddRange(await _context.Albums
+		var albumT = RunAsync((c, ct) => c.Albums.AsNoTracking()
 			.Where(a => a.ApprovalStatus == ContentApprovalStatus.PendingApproval && a.AiReviewFlagsJson != null)
 			.Select(a => a.AiReviewFlagsJson)
 			.Take(2000)
-			.ToListAsync(cancellationToken));
-		jsonSamples.AddRange(await _context.Blogs
+			.ToListAsync(ct), cancellationToken);
+		var blogT = RunAsync((c, ct) => c.Blogs.AsNoTracking()
 			.Where(b => b.ApprovalStatus == ContentApprovalStatus.PendingApproval && b.AiReviewFlagsJson != null)
 			.Select(b => b.AiReviewFlagsJson)
 			.Take(2000)
-			.ToListAsync(cancellationToken));
-		jsonSamples.AddRange(await _context.Reels
+			.ToListAsync(ct), cancellationToken);
+		var reelT = RunAsync((c, ct) => c.Reels.AsNoTracking()
 			.Where(r => r.ApprovalStatus == ContentApprovalStatus.PendingApproval && r.AiReviewFlagsJson != null)
 			.Select(r => r.AiReviewFlagsJson)
 			.Take(2000)
-			.ToListAsync(cancellationToken));
+			.ToListAsync(ct), cancellationToken);
+		await Task.WhenAll(albumT, blogT, reelT);
+
+		var jsonSamples = new List<string?>(albumT.Result.Count + blogT.Result.Count + reelT.Result.Count);
+		jsonSamples.AddRange(albumT.Result);
+		jsonSamples.AddRange(blogT.Result);
+		jsonSamples.AddRange(reelT.Result);
 
 		var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 		foreach (var json in jsonSamples)
@@ -842,41 +871,39 @@ public sealed class ContentModerationMetrics : IContentModerationMetrics
 	/// <summary>Rolls up pending submissions per face across blogs, albums, and reels for hotspot detection.</summary>
 	private async Task<IReadOnlyList<FacePendingCountDto>> CollectPendingByFaceAsync(CancellationToken cancellationToken)
 	{
-		var map = new Dictionary<int, int>();
-		var blogGroups = await _context.Blogs
+		// The 3 group queries run in parallel; the Faces title lookup must wait for faceIds (sequential dependency).
+		var blogT = RunAsync((c, ct) => c.Blogs.AsNoTracking()
 			.Where(b => b.ApprovalStatus == ContentApprovalStatus.PendingApproval)
 			.GroupBy(b => b.FaceId)
 			.Select(g => new { FaceId = g.Key, Count = g.Count() })
-			.ToListAsync(cancellationToken);
-		foreach (var g in blogGroups)
-			map[g.FaceId] = map.GetValueOrDefault(g.FaceId) + g.Count;
-
-		var albumGroups = await _context.Albums
+			.ToListAsync(ct), cancellationToken);
+		var albumT = RunAsync((c, ct) => c.Albums.AsNoTracking()
 			.Where(a => a.ApprovalStatus == ContentApprovalStatus.PendingApproval)
 			.SelectMany(a => a.AlbumFaces)
 			.GroupBy(af => af.FaceId)
 			.Select(g => new { FaceId = g.Key, Count = g.Count() })
-			.ToListAsync(cancellationToken);
-		foreach (var g in albumGroups)
-			map[g.FaceId] = map.GetValueOrDefault(g.FaceId) + g.Count;
-
-		var reelGroups = await _context.Reels
+			.ToListAsync(ct), cancellationToken);
+		var reelT = RunAsync((c, ct) => c.Reels.AsNoTracking()
 			.Where(r => r.ApprovalStatus == ContentApprovalStatus.PendingApproval)
 			.SelectMany(r => r.ReelFaces)
 			.GroupBy(rf => rf.FaceId)
 			.Select(g => new { FaceId = g.Key, Count = g.Count() })
-			.ToListAsync(cancellationToken);
-		foreach (var g in reelGroups)
-			map[g.FaceId] = map.GetValueOrDefault(g.FaceId) + g.Count;
+			.ToListAsync(ct), cancellationToken);
+		await Task.WhenAll(blogT, albumT, reelT);
+
+		var map = new Dictionary<int, int>();
+		foreach (var g in blogT.Result)  map[g.FaceId] = map.GetValueOrDefault(g.FaceId) + g.Count;
+		foreach (var g in albumT.Result) map[g.FaceId] = map.GetValueOrDefault(g.FaceId) + g.Count;
+		foreach (var g in reelT.Result)  map[g.FaceId] = map.GetValueOrDefault(g.FaceId) + g.Count;
 
 		var faceIds = map.Keys.ToList();
 		if (faceIds.Count == 0)
 			return Array.Empty<FacePendingCountDto>();
 
-		var titles = await _context.Faces
+		var titles = await RunAsync((c, ct) => c.Faces.AsNoTracking()
 			.Where(f => faceIds.Contains(f.Id))
 			.Select(f => new { f.Id, f.Title })
-			.ToListAsync(cancellationToken);
+			.ToListAsync(ct), cancellationToken);
 		var titleById = titles.ToDictionary(t => t.Id, t => t.Title);
 
 		return map

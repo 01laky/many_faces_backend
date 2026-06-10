@@ -9,6 +9,7 @@ using BeDemo.Api.Models.Requests.Users;
 using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -50,6 +51,7 @@ public class UsersController : ControllerBase
 	/// <c>CanManageAllFaces</c> only see users who have <see cref="UserFaceProfile"/> for the scoped face — no cross-face directory leakage.
 	/// </remarks>
 	[HttpGet]
+	[ProducesResponseType(typeof(UserListEnvelopeDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetUsers([FromQuery] GetUsersQuery listQuery)
 	{
 		try
@@ -131,30 +133,30 @@ public class UsersController : ControllerBase
 				.Take(pageSize)
 				.ToListAsync();
 
-			var userDtos = users.Select(u => new
+			var userDtos = users.Select(u => new UserDto
 			{
-				id = u.Id,
-				email = u.Email,
-				firstName = u.FirstName,
-				lastName = u.LastName,
-				createdAt = u.CreatedAt,
+				Id = u.Id,
+				Email = u.Email ?? string.Empty,
+				FirstName = u.FirstName,
+				LastName = u.LastName,
+				CreatedAt = u.CreatedAt,
 			}).ToList();
 
 			_logger.LogInformation("Retrieved {Count} users (page {Page}, total {Total})", userDtos.Count, page, totalCount);
 
-			return Ok(new
+			return Ok(new UserListEnvelopeDto
 			{
-				items = userDtos,
-				totalCount,
-				page,
-				pageSize,
-				totalPages,
+				Items = userDtos,
+				TotalCount = totalCount,
+				Page = page,
+				PageSize = pageSize,
+				TotalPages = totalPages,
 			});
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving users");
-			return StatusCode(500, new { error = "An error occurred while retrieving users" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving users" });
 		}
 	}
 
@@ -163,6 +165,8 @@ public class UsersController : ControllerBase
 	/// Get user by ID
 	/// </summary>
 	[HttpGet("{id}")]
+	[ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetUser(string id)
 	{
 		try
@@ -172,7 +176,7 @@ public class UsersController : ControllerBase
 			if (user == null)
 			{
 				_logger.LogWarning("User not found: {UserId}", id);
-				return NotFound(new { error = "User not found" });
+				return NotFound(new ErrorResponseDto { Error = "User not found" });
 			}
 
 			if (!CanManageAllFaces())
@@ -183,7 +187,7 @@ public class UsersController : ControllerBase
 						_context.UserFaceProfiles.Any(ufp =>
 							ufp.UserProfileId == up.Id && ufp.FaceId == _faceScope.FaceId));
 				if (!inScope)
-					return NotFound(new { error = "User not found" });
+					return NotFound(new ErrorResponseDto { Error = "User not found" });
 			}
 
 			var userDto = new
@@ -201,7 +205,7 @@ public class UsersController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving user: {UserId}", id);
-			return StatusCode(500, new { error = "An error occurred while retrieving user" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving user" });
 		}
 	}
 
@@ -215,6 +219,7 @@ public class UsersController : ControllerBase
 	// learning whether the body was well-formed (previously a malformed body from an unauthorized caller returned 400).
 	[HttpPost]
 	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
+	[ProducesResponseType(typeof(UserDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> CreateUser([FromBody] CreateUserModel model)
 	{
 		if (!ModelState.IsValid)
@@ -229,7 +234,7 @@ public class UsersController : ControllerBase
 			if (userRole == null)
 			{
 				_logger.LogError("USER role not found. Please ensure UserRoles are seeded.");
-				return StatusCode(500, new { error = "System configuration error: USER role not found" });
+				return StatusCode(500, new ErrorResponseDto { Error = "System configuration error: USER role not found" });
 			}
 
 			var user = new ApplicationUser
@@ -267,7 +272,7 @@ public class UsersController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error creating user");
-			return StatusCode(500, new { error = "An error occurred while creating user" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while creating user" });
 		}
 	}
 
@@ -277,6 +282,7 @@ public class UsersController : ControllerBase
 	/// </summary>
 	[HttpPut("{id}")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
+	[ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserModel model)
 	{
 		if (!ModelState.IsValid)
@@ -291,7 +297,7 @@ public class UsersController : ControllerBase
 			if (user == null)
 			{
 				_logger.LogWarning("User not found for update: {UserId}", id);
-				return NotFound(new { error = "User not found" });
+				return NotFound(new ErrorResponseDto { Error = "User not found" });
 			}
 
 			// Update user properties
@@ -348,7 +354,7 @@ public class UsersController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error updating user: {UserId}", id);
-			return StatusCode(500, new { error = "An error occurred while updating user" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while updating user" });
 		}
 	}
 }

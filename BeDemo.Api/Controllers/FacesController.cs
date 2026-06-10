@@ -7,6 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Npgsql;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.Faces;
 using BeDemo.Api.Models.Requests.Faces;
@@ -111,21 +112,7 @@ public class FacesController : ControllerBase
 				.Take(pageSize)
 				.ToListAsync();
 
-			var items = faces.Select(f => new
-			{
-				id = f.Id,
-				index = f.Index,
-				title = f.Title,
-				description = f.Description,
-				gradientSettings = f.GradientSettings,
-				isPublic = f.IsPublic,
-				visibility = f.Visibility.ToString(),
-				allowRecensions = f.AllowRecensions,
-				chatRoomsCreate = f.ChatRoomsCreate,
-				videoLoungesCreate = f.VideoLoungesCreate,
-				createdAt = f.CreatedAt,
-				updatedAt = f.UpdatedAt,
-			}).ToList();
+			var items = faces.Select(FaceDto.From).ToList();
 
 			_logger.LogInformation("Retrieved {Count} faces (page {Page})", items.Count, page);
 			return Ok(ListPaginationHelper.BuildEnvelope(items, page, pageSize, totalCount, totalPages));
@@ -133,7 +120,7 @@ public class FacesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving faces");
-			return StatusCode(500, new { error = "An error occurred while retrieving faces" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving faces" });
 		}
 	}
 
@@ -187,7 +174,7 @@ public class FacesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving faces config");
-			return StatusCode(500, new { error = "An error occurred while retrieving faces config" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving faces config" });
 		}
 	}
 
@@ -197,6 +184,7 @@ public class FacesController : ControllerBase
 	/// </summary>
 	[HttpGet("face-roles")]
 	[AllowAnonymous]
+	[ProducesResponseType(typeof(IEnumerable<FaceRoleSummaryDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetFaceRoles()
 	{
 		try
@@ -214,14 +202,14 @@ public class FacesController : ControllerBase
 
 			var roles = await q
 				.OrderBy(r => r.Name)
-				.Select(r => new { id = r.Id, name = r.Name })
+				.Select(r => new FaceRoleSummaryDto { Id = r.Id, Name = r.Name })
 				.ToListAsync();
 			return Ok(roles);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving face roles");
-			return StatusCode(500, new { error = "An error occurred while retrieving face roles" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving face roles" });
 		}
 	}
 
@@ -230,11 +218,14 @@ public class FacesController : ControllerBase
 	/// Set current user's face role for the given face. Used when user selects role on first visit to a private face.
 	/// </summary>
 	[HttpPut("{id}/my-role")]
+	[ProducesResponseType(typeof(FaceRoleResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> SetMyFaceRole(int id, [FromBody] SetMyFaceRoleModel model)
 	{
 		if (model == null || model.UserRoleId <= 0)
 		{
-			return BadRequest(new { error = "userRoleId is required" });
+			return BadRequest(new ErrorResponseDto { Error = "userRoleId is required" });
 		}
 
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -252,13 +243,13 @@ public class FacesController : ControllerBase
 			var face = await _context.Faces.FindAsync(id);
 			if (face == null)
 			{
-				return NotFound(new { error = "Face not found" });
+				return NotFound(new ErrorResponseDto { Error = "Face not found" });
 			}
 
 			var role = await _context.UserRoles.FindAsync(model.UserRoleId);
 			if (role == null || role.Scope != RoleScope.Face)
 			{
-				return BadRequest(new { error = "Invalid face role" });
+				return BadRequest(new ErrorResponseDto { Error = "Invalid face role" });
 			}
 
 			if (!CanManageAllFaces() && !FaceRoleSelfServiceRules.IsSelfAssignableFaceRoleName(role.Name))
@@ -306,12 +297,12 @@ public class FacesController : ControllerBase
 			await _context.SaveChangesAsync();
 			_logger.LogInformation("User {UserId} set face role to {RoleName} for face {FaceId}", userId, role.Name, id);
 			SecurityAuditLog.FaceRoleChanged(_logger, userId, id, previousRoleName, role.Name, HttpContext.TraceIdentifier);
-			return Ok(new { userRoleId = model.UserRoleId, userRoleName = role.Name });
+			return Ok(new FaceRoleResultDto { UserRoleId = model.UserRoleId, UserRoleName = role.Name });
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error setting face role for face {FaceId}", id);
-			return StatusCode(500, new { error = "An error occurred while setting face role" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while setting face role" });
 		}
 	}
 
@@ -319,6 +310,8 @@ public class FacesController : ControllerBase
 	/// POST /api/faces/{id}/visit — mark current user as having switched to this face (Visited = true).
 	/// </summary>
 	[HttpPost("{id:int}/visit")]
+	[ProducesResponseType(typeof(VisitedResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> MarkFaceVisited(int id)
 	{
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -331,11 +324,11 @@ public class FacesController : ControllerBase
 
 		var face = await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Id == id);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == userId);
 		if (userProfile == null)
-			return BadRequest(new { error = "User profile not found" });
+			return BadRequest(new ErrorResponseDto { Error = "User profile not found" });
 
 		await UserFaceProfileEnsure.GetOrCreateAsync(
 			_context,
@@ -345,13 +338,15 @@ public class FacesController : ControllerBase
 
 		await _context.SaveChangesAsync();
 		_facesConfig.InvalidateAll();
-		return Ok(new { visited = true });
+		return Ok(new VisitedResultDto());
 	}
 
 	/// <summary>
 	/// POST /api/faces/{id}/exit-face — leave non-host participation; purge face-scoped social data and reset role to FACE_HOST.
 	/// </summary>
 	[HttpPost("{id:int}/exit-face")]
+	[ProducesResponseType(typeof(ExitFaceResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> ExitFace(int id)
 	{
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -364,32 +359,32 @@ public class FacesController : ControllerBase
 
 		var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == id);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		if (FaceScopeConstants.IsAdminFaceIndex(face.Index))
-			return BadRequest(new { error = "Cannot exit the admin scope face" });
+			return BadRequest(new ErrorResponseDto { Error = "Cannot exit the admin scope face" });
 
 		var hostRole = await _context.UserRoles
 			.FirstOrDefaultAsync(r => r.Name == UserRole.FaceRoleNames.FaceHost && r.Scope == RoleScope.Face);
 		if (hostRole == null)
-			return StatusCode(500, new { error = "FACE_HOST role missing" });
+			return StatusCode(500, new ErrorResponseDto { Error = "FACE_HOST role missing" });
 
 		var ufr = await _context.UserFaceRoles
 			.Include(x => x.UserRole)
 			.FirstOrDefaultAsync(x => x.UserId == userId && x.FaceId == id);
 		if (ufr?.UserRole == null)
-			return BadRequest(new { error = "No face role for this face" });
+			return BadRequest(new ErrorResponseDto { Error = "No face role for this face" });
 		if (FaceRoleParticipation.IsHostFaceRole(ufr.UserRole.Name))
-			return BadRequest(new { error = "Already in host role" });
+			return BadRequest(new ErrorResponseDto { Error = "Already in host role" });
 
 		var userProfile = await _context.UserProfiles.FirstOrDefaultAsync(up => up.UserId == userId);
 		if (userProfile == null)
-			return BadRequest(new { error = "User profile not found" });
+			return BadRequest(new ErrorResponseDto { Error = "User profile not found" });
 
 		var myUfp = await _context.UserFaceProfiles
 			.FirstOrDefaultAsync(x => x.UserProfileId == userProfile.Id && x.FaceId == id);
 		if (myUfp == null)
-			return BadRequest(new { error = "Face profile not found" });
+			return BadRequest(new ErrorResponseDto { Error = "Face profile not found" });
 
 		var faceProfileIds = await _context.UserFaceProfiles
 			.Where(x => x.FaceId == id)
@@ -427,7 +422,7 @@ public class FacesController : ControllerBase
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("User {UserId} exited face {FaceId} (reset to FACE_HOST)", userId, id);
-		return Ok(new { message = "Exited face", userRoleId = hostRole.Id, userRoleName = hostRole.Name });
+		return Ok(new ExitFaceResultDto { Message = "Exited face", UserRoleId = hostRole.Id, UserRoleName = hostRole.Name });
 	}
 
 	/// <summary>
@@ -435,6 +430,8 @@ public class FacesController : ControllerBase
 	/// Get face by ID
 	/// </summary>
 	[HttpGet("{id}")]
+	[ProducesResponseType(typeof(FaceDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetFace(int id)
 	{
 		try
@@ -448,24 +445,10 @@ public class FacesController : ControllerBase
 			if (face == null)
 			{
 				_logger.LogWarning("Face not found: {FaceId}", id);
-				return NotFound(new { error = "Face not found" });
+				return NotFound(new ErrorResponseDto { Error = "Face not found" });
 			}
 
-			var faceDto = new
-			{
-				id = face.Id,
-				index = face.Index,
-				title = face.Title,
-				description = face.Description,
-				gradientSettings = face.GradientSettings,
-				isPublic = face.IsPublic,
-				visibility = face.Visibility.ToString(),
-				allowRecensions = face.AllowRecensions,
-				chatRoomsCreate = face.ChatRoomsCreate,
-				videoLoungesCreate = face.VideoLoungesCreate,
-				createdAt = face.CreatedAt,
-				updatedAt = face.UpdatedAt,
-			};
+			var faceDto = FaceDto.From(face);
 
 			_logger.LogInformation("Retrieved face: {FaceId}", id);
 			return Ok(faceDto);
@@ -473,7 +456,7 @@ public class FacesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving face: {FaceId}", id);
-			return StatusCode(500, new { error = "An error occurred while retrieving face" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving face" });
 		}
 	}
 
@@ -482,6 +465,8 @@ public class FacesController : ControllerBase
 	/// Create a new face
 	/// </summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(FaceDto), StatusCodes.Status201Created)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> CreateFace([FromBody] CreateFaceModel model)
 	{
 		if (!ModelState.IsValid)
@@ -496,13 +481,13 @@ public class FacesController : ControllerBase
 		{
 			// Check if index already exists
 			if (FaceScopeConstants.IsAdminFaceIndex(model.Index))
-				return BadRequest(new { error = "The admin index is reserved for the platform scope face" });
+				return BadRequest(new ErrorResponseDto { Error = "The admin index is reserved for the platform scope face" });
 
-			var existingFace = await _context.Faces.FirstOrDefaultAsync(f => f.Index == model.Index);
+			var existingFace = await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Index == model.Index);
 			if (existingFace != null)
 			{
 				_logger.LogWarning("Face with index already exists: {Index}", model.Index);
-				return BadRequest(new { error = "Face with this index already exists" });
+				return BadRequest(new ErrorResponseDto { Error = "Face with this index already exists" });
 			}
 
 			var gradient = string.IsNullOrWhiteSpace(model.GradientSettings)
@@ -556,28 +541,14 @@ public class FacesController : ControllerBase
 
 			await _profileDetailTemplates.EnsureForFaceAsync(face.Id);
 
-			var faceDto = new
-			{
-				id = face.Id,
-				index = face.Index,
-				title = face.Title,
-				description = face.Description,
-				gradientSettings = face.GradientSettings,
-				isPublic = face.IsPublic,
-				visibility = face.Visibility.ToString(),
-				allowRecensions = face.AllowRecensions,
-				chatRoomsCreate = face.ChatRoomsCreate,
-				videoLoungesCreate = face.VideoLoungesCreate,
-				createdAt = face.CreatedAt,
-				updatedAt = face.UpdatedAt,
-			};
+			var faceDto = FaceDto.From(face);
 
 			return CreatedAtAction(nameof(GetFace), new { id = face.Id }, faceDto);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error creating face");
-			return StatusCode(500, new { error = "An error occurred while creating face" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while creating face" });
 		}
 	}
 
@@ -586,6 +557,9 @@ public class FacesController : ControllerBase
 	/// Update face by ID
 	/// </summary>
 	[HttpPut("{id}")]
+	[ProducesResponseType(typeof(FaceDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> UpdateFace(int id, [FromBody] UpdateFaceModel model)
 	{
 		if (!ModelState.IsValid)
@@ -603,23 +577,23 @@ public class FacesController : ControllerBase
 			if (face == null)
 			{
 				_logger.LogWarning("Face not found for update: {FaceId}", id);
-				return NotFound(new { error = "Face not found" });
+				return NotFound(new ErrorResponseDto { Error = "Face not found" });
 			}
 
 			if (FaceScopeConstants.IsAdminFaceIndex(face.Index))
-				return BadRequest(new { error = "The admin scope face cannot be modified" });
+				return BadRequest(new ErrorResponseDto { Error = "The admin scope face cannot be modified" });
 
 			if (model.Index != null && FaceScopeConstants.IsAdminFaceIndex(model.Index))
-				return BadRequest(new { error = "The admin index is reserved for the platform scope face" });
+				return BadRequest(new ErrorResponseDto { Error = "The admin index is reserved for the platform scope face" });
 
 			// Check if index already exists (excluding current face)
 			if (model.Index != null && model.Index != face.Index)
 			{
-				var existingFace = await _context.Faces.FirstOrDefaultAsync(f => f.Index == model.Index && f.Id != id);
+				var existingFace = await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Index == model.Index && f.Id != id);
 				if (existingFace != null)
 				{
 					_logger.LogWarning("Face with index already exists: {Index}", model.Index);
-					return BadRequest(new { error = "Face with this index already exists" });
+					return BadRequest(new ErrorResponseDto { Error = "Face with this index already exists" });
 				}
 			}
 
@@ -667,21 +641,7 @@ public class FacesController : ControllerBase
 			await _context.SaveChangesAsync();
 			InvalidateFacesRoutingCache();
 
-			var faceDto = new
-			{
-				id = face.Id,
-				index = face.Index,
-				title = face.Title,
-				description = face.Description,
-				gradientSettings = face.GradientSettings,
-				isPublic = face.IsPublic,
-				visibility = face.Visibility.ToString(),
-				allowRecensions = face.AllowRecensions,
-				chatRoomsCreate = face.ChatRoomsCreate,
-				videoLoungesCreate = face.VideoLoungesCreate,
-				createdAt = face.CreatedAt,
-				updatedAt = face.UpdatedAt,
-			};
+			var faceDto = FaceDto.From(face);
 
 			_logger.LogInformation("Face updated: {FaceId}", id);
 			return Ok(faceDto);
@@ -689,7 +649,7 @@ public class FacesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error updating face: {FaceId}", id);
-			return StatusCode(500, new { error = "An error occurred while updating face" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while updating face" });
 		}
 	}
 
@@ -698,6 +658,8 @@ public class FacesController : ControllerBase
 	/// Delete face by ID
 	/// </summary>
 	[HttpDelete("{id}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> DeleteFace(int id)
 	{
 		if (!CanManageAllFaces())
@@ -710,11 +672,11 @@ public class FacesController : ControllerBase
 			if (face == null)
 			{
 				_logger.LogWarning("Face not found for deletion: {FaceId}", id);
-				return NotFound(new { error = "Face not found" });
+				return NotFound(new ErrorResponseDto { Error = "Face not found" });
 			}
 
 			if (FaceScopeConstants.IsAdminFaceIndex(face.Index))
-				return BadRequest(new { error = "The admin scope face cannot be deleted" });
+				return BadRequest(new ErrorResponseDto { Error = "The admin scope face cannot be deleted" });
 
 			var profilesWithFace = await _context.UserProfiles
 				.Where(p => p.LastSelectedFaceId == id)
@@ -735,7 +697,7 @@ public class FacesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error deleting face: {FaceId}", id);
-			return StatusCode(500, new { error = "An error occurred while deleting face" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while deleting face" });
 		}
 	}
 }

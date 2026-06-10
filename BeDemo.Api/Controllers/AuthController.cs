@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Models;
 using BeDemo.Api.Data;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -33,6 +34,7 @@ public class AuthController : ControllerBase
 	}
 
 	[HttpPost("register")]
+	[ProducesResponseType(typeof(MessageResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Register([FromBody] RegisterModel model)
 	{
 		if (!ModelState.IsValid)
@@ -44,7 +46,7 @@ public class AuthController : ControllerBase
 		var userRole = await _context.UserRoles.FirstOrDefaultAsync(r => r.Name == UserRole.GlobalRoleNames.User);
 		if (userRole == null)
 		{
-			return BadRequest(new { error = "System configuration error: USER role not found" });
+			return BadRequest(new ErrorResponseDto { Error = "System configuration error: USER role not found" });
 		}
 
 		var user = new ApplicationUser
@@ -60,7 +62,7 @@ public class AuthController : ControllerBase
 
 		if (result.Succeeded)
 		{
-			return Ok(new { message = "User registered successfully" });
+			return Ok(new MessageResultDto { Message = "User registered successfully" });
 		}
 
 		return BadRequest(result.Errors);
@@ -68,6 +70,7 @@ public class AuthController : ControllerBase
 
 	[HttpPost("login")]
 	[EnableRateLimiting("auth-login")]
+	[ProducesResponseType(typeof(MessageResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Login([FromBody] LoginModel model)
 	{
 		if (!ModelState.IsValid)
@@ -83,16 +86,17 @@ public class AuthController : ControllerBase
 
 		if (result.Succeeded)
 		{
-			return Ok(new { message = "Login successful" });
+			return Ok(new MessageResultDto { Message = "Login successful" });
 		}
 
-		return Unauthorized(new { message = "Invalid login attempt" });
+		return Unauthorized(new MessageResultDto { Message = "Invalid login attempt" });
 	}
 
 	[HttpPost("logout")]
+	[ProducesResponseType(typeof(MessageResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Logout()
 	{
 		await _signInManager.SignOutAsync();
-		return Ok(new { message = "Logout successful" });
+		return Ok(new MessageResultDto { Message = "Logout successful" });
 	}
 }

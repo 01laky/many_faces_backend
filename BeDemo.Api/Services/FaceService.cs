@@ -27,13 +27,6 @@ public class FaceService : IFaceService
 		_logger = logger;
 	}
 
-	/// <summary>
-	/// Gets all faces from database
-	/// Used by routing middleware to match face prefixes with face IDs
-	/// </summary>
-	/// <returns>List of all faces</returns>
-	public List<Face> GetFaces() => GetFacesAsync(CancellationToken.None).GetAwaiter().GetResult();
-
 	/// <inheritdoc />
 	public async Task<List<Face>> GetFacesAsync(CancellationToken cancellationToken = default)
 	{

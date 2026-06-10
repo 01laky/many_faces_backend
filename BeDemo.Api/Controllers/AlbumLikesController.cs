@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -24,6 +25,7 @@ public class AlbumLikesController : ApiControllerBase
 
 	/// <summary>GET /api/albums/{albumId}/likes - Get likes for album</summary>
 	[HttpGet]
+	[ProducesResponseType(typeof(IReadOnlyList<ContentLikeItemDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetLikes(int albumId)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -31,7 +33,7 @@ public class AlbumLikesController : ApiControllerBase
 
 		var album = await _context.Albums.FindAsync(albumId);
 		if (album == null)
-			return NotFound(new { error = "Album not found" });
+			return NotFound(new ErrorResponseDto { Error = "Album not found" });
 
 		if (album.AlbumType != AlbumTypeEnum.Public && album.CreatorId != UserId)
 			return Forbid();
@@ -40,12 +42,12 @@ public class AlbumLikesController : ApiControllerBase
 			.Where(l => l.AlbumId == albumId)
 			.Include(l => l.User)
 			.OrderByDescending(l => l.CreatedAt)
-			.Select(l => new
+			.Select(l => new ContentLikeItemDto
 			{
-				l.Id,
-				l.UserId,
-				userName = (l.User.FirstName ?? "") + " " + (l.User.LastName ?? ""),
-				l.CreatedAt,
+				Id = l.Id,
+				UserId = l.UserId,
+				UserName = (l.User.FirstName ?? "") + " " + (l.User.LastName ?? ""),
+				CreatedAt = l.CreatedAt,
 			})
 			.ToListAsync();
 
@@ -54,6 +56,7 @@ public class AlbumLikesController : ApiControllerBase
 
 	/// <summary>POST /api/albums/{albumId}/likes - Like album</summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> LikeAlbum(int albumId)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -61,7 +64,7 @@ public class AlbumLikesController : ApiControllerBase
 
 		var album = await _context.Albums.FindAsync(albumId);
 		if (album == null)
-			return NotFound(new { error = "Album not found" });
+			return NotFound(new ErrorResponseDto { Error = "Album not found" });
 
 		if (album.AlbumType != AlbumTypeEnum.Public && album.CreatorId != UserId)
 			return Forbid();
@@ -70,7 +73,7 @@ public class AlbumLikesController : ApiControllerBase
 			.AnyAsync(l => l.AlbumId == albumId && l.UserId == UserId);
 
 		if (exists)
-			return BadRequest(new { error = "Already liked" });
+			return BadRequest(new ErrorResponseDto { Error = "Already liked" });
 
 		_context.AlbumLikes.Add(new AlbumLike
 		{
@@ -80,11 +83,12 @@ public class AlbumLikesController : ApiControllerBase
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("User {UserId} liked album {AlbumId}", UserId, albumId);
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 
 	/// <summary>DELETE /api/albums/{albumId}/likes - Unlike album</summary>
 	[HttpDelete]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> UnlikeAlbum(int albumId)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -94,12 +98,12 @@ public class AlbumLikesController : ApiControllerBase
 			.FirstOrDefaultAsync(l => l.AlbumId == albumId && l.UserId == UserId);
 
 		if (like == null)
-			return NotFound(new { error = "Like not found" });
+			return NotFound(new ErrorResponseDto { Error = "Like not found" });
 
 		_context.AlbumLikes.Remove(like);
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("User {UserId} unliked album {AlbumId}", UserId, albumId);
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 }

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BeDemo.Api.Services;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -28,12 +29,13 @@ public class MeController : ControllerBase
 	/// GET /api/me/capabilities — computed permissions for the current JWT and URL face scope (A10).
 	/// </summary>
 	[HttpGet("capabilities")]
+	[ProducesResponseType(typeof(CapabilitiesResponse), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetCapabilities(CancellationToken cancellationToken)
 	{
 		if (!_faceScope.IsAvailable)
 		{
 			_logger.LogWarning("Capabilities requested without face scope");
-			return BadRequest(new { error = "Face URL prefix is required for capabilities (e.g. /public/api/me/capabilities)." });
+			return BadRequest(new ErrorResponseDto { Error = "Face URL prefix is required for capabilities (e.g. /public/api/me/capabilities)." });
 		}
 
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

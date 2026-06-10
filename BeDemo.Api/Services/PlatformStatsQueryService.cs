@@ -24,102 +24,198 @@ public interface IPlatformStatsQueryService
 /// <inheritdoc />
 public sealed class PlatformStatsQueryService : IPlatformStatsQueryService
 {
+	// Used for the timeseries method which runs 3 sequential queries (acceptable; no N+1).
 	private readonly ApplicationDbContext _context;
 
-	public PlatformStatsQueryService(ApplicationDbContext context) => _context = context;
+	// Used for parallel count batches (X10): each RunAsync call gets an independent context so counts can
+	// execute concurrently without hitting the single-context concurrency restriction in EF Core.
+	private readonly IDbContextFactory<ApplicationDbContext> _dbContextFactory;
+
+	public PlatformStatsQueryService(
+		ApplicationDbContext context,
+		IDbContextFactory<ApplicationDbContext> dbContextFactory)
+	{
+		_context = context;
+		_dbContextFactory = dbContextFactory;
+	}
+
+	/// <summary>
+	/// Executes <paramref name="fn"/> on a fresh <see cref="ApplicationDbContext"/> (safe for concurrent use).
+	/// </summary>
+	private async Task<T> RunAsync<T>(Func<ApplicationDbContext, CancellationToken, Task<T>> fn, CancellationToken cancellationToken)
+	{
+		await using var ctx = _dbContextFactory.CreateDbContext();
+		return await fn(ctx, cancellationToken);
+	}
 
 	/// <inheritdoc />
 	public async Task<PublicStatsSnapshotDto> GetPublicSnapshotAsync(CancellationToken cancellationToken = default)
 	{
+		// Fire all 14 counts in parallel (X10: eliminates sequential round-trips on this public snapshot path).
+		var usersT              = RunAsync((c, ct) => c.Users.AsNoTracking().CountAsync(ct), cancellationToken);
+		var facesT              = RunAsync((c, ct) => c.Faces.AsNoTracking().CountAsync(ct), cancellationToken);
+		var pagesT              = RunAsync((c, ct) => c.Pages.AsNoTracking().CountAsync(ct), cancellationToken);
+		var friendshipsT        = RunAsync((c, ct) => c.Friendships.AsNoTracking().CountAsync(ct), cancellationToken);
+		var friendReqPendingT   = RunAsync((c, ct) => c.FriendRequests.AsNoTracking().CountAsync(r => r.Status == FriendRequestStatus.Pending, ct), cancellationToken);
+		var messagesT           = RunAsync((c, ct) => c.Messages.AsNoTracking().CountAsync(ct), cancellationToken);
+		var albumsT             = RunAsync((c, ct) => c.Albums.AsNoTracking().CountAsync(ct), cancellationToken);
+		var blogsT              = RunAsync((c, ct) => c.Blogs.AsNoTracking().CountAsync(ct), cancellationToken);
+		var reelsT              = RunAsync((c, ct) => c.Reels.AsNoTracking().CountAsync(ct), cancellationToken);
+		var storiesT            = RunAsync((c, ct) => c.Stories.AsNoTracking().CountAsync(ct), cancellationToken);
+		var storyViewsT         = RunAsync((c, ct) => c.StoryViews.AsNoTracking().CountAsync(ct), cancellationToken);
+		var wallTicketsT        = RunAsync((c, ct) => c.FaceWallTickets.AsNoTracking().CountAsync(ct), cancellationToken);
+		var chatRoomsT          = RunAsync((c, ct) => c.FaceChatRooms.AsNoTracking().CountAsync(ct), cancellationToken);
+		var chatRoomMessagesT   = RunAsync((c, ct) => c.FaceChatRoomMessages.AsNoTracking().CountAsync(ct), cancellationToken);
+		var videoLoungesT       = RunAsync((c, ct) => c.FaceVideoLounges.AsNoTracking().CountAsync(ct), cancellationToken);
+
+		await Task.WhenAll(
+			usersT, facesT, pagesT, friendshipsT, friendReqPendingT, messagesT,
+			albumsT, blogsT, reelsT, storiesT, storyViewsT,
+			wallTicketsT, chatRoomsT, chatRoomMessagesT, videoLoungesT);
+
 		return new PublicStatsSnapshotDto
 		{
-			UsersCount = await _context.Users.AsNoTracking().CountAsync(cancellationToken),
-			FacesCount = await _context.Faces.AsNoTracking().CountAsync(cancellationToken),
-			PagesCount = await _context.Pages.AsNoTracking().CountAsync(cancellationToken),
-			FriendshipsCount = await _context.Friendships.AsNoTracking().CountAsync(cancellationToken),
-			FriendRequestsPendingCount = await _context.FriendRequests.AsNoTracking()
-				.CountAsync(r => r.Status == FriendRequestStatus.Pending, cancellationToken),
-			MessagesCount = await _context.Messages.AsNoTracking().CountAsync(cancellationToken),
-			AlbumsCount = await _context.Albums.AsNoTracking().CountAsync(cancellationToken),
-			BlogsCount = await _context.Blogs.AsNoTracking().CountAsync(cancellationToken),
-			ReelsCount = await _context.Reels.AsNoTracking().CountAsync(cancellationToken),
-			StoriesCount = await _context.Stories.AsNoTracking().CountAsync(cancellationToken),
-			StoryViewsCount = await _context.StoryViews.AsNoTracking().CountAsync(cancellationToken),
-			FaceWallTicketsCount = await _context.FaceWallTickets.AsNoTracking().CountAsync(cancellationToken),
-			FaceChatRoomsCount = await _context.FaceChatRooms.AsNoTracking().CountAsync(cancellationToken),
-			FaceChatRoomMessagesCount = await _context.FaceChatRoomMessages.AsNoTracking().CountAsync(cancellationToken),
-			FaceVideoLoungesCount = await _context.FaceVideoLounges.AsNoTracking().CountAsync(cancellationToken),
+			UsersCount = usersT.Result,
+			FacesCount = facesT.Result,
+			PagesCount = pagesT.Result,
+			FriendshipsCount = friendshipsT.Result,
+			FriendRequestsPendingCount = friendReqPendingT.Result,
+			MessagesCount = messagesT.Result,
+			AlbumsCount = albumsT.Result,
+			BlogsCount = blogsT.Result,
+			ReelsCount = reelsT.Result,
+			StoriesCount = storiesT.Result,
+			StoryViewsCount = storyViewsT.Result,
+			FaceWallTicketsCount = wallTicketsT.Result,
+			FaceChatRoomsCount = chatRoomsT.Result,
+			FaceChatRoomMessagesCount = chatRoomMessagesT.Result,
+			FaceVideoLoungesCount = videoLoungesT.Result,
 		};
 	}
 
 	/// <inheritdoc />
 	public async Task<AdminDashboardSummaryDto> GetOperatorDashboardSummaryAsync(CancellationToken cancellationToken = default)
 	{
+		// Fire all ~35 counts in parallel on independent contexts (X10: eliminates sequential round-trips).
+		var usersT                  = RunAsync((c, ct) => c.Users.AsNoTracking().CountAsync(ct), cancellationToken);
+		var friendReqT              = RunAsync((c, ct) => c.FriendRequests.AsNoTracking().CountAsync(r => r.Status == FriendRequestStatus.Pending, ct), cancellationToken);
+		var messagesT               = RunAsync((c, ct) => c.Messages.AsNoTracking().CountAsync(ct), cancellationToken);
+		var facesT                  = RunAsync((c, ct) => c.Faces.AsNoTracking().CountAsync(ct), cancellationToken);
+		var pagesT                  = RunAsync((c, ct) => c.Pages.AsNoTracking().CountAsync(ct), cancellationToken);
+		var pageCompsT              = RunAsync((c, ct) => c.PageComponents.AsNoTracking().CountAsync(ct), cancellationToken);
+		var pageRouteTransT         = RunAsync((c, ct) => c.PageRouteTranslations.AsNoTracking().CountAsync(ct), cancellationToken);
+		var friendshipsT            = RunAsync((c, ct) => c.Friendships.AsNoTracking().CountAsync(ct), cancellationToken);
+		var friendReqAcceptedT      = RunAsync((c, ct) => c.FriendRequests.AsNoTracking().CountAsync(r => r.Status == FriendRequestStatus.Accepted, ct), cancellationToken);
+		var friendReqRejectedT      = RunAsync((c, ct) => c.FriendRequests.AsNoTracking().CountAsync(r => r.Status == FriendRequestStatus.Rejected, ct), cancellationToken);
+		var userFollowsT            = RunAsync((c, ct) => c.UserFollows.AsNoTracking().CountAsync(ct), cancellationToken);
+		var userBlocksT             = RunAsync((c, ct) => c.UserBlocks.AsNoTracking().CountAsync(ct), cancellationToken);
+		var msgsPendingT            = RunAsync((c, ct) => c.Messages.AsNoTracking().CountAsync(m => m.IsMessageRequest && m.MessageRequestStatus == MessageRequestStatus.Pending, ct), cancellationToken);
+		var notificationsT          = RunAsync((c, ct) => c.Notifications.AsNoTracking().CountAsync(ct), cancellationToken);
+		var albumsT                 = RunAsync((c, ct) => c.Albums.AsNoTracking().CountAsync(ct), cancellationToken);
+		var blogsT                  = RunAsync((c, ct) => c.Blogs.AsNoTracking().CountAsync(ct), cancellationToken);
+		var reelsT                  = RunAsync((c, ct) => c.Reels.AsNoTracking().CountAsync(ct), cancellationToken);
+		var storiesT                = RunAsync((c, ct) => c.Stories.AsNoTracking().CountAsync(ct), cancellationToken);
+		var storyViewsT             = RunAsync((c, ct) => c.StoryViews.AsNoTracking().CountAsync(ct), cancellationToken);
+		var chatRoomsT              = RunAsync((c, ct) => c.FaceChatRooms.AsNoTracking().CountAsync(ct), cancellationToken);
+		var chatRoomMembersT        = RunAsync((c, ct) => c.FaceChatRoomMembers.AsNoTracking().CountAsync(ct), cancellationToken);
+		var chatRoomMsgsT           = RunAsync((c, ct) => c.FaceChatRoomMessages.AsNoTracking().CountAsync(ct), cancellationToken);
+		var chatRoomJoinReqT        = RunAsync((c, ct) => c.FaceChatRoomJoinRequests.AsNoTracking().CountAsync(j => j.Status == FaceChatRoomJoinRequestStatus.Pending, ct), cancellationToken);
+		var videoLoungesT           = RunAsync((c, ct) => c.FaceVideoLounges.AsNoTracking().CountAsync(ct), cancellationToken);
+		var videoLoungeMembersT     = RunAsync((c, ct) => c.FaceVideoLoungeMembers.AsNoTracking().CountAsync(ct), cancellationToken);
+		var videoLoungeSessionsT    = RunAsync((c, ct) => c.FaceVideoLoungeSessions.AsNoTracking().CountAsync(s => s.EndedAt == null, ct), cancellationToken);
+		var wallTicketsT            = RunAsync((c, ct) => c.FaceWallTickets.AsNoTracking().CountAsync(ct), cancellationToken);
+		var wallTicketsByStatusT    = RunAsync(BuildFaceWallTicketStatusCountsAsync, cancellationToken);
+		var wallTicketCommentsT     = RunAsync((c, ct) => c.FaceWallTicketComments.AsNoTracking().CountAsync(ct), cancellationToken);
+		var wallTicketLikesT        = RunAsync((c, ct) => c.FaceWallTicketLikes.AsNoTracking().CountAsync(ct), cancellationToken);
+		var ufpT                    = RunAsync((c, ct) => c.UserFaceProfiles.AsNoTracking().CountAsync(ct), cancellationToken);
+		var ufpLikesT               = RunAsync((c, ct) => c.UserFaceProfileLikes.AsNoTracking().CountAsync(ct), cancellationToken);
+		var ufpCommentsT            = RunAsync((c, ct) => c.UserFaceProfileComments.AsNoTracking().CountAsync(ct), cancellationToken);
+		var ufpReviewsT             = RunAsync((c, ct) => c.UserFaceProfileReviews.AsNoTracking().CountAsync(ct), cancellationToken);
+		var albumCommentsT          = RunAsync((c, ct) => c.AlbumComments.AsNoTracking().CountAsync(ct), cancellationToken);
+		var blogCommentsT           = RunAsync((c, ct) => c.BlogComments.AsNoTracking().CountAsync(ct), cancellationToken);
+		var reelCommentsT           = RunAsync((c, ct) => c.ReelComments.AsNoTracking().CountAsync(ct), cancellationToken);
+		var storyCommentsT          = RunAsync((c, ct) => c.StoryComments.AsNoTracking().CountAsync(ct), cancellationToken);
+		var albumLikesT             = RunAsync((c, ct) => c.AlbumLikes.AsNoTracking().CountAsync(ct), cancellationToken);
+		var blogLikesT              = RunAsync((c, ct) => c.BlogLikes.AsNoTracking().CountAsync(ct), cancellationToken);
+		var reelLikesT              = RunAsync((c, ct) => c.ReelLikes.AsNoTracking().CountAsync(ct), cancellationToken);
+		var storyLikesT             = RunAsync((c, ct) => c.StoryLikes.AsNoTracking().CountAsync(ct), cancellationToken);
+		var aiReviewJobsT           = RunAsync((c, ct) => c.AiReviewJobs.AsNoTracking().CountAsync(ct), cancellationToken);
+		var contentModEventsT       = RunAsync((c, ct) => c.ContentModerationEvents.AsNoTracking().CountAsync(ct), cancellationToken);
+		var oauthClientsT           = RunAsync((c, ct) => c.OAuthClients.AsNoTracking().CountAsync(ct), cancellationToken);
+
+		await Task.WhenAll(
+			usersT, friendReqT, messagesT,
+			facesT, pagesT, pageCompsT, pageRouteTransT,
+			friendshipsT, friendReqAcceptedT, friendReqRejectedT, userFollowsT, userBlocksT,
+			msgsPendingT, notificationsT,
+			albumsT, blogsT, reelsT, storiesT, storyViewsT,
+			chatRoomsT, chatRoomMembersT, chatRoomMsgsT, chatRoomJoinReqT,
+			videoLoungesT, videoLoungeMembersT, videoLoungeSessionsT,
+			wallTicketsT, wallTicketsByStatusT, wallTicketCommentsT, wallTicketLikesT,
+			ufpT, ufpLikesT, ufpCommentsT, ufpReviewsT,
+			albumCommentsT, blogCommentsT, reelCommentsT, storyCommentsT,
+			albumLikesT, blogLikesT, reelLikesT, storyLikesT,
+			aiReviewJobsT, contentModEventsT, oauthClientsT);
+
 		return new AdminDashboardSummaryDto
 		{
-			UsersCount = await _context.Users.AsNoTracking().CountAsync(cancellationToken),
-			FriendRequestsCount = await _context.FriendRequests.AsNoTracking()
-				.CountAsync(r => r.Status == FriendRequestStatus.Pending, cancellationToken),
-			MessagesCount = await _context.Messages.AsNoTracking().CountAsync(cancellationToken),
+			UsersCount = usersT.Result,
+			FriendRequestsCount = friendReqT.Result,
+			MessagesCount = messagesT.Result,
 
-			FacesCount = await _context.Faces.AsNoTracking().CountAsync(cancellationToken),
-			PagesCount = await _context.Pages.AsNoTracking().CountAsync(cancellationToken),
-			PageComponentsCount = await _context.PageComponents.AsNoTracking().CountAsync(cancellationToken),
-			PageRouteTranslationsCount = await _context.PageRouteTranslations.AsNoTracking().CountAsync(cancellationToken),
+			FacesCount = facesT.Result,
+			PagesCount = pagesT.Result,
+			PageComponentsCount = pageCompsT.Result,
+			PageRouteTranslationsCount = pageRouteTransT.Result,
 
-			FriendshipsCount = await _context.Friendships.AsNoTracking().CountAsync(cancellationToken),
-			FriendRequestsAcceptedCount = await _context.FriendRequests.AsNoTracking()
-				.CountAsync(r => r.Status == FriendRequestStatus.Accepted, cancellationToken),
-			FriendRequestsRejectedCount = await _context.FriendRequests.AsNoTracking()
-				.CountAsync(r => r.Status == FriendRequestStatus.Rejected, cancellationToken),
-			UserFollowsCount = await _context.UserFollows.AsNoTracking().CountAsync(cancellationToken),
-			UserBlocksCount = await _context.UserBlocks.AsNoTracking().CountAsync(cancellationToken),
+			FriendshipsCount = friendshipsT.Result,
+			FriendRequestsAcceptedCount = friendReqAcceptedT.Result,
+			FriendRequestsRejectedCount = friendReqRejectedT.Result,
+			UserFollowsCount = userFollowsT.Result,
+			UserBlocksCount = userBlocksT.Result,
 
-			MessagesPendingRequestCount = await _context.Messages.AsNoTracking()
-				.CountAsync(m => m.IsMessageRequest && m.MessageRequestStatus == MessageRequestStatus.Pending, cancellationToken),
+			MessagesPendingRequestCount = msgsPendingT.Result,
 
-			NotificationsCount = await _context.Notifications.AsNoTracking().CountAsync(cancellationToken),
+			NotificationsCount = notificationsT.Result,
 
-			AlbumsCount = await _context.Albums.AsNoTracking().CountAsync(cancellationToken),
-			BlogsCount = await _context.Blogs.AsNoTracking().CountAsync(cancellationToken),
-			ReelsCount = await _context.Reels.AsNoTracking().CountAsync(cancellationToken),
-			StoriesCount = await _context.Stories.AsNoTracking().CountAsync(cancellationToken),
-			StoryViewsCount = await _context.StoryViews.AsNoTracking().CountAsync(cancellationToken),
+			AlbumsCount = albumsT.Result,
+			BlogsCount = blogsT.Result,
+			ReelsCount = reelsT.Result,
+			StoriesCount = storiesT.Result,
+			StoryViewsCount = storyViewsT.Result,
 
-			FaceChatRoomsCount = await _context.FaceChatRooms.AsNoTracking().CountAsync(cancellationToken),
-			FaceChatRoomMembersCount = await _context.FaceChatRoomMembers.AsNoTracking().CountAsync(cancellationToken),
-			FaceChatRoomMessagesCount = await _context.FaceChatRoomMessages.AsNoTracking().CountAsync(cancellationToken),
-			FaceChatRoomJoinRequestsPendingCount = await _context.FaceChatRoomJoinRequests.AsNoTracking()
-				.CountAsync(j => j.Status == FaceChatRoomJoinRequestStatus.Pending, cancellationToken),
+			FaceChatRoomsCount = chatRoomsT.Result,
+			FaceChatRoomMembersCount = chatRoomMembersT.Result,
+			FaceChatRoomMessagesCount = chatRoomMsgsT.Result,
+			FaceChatRoomJoinRequestsPendingCount = chatRoomJoinReqT.Result,
 
-			FaceVideoLoungesCount = await _context.FaceVideoLounges.AsNoTracking().CountAsync(cancellationToken),
-			FaceVideoLoungeMembersCount = await _context.FaceVideoLoungeMembers.AsNoTracking().CountAsync(cancellationToken),
-			FaceVideoLoungeLiveSessionsCount = await _context.FaceVideoLoungeSessions.AsNoTracking()
-				.CountAsync(s => s.EndedAt == null, cancellationToken),
+			FaceVideoLoungesCount = videoLoungesT.Result,
+			FaceVideoLoungeMembersCount = videoLoungeMembersT.Result,
+			FaceVideoLoungeLiveSessionsCount = videoLoungeSessionsT.Result,
 
-			FaceWallTicketsCount = await _context.FaceWallTickets.AsNoTracking().CountAsync(cancellationToken),
-			FaceWallTicketsByStatus = await BuildFaceWallTicketStatusCountsAsync(cancellationToken),
-			FaceWallTicketCommentsCount = await _context.FaceWallTicketComments.AsNoTracking().CountAsync(cancellationToken),
-			FaceWallTicketLikesCount = await _context.FaceWallTicketLikes.AsNoTracking().CountAsync(cancellationToken),
+			FaceWallTicketsCount = wallTicketsT.Result,
+			FaceWallTicketsByStatus = wallTicketsByStatusT.Result,
+			FaceWallTicketCommentsCount = wallTicketCommentsT.Result,
+			FaceWallTicketLikesCount = wallTicketLikesT.Result,
 
-			UserFaceProfilesCount = await _context.UserFaceProfiles.AsNoTracking().CountAsync(cancellationToken),
-			UserFaceProfileLikesCount = await _context.UserFaceProfileLikes.AsNoTracking().CountAsync(cancellationToken),
-			UserFaceProfileCommentsCount = await _context.UserFaceProfileComments.AsNoTracking().CountAsync(cancellationToken),
-			UserFaceProfileReviewsCount = await _context.UserFaceProfileReviews.AsNoTracking().CountAsync(cancellationToken),
+			UserFaceProfilesCount = ufpT.Result,
+			UserFaceProfileLikesCount = ufpLikesT.Result,
+			UserFaceProfileCommentsCount = ufpCommentsT.Result,
+			UserFaceProfileReviewsCount = ufpReviewsT.Result,
 
-			AlbumCommentsCount = await _context.AlbumComments.AsNoTracking().CountAsync(cancellationToken),
-			BlogCommentsCount = await _context.BlogComments.AsNoTracking().CountAsync(cancellationToken),
-			ReelCommentsCount = await _context.ReelComments.AsNoTracking().CountAsync(cancellationToken),
-			StoryCommentsCount = await _context.StoryComments.AsNoTracking().CountAsync(cancellationToken),
-			AlbumLikesCount = await _context.AlbumLikes.AsNoTracking().CountAsync(cancellationToken),
-			BlogLikesCount = await _context.BlogLikes.AsNoTracking().CountAsync(cancellationToken),
-			ReelLikesCount = await _context.ReelLikes.AsNoTracking().CountAsync(cancellationToken),
-			StoryLikesCount = await _context.StoryLikes.AsNoTracking().CountAsync(cancellationToken),
+			AlbumCommentsCount = albumCommentsT.Result,
+			BlogCommentsCount = blogCommentsT.Result,
+			ReelCommentsCount = reelCommentsT.Result,
+			StoryCommentsCount = storyCommentsT.Result,
+			AlbumLikesCount = albumLikesT.Result,
+			BlogLikesCount = blogLikesT.Result,
+			ReelLikesCount = reelLikesT.Result,
+			StoryLikesCount = storyLikesT.Result,
 
-			AiReviewJobsCount = await _context.AiReviewJobs.AsNoTracking().CountAsync(cancellationToken),
-			ContentModerationEventsCount = await _context.ContentModerationEvents.AsNoTracking().CountAsync(cancellationToken),
+			AiReviewJobsCount = aiReviewJobsT.Result,
+			ContentModerationEventsCount = contentModEventsT.Result,
 
-			OAuthClientsCount = await _context.OAuthClients.AsNoTracking().CountAsync(cancellationToken),
+			OAuthClientsCount = oauthClientsT.Result,
 		};
 	}
 
@@ -170,9 +266,11 @@ public sealed class PlatformStatsQueryService : IPlatformStatsQueryService
 		};
 	}
 
-	private async Task<Dictionary<string, int>> BuildFaceWallTicketStatusCountsAsync(CancellationToken cancellationToken)
+	private static async Task<Dictionary<string, int>> BuildFaceWallTicketStatusCountsAsync(
+		ApplicationDbContext ctx,
+		CancellationToken cancellationToken)
 	{
-		var groups = await _context.FaceWallTickets.AsNoTracking()
+		var groups = await ctx.FaceWallTickets.AsNoTracking()
 			.GroupBy(t => t.Status)
 			.Select(g => new { g.Key, Count = g.Count() })
 			.ToListAsync(cancellationToken);

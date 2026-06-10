@@ -1,25 +1,20 @@
-using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorPush;
 using Grpc.Core;
 using Grpc.Net.Client;
 using ManyFaces.Push.V1;
 using Microsoft.Extensions.Options;
-using System.Security.Cryptography.X509Certificates;
 
 namespace BeDemo.Api.Services;
 
 /// <summary>
 /// gRPC client for <see cref="PushService.PushServiceClient"/> (many_faces_push). Returns null from send/test when
-/// operator push settings disallow sends.
+/// operator push settings disallow sends. Channel cache and disposal are handled by <see cref="WorkerGrpcClientBase{TClient}"/>.
 /// </summary>
-public sealed class PushWorkerGrpcClient : IPushWorkerClient, IDisposable
+public sealed class PushWorkerGrpcClient : WorkerGrpcClientBase<PushService.PushServiceClient>, IPushWorkerClient
 {
 	private readonly IOperatorPushSettingsProvider _settings;
 	private readonly IOptions<PushOptions> _envOptions;
 	private readonly ILogger<PushWorkerGrpcClient> _logger;
-	private readonly object _channelLock = new();
-	private readonly List<X509Certificate2> _tlsCertificatesToDispose = [];
-	private ActiveChannel? _active;
 
 	public PushWorkerGrpcClient(
 		IOperatorPushSettingsProvider settings,
@@ -39,7 +34,7 @@ public sealed class PushWorkerGrpcClient : IPushWorkerClient, IDisposable
 			return null;
 
 		request = OperatorPushProtoMapper.EnrichRequest(request, runtime);
-		var client = await GetClientAsync(runtime, cancellationToken).ConfigureAwait(false);
+		var client = GetClientOrNull(runtime);
 		if (client is null)
 			return null;
 
@@ -66,7 +61,7 @@ public sealed class PushWorkerGrpcClient : IPushWorkerClient, IDisposable
 		if (!settings.HasFirebaseCredentials)
 			return new TestFcmCredentialsResponse { Valid = false, Detail = "Firebase credentials missing." };
 
-		var client = await GetClientAsync(settings, cancellationToken).ConfigureAwait(false);
+		var client = GetClientOrNull(settings);
 		if (client is null)
 			return new TestFcmCredentialsResponse { Valid = false, Detail = "Push worker client unavailable." };
 
@@ -78,28 +73,16 @@ public sealed class PushWorkerGrpcClient : IPushWorkerClient, IDisposable
 		return await client.TestFcmCredentialsAsync(req, callOptions).ConfigureAwait(false);
 	}
 
-	private async Task<PushService.PushServiceClient?> GetClientAsync(
-		OperatorPushSettingsValues runtime,
-		CancellationToken cancellationToken)
+	private PushService.PushServiceClient? GetClientOrNull(OperatorPushSettingsValues runtime)
 	{
-		_ = cancellationToken;
 		if (!runtime.IsWorkerAddressValid)
 			return null;
 
-		var cacheKey = runtime.ChannelCacheKey;
-		lock (_channelLock)
-		{
-			if (_active?.CacheKey == cacheKey)
-				return _active.Client;
-
-			_active?.Dispose();
-			var merged = MergeTlsPushOptions(runtime);
-			var channel = GrpcWorkerChannelFactory.CreateChannel(
-				GrpcWorkerChannelFactory.FromPush(merged),
-				_tlsCertificatesToDispose);
-			_active = new ActiveChannel(cacheKey, channel, new PushService.PushServiceClient(channel));
-			return _active.Client;
-		}
+		var merged = MergeTlsPushOptions(runtime);
+		return GetOrReplaceClient(
+			runtime.ChannelCacheKey,
+			() => GrpcWorkerChannelFactory.CreateChannel(GrpcWorkerChannelFactory.FromPush(merged), CertificatesToDispose),
+			ch => new PushService.PushServiceClient(ch));
 	}
 
 	private PushOptions MergeTlsPushOptions(OperatorPushSettingsValues runtime)
@@ -126,29 +109,5 @@ public sealed class PushWorkerGrpcClient : IPushWorkerClient, IDisposable
 
 		var deadlineSeconds = Math.Clamp(runtime.GrpcDeadlineSeconds, 1, 120);
 		return new CallOptions(headers, DateTime.UtcNow.AddSeconds(deadlineSeconds), cancellationToken);
-	}
-
-	/// <inheritdoc />
-	public void Dispose()
-	{
-		lock (_channelLock)
-		{
-			_active?.Dispose();
-			_active = null;
-		}
-
-		foreach (var c in _tlsCertificatesToDispose)
-			c.Dispose();
-
-		_tlsCertificatesToDispose.Clear();
-	}
-
-	private sealed class ActiveChannel(string cacheKey, GrpcChannel channel, PushService.PushServiceClient client) : IDisposable
-	{
-		public string CacheKey { get; } = cacheKey;
-		public PushService.PushServiceClient Client { get; } = client;
-		private readonly GrpcChannel _channel = channel;
-
-		public void Dispose() => _channel.Dispose();
 	}
 }

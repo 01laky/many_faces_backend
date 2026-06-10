@@ -24,6 +24,7 @@ public sealed class MyContentSubmissionsController : ApiControllerBase
 	}
 
 	[HttpGet]
+	[ProducesResponseType(typeof(IReadOnlyList<MyContentSubmissionDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetMine()
 	{
 		if (string.IsNullOrWhiteSpace(UserId))

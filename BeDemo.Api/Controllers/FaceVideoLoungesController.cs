@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -102,6 +103,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 		};
 
 	[HttpGet]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> List(
 		int faceId,
 		[FromQuery] FaceVideoLoungeListQuery listQuery,
@@ -112,7 +114,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 
 		var face = await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Id == faceId, cancellationToken);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var page = listQuery.Page;
 		var pageSize = listQuery.PageSize;
@@ -158,15 +160,21 @@ public class FaceVideoLoungesController : ApiControllerBase
 			.Where(s => ids.Contains(s.FaceVideoLoungeId) && s.EndedAt == null)
 			.ToDictionaryAsync(s => s.FaceVideoLoungeId, s => s.Id, cancellationToken);
 
-		var liveCounts = new Dictionary<int, int>();
-		foreach (var kv in sessionByLounge)
+		// Batch all participant counts into one grouped query instead of one CountAsync per lounge (X10 N+1).
+		Dictionary<int, int> liveCounts;
+		if (sessionByLounge.Count == 0)
 		{
-			liveCounts[kv.Key] = await _context.FaceVideoLoungeSessionParticipants.AsNoTracking()
-				.CountAsync(p =>
-					p.FaceVideoLoungeSessionId == kv.Value
-					&& p.LeftAt == null
-					&& p.IsListedInPublicRoster,
-					cancellationToken);
+			liveCounts = [];
+		}
+		else
+		{
+			var sessionIds = sessionByLounge.Values.ToList();
+			var countsBySession = await _context.FaceVideoLoungeSessionParticipants.AsNoTracking()
+				.Where(p => sessionIds.Contains(p.FaceVideoLoungeSessionId) && p.LeftAt == null && p.IsListedInPublicRoster)
+				.GroupBy(p => p.FaceVideoLoungeSessionId)
+				.Select(g => new { g.Key, C = g.Count() })
+				.ToDictionaryAsync(x => x.Key, x => x.C, cancellationToken);
+			liveCounts = sessionByLounge.ToDictionary(kv => kv.Key, kv => countsBySession.GetValueOrDefault(kv.Value));
 		}
 
 		var myMemberships = (await _context.FaceVideoLoungeMembers
@@ -194,6 +202,8 @@ public class FaceVideoLoungesController : ApiControllerBase
 	}
 
 	[HttpGet("{loungeId:int}")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> Get(int faceId, int loungeId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -224,6 +234,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 	}
 
 	[HttpPost]
+	[ProducesResponseType(typeof(CreatedEntityDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> CreateUserLounge(int faceId, [FromBody] CreateFaceVideoLoungeDto dto, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -231,7 +242,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 
 		var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == faceId, cancellationToken);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		if (!face.VideoLoungesCreate)
 			return Forbid();
@@ -259,10 +270,11 @@ public class FaceVideoLoungesController : ApiControllerBase
 		});
 		await _context.SaveChangesAsync(cancellationToken);
 
-		return CreatedAtAction(nameof(Get), new { faceId, loungeId = lounge.Id }, new { lounge.Id });
+		return CreatedAtAction(nameof(Get), new { faceId, loungeId = lounge.Id }, new CreatedEntityDto { Id = lounge.Id });
 	}
 
 	[HttpPost("system")]
+	[ProducesResponseType(typeof(CreatedEntityDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> CreateSystemLounge(int faceId, [FromBody] CreateSystemFaceVideoLoungeDto dto, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -274,7 +286,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 
 		var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == faceId, cancellationToken);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var lounge = new FaceVideoLounge
 		{
@@ -289,10 +301,11 @@ public class FaceVideoLoungesController : ApiControllerBase
 		_context.FaceVideoLounges.Add(lounge);
 		await _context.SaveChangesAsync(cancellationToken);
 
-		return CreatedAtAction(nameof(Get), new { faceId, loungeId = lounge.Id }, new { lounge.Id });
+		return CreatedAtAction(nameof(Get), new { faceId, loungeId = lounge.Id }, new CreatedEntityDto { Id = lounge.Id });
 	}
 
 	[HttpPut("{loungeId:int}")]
+	[ProducesResponseType(typeof(CreatedEntityDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Update(int faceId, int loungeId, [FromBody] UpdateFaceVideoLoungeDto dto, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -327,10 +340,11 @@ public class FaceVideoLoungesController : ApiControllerBase
 
 		lounge.UpdatedAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync(cancellationToken);
-		return Ok(new { lounge.Id });
+		return Ok(new CreatedEntityDto { Id = lounge.Id });
 	}
 
 	[HttpDelete("{loungeId:int}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> Delete(int faceId, int loungeId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -359,10 +373,9 @@ public class FaceVideoLoungesController : ApiControllerBase
 		foreach (var session in lounge.Sessions.Where(s => s.EndedAt == null))
 			await _lifecycle.EndSessionAsync(session.Id, "lounge_deleted", cancellationToken);
 
-		_context.FaceVideoLoungeJoinRequests.RemoveRange(
-			await _context.FaceVideoLoungeJoinRequests.Where(x => x.FaceVideoLoungeId == loungeId).ToListAsync(cancellationToken));
-		_context.FaceVideoLoungeMembers.RemoveRange(
-			await _context.FaceVideoLoungeMembers.Where(x => x.FaceVideoLoungeId == loungeId).ToListAsync(cancellationToken));
+		// ExecuteDeleteAsync issues DELETE WHERE directly — no round-trip to materialise rows first.
+		await _context.FaceVideoLoungeJoinRequests.Where(x => x.FaceVideoLoungeId == loungeId).ExecuteDeleteAsync(cancellationToken);
+		await _context.FaceVideoLoungeMembers.Where(x => x.FaceVideoLoungeId == loungeId).ExecuteDeleteAsync(cancellationToken);
 		_context.FaceVideoLounges.Remove(lounge);
 		await _context.SaveChangesAsync(cancellationToken);
 
@@ -370,6 +383,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 	}
 
 	[HttpPost("{loungeId:int}/join")]
+	[ProducesResponseType(typeof(JoinResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> JoinPublic(int faceId, int loungeId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -382,17 +396,18 @@ public class FaceVideoLoungesController : ApiControllerBase
 		if (lounge == null)
 			return NotFound();
 		if (!lounge.IsPublic)
-			return BadRequest(new { error = "Lounge is private; use join request" });
+			return BadRequest(new ErrorResponseDto { Error = "Lounge is private; use join request" });
 
 		if (await _context.FaceVideoLoungeMembers.AnyAsync(m => m.FaceVideoLoungeId == loungeId && m.UserId == UserId, cancellationToken))
-			return Ok(new { alreadyMember = true });
+			return Ok(new JoinResultDto { AlreadyMember = true });
 
 		_context.FaceVideoLoungeMembers.Add(new FaceVideoLoungeMember { FaceVideoLoungeId = loungeId, UserId = UserId });
 		await _context.SaveChangesAsync(cancellationToken);
-		return Ok(new { joined = true });
+		return Ok(new JoinResultDto { Joined = true });
 	}
 
 	[HttpPost("{loungeId:int}/join-requests")]
+	[ProducesResponseType(typeof(JoinRequestResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> RequestJoin(int faceId, int loungeId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -405,15 +420,15 @@ public class FaceVideoLoungesController : ApiControllerBase
 		if (lounge == null)
 			return NotFound();
 		if (lounge.IsPublic)
-			return BadRequest(new { error = "Lounge is public; use join" });
+			return BadRequest(new ErrorResponseDto { Error = "Lounge is public; use join" });
 
 		if (await _context.FaceVideoLoungeMembers.AnyAsync(m => m.FaceVideoLoungeId == loungeId && m.UserId == UserId, cancellationToken))
-			return BadRequest(new { error = "Already a member" });
+			return BadRequest(new ErrorResponseDto { Error = "Already a member" });
 
 		if (await _context.FaceVideoLoungeJoinRequests.AnyAsync(
 				j => j.FaceVideoLoungeId == loungeId && j.UserId == UserId && j.Status == FaceVideoLoungeJoinRequestStatus.Pending,
 				cancellationToken))
-			return Ok(new { pending = true });
+			return Ok(new JoinRequestResultDto { Pending = true });
 
 		var req = new FaceVideoLoungeJoinRequest { FaceVideoLoungeId = loungeId, UserId = UserId };
 		_context.FaceVideoLoungeJoinRequests.Add(req);
@@ -443,11 +458,12 @@ public class FaceVideoLoungesController : ApiControllerBase
 				cancellationToken);
 		}
 
-		return Ok(new { requestId = req.Id });
+		return Ok(new JoinRequestResultDto { RequestId = req.Id });
 	}
 
 	/// <summary>Live roster and counts; stealth omitted for members, included for operators.</summary>
 	[HttpGet("{loungeId:int}/live")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetLive(int faceId, int loungeId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -460,7 +476,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 
 		var session = await GetActiveSessionAsync(loungeId, cancellationToken);
 		if (session == null)
-			return Ok(new { hasLiveSession = false, liveParticipantCount = 0, liveViewerCount = 0, liveSpeakerCount = 0, liveParticipants = Array.Empty<object>() });
+			return Ok(new VideoLoungeNoSessionDto());
 
 		var active = await _context.FaceVideoLoungeSessionParticipants
 			.AsNoTracking()
@@ -480,6 +496,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 
 	/// <summary>Member starts a live session (non-host, must be lounge member).</summary>
 	[HttpPost("{loungeId:int}/live/start")]
+	[ProducesResponseType(typeof(SessionIdResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> StartLive(int faceId, int loungeId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -496,7 +513,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 			return Forbid();
 
 		if (await GetActiveSessionAsync(loungeId, cancellationToken) != null)
-			return Conflict(new { error = "Live session already active" });
+			return Conflict(new ErrorResponseDto { Error = "Live session already active" });
 
 		var session = new FaceVideoLoungeSession
 		{
@@ -511,11 +528,12 @@ public class FaceVideoLoungesController : ApiControllerBase
 		await _lifecycle.ScheduleIdleCheckAsync(session.Id, cancellationToken);
 		await _lifecycle.NotifyMembersSessionStartedAsync(loungeId, session.Id, cancellationToken);
 
-		return Ok(new { sessionId = session.Id });
+		return Ok(new SessionIdResultDto { SessionId = session.Id });
 	}
 
 	/// <summary>Connect to live SFU with Viewer, Listener, or Full join mode.</summary>
 	[HttpPost("{loungeId:int}/live/join")]
+	[ProducesResponseType(typeof(VideoLoungeJoinResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> JoinLive(
 		int faceId,
 		int loungeId,
@@ -526,7 +544,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 			return Unauthorized();
 
 		if (!VideoLoungeJoinModeParser.TryParseMemberMode(dto.JoinMode, out var mode))
-			return BadRequest(new { error = "Invalid joinMode" });
+			return BadRequest(new ErrorResponseDto { Error = "Invalid joinMode" });
 
 		if (await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken))
 			return Forbid();
@@ -542,13 +560,13 @@ public class FaceVideoLoungesController : ApiControllerBase
 		var session = await _context.FaceVideoLoungeSessions
 			.FirstOrDefaultAsync(s => s.FaceVideoLoungeId == loungeId && s.EndedAt == null, cancellationToken);
 		if (session == null)
-			return Conflict(new { error = "No active live session" });
+			return Conflict(new ErrorResponseDto { Error = "No active live session" });
 
 		var listedCount = await _context.FaceVideoLoungeSessionParticipants.CountAsync(
 			p => p.FaceVideoLoungeSessionId == session.Id && p.LeftAt == null && p.IsListedInPublicRoster,
 			cancellationToken);
 		if (listedCount >= lounge.MaxParticipants)
-			return Conflict(new { error = "Room is full" });
+			return Conflict(new ErrorResponseDto { Error = "Room is full" });
 
 		var existing = await _context.FaceVideoLoungeSessionParticipants
 			.FirstOrDefaultAsync(p => p.FaceVideoLoungeSessionId == session.Id && p.UserId == UserId && p.LeftAt == null, cancellationToken);
@@ -584,19 +602,20 @@ public class FaceVideoLoungesController : ApiControllerBase
 		await _loungeHub.Clients.Group(VideoLoungeHub.LoungeGroupName(loungeId))
 			.SendAsync("LoungePresenceUpdated", loungeId, session.Id, cancellationToken: cancellationToken);
 
-		return Ok(new
+		return Ok(new VideoLoungeJoinResultDto
 		{
-			sessionId = session.Id,
-			joinMode = mode.ToString(),
-			token = tokenResult.Token,
-			serverUrl = tokenResult.ServerUrl,
-			roomName = tokenResult.RoomName,
-			isStub = tokenResult.IsStub,
-			expiresAtUtc = tokenResult.ExpiresAtUtc,
+			SessionId = session.Id,
+			JoinMode = mode.ToString(),
+			Token = tokenResult.Token,
+			ServerUrl = tokenResult.ServerUrl,
+			RoomName = tokenResult.RoomName,
+			IsStub = tokenResult.IsStub,
+			ExpiresAtUtc = tokenResult.ExpiresAtUtc,
 		});
 	}
 
 	[HttpPost("{loungeId:int}/live/leave")]
+	[ProducesResponseType(typeof(LeftResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> LeaveLive(int faceId, int loungeId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -604,12 +623,12 @@ public class FaceVideoLoungesController : ApiControllerBase
 
 		var session = await GetActiveSessionAsync(loungeId, cancellationToken);
 		if (session == null)
-			return Ok(new { left = false });
+			return Ok(new LeftResultDto { Left = false });
 
 		var row = await _context.FaceVideoLoungeSessionParticipants
 			.FirstOrDefaultAsync(p => p.FaceVideoLoungeSessionId == session.Id && p.UserId == UserId && p.LeftAt == null, cancellationToken);
 		if (row == null)
-			return Ok(new { left = false });
+			return Ok(new LeftResultDto { Left = false });
 
 		row.LeftAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync(cancellationToken);
@@ -619,10 +638,11 @@ public class FaceVideoLoungesController : ApiControllerBase
 		await _loungeHub.Clients.Group(VideoLoungeHub.LoungeGroupName(loungeId))
 			.SendAsync("LoungePresenceUpdated", loungeId, session.Id, cancellationToken: cancellationToken);
 
-		return Ok(new { left = true });
+		return Ok(new LeftResultDto { Left = true });
 	}
 
 	[HttpPost("{loungeId:int}/live/end")]
+	[ProducesResponseType(typeof(EndedResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> EndLive(int faceId, int loungeId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -641,10 +661,11 @@ public class FaceVideoLoungesController : ApiControllerBase
 			return Forbid();
 
 		await _lifecycle.EndSessionAsync(session.Id, "ended", cancellationToken);
-		return Ok(new { ended = true });
+		return Ok(new EndedResultDto());
 	}
 
 	[HttpPost("{loungeId:int}/live/refresh-token")]
+	[ProducesResponseType(typeof(VideoLoungeRefreshTokenResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> RefreshToken(
 		int faceId,
 		int loungeId,
@@ -655,7 +676,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 			return Unauthorized();
 
 		if (!VideoLoungeJoinModeParser.TryParseMemberMode(dto.JoinMode, out var mode))
-			return BadRequest(new { error = "Invalid joinMode" });
+			return BadRequest(new ErrorResponseDto { Error = "Invalid joinMode" });
 
 		var lounge = await _context.FaceVideoLounges.AsNoTracking()
 			.FirstOrDefaultAsync(l => l.Id == loungeId && l.FaceId == faceId, cancellationToken);
@@ -664,7 +685,7 @@ public class FaceVideoLoungesController : ApiControllerBase
 
 		var session = await GetActiveSessionAsync(loungeId, cancellationToken);
 		if (session == null)
-			return Conflict(new { error = "No active live session" });
+			return Conflict(new ErrorResponseDto { Error = "No active live session" });
 
 		var row = await _context.FaceVideoLoungeSessionParticipants
 			.FirstOrDefaultAsync(p => p.FaceVideoLoungeSessionId == session.Id && p.UserId == UserId && p.LeftAt == null, cancellationToken);
@@ -679,17 +700,18 @@ public class FaceVideoLoungesController : ApiControllerBase
 		var displayName = user != null ? $"{user.FirstName} {user.LastName}".Trim() : UserId;
 		var tokenResult = _tokens.CreateToken(session.Id, UserId, displayName, row.JoinMode);
 
-		return Ok(new
+		return Ok(new VideoLoungeRefreshTokenResultDto
 		{
-			token = tokenResult.Token,
-			serverUrl = tokenResult.ServerUrl,
-			roomName = tokenResult.RoomName,
-			isStub = tokenResult.IsStub,
-			expiresAtUtc = tokenResult.ExpiresAtUtc,
+			Token = tokenResult.Token,
+			ServerUrl = tokenResult.ServerUrl,
+			RoomName = tokenResult.RoomName,
+			IsStub = tokenResult.IsStub,
+			ExpiresAtUtc = tokenResult.ExpiresAtUtc,
 		});
 	}
 
 	[HttpPost("{loungeId:int}/live/heartbeat")]
+	[ProducesResponseType(typeof(OkResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Heartbeat(int faceId, int loungeId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -709,6 +731,6 @@ public class FaceVideoLoungesController : ApiControllerBase
 		await _context.SaveChangesAsync(cancellationToken);
 		await _lifecycle.ScheduleStaleParticipantCheckAsync(session.Id, row.Id, cancellationToken);
 
-		return Ok(new { ok = true });
+		return Ok(new OkResultDto());
 	}
 }

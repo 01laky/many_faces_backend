@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.Requests.Pages;
 using BeDemo.Api.ProfileDetail;
 using BeDemo.Api.Services;
@@ -45,7 +46,7 @@ public class PagesController : ControllerBase
 		if (CanManageAllFaces())
 			return null;
 		if (page.FaceId != _faceScope.FaceId)
-			return NotFound(new { error = "Page not found" });
+			return NotFound(new ErrorResponseDto { Error = "Page not found" });
 		return null;
 	}
 
@@ -54,6 +55,7 @@ public class PagesController : ControllerBase
 	/// Get list of pages for a specific face
 	/// </summary>
 	[HttpGet]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetPages([FromQuery] GetPagesQuery pagesQuery)
 	{
 		try
@@ -92,19 +94,7 @@ public class PagesController : ControllerBase
 				.Take(pageSize)
 				.ToListAsync();
 
-			var items = pages.Select(p => new
-			{
-				id = p.Id,
-				faceId = p.FaceId,
-				pageTypeId = p.PageTypeId,
-				name = p.Name,
-				description = p.Description,
-				path = p.Path,
-				index = p.Index,
-				gridSchema = p.GridSchema,
-				createdAt = p.CreatedAt,
-				updatedAt = p.UpdatedAt,
-			}).ToList();
+			var items = pages.Select(PageDto.From).ToList();
 
 			_logger.LogInformation("Retrieved {Count} pages", items.Count);
 			return Ok(ListPaginationHelper.BuildEnvelope(items, page, pageSize, totalCount, totalPages));
@@ -112,7 +102,7 @@ public class PagesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving pages");
-			return StatusCode(500, new { error = "An error occurred while retrieving pages" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving pages" });
 		}
 	}
 
@@ -121,6 +111,8 @@ public class PagesController : ControllerBase
 	/// Get page by ID
 	/// </summary>
 	[HttpGet("{id}")]
+	[ProducesResponseType(typeof(PageDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetPage(int id)
 	{
 		try
@@ -130,26 +122,14 @@ public class PagesController : ControllerBase
 			if (page == null)
 			{
 				_logger.LogWarning("Page not found: {PageId}", id);
-				return NotFound(new { error = "Page not found" });
+				return NotFound(new ErrorResponseDto { Error = "Page not found" });
 			}
 
 			var gate = EnsurePageBelongsToScope(page);
 			if (gate != null)
 				return gate;
 
-			var pageDto = new
-			{
-				id = page.Id,
-				faceId = page.FaceId,
-				pageTypeId = page.PageTypeId,
-				name = page.Name,
-				description = page.Description,
-				path = page.Path,
-				index = page.Index,
-				gridSchema = page.GridSchema,
-				createdAt = page.CreatedAt,
-				updatedAt = page.UpdatedAt,
-			};
+			var pageDto = PageDto.From(page);
 
 			_logger.LogInformation("Retrieved page: {PageId}", id);
 			return Ok(pageDto);
@@ -157,7 +137,7 @@ public class PagesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving page: {PageId}", id);
-			return StatusCode(500, new { error = "An error occurred while retrieving page" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving page" });
 		}
 	}
 
@@ -166,6 +146,7 @@ public class PagesController : ControllerBase
 	/// Create a new page
 	/// </summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(PageDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> CreatePage([FromBody] CreatePageModel model)
 	{
 		if (!ModelState.IsValid)
@@ -180,18 +161,18 @@ public class PagesController : ControllerBase
 			if (!faceExists)
 			{
 				_logger.LogWarning("Face not found: {FaceId}", model.FaceId);
-				return BadRequest(new { error = "Face not found" });
+				return BadRequest(new ErrorResponseDto { Error = "Face not found" });
 			}
 
 			if (!CanManageAllFaces() && model.FaceId != _faceScope.FaceId)
-				return BadRequest(new { error = "Pages can only be created for the current face scope" });
+				return BadRequest(new ErrorResponseDto { Error = "Pages can only be created for the current face scope" });
 
 			var pageType = await _context.PageTypes.AsNoTracking()
 				.FirstOrDefaultAsync(pt => pt.Id == model.PageTypeId);
 			if (pageType == null)
 			{
 				_logger.LogWarning("PageType not found: {PageTypeId}", model.PageTypeId);
-				return BadRequest(new { error = "PageType not found" });
+				return BadRequest(new ErrorResponseDto { Error = "PageType not found" });
 			}
 
 			if (pageType.Index == ProfileDetailGridDefaults.PageTypeIndex)
@@ -200,7 +181,7 @@ public class PagesController : ControllerBase
 					p.FaceId == model.FaceId && p.PageTypeId == pageType.Id);
 				if (duplicate)
 				{
-					return Conflict(new { error = "This face already has a member profile layout page" });
+					return Conflict(new ErrorResponseDto { Error = "This face already has a member profile layout page" });
 				}
 
 				var gridSchema = string.IsNullOrWhiteSpace(model.GridSchema)
@@ -208,7 +189,7 @@ public class PagesController : ControllerBase
 					: model.GridSchema;
 				var validationError = _profileDetailTemplates.ValidateGridSchemaJson(gridSchema);
 				if (validationError != null)
-					return BadRequest(new { error = validationError });
+					return BadRequest(new ErrorResponseDto { Error = validationError });
 
 				var profileTemplatePage = new Page
 				{
@@ -225,19 +206,7 @@ public class PagesController : ControllerBase
 				_context.Pages.Add(profileTemplatePage);
 				await _context.SaveChangesAsync();
 
-				var createdDto = new
-				{
-					id = profileTemplatePage.Id,
-					faceId = profileTemplatePage.FaceId,
-					pageTypeId = profileTemplatePage.PageTypeId,
-					name = profileTemplatePage.Name,
-					description = profileTemplatePage.Description,
-					path = profileTemplatePage.Path,
-					index = profileTemplatePage.Index,
-					gridSchema = profileTemplatePage.GridSchema,
-					createdAt = profileTemplatePage.CreatedAt,
-					updatedAt = profileTemplatePage.UpdatedAt,
-				};
+				var createdDto = PageDto.From(profileTemplatePage);
 
 				_logger.LogInformation("Profile detail template page created: {PageId}", profileTemplatePage.Id);
 				return CreatedAtAction(nameof(GetPage), new { id = profileTemplatePage.Id }, createdDto);
@@ -258,26 +227,13 @@ public class PagesController : ControllerBase
 			_context.Pages.Add(page);
 			await _context.SaveChangesAsync();
 
-			var pageDto = new
-			{
-				id = page.Id,
-				faceId = page.FaceId,
-				pageTypeId = page.PageTypeId,
-				name = page.Name,
-				description = page.Description,
-				path = page.Path,
-				index = page.Index,
-				createdAt = page.CreatedAt,
-				updatedAt = page.UpdatedAt,
-			};
-
 			_logger.LogInformation("Page created: {PageId}", page.Id);
-			return CreatedAtAction(nameof(GetPage), new { id = page.Id }, pageDto);
+			return CreatedAtAction(nameof(GetPage), new { id = page.Id }, PageDto.From(page));
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error creating page");
-			return StatusCode(500, new { error = "An error occurred while creating page" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while creating page" });
 		}
 	}
 
@@ -286,6 +242,7 @@ public class PagesController : ControllerBase
 	/// Update page by ID
 	/// </summary>
 	[HttpPut("{id}")]
+	[ProducesResponseType(typeof(PageDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> UpdatePage(int id, [FromBody] UpdatePageModel model)
 	{
 		if (!ModelState.IsValid)
@@ -300,7 +257,7 @@ public class PagesController : ControllerBase
 			if (page == null)
 			{
 				_logger.LogWarning("Page not found for update: {PageId}", id);
-				return NotFound(new { error = "Page not found" });
+				return NotFound(new ErrorResponseDto { Error = "Page not found" });
 			}
 
 			var updateGate = EnsurePageBelongsToScope(page);
@@ -323,14 +280,14 @@ public class PagesController : ControllerBase
 			if (currentPageTypeIndex == ProfileDetailGridDefaults.PageTypeIndex
 				&& effectivePageTypeIndex != ProfileDetailGridDefaults.PageTypeIndex)
 			{
-				return BadRequest(new { error = "Cannot change page type of the member profile layout template" });
+				return BadRequest(new ErrorResponseDto { Error = "Cannot change page type of the member profile layout template" });
 			}
 
 			if (effectivePageTypeIndex == ProfileDetailGridDefaults.PageTypeIndex && model.GridSchema != null)
 			{
 				var validationError = _profileDetailTemplates.ValidateGridSchemaJson(model.GridSchema);
 				if (validationError != null)
-					return BadRequest(new { error = validationError });
+					return BadRequest(new ErrorResponseDto { Error = validationError });
 			}
 
 			// Update page properties
@@ -357,14 +314,14 @@ public class PagesController : ControllerBase
 			if (model.FaceId.HasValue)
 			{
 				if (!CanManageAllFaces())
-					return BadRequest(new { error = "Only admin scope may reassign a page to another face" });
+					return BadRequest(new ErrorResponseDto { Error = "Only admin scope may reassign a page to another face" });
 
 				// Verify that new Face exists
 				var faceExists = await _context.Faces.AnyAsync(f => f.Id == model.FaceId.Value);
 				if (!faceExists)
 				{
 					_logger.LogWarning("Face not found: {FaceId}", model.FaceId.Value);
-					return BadRequest(new { error = "Face not found" });
+					return BadRequest(new ErrorResponseDto { Error = "Face not found" });
 				}
 				page.FaceId = model.FaceId.Value;
 			}
@@ -375,7 +332,7 @@ public class PagesController : ControllerBase
 				if (!pageTypeExists)
 				{
 					_logger.LogWarning("PageType not found: {PageTypeId}", model.PageTypeId.Value);
-					return BadRequest(new { error = "PageType not found" });
+					return BadRequest(new ErrorResponseDto { Error = "PageType not found" });
 				}
 				page.PageTypeId = model.PageTypeId.Value;
 			}
@@ -383,19 +340,7 @@ public class PagesController : ControllerBase
 
 			await _context.SaveChangesAsync();
 
-			var pageDto = new
-			{
-				id = page.Id,
-				faceId = page.FaceId,
-				pageTypeId = page.PageTypeId,
-				name = page.Name,
-				description = page.Description,
-				path = page.Path,
-				index = page.Index,
-				gridSchema = page.GridSchema,
-				createdAt = page.CreatedAt,
-				updatedAt = page.UpdatedAt,
-			};
+			var pageDto = PageDto.From(page);
 
 			_logger.LogInformation("Page updated: {PageId}", id);
 			return Ok(pageDto);
@@ -403,7 +348,7 @@ public class PagesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error updating page: {PageId}", id);
-			return StatusCode(500, new { error = "An error occurred while updating page" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while updating page" });
 		}
 	}
 
@@ -412,6 +357,7 @@ public class PagesController : ControllerBase
 	/// Delete page by ID
 	/// </summary>
 	[HttpDelete("{id}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeletePage(int id)
 	{
 		try
@@ -421,7 +367,7 @@ public class PagesController : ControllerBase
 			if (page == null)
 			{
 				_logger.LogWarning("Page not found for deletion: {PageId}", id);
-				return NotFound(new { error = "Page not found" });
+				return NotFound(new ErrorResponseDto { Error = "Page not found" });
 			}
 
 			var delGate = EnsurePageBelongsToScope(page);
@@ -434,7 +380,7 @@ public class PagesController : ControllerBase
 				.FirstOrDefaultAsync();
 			if (pageTypeIndex == ProfileDetailGridDefaults.PageTypeIndex)
 			{
-				return BadRequest(new { error = "The member profile layout template cannot be deleted" });
+				return BadRequest(new ErrorResponseDto { Error = "The member profile layout template cannot be deleted" });
 			}
 
 			_context.Pages.Remove(page);
@@ -446,7 +392,7 @@ public class PagesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error deleting page: {PageId}", id);
-			return StatusCode(500, new { error = "An error occurred while deleting page" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while deleting page" });
 		}
 	}
 
@@ -455,13 +401,14 @@ public class PagesController : ControllerBase
 	/// Get all route translations for a page
 	/// </summary>
 	[HttpGet("{pageId}/translations")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetPageRouteTranslations(int pageId)
 	{
 		try
 		{
 			var page = await _context.Pages.FindAsync(pageId);
 			if (page == null)
-				return NotFound(new { error = "Page not found" });
+				return NotFound(new ErrorResponseDto { Error = "Page not found" });
 			var trGate = EnsurePageBelongsToScope(page);
 			if (trGate != null)
 				return trGate;
@@ -469,14 +416,14 @@ public class PagesController : ControllerBase
 			var translations = await _context.PageRouteTranslations
 				.Where(t => t.PageId == pageId)
 				.OrderBy(t => t.LanguageCode)
-				.Select(t => new
+				.Select(t => new PageRouteTranslationDto
 				{
-					id = t.Id,
-					pageId = t.PageId,
-					languageCode = t.LanguageCode,
-					translatedRoute = t.TranslatedRoute,
-					createdAt = t.CreatedAt,
-					updatedAt = t.UpdatedAt,
+					Id = t.Id,
+					PageId = t.PageId,
+					LanguageCode = t.LanguageCode,
+					TranslatedRoute = t.TranslatedRoute,
+					CreatedAt = t.CreatedAt,
+					UpdatedAt = t.UpdatedAt,
 				})
 				.ToListAsync();
 
@@ -485,7 +432,7 @@ public class PagesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving translations for page: {PageId}", pageId);
-			return StatusCode(500, new { error = "An error occurred while retrieving page translations" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving page translations" });
 		}
 	}
 
@@ -494,13 +441,14 @@ public class PagesController : ControllerBase
 	/// Upsert route translations for a page (replaces all translations)
 	/// </summary>
 	[HttpPut("{pageId}/translations")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> UpdatePageRouteTranslations(int pageId, [FromBody] List<PageRouteTranslationModel> models)
 	{
 		try
 		{
 			var page = await _context.Pages.FindAsync(pageId);
 			if (page == null)
-				return NotFound(new { error = "Page not found" });
+				return NotFound(new ErrorResponseDto { Error = "Page not found" });
 			var trGate = EnsurePageBelongsToScope(page);
 			if (trGate != null)
 				return trGate;
@@ -542,14 +490,14 @@ public class PagesController : ControllerBase
 			var translations = await _context.PageRouteTranslations
 				.Where(t => t.PageId == pageId)
 				.OrderBy(t => t.LanguageCode)
-				.Select(t => new
+				.Select(t => new PageRouteTranslationDto
 				{
-					id = t.Id,
-					pageId = t.PageId,
-					languageCode = t.LanguageCode,
-					translatedRoute = t.TranslatedRoute,
-					createdAt = t.CreatedAt,
-					updatedAt = t.UpdatedAt,
+					Id = t.Id,
+					PageId = t.PageId,
+					LanguageCode = t.LanguageCode,
+					TranslatedRoute = t.TranslatedRoute,
+					CreatedAt = t.CreatedAt,
+					UpdatedAt = t.UpdatedAt,
 				})
 				.ToListAsync();
 
@@ -559,7 +507,7 @@ public class PagesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error updating translations for page: {PageId}", pageId);
-			return StatusCode(500, new { error = "An error occurred while updating page translations" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while updating page translations" });
 		}
 	}
 }

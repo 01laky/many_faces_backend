@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using BeDemo.Api.Models.DTOs.OperatorUserChat;
 using BeDemo.Api.Security;
 using BeDemo.Api.Services;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -25,6 +26,7 @@ public sealed class OperatorUserChatController : ApiControllerBase
 
 	/// <summary>Sidebar list for the logged-in super-admin (per-operator threads).</summary>
 	[HttpGet("conversations")]
+	[ProducesResponseType(typeof(IReadOnlyList<OperatorUserChatConversationDto>), StatusCodes.Status200OK)]
 	public async Task<ActionResult<IReadOnlyList<OperatorUserChatConversationDto>>> ListConversations(
 		CancellationToken cancellationToken)
 	{
@@ -37,6 +39,8 @@ public sealed class OperatorUserChatController : ApiControllerBase
 
 	/// <summary>Paginated history newest-first; use <c>beforeId</c> for older pages.</summary>
 	[HttpGet("with/{targetUserId}")]
+	[ProducesResponseType(typeof(OperatorUserChatHistoryPageDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<ActionResult<OperatorUserChatHistoryPageDto>> GetHistory(
 		string targetUserId,
 		[FromQuery] OperatorUserChatHistoryQuery query,
@@ -47,11 +51,12 @@ public sealed class OperatorUserChatController : ApiControllerBase
 
 		var page = await _chat.GetHistoryAsync(UserId, targetUserId, query, cancellationToken);
 		if (page == null)
-			return NotFound(new { error = "User not found or invalid target" });
+			return NotFound(new ErrorResponseDto { Error = "User not found or invalid target" });
 		return Ok(page);
 	}
 
 	[HttpGet("with/{targetUserId}/exists")]
+	[ProducesResponseType(typeof(OperatorUserChatThreadExistsDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<OperatorUserChatThreadExistsDto>> GetExists(
 		string targetUserId,
 		CancellationToken cancellationToken)
@@ -64,12 +69,13 @@ public sealed class OperatorUserChatController : ApiControllerBase
 	}
 
 	[HttpPost("with/{targetUserId}/read")]
+	[ProducesResponseType(typeof(CountResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> MarkRead(string targetUserId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var count = await _chat.MarkReadAsync(UserId, targetUserId, cancellationToken);
-		return Ok(new { count });
+		return Ok(new CountResultDto { Count = count });
 	}
 }

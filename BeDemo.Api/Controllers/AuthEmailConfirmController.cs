@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BeDemo.Api.Models.Requests.Admin;
 using BeDemo.Api.Services;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -16,14 +17,15 @@ public sealed class AuthEmailConfirmController : ControllerBase
 
 	[HttpGet("confirm-email")]
 	[AllowAnonymous]
+	[ProducesResponseType(typeof(MessageResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> ConfirmEmail([FromQuery] ConfirmEmailQuery query, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrWhiteSpace(query.UserId) || string.IsNullOrWhiteSpace(query.Token))
-			return BadRequest(new { error = "Invalid confirmation link" });
+			return BadRequest(new ErrorResponseDto { Error = "Invalid confirmation link" });
 
 		var result = await _profiles.ConfirmEmailAsync(query.UserId, query.Token, cancellationToken);
 		if (!result.Success)
-			return StatusCode(result.StatusCode, new { error = result.Error });
-		return Ok(new { message = "Email confirmed" });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
+		return Ok(new MessageResultDto { Message = "Email confirmed" });
 	}
 }

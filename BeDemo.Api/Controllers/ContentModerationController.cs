@@ -9,6 +9,7 @@ using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Models.DTOs.Moderation;
 using BeDemo.Api.Utils;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -68,13 +69,21 @@ public sealed class ContentModerationController : ApiControllerBase
 	/// confidence band, submission time window, human reviewer id, and minimum queue age (hours since submit).
 	/// </summary>
 	[HttpGet]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetQueue([FromQuery] GetModerationQueueQuery q)
 	{
 		var items = new List<ModerationItemDto>();
 
+		// Cross-type in-memory sort prevents pure SQL pagination (UNION of 3 heterogeneous tables).
+		// This per-type scan cap bounds the worst-case memory: enough rows to satisfy
+		// all pages up to the requested one plus a 3-page buffer, never fewer than 2 000.
+		// Operators that need items beyond the cap must narrow their filters.
+		var perTypeScanLimit = Math.Max(2000, q.Page * q.PageSize * 4);
+
 		if (q.ContentType is null or ModeratedContentType.Album)
 		{
 			var albumRows = await _context.Albums
+				.AsNoTracking()
 				.Include(a => a.Creator)
 				.Include(a => a.AlbumFaces).ThenInclude(af => af.Face)
 				.Where(a => !q.ContentId.HasValue || a.Id == q.ContentId)
@@ -93,6 +102,7 @@ public sealed class ContentModerationController : ApiControllerBase
 				.Where(a => string.IsNullOrWhiteSpace(q.ReviewedByUserId) || a.HumanReviewedByUserId == q.ReviewedByUserId)
 				.Where(a => !q.MinQueueAgeHours.HasValue ||
 					(a.SubmittedAtUtc != null && a.SubmittedAtUtc <= DateTime.UtcNow.AddHours(-q.MinQueueAgeHours.Value)))
+				.Take(perTypeScanLimit)
 				.Select(a => new
 				{
 					Entity = a,
@@ -105,10 +115,11 @@ public sealed class ContentModerationController : ApiControllerBase
 
 		if (q.ContentType is null or ModeratedContentType.Blog)
 		{
-			var blogs = await _context.Blogs
+			// Include(b => b.Creator) retained for entity.Creator; Face.Title and first image URL
+			// are projected in the Select so those two Includes are no longer needed.
+			var blogRows = await _context.Blogs
+				.AsNoTracking()
 				.Include(b => b.Creator)
-				.Include(b => b.Face)
-				.Include(b => b.Images)
 				.Where(b => !q.ContentId.HasValue || b.Id == q.ContentId)
 				.Where(b => q.ApprovalStatus == null || b.ApprovalStatus == q.ApprovalStatus)
 				.Where(b => q.AiReviewStatus == null || b.AiReviewStatus == q.AiReviewStatus)
@@ -125,13 +136,21 @@ public sealed class ContentModerationController : ApiControllerBase
 				.Where(b => string.IsNullOrWhiteSpace(q.ReviewedByUserId) || b.HumanReviewedByUserId == q.ReviewedByUserId)
 				.Where(b => !q.MinQueueAgeHours.HasValue ||
 					(b.SubmittedAtUtc != null && b.SubmittedAtUtc <= DateTime.UtcNow.AddHours(-q.MinQueueAgeHours.Value)))
+				.Take(perTypeScanLimit)
+				.Select(b => new
+				{
+					Entity = b,
+					FaceTitle = b.Face != null ? b.Face.Title : string.Empty,
+					FirstImageUrl = b.Images.OrderBy(i => i.SortOrder).Select(i => i.ImageUrl).FirstOrDefault(),
+				})
 				.ToListAsync();
-			items.AddRange(blogs.Select(ContentModerationQueueMapper.MapBlog));
+			items.AddRange(blogRows.Select(row => ContentModerationQueueMapper.MapBlog(row.Entity, row.FaceTitle, row.FirstImageUrl)));
 		}
 
 		if (q.ContentType is null or ModeratedContentType.Reel)
 		{
 			var reelRows = await _context.Reels
+				.AsNoTracking()
 				.Include(r => r.Creator)
 				.Include(r => r.ReelFaces).ThenInclude(rf => rf.Face)
 				.Where(r => !q.ContentId.HasValue || r.Id == q.ContentId)
@@ -150,6 +169,7 @@ public sealed class ContentModerationController : ApiControllerBase
 				.Where(r => string.IsNullOrWhiteSpace(q.ReviewedByUserId) || r.HumanReviewedByUserId == q.ReviewedByUserId)
 				.Where(r => !q.MinQueueAgeHours.HasValue ||
 					(r.SubmittedAtUtc != null && r.SubmittedAtUtc <= DateTime.UtcNow.AddHours(-q.MinQueueAgeHours.Value)))
+				.Take(perTypeScanLimit)
 				.Select(r => new
 				{
 					Entity = r,
@@ -173,6 +193,7 @@ public sealed class ContentModerationController : ApiControllerBase
 
 	/// <summary>Immutable audit trail for a single moderated entity (newest first).</summary>
 	[HttpGet("{contentType}/{contentId:int}/events")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetEvents(ModeratedContentType contentType, int contentId)
 	{
 		var events = await _context.ContentModerationEvents
@@ -188,6 +209,7 @@ public sealed class ContentModerationController : ApiControllerBase
 	/// Each alert is also written as a structured warning log line for external log aggregation.
 	/// </summary>
 	[HttpGet("metrics")]
+	[ProducesResponseType(typeof(ModerationMetricsWithAlerts), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetMetrics()
 	{
 		var metrics = await _metrics.GetSnapshotAsync();
@@ -208,6 +230,7 @@ public sealed class ContentModerationController : ApiControllerBase
 	/// Applies approve/reject/remove or AI requeue to many items in one request. Per-item results preserve partial success visibility.
 	/// </summary>
 	[HttpPost("bulk")]
+	[ProducesResponseType(typeof(BulkModerationResponse), StatusCodes.Status200OK)]
 	public async Task<IActionResult> BulkModerate([FromBody] BulkModerationRequest request)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -244,6 +267,7 @@ public sealed class ContentModerationController : ApiControllerBase
 	}
 
 	[HttpPost("{contentType}/{contentId:int}/approve")]
+	[ProducesResponseType(typeof(ModerationDecisionResultDto), StatusCodes.Status200OK)]
 	public Task<IActionResult> Approve(
 		ModeratedContentType contentType,
 		int contentId,
@@ -251,6 +275,7 @@ public sealed class ContentModerationController : ApiControllerBase
 		ApplyDecisionAsync(contentType, contentId, ContentApprovalStatus.Approved, decision);
 
 	[HttpPost("{contentType}/{contentId:int}/reject")]
+	[ProducesResponseType(typeof(ModerationDecisionResultDto), StatusCodes.Status200OK)]
 	public Task<IActionResult> Reject(
 		ModeratedContentType contentType,
 		int contentId,
@@ -258,6 +283,7 @@ public sealed class ContentModerationController : ApiControllerBase
 		ApplyDecisionAsync(contentType, contentId, ContentApprovalStatus.Rejected, decision);
 
 	[HttpPost("{contentType}/{contentId:int}/remove")]
+	[ProducesResponseType(typeof(ModerationDecisionResultDto), StatusCodes.Status200OK)]
 	public Task<IActionResult> Remove(
 		ModeratedContentType contentType,
 		int contentId,
@@ -273,16 +299,16 @@ public sealed class ContentModerationController : ApiControllerBase
 		var result = await ApplyDecisionCoreAsync(contentType, contentId, targetStatus, decision, saveChanges: true);
 		return result.StatusCode switch
 		{
-			StatusCodes.Status200OK => Ok(new
+			StatusCodes.Status200OK => Ok(new ModerationDecisionResultDto
 			{
-				approvalStatus = result.ApprovalStatus?.ToString(),
-				aiReviewStatus = result.AiReviewStatus?.ToString(),
+				ApprovalStatus = result.ApprovalStatus?.ToString(),
+				AiReviewStatus = result.AiReviewStatus?.ToString(),
 			}),
-			StatusCodes.Status400BadRequest => BadRequest(new { error = result.Message }),
+			StatusCodes.Status400BadRequest => BadRequest(new ErrorResponseDto { Error = result.Message }),
 			StatusCodes.Status401Unauthorized => Unauthorized(),
 			StatusCodes.Status403Forbidden => Forbid(),
-			StatusCodes.Status404NotFound => NotFound(new { error = result.Message }),
-			_ => StatusCode(result.StatusCode, new { error = result.Message }),
+			StatusCodes.Status404NotFound => NotFound(new ErrorResponseDto { Error = result.Message }),
+			_ => StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Message }),
 		};
 	}
 

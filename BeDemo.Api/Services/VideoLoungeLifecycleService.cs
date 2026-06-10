@@ -104,30 +104,33 @@ public sealed class VideoLoungeLifecycleService : IVideoLoungeLifecycleService
 			.Select(m => m.UserId)
 			.ToListAsync(cancellationToken);
 
-		foreach (var memberId in memberIds)
-		{
-			if (memberId == lounge.CreatorUserId)
-				continue;
-
-			var notification = new Notification
+		// Build all notifications first, single SaveChangesAsync (X10: one save vs one-per-member).
+		var toNotify = memberIds
+			.Where(id => id != lounge.CreatorUserId)
+			.Select(id => new Notification
 			{
-				UserId = memberId,
+				UserId = id,
 				Title = "Video lounge is live",
 				Message = $"\"{lounge.Title}\" started a live session.",
 				Type = "video_lounge_live",
-			};
-			_context.Notifications.Add(notification);
+			})
+			.ToList();
+
+		foreach (var n in toNotify)
+			_context.Notifications.Add(n);
+
+		if (toNotify.Count > 0)
 			await _context.SaveChangesAsync(cancellationToken);
 
-			await _messengerHub.Clients.User(memberId).SendAsync(
+		foreach (var n in toNotify)
+			await _messengerHub.Clients.User(n.UserId).SendAsync(
 				"ReceiveNotification",
-				notification.Id,
-				notification.Title,
-				notification.Message,
-				notification.Type,
-				notification.CreatedAt,
+				n.Id,
+				n.Title,
+				n.Message,
+				n.Type,
+				n.CreatedAt,
 				cancellationToken);
-		}
 
 		await _loungeHub.Clients.Group(VideoLoungeHub.LoungeGroupName(loungeId))
 			.SendAsync("LoungePresenceUpdated", loungeId, sessionId, cancellationToken: cancellationToken);

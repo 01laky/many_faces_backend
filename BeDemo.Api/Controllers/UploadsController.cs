@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -39,10 +40,11 @@ public class UploadsController : ControllerBase
 	/// </summary>
 	[HttpGet("serve")]
 	[AllowAnonymous]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public IActionResult Serve([FromQuery] string path, [FromQuery] long exp, [FromQuery] string sig)
 	{
 		if (!_signedUrls.TryValidateServeRequest(path, exp, sig, out var storedPath, out var error))
-			return Unauthorized(new { error = error ?? "Invalid upload URL" });
+			return Unauthorized(new ErrorResponseDto { Error = error ?? "Invalid upload URL" });
 
 		var relative = storedPath!.TrimStart('/');
 		var segments = relative.Split('/', StringSplitOptions.RemoveEmptyEntries);

@@ -6,6 +6,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.Utils;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -40,6 +41,7 @@ public class FaceWallTicketsController : ApiControllerBase
 		status is FaceWallTicketStatus.Approved or FaceWallTicketStatus.Denied;
 
 	[HttpGet]
+	[ProducesResponseType(typeof(WallTicketListEnvelopeDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> List(
 		int faceId,
 		[FromQuery] WallTicketListQuery listQuery,
@@ -50,7 +52,7 @@ public class FaceWallTicketsController : ApiControllerBase
 
 		var faceExists = await _context.Faces.AsNoTracking().AnyAsync(f => f.Id == faceId, cancellationToken);
 		if (!faceExists)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var page = listQuery.Page;
 		var pageSize = listQuery.PageSize;
@@ -63,7 +65,7 @@ public class FaceWallTicketsController : ApiControllerBase
 			.Where(t => t.FaceId == faceId);
 
 		var total = await query.CountAsync(cancellationToken);
-		var items = await query
+		var rawItems = await query
 			.OrderByDescending(t => t.CreatedAt)
 			.Skip((page - 1) * pageSize)
 			.Take(pageSize)
@@ -71,32 +73,50 @@ public class FaceWallTicketsController : ApiControllerBase
 			{
 				t.Id,
 				t.Title,
-				descriptionPreview = t.Description.Length > 200 ? t.Description.Substring(0, 200) + "…" : t.Description,
-				status = StatusString(t.Status),
-				creatorId = t.CreatorUserId,
-				creatorName = ((t.Creator.FirstName ?? "") + " " + (t.Creator.LastName ?? "")).Trim(),
-				likesCount = t.Likes.Count,
-				commentsCount = t.Comments.Count,
-				isLikedByMe = t.Likes.Any(l => l.UserId == UserId),
-				isAuthor = t.CreatorUserId == UserId,
+				DescriptionPreview = t.Description.Length > 200 ? t.Description.Substring(0, 200) + "…" : t.Description,
+				t.Status,
+				CreatorId = t.CreatorUserId,
+				CreatorName = ((t.Creator.FirstName ?? "") + " " + (t.Creator.LastName ?? "")).Trim(),
+				LikesCount = t.Likes.Count,
+				CommentsCount = t.Comments.Count,
+				IsLikedByMe = t.Likes.Any(l => l.UserId == UserId),
+				IsAuthor = t.CreatorUserId == UserId,
 				t.CreatedAt,
-				canInteract = t.Status == FaceWallTicketStatus.Active && !isHost,
-				isHostViewer = isHost,
+				CanInteract = t.Status == FaceWallTicketStatus.Active && !isHost,
 			})
 			.ToListAsync(cancellationToken);
 
-		return Ok(new
+		var items = rawItems.Select(t => new WallTicketListItemDto
 		{
-			items,
-			isHostViewer = isHost,
-			page,
-			pageSize,
-			totalCount = total,
-			totalPages = (int)Math.Ceiling(total / (double)pageSize),
+			Id = t.Id,
+			Title = t.Title,
+			DescriptionPreview = t.DescriptionPreview,
+			Status = StatusString(t.Status),
+			CreatorId = t.CreatorId,
+			CreatorName = t.CreatorName,
+			LikesCount = t.LikesCount,
+			CommentsCount = t.CommentsCount,
+			IsLikedByMe = t.IsLikedByMe,
+			IsAuthor = t.IsAuthor,
+			CreatedAt = t.CreatedAt,
+			CanInteract = t.CanInteract,
+			IsHostViewer = isHost,
+		});
+
+		return Ok(new WallTicketListEnvelopeDto
+		{
+			Items = items,
+			IsHostViewer = isHost,
+			Page = page,
+			PageSize = pageSize,
+			TotalCount = total,
+			TotalPages = (int)Math.Ceiling(total / (double)pageSize),
 		});
 	}
 
 	[HttpGet("{ticketId:int}")]
+	[ProducesResponseType(typeof(WallTicketDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> Get(int faceId, int ticketId, CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -104,7 +124,7 @@ public class FaceWallTicketsController : ApiControllerBase
 
 		var faceExists = await _context.Faces.AsNoTracking().AnyAsync(f => f.Id == faceId, cancellationToken);
 		if (!faceExists)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var isHost = await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken);
 
@@ -117,53 +137,54 @@ public class FaceWallTicketsController : ApiControllerBase
 			.FirstOrDefaultAsync(t => t.Id == ticketId && t.FaceId == faceId, cancellationToken);
 
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		var comments = ticket.Comments
 			.OrderBy(c => c.CreatedAt)
-			.Select(c => new
+			.Select(c => new WallTicketDetailCommentDto
 			{
-				c.Id,
-				c.Content,
-				userId = c.UserId,
-				authorName = ((c.User.FirstName ?? "") + " " + (c.User.LastName ?? "")).Trim(),
-				c.CreatedAt,
+				Id = c.Id,
+				Content = c.Content,
+				UserId = c.UserId,
+				AuthorName = ((c.User.FirstName ?? "") + " " + (c.User.LastName ?? "")).Trim(),
+				CreatedAt = c.CreatedAt,
 			})
 			.ToList();
 
-		return Ok(new
+		return Ok(new WallTicketDetailDto
 		{
-			ticket.Id,
-			ticket.Title,
-			ticket.Description,
-			status = StatusString(ticket.Status),
-			creatorId = ticket.CreatorUserId,
-			creatorName = ((ticket.Creator.FirstName ?? "") + " " + (ticket.Creator.LastName ?? "")).Trim(),
-			likesCount = ticket.Likes.Count,
-			commentsCount = ticket.Comments.Count,
-			isLikedByMe = ticket.Likes.Any(l => l.UserId == UserId),
-			isAuthor = ticket.CreatorUserId == UserId,
-			ticket.CreatedAt,
-			ticket.UpdatedAt,
-			canInteract = ticket.Status == FaceWallTicketStatus.Active && !isHost,
-			interactionsFrozen = IsFrozen(ticket.Status),
-			isHostViewer = isHost,
-			comments,
+			Id = ticket.Id,
+			Title = ticket.Title,
+			Description = ticket.Description,
+			Status = StatusString(ticket.Status),
+			CreatorId = ticket.CreatorUserId,
+			CreatorName = ((ticket.Creator.FirstName ?? "") + " " + (ticket.Creator.LastName ?? "")).Trim(),
+			LikesCount = ticket.Likes.Count,
+			CommentsCount = ticket.Comments.Count,
+			IsLikedByMe = ticket.Likes.Any(l => l.UserId == UserId),
+			IsAuthor = ticket.CreatorUserId == UserId,
+			CreatedAt = ticket.CreatedAt,
+			UpdatedAt = ticket.UpdatedAt,
+			CanInteract = ticket.Status == FaceWallTicketStatus.Active && !isHost,
+			InteractionsFrozen = IsFrozen(ticket.Status),
+			IsHostViewer = isHost,
+			Comments = comments,
 		});
 	}
 
 	[HttpPost]
+	[ProducesResponseType(typeof(WallTicketCreatedDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> Create(int faceId, [FromBody] WallTicketWriteDto dto, CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		if (await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken))
-			return StatusCode(StatusCodes.Status403Forbidden, new { error = "Host cannot create wall tickets" });
+			return StatusCode(StatusCodes.Status403Forbidden, new ErrorResponseDto { Error = "Host cannot create wall tickets" });
 
 		var faceExists = await _context.Faces.AsNoTracking().AnyAsync(f => f.Id == faceId, cancellationToken);
 		if (!faceExists)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var title = dto.Title.Trim();
 		var description = dto.Description.Trim();
@@ -172,7 +193,7 @@ public class FaceWallTicketsController : ApiControllerBase
 			t => t.FaceId == faceId && t.CreatorUserId == UserId,
 			cancellationToken);
 		if (count >= MaxTicketsPerUserPerFace)
-			return BadRequest(new { error = $"Maximum {MaxTicketsPerUserPerFace} wall tickets per user per face" });
+			return BadRequest(new ErrorResponseDto { Error = $"Maximum {MaxTicketsPerUserPerFace} wall tickets per user per face" });
 
 		var ticket = new FaceWallTicket
 		{
@@ -187,16 +208,17 @@ public class FaceWallTicketsController : ApiControllerBase
 		await _context.SaveChangesAsync(cancellationToken);
 		_logger.LogInformation("Wall ticket {TicketId} created on face {FaceId} by {UserId}", ticket.Id, faceId, UserId);
 
-		return CreatedAtAction(nameof(Get), new { faceId, ticketId = ticket.Id }, new
+		return CreatedAtAction(nameof(Get), new { faceId, ticketId = ticket.Id }, new WallTicketCreatedDto
 		{
-			ticket.Id,
-			ticket.Title,
-			status = StatusString(ticket.Status),
-			ticket.CreatedAt,
+			Id = ticket.Id,
+			Title = ticket.Title,
+			Status = StatusString(ticket.Status),
+			CreatedAt = ticket.CreatedAt,
 		});
 	}
 
 	[HttpPut("{ticketId:int}")]
+	[ProducesResponseType(typeof(WallTicketUpdateResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Update(int faceId, int ticketId, [FromBody] WallTicketWriteDto dto, CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -206,13 +228,13 @@ public class FaceWallTicketsController : ApiControllerBase
 			t => t.Id == ticketId && t.FaceId == faceId,
 			cancellationToken);
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		if (ticket.CreatorUserId != UserId)
 			return Forbid();
 
 		if (ticket.Status != FaceWallTicketStatus.Active)
-			return BadRequest(new { error = "Only active tickets can be edited" });
+			return BadRequest(new ErrorResponseDto { Error = "Only active tickets can be edited" });
 
 		if (dto.Title is not null)
 			ticket.Title = dto.Title.Trim();
@@ -222,10 +244,11 @@ public class FaceWallTicketsController : ApiControllerBase
 
 		ticket.UpdatedAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync(cancellationToken);
-		return Ok(new { ticket.Id, ticket.Title, status = StatusString(ticket.Status), ticket.UpdatedAt });
+		return Ok(new WallTicketUpdateResultDto { Id = ticket.Id, Title = ticket.Title, Status = StatusString(ticket.Status), UpdatedAt = ticket.UpdatedAt });
 	}
 
 	[HttpDelete("{ticketId:int}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> Delete(int faceId, int ticketId, CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -239,7 +262,7 @@ public class FaceWallTicketsController : ApiControllerBase
 			t => t.Id == ticketId && t.FaceId == faceId,
 			cancellationToken);
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		var isAdmin = await FaceChatRoomAuth.IsGlobalAdminAsync(_context, user, cancellationToken);
 		if (isAdmin)
@@ -253,7 +276,7 @@ public class FaceWallTicketsController : ApiControllerBase
 			return Forbid();
 
 		if (ticket.Status != FaceWallTicketStatus.Active)
-			return BadRequest(new { error = "Only active tickets can be deleted by the author" });
+			return BadRequest(new ErrorResponseDto { Error = "Only active tickets can be deleted by the author" });
 
 		_context.FaceWallTickets.Remove(ticket);
 		await _context.SaveChangesAsync(cancellationToken);
@@ -261,27 +284,28 @@ public class FaceWallTicketsController : ApiControllerBase
 	}
 
 	[HttpPost("{ticketId:int}/like")]
+	[ProducesResponseType(typeof(LikeResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Like(int faceId, int ticketId, CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		if (await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken))
-			return StatusCode(StatusCodes.Status403Forbidden, new { error = "Host cannot like wall tickets" });
+			return StatusCode(StatusCodes.Status403Forbidden, new ErrorResponseDto { Error = "Host cannot like wall tickets" });
 
 		var ticket = await _context.FaceWallTickets.FirstOrDefaultAsync(
 			t => t.Id == ticketId && t.FaceId == faceId,
 			cancellationToken);
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		if (ticket.Status != FaceWallTicketStatus.Active)
-			return BadRequest(new { error = "Likes are frozen for this ticket" });
+			return BadRequest(new ErrorResponseDto { Error = "Likes are frozen for this ticket" });
 
 		if (await _context.FaceWallTicketLikes.AnyAsync(
 				l => l.FaceWallTicketId == ticketId && l.UserId == UserId,
 				cancellationToken))
-			return Ok(new { liked = true });
+			return Ok(LikeResultDto.Yes);
 
 		_context.FaceWallTicketLikes.Add(new FaceWallTicketLike
 		{
@@ -290,38 +314,40 @@ public class FaceWallTicketsController : ApiControllerBase
 			CreatedAt = DateTime.UtcNow,
 		});
 		await _context.SaveChangesAsync(cancellationToken);
-		return Ok(new { liked = true });
+		return Ok(LikeResultDto.Yes);
 	}
 
 	[HttpDelete("{ticketId:int}/like")]
+	[ProducesResponseType(typeof(LikeResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Unlike(int faceId, int ticketId, CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		if (await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken))
-			return StatusCode(StatusCodes.Status403Forbidden, new { error = "Host cannot unlike wall tickets" });
+			return StatusCode(StatusCodes.Status403Forbidden, new ErrorResponseDto { Error = "Host cannot unlike wall tickets" });
 
 		var ticket = await _context.FaceWallTickets.AsNoTracking()
 			.FirstOrDefaultAsync(t => t.Id == ticketId && t.FaceId == faceId, cancellationToken);
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		if (ticket.Status != FaceWallTicketStatus.Active)
-			return BadRequest(new { error = "Likes are frozen for this ticket" });
+			return BadRequest(new ErrorResponseDto { Error = "Likes are frozen for this ticket" });
 
 		var like = await _context.FaceWallTicketLikes.FirstOrDefaultAsync(
 			l => l.FaceWallTicketId == ticketId && l.UserId == UserId,
 			cancellationToken);
 		if (like == null)
-			return Ok(new { liked = false });
+			return Ok(LikeResultDto.No);
 
 		_context.FaceWallTicketLikes.Remove(like);
 		await _context.SaveChangesAsync(cancellationToken);
-		return Ok(new { liked = false });
+		return Ok(LikeResultDto.No);
 	}
 
 	[HttpGet("{ticketId:int}/comments")]
+	[ProducesResponseType(typeof(IReadOnlyList<WallTicketCommentResultDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> ListComments(int faceId, int ticketId, CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -330,20 +356,20 @@ public class FaceWallTicketsController : ApiControllerBase
 		var exists = await _context.FaceWallTickets.AsNoTracking()
 			.AnyAsync(t => t.Id == ticketId && t.FaceId == faceId, cancellationToken);
 		if (!exists)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		var list = await _context.FaceWallTicketComments
 			.AsNoTracking()
 			.Include(c => c.User)
 			.Where(c => c.FaceWallTicketId == ticketId)
 			.OrderBy(c => c.CreatedAt)
-			.Select(c => new
+			.Select(c => new WallTicketCommentResultDto
 			{
-				c.Id,
-				c.Content,
-				userId = c.UserId,
-				authorName = ((c.User.FirstName ?? "") + " " + (c.User.LastName ?? "")).Trim(),
-				c.CreatedAt,
+				Id = c.Id,
+				Content = c.Content,
+				UserId = c.UserId,
+				AuthorName = ((c.User.FirstName ?? "") + " " + (c.User.LastName ?? "")).Trim(),
+				CreatedAt = c.CreatedAt,
 			})
 			.ToListAsync(cancellationToken);
 
@@ -351,6 +377,7 @@ public class FaceWallTicketsController : ApiControllerBase
 	}
 
 	[HttpPost("{ticketId:int}/comments")]
+	[ProducesResponseType(typeof(WallTicketCommentResultDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> AddComment(
 		int faceId,
 		int ticketId,
@@ -361,16 +388,16 @@ public class FaceWallTicketsController : ApiControllerBase
 			return Unauthorized();
 
 		if (await FaceChatRoomAuth.IsHostInFaceAsync(_context, UserId, faceId, cancellationToken))
-			return StatusCode(StatusCodes.Status403Forbidden, new { error = "Host cannot comment on wall tickets" });
+			return StatusCode(StatusCodes.Status403Forbidden, new ErrorResponseDto { Error = "Host cannot comment on wall tickets" });
 
 		var ticket = await _context.FaceWallTickets.FirstOrDefaultAsync(
 			t => t.Id == ticketId && t.FaceId == faceId,
 			cancellationToken);
 		if (ticket == null)
-			return NotFound(new { error = "Ticket not found" });
+			return NotFound(new ErrorResponseDto { Error = "Ticket not found" });
 
 		if (ticket.Status != FaceWallTicketStatus.Active)
-			return BadRequest(new { error = "Comments are frozen for this ticket" });
+			return BadRequest(new ErrorResponseDto { Error = "Comments are frozen for this ticket" });
 
 		var comment = new FaceWallTicketComment
 		{
@@ -383,13 +410,13 @@ public class FaceWallTicketsController : ApiControllerBase
 		await _context.SaveChangesAsync(cancellationToken);
 
 		var author = await _context.Users.AsNoTracking().FirstAsync(u => u.Id == UserId, cancellationToken);
-		return CreatedAtAction(nameof(ListComments), new { faceId, ticketId }, new
+		return CreatedAtAction(nameof(ListComments), new { faceId, ticketId }, new WallTicketCommentResultDto
 		{
-			comment.Id,
-			comment.Content,
-			userId = comment.UserId,
-			authorName = ((author.FirstName ?? "") + " " + (author.LastName ?? "")).Trim(),
-			comment.CreatedAt,
+			Id = comment.Id,
+			Content = comment.Content,
+			UserId = comment.UserId,
+			AuthorName = ((author.FirstName ?? "") + " " + (author.LastName ?? "")).Trim(),
+			CreatedAt = comment.CreatedAt,
 		});
 	}
 

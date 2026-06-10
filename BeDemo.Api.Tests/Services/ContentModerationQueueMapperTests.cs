@@ -67,7 +67,9 @@ public sealed class ContentModerationQueueMapperTests
 			],
 		};
 
-		var dto = ContentModerationQueueMapper.MapBlog(blog);
+		var faceTitle = blog.Face!.Title;
+		var firstImageUrl = blog.Images.OrderBy(i => i.SortOrder).Select(i => i.ImageUrl).FirstOrDefault();
+		var dto = ContentModerationQueueMapper.MapBlog(blog, faceTitle, firstImageUrl);
 
 		dto.ContentType.Should().Be(ModeratedContentType.Blog);
 		dto.FaceTitle.Should().Be("Blog Face");

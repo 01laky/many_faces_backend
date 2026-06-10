@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using BeDemo.Api.Data;
+using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorPush;
@@ -108,11 +109,11 @@ public sealed class AdminPushTestController : ControllerBase
 			response.Failed,
 			invalidTokens.Count);
 
-		return Ok(new
+		return Ok(new AdminPushTestResultDto
 		{
-			response.Sent,
-			response.Failed,
-			prunedInvalidTokens = invalidTokens.Count,
+			Sent = response.Sent,
+			Failed = response.Failed,
+			PrunedInvalidTokens = invalidTokens.Count,
 		});
 	}
 }

@@ -33,8 +33,9 @@ public sealed class BeRp4PlatformStatsCacheEdgeTests : IClassFixture<CustomWebAp
 			.Options;
 		await using var countingDb = new ApplicationDbContext(countingOptions);
 
+		var dbFactory = sp.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
 		var memory = new MemoryCache(new MemoryCacheOptions());
-		var inner = new PlatformStatsQueryService(countingDb);
+		var inner = new PlatformStatsQueryService(countingDb, dbFactory);
 		var cached = new PlatformStatsCachedQueryService(
 			inner,
 			memory,

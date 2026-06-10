@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -60,6 +61,7 @@ public sealed class OperatorContentController : ApiControllerBase
 	/// <summary>Hard-delete album (toolbar Remove and Delete album both use this).</summary>
 	[HttpPost("albums/{id:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> HardDeleteAlbum(
 		int id,
 		[FromBody] OperatorAlbumDeleteRequest request,
@@ -82,6 +84,7 @@ public sealed class OperatorContentController : ApiControllerBase
 	/// <summary>Delete one album media item; album row remains.</summary>
 	[HttpPost("albums/{albumId:int}/media/{mediaId:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeleteAlbumMedia(
 		int albumId,
 		int mediaId,
@@ -100,12 +103,13 @@ public sealed class OperatorContentController : ApiControllerBase
 			request.UserMessage,
 			cancellationToken);
 
-		return ok ? NoContent() : NotFound(new { error = "Album or media not found" });
+		return ok ? NoContent() : NotFound(new ErrorResponseDto { Error = "Album or media not found" });
 	}
 
 	/// <summary>Hard-delete reel (toolbar Remove and Delete reel both use this).</summary>
 	[HttpPost("reels/{id:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> HardDeleteReel(
 		int id,
 		[FromBody] OperatorAlbumDeleteRequest request,
@@ -128,6 +132,7 @@ public sealed class OperatorContentController : ApiControllerBase
 	/// <summary>Hard-delete blog (toolbar Remove and Delete blog both use this).</summary>
 	[HttpPost("blogs/{id:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> HardDeleteBlog(
 		int id,
 		[FromBody] OperatorAlbumDeleteRequest request,
@@ -150,6 +155,7 @@ public sealed class OperatorContentController : ApiControllerBase
 	/// <summary>Delete one blog image; blog row remains.</summary>
 	[HttpPost("blogs/{blogId:int}/images/{imageId:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeleteBlogImage(
 		int blogId,
 		int imageId,
@@ -168,12 +174,13 @@ public sealed class OperatorContentController : ApiControllerBase
 			request.UserMessage,
 			cancellationToken);
 
-		return ok ? NoContent() : NotFound(new { error = "Blog or image not found" });
+		return ok ? NoContent() : NotFound(new ErrorResponseDto { Error = "Blog or image not found" });
 	}
 
 	/// <summary>Hard-delete face chat room (operator detail Delete room).</summary>
 	[HttpPost("chat-rooms/{roomId:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> HardDeleteChatRoom(
 		int roomId,
 		[FromBody] OperatorAlbumDeleteRequest request,
@@ -199,6 +206,7 @@ public sealed class OperatorContentController : ApiControllerBase
 	/// </summary>
 	[HttpPost("video-lounges/{loungeId:int}/live/stealth-join")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
+	[ProducesResponseType(typeof(VideoLoungeJoinResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> StealthJoinVideoLounge(int loungeId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -211,7 +219,7 @@ public sealed class OperatorContentController : ApiControllerBase
 		var session = await _context.FaceVideoLoungeSessions
 			.FirstOrDefaultAsync(s => s.FaceVideoLoungeId == loungeId && s.EndedAt == null, cancellationToken);
 		if (session == null)
-			return Conflict(new { error = "No active live session" });
+			return Conflict(new ErrorResponseDto { Error = "No active live session" });
 
 		var existing = await _context.FaceVideoLoungeSessionParticipants
 			.FirstOrDefaultAsync(p => p.FaceVideoLoungeSessionId == session.Id && p.UserId == UserId && p.LeftAt == null, cancellationToken);
@@ -243,21 +251,22 @@ public sealed class OperatorContentController : ApiControllerBase
 		var displayName = user != null ? $"{user.FirstName} {user.LastName}".Trim() : UserId;
 		var tokenResult = _videoLoungeTokens.CreateToken(session.Id, UserId, displayName, VideoLoungeJoinMode.AdminStealth);
 
-		return Ok(new
+		return Ok(new VideoLoungeJoinResultDto
 		{
-			sessionId = session.Id,
-			joinMode = VideoLoungeJoinMode.AdminStealth.ToString(),
-			token = tokenResult.Token,
-			serverUrl = tokenResult.ServerUrl,
-			roomName = tokenResult.RoomName,
-			isStub = tokenResult.IsStub,
-			expiresAtUtc = tokenResult.ExpiresAtUtc,
+			SessionId = session.Id,
+			JoinMode = VideoLoungeJoinMode.AdminStealth.ToString(),
+			Token = tokenResult.Token,
+			ServerUrl = tokenResult.ServerUrl,
+			RoomName = tokenResult.RoomName,
+			IsStub = tokenResult.IsStub,
+			ExpiresAtUtc = tokenResult.ExpiresAtUtc,
 		});
 	}
 
 	/// <summary>Force one participant to leave live session and notify session group.</summary>
 	[HttpPost("video-lounges/{loungeId:int}/live/kick/{userId}")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
+	[ProducesResponseType(typeof(KickedResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> KickVideoLoungeParticipant(int loungeId, string userId, CancellationToken cancellationToken)
 	{
 		var session = await _context.FaceVideoLoungeSessions
@@ -278,12 +287,13 @@ public sealed class OperatorContentController : ApiControllerBase
 		await _videoLoungeHub.Clients.Group(VideoLoungeHub.LoungeGroupName(loungeId))
 			.SendAsync("LoungePresenceUpdated", loungeId, session.Id, cancellationToken: cancellationToken);
 
-		return Ok(new { kicked = true });
+		return Ok(new KickedResultDto());
 	}
 
 	/// <summary>Kick all non-stealth participants; optional endSession query ends the live session.</summary>
 	[HttpPost("video-lounges/{loungeId:int}/live/kick-all")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
+	[ProducesResponseType(typeof(KickedAllResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> KickAllVideoLoungeParticipants(
 		int loungeId,
 		[FromQuery] bool endSession = false,
@@ -312,12 +322,13 @@ public sealed class OperatorContentController : ApiControllerBase
 				.SendAsync("LoungePresenceUpdated", loungeId, session.Id, cancellationToken: cancellationToken);
 		}
 
-		return Ok(new { kickedAll = true, endSession });
+		return Ok(new KickedAllResultDto { EndSession = endSession });
 	}
 
 	/// <summary>Remove one profile comment (operator profile detail row delete).</summary>
 	[HttpPost("profile-comments/{commentId:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeleteProfileComment(
 		int commentId,
 		[FromBody] OperatorAlbumDeleteRequest request,
@@ -333,12 +344,13 @@ public sealed class OperatorContentController : ApiControllerBase
 			request.Reason,
 			request.UserMessage,
 			cancellationToken);
-		return ok ? NoContent() : NotFound(new { error = "Comment not found" });
+		return ok ? NoContent() : NotFound(new ErrorResponseDto { Error = "Comment not found" });
 	}
 
 	/// <summary>Remove one profile review (operator profile detail row delete).</summary>
 	[HttpPost("profile-reviews/{reviewId:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeleteProfileReview(
 		int reviewId,
 		[FromBody] OperatorAlbumDeleteRequest request,
@@ -354,12 +366,13 @@ public sealed class OperatorContentController : ApiControllerBase
 			request.Reason,
 			request.UserMessage,
 			cancellationToken);
-		return ok ? NoContent() : NotFound(new { error = "Review not found" });
+		return ok ? NoContent() : NotFound(new ErrorResponseDto { Error = "Review not found" });
 	}
 
 	/// <summary>Hard-delete story (operator detail Delete story).</summary>
 	[HttpPost("stories/{id:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> HardDeleteStory(
 		int id,
 		[FromBody] OperatorAlbumDeleteRequest request,
@@ -382,6 +395,7 @@ public sealed class OperatorContentController : ApiControllerBase
 	/// <summary>Delete one story image; story row remains (no platform DM).</summary>
 	[HttpPost("stories/{storyId:int}/images/{imageId:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeleteStoryImage(
 		int storyId,
 		int imageId,
@@ -402,11 +416,11 @@ public sealed class OperatorContentController : ApiControllerBase
 				request.UserMessage,
 				cancellationToken);
 
-			return ok ? NoContent() : NotFound(new { error = "Story or image not found" });
+			return ok ? NoContent() : NotFound(new ErrorResponseDto { Error = "Story or image not found" });
 		}
 		catch (InvalidOperationException ex) when (ex.Message == "image_delete_blocked_live")
 		{
-			return BadRequest(new { error = "image_delete_blocked_live" });
+			return BadRequest(new ErrorResponseDto { Error = "image_delete_blocked_live" });
 		}
 	}
 }

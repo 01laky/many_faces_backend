@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BeDemo.Api.Services.Grid;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -37,10 +38,7 @@ public class FaceGridSnapshotController : ApiControllerBase
 		var parsedBlocks = GridBlockKeys.ParseBlocks(blocks);
 		if (parsedBlocks.Count == 0)
 		{
-			return BadRequest(new
-			{
-				error = "At least one valid block key is required in blocks= (albums, blogs, reels, stories, chat-rooms, video-lounges, profiles, wall-tickets). Unknown keys are ignored.",
-			});
+			return BadRequest(new ErrorResponseDto { Error = "At least one valid block key is required in blocks= (albums, blogs, reels, stories, chat-rooms, video-lounges, profiles, wall-tickets). Unknown keys are ignored." });
 		}
 
 		if (parsedBlocks.Any(b => GridBlockKeys.AuthRequired.Contains(b)) && string.IsNullOrEmpty(UserId))
@@ -59,7 +57,7 @@ public class FaceGridSnapshotController : ApiControllerBase
 
 		return result.Status switch
 		{
-			FaceGridSnapshotStatus.NotFound => NotFound(new { error = "Face not found" }),
+			FaceGridSnapshotStatus.NotFound => NotFound(new ErrorResponseDto { Error = "Face not found" }),
 			FaceGridSnapshotStatus.Forbidden => string.IsNullOrEmpty(UserId) ? Unauthorized() : Forbid(),
 			_ => Ok(result.Blocks),
 		};

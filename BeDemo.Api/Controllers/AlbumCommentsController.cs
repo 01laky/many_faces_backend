@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -24,6 +25,7 @@ public class AlbumCommentsController : ApiControllerBase
 
 	/// <summary>GET /api/albums/{albumId}/comments - Get comments for album</summary>
 	[HttpGet]
+	[ProducesResponseType(typeof(IReadOnlyList<AlbumCommentListItemDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetComments(int albumId)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -31,7 +33,7 @@ public class AlbumCommentsController : ApiControllerBase
 
 		var album = await _context.Albums.FindAsync(albumId);
 		if (album == null)
-			return NotFound(new { error = "Album not found" });
+			return NotFound(new ErrorResponseDto { Error = "Album not found" });
 
 		// Visibility check
 		if (album.AlbumType != AlbumTypeEnum.Public && album.CreatorId != UserId)
@@ -41,15 +43,15 @@ public class AlbumCommentsController : ApiControllerBase
 			.Where(c => c.AlbumId == albumId)
 			.Include(c => c.User)
 			.OrderByDescending(c => c.CreatedAt)
-			.Select(c => new
+			.Select(c => new AlbumCommentListItemDto
 			{
-				c.Id,
-				c.AlbumId,
-				c.UserId,
-				userName = (c.User.FirstName ?? "") + " " + (c.User.LastName ?? ""),
-				c.Content,
-				c.CreatedAt,
-				c.UpdatedAt,
+				Id = c.Id,
+				AlbumId = c.AlbumId,
+				UserId = c.UserId,
+				UserName = (c.User.FirstName ?? "") + " " + (c.User.LastName ?? ""),
+				Content = c.Content,
+				CreatedAt = c.CreatedAt,
+				UpdatedAt = c.UpdatedAt,
 			})
 			.ToListAsync();
 
@@ -58,6 +60,7 @@ public class AlbumCommentsController : ApiControllerBase
 
 	/// <summary>POST /api/albums/{albumId}/comments - Add comment</summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(AlbumCommentDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> CreateComment(int albumId, [FromBody] CreateAlbumCommentDto dto)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -65,7 +68,7 @@ public class AlbumCommentsController : ApiControllerBase
 
 		var album = await _context.Albums.FindAsync(albumId);
 		if (album == null)
-			return NotFound(new { error = "Album not found" });
+			return NotFound(new ErrorResponseDto { Error = "Album not found" });
 
 		if (album.AlbumType != AlbumTypeEnum.Public && album.CreatorId != UserId)
 			return Forbid();
@@ -81,18 +84,19 @@ public class AlbumCommentsController : ApiControllerBase
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("User {UserId} commented on album {AlbumId}", UserId, albumId);
-		return CreatedAtAction(nameof(GetComments), new { albumId }, new
+		return CreatedAtAction(nameof(GetComments), new { albumId }, new AlbumCommentDto
 		{
-			comment.Id,
-			comment.AlbumId,
-			comment.UserId,
-			comment.Content,
-			comment.CreatedAt,
+			Id = comment.Id,
+			AlbumId = comment.AlbumId,
+			UserId = comment.UserId,
+			Content = comment.Content,
+			CreatedAt = comment.CreatedAt,
 		});
 	}
 
 	/// <summary>PUT /api/albums/{albumId}/comments/{id} - Update comment (author only)</summary>
 	[HttpPut("{id}")]
+	[ProducesResponseType(typeof(AlbumCommentDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> UpdateComment(int albumId, int id, [FromBody] UpdateAlbumCommentDto dto)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -102,7 +106,7 @@ public class AlbumCommentsController : ApiControllerBase
 			.FirstOrDefaultAsync(c => c.Id == id && c.AlbumId == albumId);
 
 		if (comment == null)
-			return NotFound(new { error = "Comment not found" });
+			return NotFound(new ErrorResponseDto { Error = "Comment not found" });
 
 		if (comment.UserId != UserId)
 			return Forbid();
@@ -112,19 +116,20 @@ public class AlbumCommentsController : ApiControllerBase
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("User {UserId} updated comment {CommentId}", UserId, id);
-		return Ok(new
+		return Ok(new AlbumCommentDto
 		{
-			comment.Id,
-			comment.AlbumId,
-			comment.UserId,
-			comment.Content,
-			comment.CreatedAt,
-			comment.UpdatedAt,
+			Id = comment.Id,
+			AlbumId = comment.AlbumId,
+			UserId = comment.UserId,
+			Content = comment.Content,
+			CreatedAt = comment.CreatedAt,
+			UpdatedAt = comment.UpdatedAt,
 		});
 	}
 
 	/// <summary>DELETE /api/albums/{albumId}/comments/{id} - Delete comment (author only)</summary>
 	[HttpDelete("{id}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeleteComment(int albumId, int id)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -134,7 +139,7 @@ public class AlbumCommentsController : ApiControllerBase
 			.FirstOrDefaultAsync(c => c.Id == id && c.AlbumId == albumId);
 
 		if (comment == null)
-			return NotFound(new { error = "Comment not found" });
+			return NotFound(new ErrorResponseDto { Error = "Comment not found" });
 
 		if (comment.UserId != UserId)
 			return Forbid();

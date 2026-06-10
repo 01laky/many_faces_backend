@@ -5,6 +5,8 @@ using BeDemo.Api.Models.Requests.Admin;
 using BeDemo.Api.Models.Requests.OperatorUsers;
 using BeDemo.Api.Security;
 using BeDemo.Api.Services;
+using BeDemo.Api.Models.DTOs;
+using BeDemo.Api.Models.DTOs.Admin;
 
 namespace BeDemo.Api.Controllers;
 
@@ -25,6 +27,7 @@ public sealed class AdminMeProfileController : ApiControllerBase
 	}
 
 	[HttpGet("profile")]
+	[ProducesResponseType(typeof(AdminMeProfileDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -36,11 +39,12 @@ public sealed class AdminMeProfileController : ApiControllerBase
 			Request.Host.Value!,
 			cancellationToken);
 		if (dto == null)
-			return NotFound(new { error = "User not found" });
+			return NotFound(new ErrorResponseDto { Error = "User not found" });
 		return Ok(dto);
 	}
 
 	[HttpPut("profile")]
+	[ProducesResponseType(typeof(AdminMeProfileDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> UpdateProfile(
 		[FromBody] UpdateAdminMeProfileRequest request,
 		CancellationToken cancellationToken)
@@ -59,12 +63,13 @@ public sealed class AdminMeProfileController : ApiControllerBase
 			cancellationToken);
 
 		if (result.Profile == null)
-			return StatusCode(result.StatusCode, new { error = result.Error });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
 
 		return Ok(result.Profile);
 	}
 
 	[HttpPut("password")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> UpdatePassword(
 		[FromBody] UpdateAdminMePasswordRequest request,
 		CancellationToken cancellationToken)
@@ -74,11 +79,12 @@ public sealed class AdminMeProfileController : ApiControllerBase
 
 		var result = await _profiles.UpdatePasswordAsync(UserId, request, cancellationToken);
 		if (result.Error != null)
-			return StatusCode(result.StatusCode, new { error = result.Error });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
 		return NoContent();
 	}
 
 	[HttpPatch("faces/{faceId:int}/role")]
+	[ProducesResponseType(typeof(UserRoleIdResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> PatchFaceRole(
 		int faceId,
 		[FromBody] OperatorSetFaceRoleRequest request,
@@ -94,11 +100,12 @@ public sealed class AdminMeProfileController : ApiControllerBase
 			HttpContext.TraceIdentifier,
 			cancellationToken);
 		if (!result.Success)
-			return StatusCode(result.StatusCode, new { error = result.Error });
-		return Ok(new { userRoleId = request.UserRoleId });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
+		return Ok(new UserRoleIdResultDto { UserRoleId = request.UserRoleId });
 	}
 
 	[HttpPost("resend-email-confirmation")]
+	[ProducesResponseType(typeof(MessageResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> ResendEmailConfirmation(CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -112,7 +119,7 @@ public sealed class AdminMeProfileController : ApiControllerBase
 			locale,
 			cancellationToken);
 		if (!result.Success)
-			return StatusCode(result.StatusCode, new { error = result.Error });
-		return Ok(new { message = "Confirmation email sent" });
+			return StatusCode(result.StatusCode, new ErrorResponseDto { Error = result.Error ?? string.Empty });
+		return Ok(new MessageResultDto { Message = "Confirmation email sent" });
 	}
 }

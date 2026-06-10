@@ -2,6 +2,7 @@ using System.Security.Claims;
 using BeDemo.Api.Configuration;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -11,7 +12,7 @@ namespace BeDemo.Api.Services.Faces;
 
 public interface IFacesConfigService
 {
-	Task<IReadOnlyList<object>> GetFacesConfigAsync(
+	Task<IReadOnlyList<FaceConfigDto>> GetFacesConfigAsync(
 		ClaimsPrincipal user,
 		string? userId,
 		CancellationToken cancellationToken = default);
@@ -53,13 +54,13 @@ public sealed class FacesConfigService : IFacesConfigService
 	public void InvalidateAll() =>
 		_cache.Set("faces-config-gen", (_cache.Get<int?>("faces-config-gen") ?? 0) + 1);
 
-	public async Task<IReadOnlyList<object>> GetFacesConfigAsync(
+	public async Task<IReadOnlyList<FaceConfigDto>> GetFacesConfigAsync(
 		ClaimsPrincipal user,
 		string? userId,
 		CancellationToken cancellationToken = default)
 	{
 		var key = CacheKey(userId, _faceScope.IsAdminFaceScope, _faceScope.IsPublicFace, _faceScope.FaceId);
-		if (_cache.TryGetValue(key, out IReadOnlyList<object>? cached) && cached is not null)
+		if (_cache.TryGetValue(key, out IReadOnlyList<FaceConfigDto>? cached) && cached is not null)
 			return cached;
 
 		var faces = await LoadFacesAsync(user, userId, cancellationToken).ConfigureAwait(false);
@@ -67,60 +68,60 @@ public sealed class FacesConfigService : IFacesConfigService
 
 		var facesConfig = faces.Select(f =>
 		{
-			object? myFaceRoleId = null;
-			object? myFaceRoleName = null;
+			int? myFaceRoleId = null;
+			string? myFaceRoleName = null;
 			if (myFaceRoles != null && myFaceRoles.TryGetValue(f.Id, out var role))
 			{
 				myFaceRoleId = role.RoleId;
 				myFaceRoleName = role.RoleName;
 			}
 
-			object? myVisited = null;
-			object? myFaceRoleIntroCompleted = null;
+			bool? myVisited = null;
+			bool? myFaceRoleIntroCompleted = null;
 			if (myFaceState != null && myFaceState.TryGetValue(f.Id, out var st))
 			{
 				myVisited = st.Visited;
 				myFaceRoleIntroCompleted = st.FaceRoleIntroCompleted;
 			}
 
-			return (object)new
+			return new FaceConfigDto
 			{
-				index = f.Index,
-				id = f.Id,
-				title = f.Title,
-				description = f.Description,
-				gradientSettings = f.GradientSettings,
-				isPublic = f.IsPublic,
-				visibility = f.Visibility.ToString(),
-				allowRecensions = f.AllowRecensions,
-				chatRoomsCreate = f.ChatRoomsCreate,
-				videoLoungesCreate = f.VideoLoungesCreate,
-				myFaceRoleId,
-				myFaceRoleName,
-				myVisited,
-				myFaceRoleIntroCompleted,
-				pages = f.Pages
+				Index = f.Index,
+				Id = f.Id,
+				Title = f.Title,
+				Description = f.Description,
+				GradientSettings = f.GradientSettings,
+				IsPublic = f.IsPublic,
+				Visibility = f.Visibility.ToString(),
+				AllowRecensions = f.AllowRecensions,
+				ChatRoomsCreate = f.ChatRoomsCreate,
+				VideoLoungesCreate = f.VideoLoungesCreate,
+				MyFaceRoleId = myFaceRoleId,
+				MyFaceRoleName = myFaceRoleName,
+				MyVisited = myVisited,
+				MyFaceRoleIntroCompleted = myFaceRoleIntroCompleted,
+				Pages = f.Pages
 					.OrderBy(p => p.Index)
-					.Select(p => new
+					.Select(p => new FaceConfigPageDto
 					{
-						index = p.Index,
-						id = p.Id,
-						name = p.Name,
-						description = p.Description,
-						path = p.Path,
-						gridSchema = p.GridSchema,
-						pageType = p.PageType != null
-							? new { index = p.PageType.Index, id = p.PageType.Id }
-							: (object?)null,
-						routeTranslations = p.RouteTranslations
+						Index = p.Index,
+						Id = p.Id,
+						Name = p.Name,
+						Description = p.Description,
+						Path = p.Path,
+						GridSchema = p.GridSchema,
+						PageType = p.PageType != null
+							? new FaceConfigPageTypeDto { Id = p.PageType.Id, Index = p.PageType.Index }
+							: null,
+						RouteTranslations = p.RouteTranslations
 							.OrderBy(rt => rt.LanguageCode)
-							.Select(rt => new
+							.Select(rt => new FaceConfigRouteTranslationDto
 							{
-								languageCode = rt.LanguageCode,
-								translatedRoute = rt.TranslatedRoute,
+								LanguageCode = rt.LanguageCode,
+								TranslatedRoute = rt.TranslatedRoute,
 							}).ToList(),
-						createdAt = p.CreatedAt,
-						updatedAt = p.UpdatedAt,
+						CreatedAt = p.CreatedAt,
+						UpdatedAt = p.UpdatedAt,
 					}).ToList(),
 			};
 		}).ToList();

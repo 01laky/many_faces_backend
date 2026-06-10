@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -19,6 +20,7 @@ public class FriendsController : ApiControllerBase
 
 	/// <summary>GET /api/friends - List current user's friends</summary>
 	[HttpGet]
+	[ProducesResponseType(typeof(IEnumerable<FriendSummaryDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetFriends()
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -31,7 +33,7 @@ public class FriendsController : ApiControllerBase
 
 		var users = await _context.Users
 			.Where(u => friends.Contains(u.Id))
-			.Select(u => new { id = u.Id, email = u.Email, firstName = u.FirstName, lastName = u.LastName })
+			.Select(u => new FriendSummaryDto { Id = u.Id, Email = u.Email, FirstName = u.FirstName, LastName = u.LastName })
 			.ToListAsync();
 
 		return Ok(users);

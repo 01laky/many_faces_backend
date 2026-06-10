@@ -28,6 +28,7 @@ public sealed class SearchController : ControllerBase
 	/// </summary>
 	[HttpGet("health")]
 	[AllowAnonymous]
+	[ProducesResponseType(typeof(SearchHealthDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<SearchHealthDto>> GetHealth(CancellationToken cancellationToken)
 	{
 		var result = await _probe.GetHealthAsync(cancellationToken);

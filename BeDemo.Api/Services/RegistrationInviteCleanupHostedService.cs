@@ -52,21 +52,14 @@ public sealed class RegistrationInviteCleanupHostedService : BackgroundService
 		var now = DateTime.UtcNow;
 		var consumedCutoff = now.AddDays(-Math.Max(1, _options.Value.ConsumedRetentionDays));
 
-		var stale = await context.RegistrationInvites
+		// ExecuteDeleteAsync issues a single DELETE WHERE — no round-trip to materialise the rows first.
+		var deleted = await context.RegistrationInvites
 			.Where(i =>
 				i.ExpiresAtUtc < now
 				|| (i.ConsumedAtUtc != null && i.ConsumedAtUtc < consumedCutoff)
 				|| (i.RevokedAtUtc != null && i.RevokedAtUtc < consumedCutoff))
-			.ToListAsync(cancellationToken)
+			.ExecuteDeleteAsync(cancellationToken)
 			.ConfigureAwait(false);
-
-		if (stale.Count > 0)
-		{
-			context.RegistrationInvites.RemoveRange(stale);
-			await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
-		}
-
-		var deleted = stale.Count;
 
 		if (deleted > 0)
 		{

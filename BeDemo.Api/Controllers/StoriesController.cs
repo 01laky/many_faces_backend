@@ -5,6 +5,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.Requests.Stories;
+
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.Grid;
 using BeDemo.Api.Utils;
@@ -66,7 +67,7 @@ public class StoriesController : ApiControllerBase
 		if (!story.StoryFaces.Any())
 			return null;
 		if (story.StoryFaces.All(sf => sf.FaceId != _faceScope.FaceId))
-			return NotFound(new { error = "Story not found" });
+			return NotFound(new ErrorResponseDto { Error = "Story not found" });
 		return null;
 	}
 
@@ -83,6 +84,7 @@ public class StoriesController : ApiControllerBase
 
 	/// <summary>Current user's stories (all states), optional face targeting filter.</summary>
 	[HttpGet("me")]
+	[ProducesResponseType(typeof(IEnumerable<StoryListItemDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> ListMine([FromQuery] StoryMineQuery listQuery, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -90,8 +92,6 @@ public class StoriesController : ApiControllerBase
 
 		var query = _context.Stories
 			.AsNoTracking()
-			.Include(s => s.StoryFaces)
-			.Include(s => s.Images)
 			.Where(s => s.CreatorId == UserId);
 
 		var filterFace = _faceScope.ResolveDataFaceId(listQuery.FaceId);
@@ -102,7 +102,7 @@ public class StoriesController : ApiControllerBase
 				s.StoryFaces.Any(sf => sf.FaceId == filterFace));
 		}
 
-		var list = await query
+		var raw = await query
 			.OrderByDescending(s => s.CreatedAt)
 			.Select(s => new
 			{
@@ -113,15 +113,30 @@ public class StoriesController : ApiControllerBase
 				s.ExpiresAt,
 				s.ScheduledPublishAt,
 				s.CreatedAt,
-				imageCount = s.Images.Count,
-				faceIds = s.StoryFaces.Select(sf => sf.FaceId).ToList(),
+				ImageCount = s.Images.Count,
+				FaceIds = s.StoryFaces.Select(sf => sf.FaceId).ToList(),
 			})
 			.ToListAsync(cancellationToken);
+
+		var list = raw.Select(s => new StoryListItemDto
+		{
+			Id = s.Id,
+			Title = s.Title,
+			State = s.State.ToString(),
+			PublishedAt = s.PublishedAt,
+			ExpiresAt = s.ExpiresAt,
+			ScheduledPublishAt = s.ScheduledPublishAt,
+			CreatedAt = s.CreatedAt,
+			ImageCount = s.ImageCount,
+			FaceIds = s.FaceIds,
+		});
 
 		return Ok(list);
 	}
 
 	[HttpGet("{id:int}")]
+	[ProducesResponseType(typeof(StoryDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetDetail(int id, [FromQuery] StoryDetailQuery detailQuery, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -130,6 +145,7 @@ public class StoriesController : ApiControllerBase
 		var effectiveFaceId = _faceScope.ResolveDataFaceId(detailQuery.FaceId);
 
 		var story = await _context.Stories
+			.AsNoTracking()
 			.Include(s => s.Creator)
 			.Include(s => s.StoryFaces)
 			.ThenInclude(sf => sf.Face)
@@ -138,15 +154,16 @@ public class StoriesController : ApiControllerBase
 			.Include(s => s.Comments)
 			.Include(s => s.Views)
 			.ThenInclude(v => v.Viewer)
+			.AsSplitQuery()
 			.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
 		if (story == null)
-			return NotFound(new { error = "Story not found" });
+			return NotFound(new ErrorResponseDto { Error = "Story not found" });
 
 		var operatorInventory = CanManageAllFaces();
 
 		if (!StoryVisibility.IsTargetedForFace(story, effectiveFaceId))
-			return NotFound(new { error = "Story not found" });
+			return NotFound(new ErrorResponseDto { Error = "Story not found" });
 
 		var isCreator = story.CreatorId == UserId;
 		var now = DateTime.UtcNow;
@@ -158,62 +175,64 @@ public class StoriesController : ApiControllerBase
 		if (!operatorInventory && !isCreator)
 		{
 			if (!await StoryViewerRules.ViewerHasFaceMembershipAsync(_context, UserId, effectiveFaceId, cancellationToken))
-				return NotFound(new { error = "Story not found" });
+				return NotFound(new ErrorResponseDto { Error = "Story not found" });
 
 			if (!isLive)
-				return NotFound(new { error = "Story not found" });
+				return NotFound(new ErrorResponseDto { Error = "Story not found" });
 		}
 
-		var images = story.Images.OrderBy(i => i.SortOrder).Select(i => new
+		var images = story.Images.OrderBy(i => i.SortOrder).Select(i => new StoryImageDetailDto
 		{
-			i.Id,
-			imageUrl = SignStoredImageUrl(i.ImageUrl),
-			i.Description,
-			i.SortOrder,
+			Id = i.Id,
+			ImageUrl = SignStoredImageUrl(i.ImageUrl),
+			Description = i.Description,
+			SortOrder = i.SortOrder,
 		}).ToList();
 
 		var creatorName = ((story.Creator.FirstName ?? "") + " " + (story.Creator.LastName ?? "")).Trim();
 		var faces = story.StoryFaces
-			.Select(sf => new { faceId = sf.FaceId, title = sf.Face.Title })
+			.Select(sf => new StoryFaceRefDto { FaceId = sf.FaceId, Title = sf.Face.Title })
 			.ToList();
 
 		const int maxViewers = 100;
-		var viewersPayload = (isCreator || operatorInventory)
+		IEnumerable<StoryViewerDto>? viewersPayload = (isCreator || operatorInventory)
 			? story.Views
 				.OrderByDescending(v => v.ViewedAt)
 				.Take(maxViewers)
-				.Select(v => new
+				.Select(v => new StoryViewerDto
 				{
-					v.ViewerUserId,
-					viewerName = ((v.Viewer.FirstName ?? "") + " " + (v.Viewer.LastName ?? "")).Trim(),
-					v.ViewedAt,
+					ViewerUserId = v.ViewerUserId,
+					ViewerName = ((v.Viewer.FirstName ?? "") + " " + (v.Viewer.LastName ?? "")).Trim(),
+					ViewedAt = v.ViewedAt,
 				})
 				.ToList()
 			: null;
 
-		return Ok(new
+		return Ok(new StoryDetailDto
 		{
-			story.Id,
-			story.Title,
-			story.State,
-			story.CreatorId,
-			creatorName,
-			faces,
-			images,
-			likesCount = story.Likes.Count,
-			commentsCount = story.Comments.Count,
-			isLikedByMe = story.Likes.Any(l => l.UserId == UserId),
-			story.PublishedAt,
-			story.ExpiresAt,
-			story.ScheduledPublishAt,
-			story.CreatedAt,
-			story.UpdatedAt,
-			viewCount = story.Views.Count,
-			viewers = viewersPayload,
+			Id = story.Id,
+			Title = story.Title,
+			State = story.State.ToString(),
+			CreatorId = story.CreatorId,
+			CreatorName = creatorName,
+			Faces = faces,
+			Images = images,
+			LikesCount = story.Likes.Count,
+			CommentsCount = story.Comments.Count,
+			IsLikedByMe = story.Likes.Any(l => l.UserId == UserId),
+			PublishedAt = story.PublishedAt,
+			ExpiresAt = story.ExpiresAt,
+			ScheduledPublishAt = story.ScheduledPublishAt,
+			CreatedAt = story.CreatedAt,
+			UpdatedAt = story.UpdatedAt,
+			ViewCount = story.Views.Count,
+			Viewers = viewersPayload,
 		});
 	}
 
 	[HttpPost]
+	[ProducesResponseType(typeof(StoryCreatedDto), StatusCodes.Status201Created)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> Create([FromBody] CreateStoryDto dto, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -225,7 +244,7 @@ public class StoriesController : ApiControllerBase
 		else if (!CanManageAllFaces())
 		{
 			if (faceTargets.Any(fid => fid != _faceScope.FaceId))
-				return BadRequest(new { error = "Stories may only target the current face scope" });
+				return BadRequest(new ErrorResponseDto { Error = "Stories may only target the current face scope" });
 		}
 
 		await _lifecycle.EnsureRoomForNewStoryAsync(UserId, cancellationToken);
@@ -249,10 +268,13 @@ public class StoriesController : ApiControllerBase
 		if (valid.Count > 0)
 			await _context.SaveChangesAsync(cancellationToken);
 
-		return StatusCode(StatusCodes.Status201Created, new { story.Id });
+		return StatusCode(StatusCodes.Status201Created, new StoryCreatedDto { Id = story.Id });
 	}
 
 	[HttpPost("{id:int}/publish")]
+	[ProducesResponseType(typeof(PublishedResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> Publish(int id, [FromBody] PublishStoryDto dto, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -260,7 +282,7 @@ public class StoriesController : ApiControllerBase
 
 		var storyPre = await _context.Stories.Include(s => s.StoryFaces).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 		if (storyPre == null)
-			return NotFound(new { error = "Story not found" });
+			return NotFound(new ErrorResponseDto { Error = "Story not found" });
 		var pubGate = GateStoryForScope(storyPre);
 		if (pubGate != null)
 			return pubGate;
@@ -270,18 +292,20 @@ public class StoriesController : ApiControllerBase
 		{
 			return err switch
 			{
-				"not_found" => NotFound(new { error = "Story not found" }),
+				"not_found" => NotFound(new ErrorResponseDto { Error = "Story not found" }),
 				"forbidden" => Forbid(),
-				"invalid_images" => BadRequest(new { error = "Story must have between 1 and 10 images before publish" }),
-				"already_published" => BadRequest(new { error = "Story is still live" }),
-				_ => BadRequest(new { error = err }),
+				"invalid_images" => BadRequest(new ErrorResponseDto { Error = "Story must have between 1 and 10 images before publish" }),
+				"already_published" => BadRequest(new ErrorResponseDto { Error = "Story is still live" }),
+				_ => BadRequest(new ErrorResponseDto { Error = err ?? string.Empty }),
 			};
 		}
 
-		return Ok(new { published = true });
+		return Ok(new PublishedResultDto());
 	}
 
 	[HttpDelete("{id:int}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -289,7 +313,7 @@ public class StoriesController : ApiControllerBase
 
 		var story = await _context.Stories.Include(s => s.StoryFaces).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 		if (story == null)
-			return NotFound(new { error = "Story not found" });
+			return NotFound(new ErrorResponseDto { Error = "Story not found" });
 		if (story.CreatorId != UserId)
 			return Forbid();
 		var delGate = GateStoryForScope(story);
@@ -304,6 +328,8 @@ public class StoriesController : ApiControllerBase
 
 	/// <summary>Record a view (idempotent per viewer).</summary>
 	[HttpPost("{id:int}/view")]
+	[ProducesResponseType(typeof(RecordedResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> RecordView(int id, [FromQuery] StoryViewQuery viewQuery, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -319,20 +345,20 @@ public class StoriesController : ApiControllerBase
 			.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
 		if (story == null)
-			return NotFound(new { error = "Story not found" });
+			return NotFound(new ErrorResponseDto { Error = "Story not found" });
 
 		var now = DateTime.UtcNow;
 		if (story.State != StoryState.Published || story.PublishedAt > now || story.ExpiresAt <= now)
-			return NotFound(new { error = "Story not found" });
+			return NotFound(new ErrorResponseDto { Error = "Story not found" });
 
 		if (!StoryVisibility.IsTargetedForFace(story, effectiveFaceId))
-			return NotFound(new { error = "Story not found" });
+			return NotFound(new ErrorResponseDto { Error = "Story not found" });
 
 		var existing = await _context.StoryViews.FirstOrDefaultAsync(
 			v => v.StoryId == id && v.ViewerUserId == UserId,
 			cancellationToken);
 		if (existing != null)
-			return Ok(new { recorded = false });
+			return Ok(new RecordedResultDto { Recorded = false });
 
 		_context.StoryViews.Add(new StoryView
 		{
@@ -341,11 +367,14 @@ public class StoriesController : ApiControllerBase
 			ViewedAt = now,
 		});
 		await _context.SaveChangesAsync(cancellationToken);
-		return Ok(new { recorded = true });
+		return Ok(new RecordedResultDto { Recorded = true });
 	}
 
 	[HttpPost("{id:int}/images")]
 	[RequestSizeLimit(52_428_800)]
+	[ProducesResponseType(typeof(StoryImageUploadResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> UploadImage(
 		int id,
 		[FromForm] StoryImageUploadForm form,
@@ -356,7 +385,7 @@ public class StoriesController : ApiControllerBase
 
 		var story = await _context.Stories.Include(s => s.Images).Include(s => s.StoryFaces).FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 		if (story == null)
-			return NotFound(new { error = "Story not found" });
+			return NotFound(new ErrorResponseDto { Error = "Story not found" });
 		if (story.CreatorId != UserId)
 			return Forbid();
 
@@ -368,17 +397,17 @@ public class StoriesController : ApiControllerBase
 		{
 			var now = DateTime.UtcNow;
 			if (story.ExpiresAt > now)
-				return BadRequest(new { error = "Cannot add images to a live story" });
+				return BadRequest(new ErrorResponseDto { Error = "Cannot add images to a live story" });
 		}
 
 		var file = form.File;
 		var sortOrder = form.SortOrder;
 
 		if (story.Images.Count >= 10)
-			return BadRequest(new { error = "Maximum 10 images per story" });
+			return BadRequest(new ErrorResponseDto { Error = "Maximum 10 images per story" });
 
 		if (story.Images.Any(i => i.SortOrder == sortOrder))
-			return BadRequest(new { error = "sortOrder already used" });
+			return BadRequest(new ErrorResponseDto { Error = "sortOrder already used" });
 
 		await using (var peek = file.OpenReadStream())
 		{
@@ -407,7 +436,7 @@ public class StoriesController : ApiControllerBase
 				fileName,
 				out var fullPath,
 				out var pathError))
-			return BadRequest(new { error = pathError ?? "Invalid upload path" });
+			return BadRequest(new ErrorResponseDto { Error = pathError ?? "Invalid upload path" });
 
 		Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
 		await using (var stream = System.IO.File.Create(fullPath))
@@ -427,6 +456,6 @@ public class StoriesController : ApiControllerBase
 		story.UpdatedAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync(cancellationToken);
 
-		return Ok(new { img.Id, imageUrl = SignStoredImageUrl(url), img.SortOrder });
+		return Ok(new StoryImageUploadResultDto { Id = img.Id, ImageUrl = SignStoredImageUrl(url), SortOrder = img.SortOrder });
 	}
 }

@@ -70,6 +70,7 @@ public class OAuth2Controller : ControllerBase
 	/// <summary>ACL A21: fixed-window rate limit per client IP (relaxed in <c>Testing</c> environment).</summary>
 	[HttpPost("token")]
 	[EnableRateLimiting("oauth-token")]
+	[ProducesResponseType(typeof(OAuth2TokenResponse), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Token(
 		[FromBody][CustomizeValidator(Skip = true)] OAuth2TokenRequest request,
 		CancellationToken cancellationToken)
@@ -168,14 +169,11 @@ public class OAuth2Controller : ControllerBase
 	/// <summary>ACL A21: fixed-window rate limit per client IP (same bypass flag as token in Testing).</summary>
 	[HttpPost("register")]
 	[EnableRateLimiting("oauth-register")]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
 	[Obsolete("Use POST /api/oauth2/register/request then /api/oauth2/register/complete")]
 	public IActionResult Register([FromBody] OAuth2RegisterModel model)
 	{
 		_ = model;
-		return BadRequest(new
-		{
-			error = "registration_flow_deprecated",
-			message = "Use POST /api/oauth2/register/request (email) then complete signup from the email link with POST /api/oauth2/register/complete.",
-		});
+		return BadRequest(new ErrorWithMessageDto { Error = "registration_flow_deprecated", Message = "Use POST /api/oauth2/register/request (email) then complete signup from the email link with POST /api/oauth2/register/complete." });
 	}
 }

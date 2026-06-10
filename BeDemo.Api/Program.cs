@@ -185,6 +185,7 @@ builder.Services.AddControllers()
 	.AddJsonOptions(o =>
 	{
 		o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+		o.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
 	});
 
 // Endpoint schema validation: FluentValidation auto 400 ProblemDetails (§6); validators in BeDemo.Api/Validation.

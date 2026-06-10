@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.Requests.Social;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.Messenger;
@@ -39,6 +40,7 @@ public class MessagesController : ApiControllerBase
 
 	/// <summary>GET /api/messages/conversations - Paginated conversation list (BE-RP3)</summary>
 	[HttpGet("conversations")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetConversations(
 		[FromQuery] int page = 1,
 		[FromQuery] int pageSize = 50,
@@ -64,6 +66,7 @@ public class MessagesController : ApiControllerBase
 
 	/// <summary>GET /api/messages/requests - Message requests from non-friends</summary>
 	[HttpGet("requests")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetMessageRequests()
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -75,26 +78,31 @@ public class MessagesController : ApiControllerBase
 			.Select(b => b.BlockerId == UserId ? b.BlockedId : b.BlockerId)
 			.ToListAsync();
 
-		var requests = await _context.Messages
+		// Include removed: EF Core translates navigation-property access in Select directly.
+		// Projecting the 3 needed Sender fields (not the full ApplicationUser) reduces row transfer.
+		var rawRequests = await _context.Messages
+			.AsNoTracking()
 			.Where(m => m.ReceiverId == UserId && m.IsMessageRequest && m.MessageRequestStatus == MessageRequestStatus.Pending)
 			.Where(m => !blockedIds.Contains(m.SenderId))
-			.Include(m => m.Sender)
 			.GroupBy(m => m.SenderId)
 			.Select(g => new
 			{
 				senderId = g.Key,
-				sender = g.First().Sender,
+				senderFirstName = g.First().Sender.FirstName,
+				senderLastName = g.First().Sender.LastName,
+				senderEmail = g.First().Sender.Email,
 				lastMessage = g.OrderByDescending(m => m.SentAt).First().Content,
 				lastMessageAt = g.Max(m => m.SentAt),
 				count = g.Count(),
 			})
+			.Take(200)
 			.ToListAsync();
 
-		var result = requests.Select(r => new
+		var result = rawRequests.Select(r => new
 		{
 			senderId = r.senderId,
-			senderName = (r.sender.FirstName ?? "") + " " + (r.sender.LastName ?? ""),
-			senderEmail = r.sender.Email,
+			senderName = (r.senderFirstName ?? "") + " " + (r.senderLastName ?? ""),
+			senderEmail = r.senderEmail,
 			lastMessage = r.lastMessage,
 			lastMessageAt = r.lastMessageAt,
 			count = r.count,
@@ -105,6 +113,7 @@ public class MessagesController : ApiControllerBase
 
 	/// <summary>GET /api/messages/with/{otherUserId} - Chat history with a user</summary>
 	[HttpGet("with/{otherUserId}")]
+	[ProducesResponseType(typeof(IEnumerable<MessageListItemDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetMessages(string otherUserId, [FromQuery] MessageHistoryQuery query, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -113,7 +122,7 @@ public class MessagesController : ApiControllerBase
 		var callerFaceBanned = await IsCallerFaceBannedInScopeAsync(cancellationToken);
 		var superAdminIds = await MessengerModerationHelper.GetSuperAdminUserIdsAsync(_context, new[] { otherUserId }, cancellationToken);
 		if (MessengerModerationHelper.ShouldHidePeerConversation(callerFaceBanned, otherUserId, superAdminIds))
-			return StatusCode(StatusCodes.Status403Forbidden, new { code = "face_banned", error = "Account restricted in this community" });
+			return StatusCode(StatusCodes.Status403Forbidden, new CodedErrorResponseDto { Code = "face_banned", Error = "Account restricted in this community" });
 
 		// Check if blocked
 		var isBlocked = await _context.UserBlocks
@@ -141,21 +150,22 @@ public class MessagesController : ApiControllerBase
 
 		messages.Reverse();
 
-		return Ok(messages.Select(m => new
+		return Ok(messages.Select(m => new MessageListItemDto
 		{
-			id = m.Id,
-			senderId = m.SenderId,
-			senderName = (m.Sender.FirstName ?? "") + " " + (m.Sender.LastName ?? ""),
-			senderGlobalRole = m.Sender.UserRole?.Name,
-			isPlatformAdministrator = OperatorModerationGuard.IsGlobalSuperAdminRole(m.Sender.UserRole?.Name),
-			content = m.Content,
-			sentAt = m.SentAt,
-			readAt = m.ReadAt,
+			Id = m.Id,
+			SenderId = m.SenderId,
+			SenderName = (m.Sender.FirstName ?? "") + " " + (m.Sender.LastName ?? ""),
+			SenderGlobalRole = m.Sender.UserRole?.Name,
+			IsPlatformAdministrator = OperatorModerationGuard.IsGlobalSuperAdminRole(m.Sender.UserRole?.Name),
+			Content = m.Content,
+			SentAt = m.SentAt,
+			ReadAt = m.ReadAt,
 		}));
 	}
 
 	/// <summary>POST /api/messages/with/{otherUserId}/read - Mark messages as read</summary>
 	[HttpPost("with/{otherUserId}/read")]
+	[ProducesResponseType(typeof(CountResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> MarkAsRead(string otherUserId)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -169,6 +179,6 @@ public class MessagesController : ApiControllerBase
 			m.ReadAt = DateTime.UtcNow;
 
 		await _context.SaveChangesAsync();
-		return Ok(new { count = toUpdate.Count });
+		return Ok(new CountResultDto { Count = toUpdate.Count });
 	}
 }

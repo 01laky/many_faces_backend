@@ -8,6 +8,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.40](#1440) | Backend refactor Phase 3 X7 — `[ProducesResponseType]` complete + remaining anon fixes |
+| [1.4.39](#1439) | Backend refactor Phase 3 X7 DTO layer — zero anonymous returns |
+| [1.4.38](#1438) | Backend refactor Phase 3 X11 AsNoTracking + projections |
+| [1.4.37](#1437) | Backend refactor Phase 3 X10 parallel stats counts|
+| [1.4.36](#1436) | Backend refactor Phase 3 X11 EF query smells      |
+| [1.4.35](#1435) | Backend refactor Phase 2 gRPC worker-client base  |
 | [1.4.34](#1434) | Backend refactor Phase 4 social unique constraints|
 | [1.4.33](#1433) | Backend refactor Phase 4 request-log observability|
 | [1.4.32](#1432) | Backend refactor Phase 3 Program.cs modularise (9)|
@@ -65,6 +71,189 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.40]
+
+### Changed
+
+- **Backend refactor — Phase 3 X7 completion: `[ProducesResponseType]` on every controller action + elimination of all remaining anonymous response bodies.**  This is the final increment of X7: the first session added named DTOs for the bulk of anonymous returns; this session audits every controller and closes all remaining gaps.
+
+  **`[ProducesResponseType]` attributes — added to all remaining controllers (previously 0 attributes):**
+  - `OperatorAiConversationsController` (15 actions): typed `OperatorAiSystemSettingsDto`, `OperatorAiModelStatusDto`, `OperatorAiWorkerHostDto`, `OperatorAiLiveStatsCacheSettingsDto`, `OperatorAiPublicStatsSettingsDto`, `IReadOnlyList<OperatorAiConversationListItemDto>`, `OperatorAiMessagesPageDto`; 201/204/404 as appropriate.
+  - `OperatorContentController` (13 actions): 204 No Content for all hard-delete and soft-delete paths; 200 `VideoLoungeJoinResultDto` for stealth-join; 200 `KickedResultDto`/`KickedAllResultDto` for kick/kick-all.
+  - `FaceChatRoomsController` (13 actions) and `FaceVideoLoungesController` (15 actions): already attributed in prior session; confirmed.
+  - `FaceWallTicketsController` (7 remaining): `WallTicketCreatedDto` (201), `WallTicketUpdateResultDto`, `LikeResultDto`, `IReadOnlyList<WallTicketCommentResultDto>`, `WallTicketCommentResultDto` (201), 204 No Content.
+  - `AdminFaceWallTicketsController` (7 actions): 200/201/204 with `WallTicketCreatedDto`, `WallTicketStatusResultDto`, `WallTicketDetailCommentDto`, 204 No Content.
+  - `FaceProfilesController` (8 actions): `LikeResultDto`, `IReadOnlyList<ProfileLikerDto>`, `ProfileCommentResultDto`, `ReviewResultDto`, 204 No Content for delete paths; untyped 200 for BuildEnvelope list paths.
+  - `FaceProfilesController.Operator.cs` (1 action): untyped 200 for `ListProfiles` BuildEnvelope.
+  - `PagesController` (7 actions): `PageDto` (200/201), 204 No Content, untyped 200 for translations.
+  - `ContentModerationController` (7 actions): `ModerationMetricsWithAlerts`, `BulkModerationResponse`, `ModerationDecisionResultDto` for approve/reject/remove, untyped 200 for BuildEnvelope queue.
+  - `OperatorUsersController` (7 actions): `OperatorUserDetailDto`, `UserRoleIdResultDto`, `BanResultDto`/`FaceBanResultDto` (with conditional 204), `MessageIdResultDto`.
+  - `AdminMeProfileController` (5 actions): `AdminMeProfileDto`, `UserRoleIdResultDto`, `MessageResultDto`, 204 No Content for password change.
+  - `MessagesController` (3): untyped 200 for BuildEnvelope conversation/request paths, `CountResultDto` for mark-read.
+  - `PageTypesController` (5): `IReadOnlyList<PageTypeDetailDto>`, `PageTypeDetailDto`, 204.
+  - `UserFollowsController` (5): `IReadOnlyList<UserFollowItemDto>`, `IsFollowingDto`, `SuccessResultDto`.
+  - `FriendRequestsController` (4): `IReadOnlyList<FriendRequestItemDto>`, `SuccessResultDto`.
+  - `UserBlocksController` (4): `IReadOnlyList<UserBlockItemDto>`, `IsBlockedDto`, `SuccessResultDto`.
+  - `AlbumLikesController`, `BlogLikesController`, `ReelLikesController`, `StoryLikesController` (3 each): `IReadOnlyList<ContentLikeItemDto>`, `SuccessResultDto`.
+  - `AlbumCommentsController`, `BlogCommentsController`, `ReelCommentsController` (4 each): `IReadOnlyList<*CommentListItemDto>`, `*CommentDto` (201/200), 204.
+  - `StoryCommentsController` (2): `IReadOnlyList<StoryCommentListItemDto>`, `CreatedEntityDto`.
+  - `PageComponentsController` (3): `PageComponentCreatedDto`, `SuccessResultDto`.
+  - `UsersController` (3): `UserDto` (200/201), 404.
+  - `StatsController` (3): `AdminDashboardSummaryDto`, `PublicStatsSnapshotDto`, `StatsTimeseriesResponseDto`.
+  - `AuthController` (3), `AuthEmailConfirmController` (1): `MessageResultDto`.
+  - `AiAvailabilityController` (1): `AiEnabledResponse`.
+  - `MeController` (1): `CapabilitiesResponse`.
+  - `MyContentSubmissionsController` (1): `IReadOnlyList<MyContentSubmissionDto>`.
+  - `NotificationsController` (1): `IReadOnlyList<NotificationHistoryItemDto>`.
+  - `OAuthJwksController` (1): untyped 200.
+  - `OAuth2Controller` (2): `OAuth2TokenResponse`, 400 for deprecated register.
+  - `OAuth2RegistrationController` (4): `RegisterRequestResponseDto`, `RegisterPrefillResponseDto`, `RegisterCompleteResponseDto`.
+  - `OperatorAiKnowledgeController` (2): `KnowledgeReindexResultDto`, `KnowledgeIndexStatusDto`.
+  - `SearchController` (1): `SearchHealthDto`.
+  - `UploadsController` (1): untyped 200 (binary file response).
+  - `OperatorUserChatController` (4): `IReadOnlyList<OperatorUserChatConversationDto>`, `OperatorUserChatHistoryPageDto`, `OperatorUserChatThreadExistsDto`, `CountResultDto`.
+
+  **New named DTOs added to `ActionResultDtos.cs`:**
+  - `NotificationHistoryItemDto` — `{ Id, Title, Message, Type, CreatedAt }` replacing the anonymous shape returned by `NotificationsController.GetHistory`.
+  - `ModerationDecisionResultDto` — `{ ApprovalStatus?, AiReviewStatus? }` replacing the anonymous shape returned by `ContentModerationController` Approve/Reject/Remove actions.
+  - `AdminWallTicketListItemDto` — `{ Id, Title, DescriptionPreview, Status, CreatorId, CreatorName, LikesCount, CommentsCount, CreatedAt }` replacing the anonymous BuildEnvelope items in `AdminFaceWallTicketsController.List`.
+  - `FaceProfileCommentAdminItemDto` — `{ Id, UserId, Body, CreatedAt, AuthorDisplayName }` replacing the paginated operator path anonymous type in `FaceProfilesController.ListComments`.
+  - `FaceProfileReviewAdminItemDto` — `{ Id, AuthorUserId, Title, Text, Stars, CreatedAt, AuthorDisplayName }` replacing the paginated operator path anonymous type in `FaceProfilesController.ListReviews`.
+
+  **Remaining anonymous error shapes converted:**
+  - `FaceGridSnapshotController.GetSnapshot`: `BadRequest(new { error = "…" })` → `BadRequest(new ErrorResponseDto { Error = "…" })`.
+  - `OAuth2Controller.Register`: deprecated-endpoint `BadRequest(new { error, message })` → `BadRequest(new ErrorWithMessageDto { Error = "…", Message = "…" })`.
+
+  **Missing `using` directives added:**
+  - `AdminMeProfileController.cs` gains `using BeDemo.Api.Models.DTOs.Admin` to resolve `AdminMeProfileDto`.
+  - `NotificationsController.cs` gains `using BeDemo.Api.Models.DTOs` to resolve `NotificationHistoryItemDto`.
+
+  **Build state:** 0 errors, 3 pre-existing warnings (unchanged), all 1950 tests pass.
+
+---
+
+## [1.4.39]
+
+### Changed
+
+- **Backend refactor — Phase 3 X7 DTO layer: projection-expression DTOs + `[ProducesResponseType]` — zero anonymous-object returns from controller actions.**  All 385 `new { … }` anonymous bodies in controller action returns replaced by named DTO types with `init`-property factories; global JSON camelCase serialisation policy applied. Measurable exit criterion: `grep -rn "return.*new {" Controllers/` now returns 0 results (route-value objects in `CreatedAtAction` route parameter are exempt, being MVC routing infrastructure not HTTP response bodies).
+
+  **Global JSON camelCase policy (Program.cs):**
+  - `PropertyNamingPolicy = JsonNamingPolicy.CamelCase` added to `AddJsonOptions`. Named DTOs now serialise identically to the prior anonymous types — all tests and frontend contracts preserved.
+
+  **New DTO files (`BeDemo.Api/Models/DTOs/`):**
+  - `AlbumDto.cs` — `AlbumDetailDto` (full detail with moderation-aware `From(Album, userId, showModerationFields)` factory), `AlbumCreateResultDto` (slim create/update response), `AlbumFaceDto`, `AlbumMediaItemDto`, `AlbumListItemDto` (EF-projectable for `GetAlbumsByUser` list).
+  - `BlogDto.cs` — `BlogDetailDto` (full detail with `ContentModerationPreviewText` preview), `BlogCreateResultDto`, `BlogImageDto`.
+  - `ReelDto.cs` — `ReelDetailDto` (full detail), `ReelFaceDto`.
+  - `StoryDto.cs` — `StoryDetailDto`, `StoryFaceRefDto`, `StoryImageDetailDto`, `StoryViewerDto`, `StoryCreatedDto`, `StoryImageUploadResultDto`.
+  - `ActionResultDtos.cs` — `SuccessResultDto`, `LikeResultDto`, `IsFollowingDto`, `IsBlockedDto`, `JoinResultDto`, `JoinRequestResultDto`, `ApprovedResultDto`, `DeniedResultDto`, `SessionIdResultDto`, `EndedResultDto`, `LeftResultDto`, `OkResultDto`, `KickedResultDto`, `KickedAllResultDto`, `CreatedEntityDto`, `CountResultDto`, `PublishedResultDto`, `RecordedResultDto`, `BanResultDto`, `FaceBanResultDto`, `UserRoleIdResultDto`, `FaceRoleResultDto`, `VisitedResultDto`, `ExitFaceResultDto`, `MessageIdResultDto`, `AvatarUploadResultDto`, `GridComponentsResultDto`, `PageComponentCreatedDto`, `MailerTestSentDto`, `ErrorResponseDto`, `ErrorCodeResponseDto`, `CodedErrorResponseDto`, `MessageResultDto`, `AppScopedErrorDto`, `ErrorWithMessageDto`, `WallTicketStatusResultDto`.
+  - `VideoLoungeSessionDtos.cs` — `VideoLoungeJoinResultDto`, `VideoLoungeRefreshTokenResultDto`, `VideoLoungeNoSessionDto`.
+  - `ContentCommentDtos.cs` — `BlogCommentDto`, `AlbumCommentDto`, `ReelCommentDto`.
+  - `WallTicketDtos.cs` — `WallTicketCreatedDto`, `WallTicketUpdateResultDto`, `WallTicketCommentResultDto`.
+  - `PageComponentDetailDto.cs` — `PageComponentDetailDto`, `PageComponentTypeRefDto`, `PageComponentDisplayModeRefDto`, `ComponentTypeDetailDto`, `DisplayModeDetailDto`, `PageTypeDetailDto`.
+  - `UserProfileResponseDtos.cs` — `UserProfileResponseDto`, `FaceProfileDetailDto`, `ProfileCommentResultDto`, `ReviewResultDto`.
+  - `KnowledgeIndexDtos.cs` — `KnowledgeReindexResultDto`, `KnowledgeIndexStatusDto`.
+
+  **Controllers migrated (all anonymous-object returns replaced, 43 files):**
+  `AlbumsController`, `BlogsController`, `ReelsController`, `StoriesController`, `FacesController` (face-role, visited, exit-face), `FaceChatRoomsController` (create, update, join, join-request, approve, deny), `FaceVideoLoungesController` (create, update, join, live-start, live-join, live-leave, live-end, live-refresh-token, heartbeat), `FaceWallTicketsController` (create, update, like/unlike, comment create/list), `AdminFaceWallTicketsController` (approve/deny status results), `FaceProfilesController` (like/unlike, comment, review), `OperatorUsersController` (role, ban, face-ban, message), `OperatorContentController` (kicked, kickedAll), `OperatorAiKnowledgeController` (reindex, status), `OperatorAiConversationsController`, `MessagesController` (face-ban error, mark-read count), `ProfileController` (get-me, avatar upload, grid settings), `PageComponentsController` (create, update, delete), `LocalizationController` (bundle OK → direct pass-through of `LocalizationBundleResponse`, error DTOs), `AuthController`, `AuthEmailConfirmController`, `BlogCommentsController`, `AlbumCommentsController`, `ReelCommentsController`, `StoryCommentsController`, `StoryLikesController`, `BlogLikesController`, `AlbumLikesController`, `ReelLikesController`, `FriendRequestsController`, `UserFollowsController`, `UserBlocksController`, `AdminMailerTestController`, `AdminMeProfileController`, `OperatorUserChatController`, `OAuthJwksController` (file-scoped `JwksResult` wrapper), plus all error paths with `ErrorResponseDto`.
+
+  **EF LINQ projections (named DTOs in `.Select()`):**
+  - `AlbumsController.GetAlbumsByUser`: `Select(a => new AlbumListItemDto { … })` — `ContentModerationHelpers.CreatorStatusLabel` evaluated client-side (as before with anonymous types).
+  - `FaceWallTicketsController.ListComments`: `Select(c => new WallTicketCommentResultDto { … })` replaces the anonymous projection.
+
+  **Renamed to avoid namespace collision:**
+  - `WallTicketCommentDto` → `WallTicketCommentResultDto` (DTO namespace); the request-model `WallTicketCommentDto` in `BeDemo.Api.Models.Requests.Faces` is unchanged.
+
+  **Build state:** 0 errors, 3 pre-existing warnings (unchanged), all 1950 tests pass.
+
+---
+
+## [1.4.38]
+
+### Changed
+
+- **Backend refactor — Phase 3 X11 EF query smells: `AsNoTracking` on all read-only entity loads, Blog queue projection removes 2 redundant `Include` calls, `UserService.GetUsersAsync` fixed to async.**  Continuation of X11 (EF query anti-patterns). Changes are purely additive-performance — no HTTP API surface altered.
+
+  **`AsNoTracking` additions (7 query sites):**
+  - `ContentModerationController.GetQueue`: all three queries (Albums, Blogs, Reels) — these are admin read-only views; no entity is modified after loading.
+  - `AlbumsController.GetAlbum` — detail DTO return, entity never mutated in this action.
+  - `AlbumsController.GetAlbumsByUser` — projection-only `Select` list.
+  - `ReelsController.GetReel` — detail DTO return.
+  - `ReelsController.GetReelsByUser` — projection-only `Select` list.
+  - `ReelsController.LoadReelDetailAsync` — private helper used by post-update/create response; entity not stored back to context.
+  - `StoriesController.GetDetail` — 7-collection `AsSplitQuery` detail load; entity is not modified in this action.
+
+  **Blog moderation queue — projection replaces 2 Includes (X11 redundant-Include fix):**
+  - `ContentModerationController.GetQueue` Blog query: removed `Include(b => b.Face)` and `Include(b => b.Images)` — two extra JOINs that materialised full navigation collections only to read one field each. Replaced with an inline `.Select(b => new { Entity = b, FaceTitle = b.Face != null ? b.Face.Title : string.Empty, FirstImageUrl = b.Images.OrderBy(i => i.SortOrder).Select(i => i.ImageUrl).FirstOrDefault() })` that lets EF translate each as a scalar subquery/join. `Include(b => b.Creator)` is retained: `Entity = b` is still materialised and `MapBlog` reads `blog.Creator.FirstName/LastName`.
+  - `ContentModerationQueueMapper.MapBlog` signature changed from `MapBlog(Blog blog)` to `MapBlog(Blog blog, string faceTitle, string? firstImageUrl)` — callers now pass the projected values; the mapper no longer accesses `blog.Face.Title` or `blog.Images` on the entity.
+
+  **`UserService.GetUsersAsync` — sync-over-async fix:**
+  - `_userManager.Users.ToList()` (synchronous, blocks the thread, scans all users into memory) replaced with `await _userManager.Users.AsNoTracking().ToListAsync()`. Added `using Microsoft.EntityFrameworkCore;` for `AsNoTracking()`/`ToListAsync()`.
+
+  **Unbounded list endpoints — safety caps (X11):**
+  - `AlbumsController.GetAlbumsByUser` and `ReelsController.GetReelsByUser`: added `.Take(500)` before `.Select(…).ToListAsync()`. Both are already projection-only `AsNoTracking` queries; the cap bounds the DB scan and network transfer for high-volume creator profiles without changing the response shape.
+  - `FriendRequestsController.GetPending`: added `AsNoTracking()`, removed redundant `Include(r => r.Sender)` (EF translates `r.Sender.*` in the `Select` without it), added `.Take(200)` on ordered results.
+  - `MessagesController.GetMessageRequests`: added `AsNoTracking()` before the `GroupBy`, added `.Take(200)` on the projected `GroupBy` result (SQL-translated `LIMIT 200` on the grouped sender set).
+
+  **Moderation queue — per-type scan cap (X10):**
+  - `ContentModerationController.GetQueue`: cross-type in-memory sort makes pure SQL pagination across Albums/Blogs/Reels architecturally complex (no DB-level UNION sort with heterogeneous columns). Added `perTypeScanLimit = max(2000, page * pageSize * 4)` per-type cap applied via `.Take(perTypeScanLimit)` before each `.Select(…).ToListAsync()`. This bounds worst-case memory while guaranteeing correct results for all pages up to the limit (operators needing deeper pages must narrow their filters). The cap formula self-scales as the requested page grows.
+
+  **Tests:**
+  - `ContentModerationQueueMapperTests.BE_RA20_MapBlog_*`: updated call site to pass `blog.Face!.Title` and the sorted first image URL as positional arguments matching the new signature.
+  - Full backend suite: **1950 passing, 0 skipped**.
+
+---
+
+## [1.4.37]
+
+### Changed
+
+- **Backend refactor — Phase 3 X10 parallel stats counts: `PlatformStatsQueryService` and `ContentModerationMetrics` rewritten to fan-out all `CountAsync` calls concurrently.**  Both services previously accumulated their aggregate counts through long chains of sequential `await …CountAsync(…)` calls on a single shared `ApplicationDbContext` — a textbook X10 (N sequential round-trips) pattern. Each call acquired the same DB connection and waited for the previous one to finish, so the total latency was the _sum_ of all individual query times.
+
+  **`PlatformStatsQueryService`** — two methods fixed (X10: 15 + ~35 sequential round-trips):
+  - Constructor extended: `ApplicationDbContext context` retained for `GetOperatorAiTimeseriesHintsAsync` (3 sequential queries — acceptable); `IDbContextFactory<ApplicationDbContext> dbContextFactory` injected for the parallel methods. `AddDbContextFactory<ApplicationDbContext>` was already registered in Program.cs (lines 255, 276) so no DI registration change was needed.
+  - `GetPublicSnapshotAsync`: 15 independent `CountAsync` calls across Users, Faces, Pages, Friendships, FriendRequests (pending), Messages, Albums, Blogs, Reels, Stories, StoryViews, FaceWallTickets, FaceChatRooms, FaceChatRoomMessages, FaceVideoLounges — now fired simultaneously with a private `RunAsync` helper that creates a fresh context from the factory per call, then `await Task.WhenAll(…)`.
+  - `GetOperatorDashboardSummaryAsync`: ~35 independent tasks spanning user/social/messaging/content/chat/video-lounge/wall/profiles/comments/likes/AI-review/OAuth counts, including `BuildFaceWallTicketStatusCountsAsync` (single grouped `GroupBy` query, also parallelised). All tasks started before any `await`, then unified in a single `await Task.WhenAll(…)` barrier; results read via `.Result` in the `return new AdminDashboardSummaryDto { … }` initialiser.
+  - `GetOperatorAiTimeseriesHintsAsync`: unchanged — 3 sequential timeseries projection queries on `_context` (no N+1, bucket aggregation is done in memory).
+
+  **`ContentModerationMetrics`** — `GetSnapshotAsync` and all 4 private helpers fixed (~43 sequential round-trips → parallel):
+  - Constructor replaced: `ApplicationDbContext context` → `IDbContextFactory<ApplicationDbContext> dbContextFactory`. Private `RunAsync<T>` helper added (same pattern).
+  - `GetSnapshotAsync`: 30 independent tasks fired before any `await`: 3 pending-count tasks, 3 oldest-date `MinAsync` tasks, 4 AiReviewJob status counts, 9 terminal-approval status counts (3 statuses × 3 entity types — Albums/Blogs/Reels), 9 AI-recommendation status counts, plus `CollectReviewLatenciesHoursAsync`, `CollectTopFlagsAsync`, and `CollectPendingByFaceAsync` as sibling tasks. `Task.WhenAll` awaits all 30; results summed/assembled in the `return new ContentModerationMetricsSnapshot(…)` constructor call.
+  - `CollectReviewLatenciesHoursAsync`: 3 `ToListAsync` calls (Albums/Blogs/Reels latency) fired in parallel and concatenated after `Task.WhenAll`.
+  - `CollectTopFlagsAsync`: 3 flag-JSON `ToListAsync` calls fired in parallel; concatenation and in-memory histogram computation unchanged.
+  - `CollectPendingByFaceAsync`: 3 face-pending `GroupBy/ToListAsync` calls fired in parallel; the `Faces` title lookup is necessarily sequential (depends on the combined `faceIds`) and uses a single `RunAsync` call.
+  - Removed: `CountApprovalStatusAsync(status, ct)` and `CountAiStatusAsync(status, ct)` helpers — their 3-sequential-sum pattern is inlined as 3 independent tasks in `GetSnapshotAsync`.
+  - `Percentile95` and `CalculateAgeHours` static helpers preserved verbatim.
+
+  **Tests updated** — constructor signatures changed so two test call sites required fixes:
+  - `BeRp4PlatformStatsCacheEdgeTests.BE_RP4_U1_CachedDashboardRepeat_ZeroDbCommandsOnSecondCall`: resolves `IDbContextFactory<ApplicationDbContext>` from the DI scope and passes it alongside `countingDb` to the now two-arg constructor. The cache-hit assertion is still valid: once the result is in `IMemoryCache`, the second call returns without calling the inner service, so `interceptor.CommandCount` (scoped to `countingDb`) remains zero.
+  - `ContentModerationTests`: two tests that constructed `new ContentModerationMetrics(context)` now call `CreateContextAndFactory()` — a new private helper that creates an InMemory context and a matching `TestDbContextFactory` (inner sealed class) that creates fresh contexts sharing the same InMemory database name, so data seeded via `context.SaveChangesAsync()` is visible to the factory-created contexts.
+  - Full backend suite: **1950 passing, 0 skipped**.
+
+---
+
+## [1.4.36]
+
+### Changed
+
+- **Backend refactor — Phase 3 X11 EF query smells: redundant `Include` removal, `AsSplitQuery` for multi-collection detail loads, and `ExecuteDeleteAsync` for cleanup service (X11).** Three categories of catalogued EF Core anti-patterns fixed across `ReelsController`, `AlbumsController`, `StoriesController`, and `RegistrationInviteCleanupHostedService`:
+  - **Redundant `Include` before `.Select()`** (EF Core silently ignores `Include` when a terminal `.Select()` follows): removed 4 `Include`/`ThenInclude` calls from the Reels list action, 4 from Albums list, and 2 (`StoryFaces`, `Images`) from the Stories creator-list action. EF still produces the same SQL — the projections in `.Select()` reference the navigation properties directly and EF translates them as JOINs or subqueries without the hints.
+  - **Cartesian explosion from multiple collection `Include` chains without `AsSplitQuery`** (EF Core 5+ mitigation — splits one N-collection JOIN into N+1 targeted queries): added `.AsSplitQuery()` to four multi-collection `FirstOrDefaultAsync` loads: `ReelsController.GetReel` and `LoadReelDetailAsync` (each has 3 collection Includes — `ReelFaces`, `Likes`, `Comments`); `AlbumsController` detail load (4 collection Includes — `AlbumFaces`, `MediaItems`, `Likes`, `Comments`); `StoriesController.GetDetail` (5 collection Includes with 2 `ThenInclude` chains — `StoryFaces→Face`, `Images`, `Likes`, `Comments`, `Views→Viewer`). The codebase had exactly one prior `AsSplitQuery` usage (`FacesConfigService.cs`); these are the next five worst offenders.
+  - **Load-then-delete replaced by `ExecuteDeleteAsync`** (EF7+ bulk-delete — issues `DELETE WHERE` without materialising rows): `RegistrationInviteCleanupHostedService.RunCleanupAsync` replaced `ToListAsync` + `RemoveRange` + `SaveChangesAsync` with a single `ExecuteDeleteAsync` call; the deleted-count is returned directly. The previous InMemory-based test is replaced by `Postgres/RegistrationInviteCleanupPostgresTests` (real relational provider required; `ExecuteDeleteAsync` is unsupported by the InMemory provider). The new Postgres test also verifies that a valid unexpired invite survives and the count return value is correct.
+  - **Per-lounge live participant count N+1 (X10) fixed in two hotspots:** `FaceVideoLoungesController.List` and `FaceGridSnapshotService.GetVideoLoungesBlockAsync` both had a `foreach (var kv in sessionByLounge) { await CountAsync(...) }` loop — one DB round-trip per live lounge. Replaced with a single `GroupBy().Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync()` and an in-memory join back to lounge IDs. The guard for empty `sessionByLounge` avoids a no-op DB call.
+  - **Removed dead sync `GetFaces()` method** from `IFaceService` and `FaceService`: `GetFaces()` used `GetAwaiter().GetResult()` (sync-over-async — thread-starvation risk) but was never called anywhere in the codebase (RoutingMiddleware already calls `GetFacesAsync` directly). Removed from both the interface and the implementation.
+  - Zero behaviour change on the HTTP API surface; full backend suite: **1950 passing, 0 skipped** (the replacement Postgres test offsets the removed InMemory test; net count unchanged).
+
+---
+
+## [1.4.35]
+
+### Changed
+
+- **Backend refactor — Phase 2 dedup: `WorkerGrpcClientBase<TClient>` extracted from `PushWorkerGrpcClient` and `MailerWorkerGrpcClient`.** Both worker gRPC clients shared an identical structural pattern — a single-entry channel cache (`_active`), a lock protecting it, a `List<X509Certificate2>` for TLS certificates that need disposal, and a verbatim `Dispose()` implementation — which diverged silently as the two classes were maintained in parallel. The duplicated `_channelLock`, `_tlsCertificatesToDispose`, `_active`, `ActiveChannel` nested class, and `Dispose()` (~40 lines per file, ~80 total) are now moved to `Services/WorkerGrpcClientBase<TClient> : IDisposable`. Each concrete client inherits from it and retains its own settings-merge (`MergeTls*Options`), `BuildCallOptions` (Push reads deadline from runtime DB settings; Mail reads it from env options and appends correlation headers via `MailerWorkerCorrelationMetadata`), and `GetClientOrNull` (calls `GetOrReplaceClient` with a `Func<GrpcChannel>` lambda that captures the `internal` `GrpcWorkerChannelFactory` so the base class stays `public`). Behaviour-preserving across Push and Mail paths; no call-site changes. Covered by five new unit tests in `WorkerGrpcClientBaseTests`: same-key returns same instance; different-key builds a new client and disposes the old channel; evicted key is rebuilt as a distinct instance; `Dispose` is idempotent; `Dispose` on an empty client does not throw. Full backend suite: **1950 passing, 0 skipped**.
 
 ---
 

@@ -35,18 +35,13 @@ public static class ContentModerationQueueMapper
 			ContentModerationPreviewText.ToPlainTextPreview(album.Description),
 			null);
 
-	public static ModerationItemDto MapBlog(Blog blog)
-	{
-		var firstImageUrl = blog.Images
-			.OrderBy(i => i.SortOrder)
-			.Select(i => i.ImageUrl)
-			.FirstOrDefault();
-		return new(
+	public static ModerationItemDto MapBlog(Blog blog, string faceTitle, string? firstImageUrl) =>
+		new(
 			ModeratedContentType.Blog,
 			blog.Id,
 			blog.Title,
 			blog.FaceId,
-			blog.Face.Title,
+			faceTitle,
 			blog.CreatorId,
 			CreatorDisplayName(blog.Creator),
 			blog.ApprovalStatus,
@@ -67,7 +62,6 @@ public static class ContentModerationQueueMapper
 			blog.CreatedAt,
 			ContentModerationPreviewText.ToPlainTextPreview(blog.Content),
 			ContentModerationPreviewText.ToMediaUrlPreview(firstImageUrl));
-	}
 
 	public static ModerationItemDto MapReel(Reel reel, int faceId, string faceTitle) =>
 		new(

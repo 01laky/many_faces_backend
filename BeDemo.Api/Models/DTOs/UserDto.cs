@@ -40,6 +40,29 @@ public class CreateUserDto
 	public string? LastName { get; set; }
 }
 
+/// <summary>Paginated user list envelope returned by GET /api/users.</summary>
+public sealed class UserListEnvelopeDto
+{
+	public IEnumerable<UserDto> Items { get; init; } = [];
+	public int TotalCount { get; init; }
+	public int Page { get; init; }
+	public int PageSize { get; init; }
+	public int TotalPages { get; init; }
+}
+
+/// <summary>Single message item in the thread messages list.</summary>
+public sealed class MessageListItemDto
+{
+	public int Id { get; init; }
+	public string SenderId { get; init; } = string.Empty;
+	public string SenderName { get; init; } = string.Empty;
+	public string? SenderGlobalRole { get; init; }
+	public bool IsPlatformAdministrator { get; init; }
+	public string Content { get; init; } = string.Empty;
+	public DateTime SentAt { get; init; }
+	public DateTime? ReadAt { get; init; }
+}
+
 /// <summary>
 /// Update User DTO - used when updating an existing user
 /// </summary>

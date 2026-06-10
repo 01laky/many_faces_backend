@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -23,16 +24,17 @@ public class DisplayModesController : ControllerBase
 
 	/// <summary>GET /api/displaymodes - Get all display modes</summary>
 	[HttpGet]
+	[ProducesResponseType(typeof(IEnumerable<DisplayModeDetailDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetDisplayModes()
 	{
 		var displayModes = await _context.DisplayModes
 			.OrderBy(dm => dm.Id)
-			.Select(dm => new
+			.Select(dm => new DisplayModeDetailDto
 			{
-				id = dm.Id,
-				index = dm.Index,
-				name = dm.Name,
-				createdAt = dm.CreatedAt,
+				Id = dm.Id,
+				Index = dm.Index,
+				Name = dm.Name,
+				CreatedAt = dm.CreatedAt,
 			})
 			.ToListAsync();
 
@@ -42,18 +44,20 @@ public class DisplayModesController : ControllerBase
 
 	/// <summary>GET /api/displaymodes/{id} - Get display mode by ID</summary>
 	[HttpGet("{id:int}")]
+	[ProducesResponseType(typeof(DisplayModeDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetDisplayMode(int id)
 	{
 		var dm = await _context.DisplayModes.FindAsync(id);
 		if (dm == null)
-			return NotFound(new { error = "Display mode not found" });
+			return NotFound(new ErrorResponseDto { Error = "Display mode not found" });
 
-		return Ok(new
+		return Ok(new DisplayModeDetailDto
 		{
-			id = dm.Id,
-			index = dm.Index,
-			name = dm.Name,
-			createdAt = dm.CreatedAt,
+			Id = dm.Id,
+			Index = dm.Index,
+			Name = dm.Name,
+			CreatedAt = dm.CreatedAt,
 		});
 	}
 }

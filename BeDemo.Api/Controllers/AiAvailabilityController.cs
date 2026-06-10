@@ -16,6 +16,7 @@ public sealed class AiAvailabilityController : ControllerBase
 
 	[HttpGet("~/api/ai/enabled")]
 	[EnableRateLimiting("ai-availability-read")]
+	[ProducesResponseType(typeof(AiEnabledResponse), StatusCodes.Status200OK)]
 	public async Task<ActionResult<AiEnabledResponse>> GetEnabled(CancellationToken cancellationToken)
 	{
 		var enabled = await _settings.IsAiEnabledAsync(cancellationToken);

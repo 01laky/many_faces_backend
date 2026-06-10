@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using BeDemo.Api.Hubs;
+using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.DTOs.OperatorAi;
 using BeDemo.Api.Models.Requests.OperatorAi;
 using BeDemo.Api.Security;
@@ -54,6 +55,7 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpGet("~/api/operator-ai/system-settings")]
+	[ProducesResponseType(typeof(OperatorAiSystemSettingsDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<OperatorAiSystemSettingsDto>> GetSystemSettings(CancellationToken cancellationToken)
 	{
 		var values = await _systemSettings.GetAsync(cancellationToken);
@@ -61,6 +63,7 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpPut("~/api/operator-ai/system-settings")]
+	[ProducesResponseType(typeof(OperatorAiSystemSettingsDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<OperatorAiSystemSettingsDto>> UpdateSystemSettings(
 		[FromBody] UpdateOperatorAiSystemSettingsRequest request,
 		CancellationToken cancellationToken)
@@ -78,7 +81,7 @@ public sealed class OperatorAiConversationsController : ControllerBase
 			{
 				return StatusCode(
 					StatusCodes.Status503ServiceUnavailable,
-					new { error = "AI could not be enabled.", errorCode = outcome.ErrorCode });
+					new ErrorCodeResponseDto { Error = "AI could not be enabled.", ErrorCode = outcome.ErrorCode ?? string.Empty });
 			}
 
 			return Ok(outcome.Settings);
@@ -88,6 +91,7 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpGet("~/api/operator-ai/model-status")]
+	[ProducesResponseType(typeof(OperatorAiModelStatusDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<OperatorAiModelStatusDto>> GetModelStatus(CancellationToken cancellationToken)
 	{
 		var status = await _aiGrpc.GetModelStatusAsync(cancellationToken);
@@ -101,22 +105,25 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpGet("~/api/operator-ai/worker-host")]
+	[ProducesResponseType(typeof(OperatorAiWorkerHostDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<OperatorAiWorkerHostDto>> GetWorkerHost(CancellationToken cancellationToken)
 	{
 		return Ok(await _workerHost.GetOperatorViewAsync(cancellationToken));
 	}
 
 	[HttpPost("~/api/operator-ai/worker-host/refresh")]
+	[ProducesResponseType(typeof(OperatorAiWorkerHostDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<OperatorAiWorkerHostDto>> RefreshWorkerHost(CancellationToken cancellationToken)
 	{
 		if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
-			return Conflict(new { error = "Enable AI support in Settings before refreshing the worker host." });
+			return Conflict(new ErrorResponseDto { Error = "Enable AI support in Settings before refreshing the worker host." });
 
 		await _workerHost.RefreshFromWorkerAsync(cancellationToken);
 		return Ok(await _workerHost.GetOperatorViewAsync(cancellationToken));
 	}
 
 	[HttpGet("~/api/operator-ai/live-stats-cache")]
+	[ProducesResponseType(typeof(OperatorAiLiveStatsCacheSettingsDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<OperatorAiLiveStatsCacheSettingsDto>> GetLiveStatsCacheSettings(
 		CancellationToken cancellationToken)
 	{
@@ -125,12 +132,13 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpPut("~/api/operator-ai/live-stats-cache")]
+	[ProducesResponseType(typeof(OperatorAiLiveStatsCacheSettingsDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<OperatorAiLiveStatsCacheSettingsDto>> UpdateLiveStatsCacheSettings(
 		[FromBody] UpdateOperatorAiLiveStatsCacheSettingsRequest request,
 		CancellationToken cancellationToken)
 	{
 		if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
-			return Conflict(new { error = "Enable AI support in Settings before changing live stats cache TTL." });
+			return Conflict(new ErrorResponseDto { Error = "Enable AI support in Settings before changing live stats cache TTL." });
 
 		var validation = new UpdateOperatorAiLiveStatsCacheSettingsValidator().Validate(request);
 		if (!validation.IsValid)
@@ -145,6 +153,7 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpGet("~/api/operator-ai/public-stats-settings")]
+	[ProducesResponseType(typeof(OperatorAiPublicStatsSettingsDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<OperatorAiPublicStatsSettingsDto>> GetPublicStatsSettings(
 		CancellationToken cancellationToken)
 	{
@@ -153,12 +162,13 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpPut("~/api/operator-ai/public-stats-settings")]
+	[ProducesResponseType(typeof(OperatorAiPublicStatsSettingsDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<OperatorAiPublicStatsSettingsDto>> UpdatePublicStatsSettings(
 		[FromBody] UpdateOperatorAiPublicStatsSettingsRequest request,
 		CancellationToken cancellationToken)
 	{
 		if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
-			return Conflict(new { error = "Enable AI support in Settings before changing public stats mode." });
+			return Conflict(new ErrorResponseDto { Error = "Enable AI support in Settings before changing public stats mode." });
 
 		var validation = new UpdateOperatorAiPublicStatsSettingsValidator().Validate(request);
 		if (!validation.IsValid)
@@ -175,6 +185,7 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpGet]
+	[ProducesResponseType(typeof(IReadOnlyList<OperatorAiConversationListItemDto>), StatusCodes.Status200OK)]
 	public async Task<ActionResult<IReadOnlyList<OperatorAiConversationListItemDto>>> List(
 		[FromQuery] OperatorAiConversationsListQuery query,
 		CancellationToken cancellationToken)
@@ -183,6 +194,8 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpGet("{id:int}")]
+	[ProducesResponseType(typeof(OperatorAiConversationListItemDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
 	public async Task<ActionResult<OperatorAiConversationListItemDto>> Get(int id, CancellationToken cancellationToken)
 	{
 		var item = await _operatorAi.GetConversationAsync(id, cancellationToken);
@@ -190,12 +203,13 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpPost]
+	[ProducesResponseType(typeof(OperatorAiConversationListItemDto), StatusCodes.Status201Created)]
 	public async Task<ActionResult<OperatorAiConversationListItemDto>> Create(
 		[FromBody] CreateOperatorAiConversationRequest request,
 		CancellationToken cancellationToken)
 	{
 		if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
-			return Conflict(new { error = "Enable AI support in Settings before creating operator AI conversations." });
+			return Conflict(new ErrorResponseDto { Error = "Enable AI support in Settings before creating operator AI conversations." });
 
 		var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
 			?? throw new InvalidOperationException("Authenticated user id missing.");
@@ -206,6 +220,8 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpPatch("{id:int}")]
+	[ProducesResponseType(typeof(OperatorAiConversationListItemDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
 	public async Task<ActionResult<OperatorAiConversationListItemDto>> Update(
 		int id,
 		[FromBody] UpdateOperatorAiConversationRequest request,
@@ -216,6 +232,8 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpDelete("{id:int}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
 	{
 		if (!await _operatorAi.DeleteConversationAsync(id, cancellationToken))
@@ -232,6 +250,8 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	}
 
 	[HttpGet("{id:int}/messages")]
+	[ProducesResponseType(typeof(OperatorAiMessagesPageDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
 	public async Task<ActionResult<OperatorAiMessagesPageDto>> GetMessages(
 		int id,
 		[FromQuery] OperatorAiMessagesQuery query,

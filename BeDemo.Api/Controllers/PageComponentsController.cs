@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -24,49 +25,53 @@ public class PageComponentsController : ControllerBase
 
 	/// <summary>GET /api/pagecomponents/page/{pageId} - Get all components for a page</summary>
 	[HttpGet("page/{pageId:int}")]
+	[ProducesResponseType(typeof(IEnumerable<PageComponentDetailDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetByPage(int pageId)
 	{
-		var components = await _context.PageComponents
+		var raw = await _context.PageComponents
 			.AsNoTracking()
 			.Where(pc => pc.PageId == pageId)
 			.Include(pc => pc.ComponentType)
 			.Include(pc => pc.DisplayMode)
 			.OrderBy(pc => pc.Y).ThenBy(pc => pc.X)
-			.Select(pc => new
-			{
-				id = pc.Id,
-				pageId = pc.PageId,
-				gridKey = pc.GridKey,
-				componentType = new
-				{
-					id = pc.ComponentType.Id,
-					index = pc.ComponentType.Index,
-					name = pc.ComponentType.Name,
-				},
-				displayMode = new
-				{
-					id = pc.DisplayMode.Id,
-					index = pc.DisplayMode.Index,
-					name = pc.DisplayMode.Name,
-				},
-				x = pc.X,
-				y = pc.Y,
-				w = pc.W,
-				h = pc.H,
-				minW = pc.MinW,
-				minH = pc.MinH,
-				label = pc.Label,
-				title = pc.Title,
-				icon = pc.Icon,
-				createdAt = pc.CreatedAt,
-			})
 			.ToListAsync();
+
+		var components = raw.Select(pc => new PageComponentDetailDto
+		{
+			Id = pc.Id,
+			PageId = pc.PageId,
+			GridKey = pc.GridKey,
+			ComponentType = new PageComponentTypeRefDto
+			{
+				Id = pc.ComponentType.Id,
+				Index = pc.ComponentType.Index,
+				Name = pc.ComponentType.Name,
+			},
+			DisplayMode = new PageComponentDisplayModeRefDto
+			{
+				Id = pc.DisplayMode.Id,
+				Index = pc.DisplayMode.Index,
+				Name = pc.DisplayMode.Name,
+			},
+			X = pc.X,
+			Y = pc.Y,
+			W = pc.W,
+			H = pc.H,
+			MinW = pc.MinW,
+			MinH = pc.MinH,
+			Label = pc.Label,
+			Title = pc.Title,
+			Icon = pc.Icon,
+			CreatedAt = pc.CreatedAt,
+		});
 
 		return Ok(components);
 	}
 
 	/// <summary>GET /api/pagecomponents/{id} - Get a single component</summary>
 	[HttpGet("{id:int}")]
+	[ProducesResponseType(typeof(PageComponentDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetById(int id)
 	{
 		var pc = await _context.PageComponents
@@ -75,56 +80,57 @@ public class PageComponentsController : ControllerBase
 			.FirstOrDefaultAsync(p => p.Id == id);
 
 		if (pc == null)
-			return NotFound(new { error = "Page component not found" });
+			return NotFound(new ErrorResponseDto { Error = "Page component not found" });
 
-		return Ok(new
+		return Ok(new PageComponentDetailDto
 		{
-			id = pc.Id,
-			pageId = pc.PageId,
-			gridKey = pc.GridKey,
-			componentType = new
+			Id = pc.Id,
+			PageId = pc.PageId,
+			GridKey = pc.GridKey,
+			ComponentType = new PageComponentTypeRefDto
 			{
-				id = pc.ComponentType.Id,
-				index = pc.ComponentType.Index,
-				name = pc.ComponentType.Name,
+				Id = pc.ComponentType.Id,
+				Index = pc.ComponentType.Index,
+				Name = pc.ComponentType.Name,
 			},
-			displayMode = new
+			DisplayMode = new PageComponentDisplayModeRefDto
 			{
-				id = pc.DisplayMode.Id,
-				index = pc.DisplayMode.Index,
-				name = pc.DisplayMode.Name,
+				Id = pc.DisplayMode.Id,
+				Index = pc.DisplayMode.Index,
+				Name = pc.DisplayMode.Name,
 			},
-			x = pc.X,
-			y = pc.Y,
-			w = pc.W,
-			h = pc.H,
-			minW = pc.MinW,
-			minH = pc.MinH,
-			label = pc.Label,
-			title = pc.Title,
-			icon = pc.Icon,
-			createdAt = pc.CreatedAt,
+			X = pc.X,
+			Y = pc.Y,
+			W = pc.W,
+			H = pc.H,
+			MinW = pc.MinW,
+			MinH = pc.MinH,
+			Label = pc.Label,
+			Title = pc.Title,
+			Icon = pc.Icon,
+			CreatedAt = pc.CreatedAt,
 		});
 	}
 
 	/// <summary>POST /api/pagecomponents - Create a new component on a page</summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(PageComponentCreatedDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Create([FromBody] CreatePageComponentDto dto)
 	{
 		if (dto.PageId <= 0 || dto.ComponentTypeId <= 0 || dto.DisplayModeId <= 0)
-			return BadRequest(new { error = "Invalid input" });
+			return BadRequest(new ErrorResponseDto { Error = "Invalid input" });
 
 		var page = await _context.Pages.FindAsync(dto.PageId);
 		if (page == null)
-			return BadRequest(new { error = "Page not found" });
+			return BadRequest(new ErrorResponseDto { Error = "Page not found" });
 
 		var componentType = await _context.ComponentTypes.FindAsync(dto.ComponentTypeId);
 		if (componentType == null)
-			return BadRequest(new { error = "Component type not found" });
+			return BadRequest(new ErrorResponseDto { Error = "Component type not found" });
 
 		var displayMode = await _context.DisplayModes.FindAsync(dto.DisplayModeId);
 		if (displayMode == null)
-			return BadRequest(new { error = "Display mode not found" });
+			return BadRequest(new ErrorResponseDto { Error = "Display mode not found" });
 
 		var gridKey = string.IsNullOrWhiteSpace(dto.GridKey)
 			? $"item-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{Random.Shared.Next(1000)}"
@@ -154,22 +160,23 @@ public class PageComponentsController : ControllerBase
 			"Created PageComponent {Id} on Page {PageId}: {ComponentType}/{DisplayMode}",
 			entity.Id, dto.PageId, componentType.Index, displayMode.Index);
 
-		return Ok(new { id = entity.Id, gridKey });
+		return Ok(new PageComponentCreatedDto { Id = entity.Id, GridKey = gridKey });
 	}
 
 	/// <summary>PUT /api/pagecomponents/{id} - Update a component</summary>
 	[HttpPut("{id:int}")]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Update(int id, [FromBody] UpdatePageComponentDto dto)
 	{
 		var entity = await _context.PageComponents.FindAsync(id);
 		if (entity == null)
-			return NotFound(new { error = "Page component not found" });
+			return NotFound(new ErrorResponseDto { Error = "Page component not found" });
 
 		if (dto.ComponentTypeId.HasValue)
 		{
 			var ct = await _context.ComponentTypes.FindAsync(dto.ComponentTypeId.Value);
 			if (ct == null)
-				return BadRequest(new { error = "Component type not found" });
+				return BadRequest(new ErrorResponseDto { Error = "Component type not found" });
 			entity.ComponentTypeId = dto.ComponentTypeId.Value;
 		}
 
@@ -177,7 +184,7 @@ public class PageComponentsController : ControllerBase
 		{
 			var dm = await _context.DisplayModes.FindAsync(dto.DisplayModeId.Value);
 			if (dm == null)
-				return BadRequest(new { error = "Display mode not found" });
+				return BadRequest(new ErrorResponseDto { Error = "Display mode not found" });
 			entity.DisplayModeId = dto.DisplayModeId.Value;
 		}
 
@@ -195,21 +202,22 @@ public class PageComponentsController : ControllerBase
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("Updated PageComponent {Id}", id);
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 
 	/// <summary>DELETE /api/pagecomponents/{id} - Delete a component</summary>
 	[HttpDelete("{id:int}")]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Delete(int id)
 	{
 		var entity = await _context.PageComponents.FindAsync(id);
 		if (entity == null)
-			return NotFound(new { error = "Page component not found" });
+			return NotFound(new ErrorResponseDto { Error = "Page component not found" });
 
 		_context.PageComponents.Remove(entity);
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("Deleted PageComponent {Id} from Page {PageId}", id, entity.PageId);
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 }

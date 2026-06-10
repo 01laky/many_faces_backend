@@ -7,6 +7,7 @@ using ManyFaces.Mailer.V1;
 using Microsoft.AspNetCore.Identity;
 using BeDemo.Api.Models;
 using BeDemo.Api.Utils;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -91,7 +92,7 @@ public sealed class AdminMailerTestController : ControllerBase
 			request.TemplateId,
 			response.CorrelationId);
 
-		return Ok(new { response.CorrelationId, response.SmtpMessageId });
+		return Ok(new MailerTestSentDto { CorrelationId = response.CorrelationId, SmtpMessageId = response.SmtpMessageId });
 	}
 
 	/// <summary>

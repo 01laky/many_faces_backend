@@ -6,6 +6,7 @@
  */
 
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs;
@@ -35,7 +36,7 @@ public class UserService : IUserService
 	{
 		try
 		{
-			var users = _userManager.Users.ToList();
+			var users = await _userManager.Users.AsNoTracking().ToListAsync();
 
 			var userDtos = users.Select(u => new UserDto
 			{

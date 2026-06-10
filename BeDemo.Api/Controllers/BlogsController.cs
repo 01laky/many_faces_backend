@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.Requests.Blogs;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.Grid;
@@ -62,6 +63,8 @@ public class BlogsController : ApiControllerBase
 
 	/// <summary>GET /api/blogs/{id} - Get blog by ID</summary>
 	[HttpGet("{id}")]
+	[ProducesResponseType(typeof(BlogDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetBlog(int id, [FromQuery] BlogDetailQuery detailQuery)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -76,57 +79,25 @@ public class BlogsController : ApiControllerBase
 			.FirstOrDefaultAsync(b => b.Id == id);
 
 		if (blog == null)
-			return NotFound(new { error = "Blog not found" });
+			return NotFound(new ErrorResponseDto { Error = "Blog not found" });
 
 		var operatorInventory = CanManageAllFaces();
 		var isCreator = blog.CreatorId == UserId;
 		if (!operatorInventory && !isCreator && blog.ApprovalStatus != ContentApprovalStatus.Approved)
-			return NotFound(new { error = "Blog not found" });
+			return NotFound(new ErrorResponseDto { Error = "Blog not found" });
 
 		var effectiveFaceId = _faceScope.ResolveDataFaceId(detailQuery.FaceId);
 		if (blog.FaceId != effectiveFaceId)
-			return NotFound(new { error = "Blog not found" });
+			return NotFound(new ErrorResponseDto { Error = "Blog not found" });
 
 		var showModerationFields = operatorInventory || isCreator;
-		var contentPlainText = ContentModerationPreviewText.ToPlainTextPreview(blog.Content);
-
-		return Ok(new
-		{
-			blog.Id,
-			blog.Title,
-			blog.Content,
-			contentPlainText,
-			blog.FaceId,
-			faceTitle = blog.Face.Title,
-			creatorId = blog.CreatorId,
-			creatorName = (blog.Creator.FirstName ?? "") + " " + (blog.Creator.LastName ?? ""),
-			images = blog.Images.OrderBy(i => i.SortOrder).Select(i => new { i.Id, i.ImageUrl, i.SortOrder }),
-			imageCount = blog.Images.Count,
-			likesCount = blog.Likes.Count,
-			commentsCount = blog.Comments.Count,
-			isLikedByMe = blog.Likes.Any(l => l.UserId == UserId),
-			approvalStatus = blog.ApprovalStatus.ToString(),
-			aiReviewStatus = blog.AiReviewStatus.ToString(),
-			aiReviewUserMessage = showModerationFields ? blog.AiReviewUserMessage : null,
-			humanDecisionReason = showModerationFields ? blog.HumanDecisionReason : null,
-			submittedAtUtc = showModerationFields ? blog.SubmittedAtUtc : null,
-			removedAtUtc = showModerationFields ? blog.RemovedAtUtc : null,
-			removalReason = showModerationFields ? blog.RemovalReason : null,
-			aiReviewDecision = showModerationFields ? blog.AiReviewDecision.ToString() : null,
-			aiReviewRiskLevel = showModerationFields ? blog.AiReviewRiskLevel.ToString() : null,
-			aiReviewFlagsJson = showModerationFields ? blog.AiReviewFlagsJson : null,
-			aiReviewReason = showModerationFields ? blog.AiReviewReason : null,
-			aiReviewModelVersion = showModerationFields ? blog.AiReviewModelVersion : null,
-			aiReviewTraceId = showModerationFields ? blog.AiReviewTraceId : null,
-			aiReviewConfidence = showModerationFields ? blog.AiReviewConfidence : null,
-			creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(blog.ApprovalStatus, blog.AiReviewStatus),
-			blog.CreatedAt,
-			blog.UpdatedAt,
-		});
+		return Ok(BlogDetailDto.From(blog, UserId ?? string.Empty, showModerationFields));
 	}
 
 	/// <summary>POST /api/blogs - Create blog</summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(BlogCreateResultDto), StatusCodes.Status201Created)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> CreateBlog([FromBody] CreateBlogDto dto)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -134,7 +105,7 @@ public class BlogsController : ApiControllerBase
 
 		var faceExists = await _context.Faces.AnyAsync(f => f.Id == dto.FaceId);
 		if (!faceExists)
-			return BadRequest(new { error = "Face not found" });
+			return BadRequest(new ErrorResponseDto { Error = "Face not found" });
 
 		var aiEnabled = await _systemSettings.IsAiEnabledAsync();
 		var initialAiStatus = aiEnabled ? AiReviewStatus.Queued : AiReviewStatus.NeedsHumanReview;
@@ -214,22 +185,14 @@ public class BlogsController : ApiControllerBase
 
 		_logger.LogInformation("User {UserId} created blog {BlogId}", UserId, blog.Id);
 
-		return CreatedAtAction(nameof(GetBlog), new { id = blog.Id }, new
-		{
-			blog.Id,
-			blog.Title,
-			blog.Content,
-			blog.FaceId,
-			blog.CreatorId,
-			approvalStatus = blog.ApprovalStatus.ToString(),
-			aiReviewStatus = blog.AiReviewStatus.ToString(),
-			creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(blog.ApprovalStatus, blog.AiReviewStatus),
-			blog.CreatedAt,
-		});
+		return CreatedAtAction(nameof(GetBlog), new { id = blog.Id }, BlogCreateResultDto.From(blog));
 	}
 
 	/// <summary>PUT /api/blogs/{id} - Update blog (creator only)</summary>
 	[HttpPut("{id}")]
+	[ProducesResponseType(typeof(BlogCreateResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> UpdateBlog(int id, [FromBody] UpdateBlogDto dto)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -240,7 +203,7 @@ public class BlogsController : ApiControllerBase
 			.FirstOrDefaultAsync(b => b.Id == id);
 
 		if (blog == null)
-			return NotFound(new { error = "Blog not found" });
+			return NotFound(new ErrorResponseDto { Error = "Blog not found" });
 
 		if (blog.CreatorId != UserId)
 			return Forbid();
@@ -259,7 +222,7 @@ public class BlogsController : ApiControllerBase
 		{
 			var faceExists = await _context.Faces.AnyAsync(f => f.Id == dto.FaceId.Value);
 			if (!faceExists)
-				return BadRequest(new { error = "Face not found" });
+				return BadRequest(new ErrorResponseDto { Error = "Face not found" });
 			blog.FaceId = dto.FaceId.Value;
 		}
 
@@ -300,23 +263,13 @@ public class BlogsController : ApiControllerBase
 			await EnqueueAiReviewAsync(ModeratedContentType.Blog, blog.Id, blog.ModerationVersion);
 
 		_logger.LogInformation("User {UserId} updated blog {BlogId}", UserId, blog.Id);
-		return Ok(new
-		{
-			blog.Id,
-			blog.Title,
-			blog.Content,
-			blog.FaceId,
-			blog.CreatorId,
-			approvalStatus = blog.ApprovalStatus.ToString(),
-			aiReviewStatus = blog.AiReviewStatus.ToString(),
-			creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(blog.ApprovalStatus, blog.AiReviewStatus),
-			blog.CreatedAt,
-			blog.UpdatedAt,
-		});
+		return Ok(BlogCreateResultDto.From(blog));
 	}
 
 	/// <summary>DELETE /api/blogs/{id} - Delete blog (creator only)</summary>
 	[HttpDelete("{id}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> DeleteBlog(int id)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -325,7 +278,7 @@ public class BlogsController : ApiControllerBase
 		var blog = await _context.Blogs.FindAsync(id);
 
 		if (blog == null)
-			return NotFound(new { error = "Blog not found" });
+			return NotFound(new ErrorResponseDto { Error = "Blog not found" });
 
 		if (blog.CreatorId != UserId)
 			return Forbid();

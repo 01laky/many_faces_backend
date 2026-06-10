@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.Requests.Reels;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.Grid;
@@ -62,6 +63,8 @@ public class ReelsController : ApiControllerBase
 	}
 
 	[HttpGet("{id:int}")]
+	[ProducesResponseType(typeof(ReelDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetReel(int id, [FromQuery] ReelDetailQuery detailQuery)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -69,63 +72,39 @@ public class ReelsController : ApiControllerBase
 
 		var faceId = detailQuery.FaceId;
 		var reel = await _context.Reels
+			.AsNoTracking()
 			.Include(r => r.Creator)
 			.Include(r => r.ReelFaces).ThenInclude(rf => rf.Face)
 			.Include(r => r.Likes)
 			.Include(r => r.Comments)
+			.AsSplitQuery()
 			.FirstOrDefaultAsync(r => r.Id == id);
 
 		if (reel == null)
-			return NotFound(new { error = "Reel not found" });
+			return NotFound(new ErrorResponseDto { Error = "Reel not found" });
 
 		var operatorInventory = CanManageAllFaces();
 		var isCreator = reel.CreatorId == UserId;
 		if (!operatorInventory && !isCreator && reel.ApprovalStatus != ContentApprovalStatus.Approved)
-			return NotFound(new { error = "Reel not found" });
+			return NotFound(new ErrorResponseDto { Error = "Reel not found" });
 
 		var effectiveFaceId = _faceScope.ResolveDataFaceId(faceId);
 		if (!ReelVisibility.IsVisibleForFace(reel, effectiveFaceId))
-			return NotFound(new { error = "Reel not found" });
+			return NotFound(new ErrorResponseDto { Error = "Reel not found" });
 
 		var showModerationFields = operatorInventory || isCreator;
-
-		return Ok(new
-		{
-			reel.Id,
-			reel.Title,
-			reel.Description,
-			videoUrl = reel.VideoUrl,
-			creatorId = reel.CreatorId,
-			creatorName = (reel.Creator.FirstName ?? "") + " " + (reel.Creator.LastName ?? ""),
-			faces = reel.ReelFaces.Select(rf => new { rf.FaceId, rf.Face.Title }),
-			likesCount = reel.Likes.Count,
-			commentsCount = reel.Comments.Count,
-			isLikedByMe = reel.Likes.Any(l => l.UserId == UserId),
-			approvalStatus = reel.ApprovalStatus.ToString(),
-			aiReviewStatus = reel.AiReviewStatus.ToString(),
-			aiReviewUserMessage = showModerationFields ? reel.AiReviewUserMessage : null,
-			humanDecisionReason = showModerationFields ? reel.HumanDecisionReason : null,
-			submittedAtUtc = showModerationFields ? reel.SubmittedAtUtc : null,
-			aiReviewDecision = showModerationFields ? reel.AiReviewDecision.ToString() : null,
-			aiReviewRiskLevel = showModerationFields ? reel.AiReviewRiskLevel.ToString() : null,
-			aiReviewFlagsJson = showModerationFields ? reel.AiReviewFlagsJson : null,
-			aiReviewReason = showModerationFields ? reel.AiReviewReason : null,
-			aiReviewModelVersion = showModerationFields ? reel.AiReviewModelVersion : null,
-			aiReviewTraceId = showModerationFields ? reel.AiReviewTraceId : null,
-			creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(reel.ApprovalStatus, reel.AiReviewStatus),
-			reel.CreatedAt,
-			reel.UpdatedAt,
-		});
+		return Ok(ReelDetailDto.From(reel, UserId ?? string.Empty, showModerationFields));
 	}
 
 	[HttpGet("user/{userId}")]
+	[ProducesResponseType(typeof(IEnumerable<ReelDetailDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetReelsByUser(string userId, [FromQuery] ReelByUserQuery byUserQuery)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var faceId = byUserQuery.FaceId;
-		var query = _context.Reels.Where(r => r.CreatorId == userId);
+		var query = _context.Reels.AsNoTracking().Where(r => r.CreatorId == userId);
 		if (userId != UserId)
 			query = query.Where(r => r.ApprovalStatus == ContentApprovalStatus.Approved);
 
@@ -137,27 +116,24 @@ public class ReelsController : ApiControllerBase
 		}
 
 		var reels = await query
-			.Include(r => r.Creator)
-			.Include(r => r.ReelFaces).ThenInclude(rf => rf.Face)
-			.Include(r => r.Likes)
-			.Include(r => r.Comments)
 			.OrderByDescending(r => r.CreatedAt)
-			.Select(r => new
+			.Take(500)
+			.Select(r => new ReelDetailDto
 			{
-				r.Id,
-				r.Title,
-				r.Description,
-				videoUrl = r.VideoUrl,
-				creatorId = r.CreatorId,
-				creatorName = (r.Creator.FirstName ?? "") + " " + (r.Creator.LastName ?? ""),
-				faces = r.ReelFaces.Select(rf => new { rf.FaceId, rf.Face.Title }),
-				likesCount = r.Likes.Count,
-				commentsCount = r.Comments.Count,
-				approvalStatus = r.ApprovalStatus.ToString(),
-				aiReviewStatus = r.AiReviewStatus.ToString(),
-				creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(r.ApprovalStatus, r.AiReviewStatus),
-				r.CreatedAt,
-				r.UpdatedAt,
+				Id = r.Id,
+				Title = r.Title,
+				Description = r.Description,
+				VideoUrl = r.VideoUrl,
+				CreatorId = r.CreatorId,
+				CreatorName = ((r.Creator.FirstName ?? "") + " " + (r.Creator.LastName ?? "")).Trim(),
+				Faces = r.ReelFaces.Select(rf => new ReelFaceDto { FaceId = rf.FaceId, Title = rf.Face.Title }),
+				LikesCount = r.Likes.Count,
+				CommentsCount = r.Comments.Count,
+				ApprovalStatus = r.ApprovalStatus.ToString(),
+				AiReviewStatus = r.AiReviewStatus.ToString(),
+				CreatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(r.ApprovalStatus, r.AiReviewStatus),
+				CreatedAt = r.CreatedAt,
+				UpdatedAt = r.UpdatedAt,
 			})
 			.ToListAsync();
 
@@ -165,6 +141,8 @@ public class ReelsController : ApiControllerBase
 	}
 
 	[HttpPost]
+	[ProducesResponseType(typeof(ReelDetailDto), StatusCodes.Status201Created)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> CreateReel([FromBody] CreateReelDto dto)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -272,6 +250,9 @@ public class ReelsController : ApiControllerBase
 	}
 
 	[HttpPut("{id:int}")]
+	[ProducesResponseType(typeof(ReelDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> UpdateReel(int id, [FromBody] UpdateReelDto dto)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -282,7 +263,7 @@ public class ReelsController : ApiControllerBase
 			.FirstOrDefaultAsync(r => r.Id == id);
 
 		if (reel == null)
-			return NotFound(new { error = "Reel not found" });
+			return NotFound(new ErrorResponseDto { Error = "Reel not found" });
 
 		if (reel.CreatorId != UserId)
 			return Forbid();
@@ -300,7 +281,7 @@ public class ReelsController : ApiControllerBase
 		if (dto.VideoUrl != null)
 		{
 			if (!ContentModerationHelpers.IsSafeHttpUrl(dto.VideoUrl))
-				return BadRequest(new { error = "VideoUrl must be an absolute http or https URL" });
+				return BadRequest(new ErrorResponseDto { Error = "VideoUrl must be an absolute http or https URL" });
 			reel.VideoUrl = dto.VideoUrl.Trim();
 		}
 
@@ -346,6 +327,8 @@ public class ReelsController : ApiControllerBase
 	}
 
 	[HttpDelete("{id:int}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> DeleteReel(int id)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -353,7 +336,7 @@ public class ReelsController : ApiControllerBase
 
 		var reel = await _context.Reels.FindAsync(id);
 		if (reel == null)
-			return NotFound(new { error = "Reel not found" });
+			return NotFound(new ErrorResponseDto { Error = "Reel not found" });
 
 		if (reel.CreatorId != UserId)
 			return Forbid();
@@ -370,38 +353,22 @@ public class ReelsController : ApiControllerBase
 		return NoContent();
 	}
 
-	private async Task<object?> LoadReelDetailAsync(int reelId, string currentUserId)
+	private async Task<ReelDetailDto?> LoadReelDetailAsync(int reelId, string currentUserId)
 	{
 		var reel = await _context.Reels
+			.AsNoTracking()
 			.Include(r => r.Creator)
 			.Include(r => r.ReelFaces).ThenInclude(rf => rf.Face)
 			.Include(r => r.Likes)
 			.Include(r => r.Comments)
+			.AsSplitQuery()
 			.FirstOrDefaultAsync(r => r.Id == reelId);
 
 		if (reel == null)
 			return null;
 
-		return new
-		{
-			reel.Id,
-			reel.Title,
-			reel.Description,
-			videoUrl = reel.VideoUrl,
-			creatorId = reel.CreatorId,
-			creatorName = (reel.Creator.FirstName ?? "") + " " + (reel.Creator.LastName ?? ""),
-			faces = reel.ReelFaces.Select(rf => new { rf.FaceId, rf.Face.Title }),
-			likesCount = reel.Likes.Count,
-			commentsCount = reel.Comments.Count,
-			isLikedByMe = reel.Likes.Any(l => l.UserId == currentUserId),
-			approvalStatus = reel.ApprovalStatus.ToString(),
-			aiReviewStatus = reel.AiReviewStatus.ToString(),
-			aiReviewUserMessage = reel.CreatorId == currentUserId ? reel.AiReviewUserMessage : null,
-			humanDecisionReason = reel.CreatorId == currentUserId ? reel.HumanDecisionReason : null,
-			creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(reel.ApprovalStatus, reel.AiReviewStatus),
-			reel.CreatedAt,
-			reel.UpdatedAt,
-		};
+		var showModerationFields = reel.CreatorId == currentUserId;
+		return ReelDetailDto.From(reel, currentUserId, showModerationFields);
 	}
 
 }

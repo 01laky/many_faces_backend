@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Hubs;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -29,6 +30,7 @@ public class FriendRequestsController : ApiControllerBase
 
 	/// <summary>GET /api/friendrequests - Pending requests received by current user</summary>
 	[HttpGet]
+	[ProducesResponseType(typeof(IReadOnlyList<FriendRequestItemDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetPending()
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -40,18 +42,20 @@ public class FriendRequestsController : ApiControllerBase
 			.Select(b => b.BlockerId == UserId ? b.BlockedId : b.BlockerId)
 			.ToListAsync();
 
+		// Include removed: EF Core translates Sender nav-prop access inside Select without it.
 		var requests = await _context.FriendRequests
+			.AsNoTracking()
 			.Where(r => r.ReceiverId == UserId && r.Status == FriendRequestStatus.Pending)
 			.Where(r => !blockedIds.Contains(r.SenderId))
-			.Include(r => r.Sender)
 			.OrderByDescending(r => r.CreatedAt)
-			.Select(r => new
+			.Take(200)
+			.Select(r => new FriendRequestItemDto
 			{
-				id = r.Id,
-				senderId = r.SenderId,
-				senderEmail = r.Sender.Email,
-				senderName = r.Sender.FirstName + " " + r.Sender.LastName,
-				createdAt = r.CreatedAt,
+				Id = r.Id,
+				SenderId = r.SenderId,
+				SenderEmail = r.Sender.Email,
+				SenderName = (r.Sender.FirstName ?? "") + " " + (r.Sender.LastName ?? ""),
+				CreatedAt = r.CreatedAt,
 			})
 			.ToListAsync();
 
@@ -60,6 +64,7 @@ public class FriendRequestsController : ApiControllerBase
 
 	/// <summary>POST /api/friendrequests - Send friend request</summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Send([FromBody] SendFriendRequestDto dto)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -73,7 +78,7 @@ public class FriendRequestsController : ApiControllerBase
 				(b.BlockerId == UserId && b.BlockedId == dto.ReceiverId) ||
 				(b.BlockerId == dto.ReceiverId && b.BlockedId == UserId));
 		if (isBlocked)
-			return BadRequest(new { error = "Cannot send friend request to this user" });
+			return BadRequest(new ErrorResponseDto { Error = "Cannot send friend request to this user" });
 
 		var exists = await _context.FriendRequests
 			.AnyAsync(r =>
@@ -81,11 +86,11 @@ public class FriendRequestsController : ApiControllerBase
 				(r.SenderId == dto.ReceiverId && r.ReceiverId == UserId));
 
 		if (exists)
-			return BadRequest(new { error = "Friend request already exists" });
+			return BadRequest(new ErrorResponseDto { Error = "Friend request already exists" });
 
 		var areFriends = await IsFriendWith(UserId, dto.ReceiverId);
 		if (areFriends)
-			return BadRequest(new { error = "Already friends" });
+			return BadRequest(new ErrorResponseDto { Error = "Already friends" });
 
 		var sender = await _context.Users.FindAsync(UserId);
 		var senderName = sender != null ? (sender.FirstName ?? "") + " " + (sender.LastName ?? "") : "";
@@ -110,11 +115,12 @@ public class FriendRequestsController : ApiControllerBase
 		await _hubContext.Clients.User(dto.ReceiverId).SendAsync("ReceiveFriendRequest", UserId, senderName);
 		await _hubContext.Clients.User(dto.ReceiverId).SendAsync("ReceiveNotification", notification.Id, notification.Title, notification.Message, notification.Type, notification.CreatedAt);
 		_logger.LogInformation("User {Sender} sent friend request to {Receiver}", UserId, dto.ReceiverId);
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 
 	/// <summary>POST /api/friendrequests/{id}/accept</summary>
 	[HttpPost("{id}/accept")]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Accept(int id)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -135,11 +141,12 @@ public class FriendRequestsController : ApiControllerBase
 		await _context.SaveChangesAsync();
 
 		_logger.LogInformation("User {UserId} accepted friend request from {SenderId}", UserId, req.SenderId);
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 
 	/// <summary>POST /api/friendrequests/{id}/reject</summary>
 	[HttpPost("{id}/reject")]
+	[ProducesResponseType(typeof(SuccessResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Reject(int id)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -155,7 +162,7 @@ public class FriendRequestsController : ApiControllerBase
 		req.RespondedAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync();
 
-		return Ok(new { success = true });
+		return Ok(SuccessResultDto.True);
 	}
 
 	private async Task<bool> IsFriendWith(string a, string b)

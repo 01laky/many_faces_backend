@@ -4,6 +4,7 @@ using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.Utils;
 using BeDemo.Api.Validation.Rules;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -12,6 +13,7 @@ public partial class FaceProfilesController
 	/// <summary>GET — list face directory (inner-join UserFaceProfile; operator search/sort).</summary>
 	[HttpGet]
 	[Microsoft.AspNetCore.Authorization.AllowAnonymous]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> ListProfiles(
 		int faceId,
 		[FromQuery] FaceProfileListQuery listQuery,
@@ -19,7 +21,7 @@ public partial class FaceProfilesController
 	{
 		var face = await GetFaceAsync(faceId, ct);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var operatorInventory = CanManageAllFaces();
 		if (!operatorInventory &&
@@ -120,15 +122,15 @@ public partial class FaceProfilesController
 			if (string.IsNullOrEmpty(display))
 				display = row.Nickname;
 			var avatar = !string.IsNullOrWhiteSpace(row.FaceAvatar) ? row.FaceAvatar : row.GlobalAvatar;
-			return new
+			return new OperatorFaceProfileListItemDto
 			{
-				userId = row.UserId,
-				displayName = display,
-				avatarUrl = _uploadUrls.ToAbsoluteSignedUrl(avatar, Request.Scheme, Request.Host.Value!),
-				commentsCount = commentCounts.GetValueOrDefault(row.ProfileId),
-				likesCount = likeCounts.GetValueOrDefault(row.ProfileId),
-				reviewsCount = face.AllowRecensions ? reviewCounts.GetValueOrDefault(row.ProfileId) : 0,
-				isFaceBanned = bannedSet.Contains(row.UserId),
+				UserId = row.UserId,
+				DisplayName = display,
+				AvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(avatar, Request.Scheme, Request.Host.Value!),
+				CommentsCount = commentCounts.GetValueOrDefault(row.ProfileId),
+				LikesCount = likeCounts.GetValueOrDefault(row.ProfileId),
+				ReviewsCount = face.AllowRecensions ? reviewCounts.GetValueOrDefault(row.ProfileId) : 0,
+				IsFaceBanned = bannedSet.Contains(row.UserId),
 			};
 		}).ToList();
 

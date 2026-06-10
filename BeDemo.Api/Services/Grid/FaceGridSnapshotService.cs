@@ -269,15 +269,21 @@ public sealed class FaceGridSnapshotService : IFaceGridSnapshotService
 			.Where(s => ids.Contains(s.FaceVideoLoungeId) && s.EndedAt == null)
 			.ToDictionaryAsync(s => s.FaceVideoLoungeId, s => s.Id, cancellationToken);
 
-		var liveCounts = new Dictionary<int, int>();
-		foreach (var kv in sessionByLounge)
+		// Batch all participant counts into one grouped query instead of one CountAsync per lounge (X10 N+1).
+		Dictionary<int, int> liveCounts;
+		if (sessionByLounge.Count == 0)
 		{
-			liveCounts[kv.Key] = await _context.FaceVideoLoungeSessionParticipants.AsNoTracking()
-				.CountAsync(p =>
-					p.FaceVideoLoungeSessionId == kv.Value
-					&& p.LeftAt == null
-					&& p.IsListedInPublicRoster,
-					cancellationToken);
+			liveCounts = [];
+		}
+		else
+		{
+			var sessionIds = sessionByLounge.Values.ToList();
+			var countsBySession = await _context.FaceVideoLoungeSessionParticipants.AsNoTracking()
+				.Where(p => sessionIds.Contains(p.FaceVideoLoungeSessionId) && p.LeftAt == null && p.IsListedInPublicRoster)
+				.GroupBy(p => p.FaceVideoLoungeSessionId)
+				.Select(g => new { g.Key, C = g.Count() })
+				.ToDictionaryAsync(x => x.Key, x => x.C, cancellationToken);
+			liveCounts = sessionByLounge.ToDictionary(kv => kv.Key, kv => countsBySession.GetValueOrDefault(kv.Value));
 		}
 
 		var myMemberships = (await _context.FaceVideoLoungeMembers

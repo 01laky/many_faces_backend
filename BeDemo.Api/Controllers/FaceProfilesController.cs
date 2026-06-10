@@ -9,6 +9,7 @@ using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 using BeDemo.Api.Validation.Rules;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -67,11 +68,13 @@ public partial class FaceProfilesController : ApiControllerBase
 	/// <summary>GET — profile card fields for a user in this face (extended for operator inventory).</summary>
 	[HttpGet("{userId}")]
 	[AllowAnonymous]
+	[ProducesResponseType(typeof(FaceProfileDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetProfile(int faceId, string userId, CancellationToken ct = default)
 	{
 		var face = await GetFaceAsync(faceId, ct);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var operatorInventory = CanManageAllFaces();
 		if (!operatorInventory &&
@@ -82,12 +85,12 @@ public partial class FaceProfilesController : ApiControllerBase
 			.Include(p => p.User)
 			.FirstOrDefaultAsync(p => p.UserId == userId, ct);
 		if (up == null)
-			return NotFound(new { error = "User not found" });
+			return NotFound(new ErrorResponseDto { Error = "User not found" });
 
 		var ufp = await _context.UserFaceProfiles.AsNoTracking()
 			.FirstOrDefaultAsync(x => x.FaceId == faceId && x.UserProfileId == up.Id, ct);
 		if (ufp == null)
-			return NotFound(new { error = "Face profile not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face profile not found" });
 
 		var display = !string.IsNullOrWhiteSpace(ufp.DisplayName) ? ufp.DisplayName : up.Nickname;
 		var avatar = !string.IsNullOrWhiteSpace(ufp.AvatarUrl) ? ufp.AvatarUrl : up.AvatarUrl;
@@ -117,28 +120,28 @@ public partial class FaceProfilesController : ApiControllerBase
 		var isFaceBanned = await _context.UserFaceModerations.AsNoTracking()
 			.AnyAsync(m => m.UserId == userId && m.FaceId == faceId && m.LiftedAt == null, ct);
 
-		return Ok(new
+		return Ok(new FaceProfileDetailDto
 		{
-			userId,
-			userFaceProfileId = ufp.Id,
-			displayName = display,
-			nickname = up.Nickname,
-			age = up.Age,
-			rod = up.Rod,
-			avatarUrl = _uploadUrls.ToAbsoluteSignedUrl(avatar, Request.Scheme, Request.Host.Value!),
-			createdAt = ufp.CreatedAt,
-			updatedAt = ufp.UpdatedAt ?? ufp.CreatedAt,
-			faceAllowsRecensions = face.AllowRecensions,
-			faceVisibility = face.Visibility.ToString(),
-			faceRoleName,
-			isActive = ufp.IsActive,
-			visited = ufp.Visited,
-			commentsCount,
-			likesCount,
-			reviewsCount,
-			isFaceBanned,
-			email = operatorInventory ? up.User?.Email : null,
-			likedByMe = liked,
+			UserId = userId,
+			UserFaceProfileId = ufp.Id,
+			DisplayName = display,
+			Nickname = up.Nickname,
+			Age = up.Age,
+			Rod = up.Rod,
+			AvatarUrl = _uploadUrls.ToAbsoluteSignedUrl(avatar, Request.Scheme, Request.Host.Value!),
+			CreatedAt = ufp.CreatedAt,
+			UpdatedAt = ufp.UpdatedAt ?? ufp.CreatedAt,
+			FaceAllowsRecensions = face.AllowRecensions,
+			FaceVisibility = face.Visibility.ToString(),
+			FaceRoleName = faceRoleName,
+			IsActive = ufp.IsActive,
+			Visited = ufp.Visited,
+			CommentsCount = commentsCount,
+			LikesCount = likesCount,
+			ReviewsCount = reviewsCount,
+			IsFaceBanned = isFaceBanned,
+			Email = operatorInventory ? up.User?.Email : null,
+			LikedByMe = liked,
 		});
 	}
 
@@ -147,24 +150,25 @@ public partial class FaceProfilesController : ApiControllerBase
 	/// </summary>
 	[HttpPost("{userId}/like")]
 	[Authorize]
+	[ProducesResponseType(typeof(LikeResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> LikeProfile(int faceId, string userId, CancellationToken ct = default)
 	{
 		var viewerId = UserId!;
 		var face = await GetFaceAsync(faceId, ct);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 		if (!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, viewerId, ct))
 			return VisibilityDenied();
 
 		var ufp = await ResolveTargetProfileTrackedAsync(faceId, userId, ct);
 		if (ufp == null)
-			return NotFound(new { error = "Face profile not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face profile not found" });
 		var ownerUserId = await _context.UserProfiles.AsNoTracking()
 			.Where(p => p.Id == ufp.UserProfileId)
 			.Select(p => p.UserId)
 			.FirstAsync(ct);
 		if (ownerUserId == viewerId)
-			return BadRequest(new { error = "Cannot like own profile" });
+			return BadRequest(new ErrorResponseDto { Error = "Cannot like own profile" });
 
 		var exists = await _context.UserFaceProfileLikes
 			.AnyAsync(l => l.UserFaceProfileId == ufp.Id && l.UserId == viewerId, ct);
@@ -179,7 +183,7 @@ public partial class FaceProfilesController : ApiControllerBase
 			await _context.SaveChangesAsync(ct);
 		}
 
-		return Ok(new { liked = true });
+		return Ok(LikeResultDto.Yes);
 	}
 
 	/// <summary>
@@ -187,12 +191,13 @@ public partial class FaceProfilesController : ApiControllerBase
 	/// </summary>
 	[HttpDelete("{userId}/like")]
 	[Authorize]
+	[ProducesResponseType(typeof(LikeResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> UnlikeProfile(int faceId, string userId, CancellationToken ct = default)
 	{
 		var viewerId = UserId!;
 		var ufp = await ResolveTargetProfileAsync(faceId, userId, ct);
 		if (ufp == null)
-			return NotFound(new { error = "Face profile not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face profile not found" });
 
 		var row = await _context.UserFaceProfileLikes
 			.FirstOrDefaultAsync(l => l.UserFaceProfileId == ufp.Id && l.UserId == viewerId, ct);
@@ -202,7 +207,7 @@ public partial class FaceProfilesController : ApiControllerBase
 			await _context.SaveChangesAsync(ct);
 		}
 
-		return Ok(new { liked = false });
+		return Ok(LikeResultDto.No);
 	}
 
 	/// <summary>
@@ -210,22 +215,23 @@ public partial class FaceProfilesController : ApiControllerBase
 	/// </summary>
 	[HttpGet("{userId}/likes")]
 	[AllowAnonymous]
+	[ProducesResponseType(typeof(IReadOnlyList<ProfileLikerDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> ListLikers(int faceId, string userId, CancellationToken ct = default)
 	{
 		var face = await GetFaceAsync(faceId, ct);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 		if (!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, UserId, ct))
 			return VisibilityDenied();
 
 		var ufp = await ResolveTargetProfileAsync(faceId, userId, ct);
 		if (ufp == null)
-			return NotFound(new { error = "Face profile not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face profile not found" });
 
 		var likers = await _context.UserFaceProfileLikes.AsNoTracking()
 			.Where(l => l.UserFaceProfileId == ufp.Id)
 			.OrderBy(l => l.CreatedAt)
-			.Select(l => new { l.UserId, l.CreatedAt })
+			.Select(l => new ProfileLikerDto { UserId = l.UserId, CreatedAt = l.CreatedAt })
 			.ToListAsync(ct);
 
 		return Ok(likers);
@@ -234,6 +240,7 @@ public partial class FaceProfilesController : ApiControllerBase
 	/// <summary>GET — comments on profile (portal array or operator paginated envelope when page &gt;= 1).</summary>
 	[HttpGet("{userId}/comments")]
 	[AllowAnonymous]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> ListComments(
 		int faceId,
 		string userId,
@@ -242,7 +249,7 @@ public partial class FaceProfilesController : ApiControllerBase
 	{
 		var face = await GetFaceAsync(faceId, ct);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var operatorInventory = CanManageAllFaces();
 		if (!operatorInventory &&
@@ -251,7 +258,7 @@ public partial class FaceProfilesController : ApiControllerBase
 
 		var ufp = await ResolveTargetProfileAsync(faceId, userId, ct);
 		if (ufp == null)
-			return NotFound(new { error = "Face profile not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face profile not found" });
 
 		if (listQuery.Page >= 1)
 		{
@@ -284,12 +291,12 @@ public partial class FaceProfilesController : ApiControllerBase
 			var pageItems = await ordered
 				.Skip((page - 1) * pageSize)
 				.Take(pageSize)
-				.Select(c => new
+				.Select(c => new FaceProfileCommentAdminItemDto
 				{
-					c.Id,
-					c.UserId,
-					c.Body,
-					c.CreatedAt,
+					Id = c.Id,
+					UserId = c.UserId,
+					Body = c.Body,
+					CreatedAt = c.CreatedAt,
 					AuthorDisplayName = _context.UserProfiles.AsNoTracking()
 						.Where(p => p.UserId == c.UserId)
 						.Select(p => p.Nickname)
@@ -304,7 +311,7 @@ public partial class FaceProfilesController : ApiControllerBase
 		var list = await _context.UserFaceProfileComments.AsNoTracking()
 			.Where(c => c.UserFaceProfileId == ufp.Id)
 			.OrderBy(c => c.CreatedAt)
-			.Select(c => new { c.Id, c.UserId, c.Body, c.CreatedAt })
+			.Select(c => new ProfileCommentResultDto { Id = c.Id, UserId = c.UserId, Body = c.Body, CreatedAt = c.CreatedAt })
 			.ToListAsync(ct);
 
 		return Ok(list);
@@ -315,18 +322,19 @@ public partial class FaceProfilesController : ApiControllerBase
 	/// </summary>
 	[HttpPost("{userId}/comments")]
 	[Authorize]
+	[ProducesResponseType(typeof(ProfileCommentResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> AddComment(int faceId, string userId, [FromBody] FaceProfileCommentDto dto, CancellationToken ct = default)
 	{
 		var viewerId = UserId!;
 		var face = await GetFaceAsync(faceId, ct);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 		if (!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, viewerId, ct))
 			return VisibilityDenied();
 
 		var ufp = await ResolveTargetProfileTrackedAsync(faceId, userId, ct);
 		if (ufp == null)
-			return NotFound(new { error = "Face profile not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face profile not found" });
 
 		var c = new UserFaceProfileComment
 		{
@@ -338,7 +346,7 @@ public partial class FaceProfilesController : ApiControllerBase
 		_context.UserFaceProfileComments.Add(c);
 		await _context.SaveChangesAsync(ct);
 
-		return Ok(new { c.Id, c.UserId, c.Body, c.CreatedAt });
+		return Ok(new ProfileCommentResultDto { Id = c.Id, UserId = c.UserId, Body = c.Body, CreatedAt = c.CreatedAt });
 	}
 
 	/// <summary>
@@ -346,18 +354,19 @@ public partial class FaceProfilesController : ApiControllerBase
 	/// </summary>
 	[HttpDelete("comments/{commentId:int}")]
 	[Authorize]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeleteComment(int faceId, int commentId, CancellationToken ct = default)
 	{
 		var viewerId = UserId!;
 		var c = await _context.UserFaceProfileComments
 			.FirstOrDefaultAsync(x => x.Id == commentId, ct);
 		if (c == null)
-			return NotFound(new { error = "Comment not found" });
+			return NotFound(new ErrorResponseDto { Error = "Comment not found" });
 
 		var ufp = await _context.UserFaceProfiles.AsNoTracking()
 			.FirstOrDefaultAsync(x => x.Id == c.UserFaceProfileId, ct);
 		if (ufp == null || ufp.FaceId != faceId)
-			return NotFound(new { error = "Comment not found" });
+			return NotFound(new ErrorResponseDto { Error = "Comment not found" });
 
 		if (c.UserId != viewerId)
 			return Forbid();
@@ -370,6 +379,7 @@ public partial class FaceProfilesController : ApiControllerBase
 	/// <summary>GET — reviews (portal array or operator envelope; empty when recensions off).</summary>
 	[HttpGet("{userId}/reviews")]
 	[AllowAnonymous]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> ListReviews(
 		int faceId,
 		string userId,
@@ -378,7 +388,7 @@ public partial class FaceProfilesController : ApiControllerBase
 	{
 		var face = await GetFaceAsync(faceId, ct);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var operatorInventory = CanManageAllFaces();
 		if (!operatorInventory &&
@@ -394,7 +404,7 @@ public partial class FaceProfilesController : ApiControllerBase
 
 		var ufp = await ResolveTargetProfileAsync(faceId, userId, ct);
 		if (ufp == null)
-			return NotFound(new { error = "Face profile not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face profile not found" });
 
 		if (listQuery.Page >= 1)
 		{
@@ -431,14 +441,14 @@ public partial class FaceProfilesController : ApiControllerBase
 			var pageItems = await ordered
 				.Skip((page - 1) * pageSize)
 				.Take(pageSize)
-				.Select(r => new
+				.Select(r => new FaceProfileReviewAdminItemDto
 				{
-					r.Id,
-					r.AuthorUserId,
-					r.Title,
-					r.Text,
-					stars = r.Stars,
-					r.CreatedAt,
+					Id = r.Id,
+					AuthorUserId = r.AuthorUserId,
+					Title = r.Title,
+					Text = r.Text,
+					Stars = r.Stars,
+					CreatedAt = r.CreatedAt,
 					AuthorDisplayName = _context.UserProfiles.AsNoTracking()
 						.Where(p => p.UserId == r.AuthorUserId)
 						.Select(p => p.Nickname)
@@ -452,7 +462,7 @@ public partial class FaceProfilesController : ApiControllerBase
 		var list = await _context.UserFaceProfileReviews.AsNoTracking()
 			.Where(r => r.UserFaceProfileId == ufp.Id)
 			.OrderByDescending(r => r.CreatedAt)
-			.Select(r => new { r.Id, r.AuthorUserId, r.Title, r.Text, stars = r.Stars, r.CreatedAt })
+			.Select(r => new ReviewResultDto { Id = r.Id, AuthorUserId = r.AuthorUserId, Title = r.Title, Text = r.Text, Stars = r.Stars, CreatedAt = r.CreatedAt })
 			.ToListAsync(ct);
 
 		return Ok(list);
@@ -463,27 +473,28 @@ public partial class FaceProfilesController : ApiControllerBase
 	/// </summary>
 	[HttpPost("{userId}/reviews")]
 	[Authorize]
+	[ProducesResponseType(typeof(ReviewResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> UpsertReview(int faceId, string userId, [FromBody] FaceProfileReviewDto dto, CancellationToken ct = default)
 	{
 		if (dto.Stars is < 1 or > 6)
-			return BadRequest(new { error = "Stars must be 1–6" });
+			return BadRequest(new ErrorResponseDto { Error = "Stars must be 1–6" });
 
 		var authorId = UserId!;
 		var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == faceId, ct);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 		if (!face.AllowRecensions)
-			return BadRequest(new { error = "Reviews are disabled for this face" });
+			return BadRequest(new ErrorResponseDto { Error = "Reviews are disabled for this face" });
 		if (!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, authorId, ct))
 			return VisibilityDenied();
 
 		var ufp = await ResolveTargetProfileTrackedAsync(faceId, userId, ct);
 		if (ufp == null)
-			return NotFound(new { error = "Face profile not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face profile not found" });
 
 		var up = await _context.UserProfiles.AsNoTracking().FirstAsync(p => p.UserId == userId, ct);
 		if (up.UserId == authorId)
-			return BadRequest(new { error = "Cannot review own profile" });
+			return BadRequest(new ErrorResponseDto { Error = "Cannot review own profile" });
 
 		var existing = await _context.UserFaceProfileReviews
 			.FirstOrDefaultAsync(r => r.UserFaceProfileId == ufp.Id && r.AuthorUserId == authorId, ct);
@@ -493,7 +504,7 @@ public partial class FaceProfilesController : ApiControllerBase
 			existing.Text = dto.Text.Trim();
 			existing.Stars = (byte)dto.Stars!.Value;
 			await _context.SaveChangesAsync(ct);
-			return Ok(new { existing.Id, existing.AuthorUserId, existing.Title, existing.Text, stars = existing.Stars, existing.CreatedAt });
+			return Ok(new ReviewResultDto { Id = existing.Id, AuthorUserId = existing.AuthorUserId, Title = existing.Title, Text = existing.Text, Stars = existing.Stars, CreatedAt = existing.CreatedAt });
 		}
 
 		var r = new UserFaceProfileReview
@@ -507,7 +518,7 @@ public partial class FaceProfilesController : ApiControllerBase
 		};
 		_context.UserFaceProfileReviews.Add(r);
 		await _context.SaveChangesAsync(ct);
-		return Ok(new { r.Id, r.AuthorUserId, r.Title, r.Text, stars = r.Stars, r.CreatedAt });
+		return Ok(new ReviewResultDto { Id = r.Id, AuthorUserId = r.AuthorUserId, Title = r.Title, Text = r.Text, Stars = r.Stars, CreatedAt = r.CreatedAt });
 	}
 
 	/// <summary>
@@ -515,17 +526,18 @@ public partial class FaceProfilesController : ApiControllerBase
 	/// </summary>
 	[HttpDelete("reviews/{reviewId:int}")]
 	[Authorize]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeleteReview(int faceId, int reviewId, CancellationToken ct = default)
 	{
 		var authorId = UserId!;
 		var r = await _context.UserFaceProfileReviews.FirstOrDefaultAsync(x => x.Id == reviewId, ct);
 		if (r == null)
-			return NotFound(new { error = "Review not found" });
+			return NotFound(new ErrorResponseDto { Error = "Review not found" });
 
 		var ufp = await _context.UserFaceProfiles.AsNoTracking()
 			.FirstOrDefaultAsync(x => x.Id == r.UserFaceProfileId, ct);
 		if (ufp == null || ufp.FaceId != faceId)
-			return NotFound(new { error = "Review not found" });
+			return NotFound(new ErrorResponseDto { Error = "Review not found" });
 
 		if (r.AuthorUserId != authorId)
 			return Forbid();

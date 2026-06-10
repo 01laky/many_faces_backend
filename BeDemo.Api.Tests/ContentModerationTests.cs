@@ -676,8 +676,8 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
 	[Fact]
 	public async Task ContentModerationMetrics_ShouldReturnEmptySnapshotSafely()
 	{
-		await using var context = CreateContext();
-		var metrics = new ContentModerationMetrics(context);
+		var (_, factory) = CreateContextAndFactory();
+		var metrics = new ContentModerationMetrics(factory);
 
 		var snapshot = await metrics.GetSnapshotAsync();
 
@@ -694,7 +694,8 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
 	[Fact]
 	public async Task ContentModerationMetrics_ShouldReturnStatusAndLatencyCounts()
 	{
-		await using var context = CreateContext();
+		var (context, factory) = CreateContextAndFactory();
+		await using var _ = context;
 		var face = new Face { Index = $"face-{Guid.NewGuid():N}", Title = "Metrics Face" };
 		var user = CreateUser("metrics-user");
 		context.Faces.Add(face);
@@ -732,7 +733,7 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
 		});
 		await context.SaveChangesAsync();
 
-		var snapshot = await new ContentModerationMetrics(context).GetSnapshotAsync();
+		var snapshot = await new ContentModerationMetrics(factory).GetSnapshotAsync();
 
 		snapshot.PendingSubmissions.Should().Be(1);
 		snapshot.ApprovedCount.Should().BeGreaterThanOrEqualTo(1);
@@ -1184,6 +1185,23 @@ public class ContentModerationTests : IClassFixture<CustomWebApplicationFactory<
 		var context = new ApplicationDbContext(options);
 		context.Database.EnsureCreated();
 		return context;
+	}
+
+	/// <summary>Creates a context and a matching factory that share the same InMemory database.</summary>
+	private static (ApplicationDbContext Context, IDbContextFactory<ApplicationDbContext> Factory) CreateContextAndFactory()
+	{
+		var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+			.UseInMemoryDatabase($"content-moderation-{Guid.NewGuid():N}")
+			.Options;
+		var context = new ApplicationDbContext(options);
+		context.Database.EnsureCreated();
+		return (context, new TestDbContextFactory(options));
+	}
+
+	private sealed class TestDbContextFactory(DbContextOptions<ApplicationDbContext> options)
+		: IDbContextFactory<ApplicationDbContext>
+	{
+		public ApplicationDbContext CreateDbContext() => new(options);
 	}
 
 	private static ApplicationUser CreateUser(string prefix) => new()

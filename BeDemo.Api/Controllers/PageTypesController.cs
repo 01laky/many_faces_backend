@@ -7,6 +7,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -39,6 +40,7 @@ public class PageTypesController : ControllerBase
 	/// Get list of all page types
 	/// </summary>
 	[HttpGet]
+	[ProducesResponseType(typeof(IReadOnlyList<PageTypeDetailDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetPageTypes()
 	{
 		try
@@ -47,12 +49,12 @@ public class PageTypesController : ControllerBase
 				.OrderBy(pt => pt.Index)
 				.ToListAsync();
 
-			var pageTypeDtos = pageTypes.Select(pt => new
+			var pageTypeDtos = pageTypes.Select(pt => new PageTypeDetailDto
 			{
-				id = pt.Id,
-				index = pt.Index,
-				createdAt = pt.CreatedAt,
-				updatedAt = pt.UpdatedAt,
+				Id = pt.Id,
+				Index = pt.Index,
+				CreatedAt = pt.CreatedAt,
+				UpdatedAt = pt.UpdatedAt,
 			}).ToList();
 
 			_logger.LogInformation("Retrieved {Count} page types", pageTypeDtos.Count);
@@ -61,7 +63,7 @@ public class PageTypesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving page types");
-			return StatusCode(500, new { error = "An error occurred while retrieving page types" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving page types" });
 		}
 	}
 
@@ -70,6 +72,8 @@ public class PageTypesController : ControllerBase
 	/// Get page type by ID
 	/// </summary>
 	[HttpGet("{id}")]
+	[ProducesResponseType(typeof(PageTypeDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetPageType(int id)
 	{
 		try
@@ -79,15 +83,15 @@ public class PageTypesController : ControllerBase
 			if (pageType == null)
 			{
 				_logger.LogWarning("PageType not found: {PageTypeId}", id);
-				return NotFound(new { error = "PageType not found" });
+				return NotFound(new ErrorResponseDto { Error = "PageType not found" });
 			}
 
-			var pageTypeDto = new
+			var pageTypeDto = new PageTypeDetailDto
 			{
-				id = pageType.Id,
-				index = pageType.Index,
-				createdAt = pageType.CreatedAt,
-				updatedAt = pageType.UpdatedAt,
+				Id = pageType.Id,
+				Index = pageType.Index,
+				CreatedAt = pageType.CreatedAt,
+				UpdatedAt = pageType.UpdatedAt,
 			};
 
 			_logger.LogInformation("Retrieved page type: {PageTypeId}", id);
@@ -96,7 +100,7 @@ public class PageTypesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error retrieving page type: {PageTypeId}", id);
-			return StatusCode(500, new { error = "An error occurred while retrieving page type" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while retrieving page type" });
 		}
 	}
 
@@ -105,6 +109,7 @@ public class PageTypesController : ControllerBase
 	/// Create a new page type
 	/// </summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(PageTypeDetailDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> CreatePageType([FromBody] CreatePageTypeModel model)
 	{
 		if (!ModelState.IsValid)
@@ -126,12 +131,12 @@ public class PageTypesController : ControllerBase
 			_context.PageTypes.Add(pageType);
 			await _context.SaveChangesAsync();
 
-			var pageTypeDto = new
+			var pageTypeDto = new PageTypeDetailDto
 			{
-				id = pageType.Id,
-				index = pageType.Index,
-				createdAt = pageType.CreatedAt,
-				updatedAt = pageType.UpdatedAt,
+				Id = pageType.Id,
+				Index = pageType.Index,
+				CreatedAt = pageType.CreatedAt,
+				UpdatedAt = pageType.UpdatedAt,
 			};
 
 			_logger.LogInformation("PageType created: {PageTypeId}", pageType.Id);
@@ -142,12 +147,12 @@ public class PageTypesController : ControllerBase
 		catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("UNIQUE constraint") == true)
 		{
 			_logger.LogWarning("PageType with index '{Index}' already exists", model.Index);
-			return BadRequest(new { error = $"PageType with index '{model.Index}' already exists" });
+			return BadRequest(new ErrorResponseDto { Error = $"PageType with index '{model.Index}' already exists" });
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error creating page type");
-			return StatusCode(500, new { error = "An error occurred while creating page type" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while creating page type" });
 		}
 	}
 
@@ -156,6 +161,7 @@ public class PageTypesController : ControllerBase
 	/// Update page type by ID
 	/// </summary>
 	[HttpPut("{id}")]
+	[ProducesResponseType(typeof(PageTypeDetailDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> UpdatePageType(int id, [FromBody] UpdatePageTypeModel model)
 	{
 		if (!ModelState.IsValid)
@@ -173,7 +179,7 @@ public class PageTypesController : ControllerBase
 			if (pageType == null)
 			{
 				_logger.LogWarning("PageType not found for update: {PageTypeId}", id);
-				return NotFound(new { error = "PageType not found" });
+				return NotFound(new ErrorResponseDto { Error = "PageType not found" });
 			}
 
 			// Update page type properties
@@ -185,12 +191,12 @@ public class PageTypesController : ControllerBase
 
 			await _context.SaveChangesAsync();
 
-			var pageTypeDto = new
+			var pageTypeDto = new PageTypeDetailDto
 			{
-				id = pageType.Id,
-				index = pageType.Index,
-				createdAt = pageType.CreatedAt,
-				updatedAt = pageType.UpdatedAt,
+				Id = pageType.Id,
+				Index = pageType.Index,
+				CreatedAt = pageType.CreatedAt,
+				UpdatedAt = pageType.UpdatedAt,
 			};
 
 			_logger.LogInformation("PageType updated: {PageTypeId}", id);
@@ -201,12 +207,12 @@ public class PageTypesController : ControllerBase
 		catch (DbUpdateException ex) when (ex.InnerException?.Message.Contains("UNIQUE constraint") == true)
 		{
 			_logger.LogWarning("PageType with index '{Index}' already exists", model.Index);
-			return BadRequest(new { error = $"PageType with index '{model.Index}' already exists" });
+			return BadRequest(new ErrorResponseDto { Error = $"PageType with index '{model.Index}' already exists" });
 		}
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error updating page type: {PageTypeId}", id);
-			return StatusCode(500, new { error = "An error occurred while updating page type" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while updating page type" });
 		}
 	}
 
@@ -215,6 +221,7 @@ public class PageTypesController : ControllerBase
 	/// Delete page type by ID
 	/// </summary>
 	[HttpDelete("{id}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> DeletePageType(int id)
 	{
 		if (!CanMutateGlobalPageTypes())
@@ -226,7 +233,7 @@ public class PageTypesController : ControllerBase
 			if (pageType == null)
 			{
 				_logger.LogWarning("PageType not found for deletion: {PageTypeId}", id);
-				return NotFound(new { error = "PageType not found" });
+				return NotFound(new ErrorResponseDto { Error = "PageType not found" });
 			}
 
 			// Check if any pages use this page type
@@ -234,7 +241,7 @@ public class PageTypesController : ControllerBase
 			if (pagesUsingType)
 			{
 				_logger.LogWarning("Cannot delete PageType {PageTypeId} because it is used by pages", id);
-				return BadRequest(new { error = "Cannot delete PageType because it is used by pages" });
+				return BadRequest(new ErrorResponseDto { Error = "Cannot delete PageType because it is used by pages" });
 			}
 
 			_context.PageTypes.Remove(pageType);
@@ -248,7 +255,7 @@ public class PageTypesController : ControllerBase
 		catch (Exception ex)
 		{
 			_logger.LogError(ex, "Error deleting page type: {PageTypeId}", id);
-			return StatusCode(500, new { error = "An error occurred while deleting page type" });
+			return StatusCode(500, new ErrorResponseDto { Error = "An error occurred while deleting page type" });
 		}
 	}
 }

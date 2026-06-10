@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
+using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.Requests.Albums;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.Grid;
@@ -62,21 +63,25 @@ public class AlbumsController : ApiControllerBase
 
 	/// <summary>GET /api/albums/{id} - Get album by ID</summary>
 	[HttpGet("{id}")]
+	[ProducesResponseType(typeof(AlbumDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetAlbum(int id)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var album = await _context.Albums
+			.AsNoTracking()
 			.Include(a => a.Creator)
 			.Include(a => a.AlbumFaces).ThenInclude(af => af.Face)
 			.Include(a => a.MediaItems)
 			.Include(a => a.Likes)
 			.Include(a => a.Comments)
+			.AsSplitQuery()
 			.FirstOrDefaultAsync(a => a.Id == id);
 
 		if (album == null)
-			return NotFound(new { error = "Album not found" });
+			return NotFound(new ErrorResponseDto { Error = "Album not found" });
 
 		var operatorInventory = CanManageAllFaces();
 		var isCreator = album.CreatorId == UserId;
@@ -84,7 +89,7 @@ public class AlbumsController : ApiControllerBase
 		if (!operatorInventory)
 		{
 			if (!isCreator && album.ApprovalStatus != ContentApprovalStatus.Approved)
-				return NotFound(new { error = "Album not found" });
+				return NotFound(new ErrorResponseDto { Error = "Album not found" });
 			if (album.AlbumType != AlbumTypeEnum.Public && !isCreator)
 				return Forbid();
 		}
@@ -92,55 +97,21 @@ public class AlbumsController : ApiControllerBase
 		var effectiveFaceId = _faceScope.ResolveDataFaceId(
 			Request.Query.TryGetValue("faceId", out var qf) && int.TryParse(qf.FirstOrDefault(), out var qid) ? qid : null);
 		if (!album.AlbumFaces.Any(af => af.FaceId == effectiveFaceId))
-			return NotFound(new { error = "Album not found" });
+			return NotFound(new ErrorResponseDto { Error = "Album not found" });
 
 		var showModerationFields = operatorInventory || isCreator;
-
-		return Ok(new
-		{
-			album.Id,
-			album.Title,
-			album.Description,
-			albumType = (int)album.AlbumType,
-			mediaType = (int)album.MediaType,
-			creatorId = album.CreatorId,
-			creatorName = (album.Creator.FirstName ?? "") + " " + (album.Creator.LastName ?? ""),
-			faces = album.AlbumFaces.Select(af => new { af.FaceId, af.Face.Title }),
-			likesCount = album.Likes.Count,
-			commentsCount = album.Comments.Count,
-			isLikedByMe = album.Likes.Any(l => l.UserId == UserId),
-			approvalStatus = album.ApprovalStatus.ToString(),
-			aiReviewStatus = album.AiReviewStatus.ToString(),
-			aiReviewUserMessage = showModerationFields ? album.AiReviewUserMessage : null,
-			humanDecisionReason = showModerationFields ? album.HumanDecisionReason : null,
-			submittedAtUtc = showModerationFields ? album.SubmittedAtUtc : null,
-			creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(album.ApprovalStatus, album.AiReviewStatus),
-			mediaCount = album.MediaItems.Count,
-			mediaItems = album.MediaItems
-				.OrderBy(m => m.SortOrder)
-				.Select(m => new
-				{
-					m.Id,
-					mediaType = m.MediaType.ToString(),
-					m.ImageUrl,
-					m.VideoUrl,
-					m.ThumbnailUrl,
-					m.SortOrder,
-					m.Title,
-				}),
-			album.CreatedAt,
-			album.UpdatedAt,
-		});
+		return Ok(AlbumDetailDto.From(album, UserId ?? string.Empty, showModerationFields));
 	}
 
 	/// <summary>GET /api/albums/user/{userId} - Get albums by user</summary>
 	[HttpGet("user/{userId}")]
+	[ProducesResponseType(typeof(IEnumerable<AlbumListItemDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetAlbumsByUser(string userId)
 	{
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		var query = _context.Albums.Where(a => a.CreatorId == userId);
+		var query = _context.Albums.AsNoTracking().Where(a => a.CreatorId == userId);
 
 		// Other users can only see public albums
 		if (userId != UserId)
@@ -153,29 +124,25 @@ public class AlbumsController : ApiControllerBase
 		query = query.Where(a => a.AlbumFaces.Any(af => af.FaceId == effectiveFaceId));
 
 		var albums = await query
-			.Include(a => a.Creator)
-			.Include(a => a.AlbumFaces).ThenInclude(af => af.Face)
-			.Include(a => a.Likes)
-			.Include(a => a.Comments)
 			.OrderByDescending(a => a.CreatedAt)
-			.Select(a => new
+			.Take(500)
+			.Select(a => new AlbumListItemDto
 			{
-				a.Id,
-				a.Title,
-				a.Description,
-				albumType = (int)a.AlbumType,
-				mediaType = (int)a.MediaType,
-				creatorId = a.CreatorId,
-				creatorName = (a.Creator.FirstName ?? "") + " " + (a.Creator.LastName ?? ""),
-				faces = a.AlbumFaces.Select(af => new { af.FaceId, af.Face.Title }),
-				likesCount = a.Likes.Count,
-				commentsCount = a.Comments.Count,
-				mediaCount = a.MediaItems.Count,
-				approvalStatus = a.ApprovalStatus.ToString(),
-				aiReviewStatus = a.AiReviewStatus.ToString(),
-				creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(a.ApprovalStatus, a.AiReviewStatus),
-				a.CreatedAt,
-				a.UpdatedAt,
+				Id = a.Id,
+				Title = a.Title,
+				Description = a.Description,
+				AlbumType = (int)a.AlbumType,
+				MediaType = (int)a.MediaType,
+				CreatorId = a.CreatorId,
+				CreatorName = ((a.Creator.FirstName ?? "") + " " + (a.Creator.LastName ?? "")).Trim(),
+				Faces = a.AlbumFaces.Select(af => new AlbumFaceDto { FaceId = af.FaceId, Title = af.Face.Title }),
+				LikesCount = a.Likes.Count,
+				CommentsCount = a.Comments.Count,
+				ApprovalStatus = a.ApprovalStatus.ToString(),
+				AiReviewStatus = a.AiReviewStatus.ToString(),
+				CreatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(a.ApprovalStatus, a.AiReviewStatus),
+				CreatedAt = a.CreatedAt,
+				UpdatedAt = a.UpdatedAt,
 			})
 			.ToListAsync();
 
@@ -184,6 +151,8 @@ public class AlbumsController : ApiControllerBase
 
 	/// <summary>POST /api/albums - Create album</summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(AlbumCreateResultDto), StatusCodes.Status201Created)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
 	public async Task<IActionResult> CreateAlbum([FromBody] CreateAlbumDto dto)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -220,7 +189,7 @@ public class AlbumsController : ApiControllerBase
 		if (!CanManageAllFaces())
 		{
 			if (targetFaceIds.Any(fid => fid != _faceScope.FaceId))
-				return BadRequest(new { error = "Albums may only be linked to the current face scope" });
+				return BadRequest(new ErrorResponseDto { Error = "Albums may only be linked to the current face scope" });
 		}
 
 		var validFaceIds = await _context.Faces
@@ -279,23 +248,14 @@ public class AlbumsController : ApiControllerBase
 
 		_logger.LogInformation("User {UserId} created album {AlbumId}", UserId, album.Id);
 
-		return CreatedAtAction(nameof(GetAlbum), new { id = album.Id }, new
-		{
-			album.Id,
-			album.Title,
-			album.Description,
-			albumType = (int)album.AlbumType,
-			mediaType = (int)album.MediaType,
-			album.CreatorId,
-			approvalStatus = album.ApprovalStatus.ToString(),
-			aiReviewStatus = album.AiReviewStatus.ToString(),
-			creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(album.ApprovalStatus, album.AiReviewStatus),
-			album.CreatedAt,
-		});
+		return CreatedAtAction(nameof(GetAlbum), new { id = album.Id }, AlbumCreateResultDto.From(album));
 	}
 
 	/// <summary>PUT /api/albums/{id} - Update album (creator only)</summary>
 	[HttpPut("{id}")]
+	[ProducesResponseType(typeof(AlbumCreateResultDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> UpdateAlbum(int id, [FromBody] UpdateAlbumDto dto)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -306,7 +266,7 @@ public class AlbumsController : ApiControllerBase
 			.FirstOrDefaultAsync(a => a.Id == id);
 
 		if (album == null)
-			return NotFound(new { error = "Album not found" });
+			return NotFound(new ErrorResponseDto { Error = "Album not found" });
 
 		if (album.CreatorId != UserId)
 			return Forbid();
@@ -319,7 +279,7 @@ public class AlbumsController : ApiControllerBase
 
 		var scopeFace = _faceScope.ResolveDataFaceId(null);
 		if (!album.AlbumFaces.Any(af => af.FaceId == scopeFace))
-			return NotFound(new { error = "Album not found" });
+			return NotFound(new ErrorResponseDto { Error = "Album not found" });
 
 		if (dto.Title != null)
 			album.Title = dto.Title.Trim();
@@ -349,7 +309,7 @@ public class AlbumsController : ApiControllerBase
 			if (!CanManageAllFaces())
 			{
 				if (dto.FaceIds.Any(fid => fid != _faceScope.FaceId))
-					return BadRequest(new { error = "Albums may only be linked to the current face scope" });
+					return BadRequest(new ErrorResponseDto { Error = "Albums may only be linked to the current face scope" });
 			}
 
 			_context.AlbumFaces.RemoveRange(album.AlbumFaces);
@@ -374,24 +334,13 @@ public class AlbumsController : ApiControllerBase
 			await EnqueueAiReviewAsync(ModeratedContentType.Album, album.Id, album.ModerationVersion);
 
 		_logger.LogInformation("User {UserId} updated album {AlbumId}", UserId, album.Id);
-		return Ok(new
-		{
-			album.Id,
-			album.Title,
-			album.Description,
-			albumType = (int)album.AlbumType,
-			mediaType = (int)album.MediaType,
-			album.CreatorId,
-			approvalStatus = album.ApprovalStatus.ToString(),
-			aiReviewStatus = album.AiReviewStatus.ToString(),
-			creatorStatusLabel = ContentModerationHelpers.CreatorStatusLabel(album.ApprovalStatus, album.AiReviewStatus),
-			album.CreatedAt,
-			album.UpdatedAt,
-		});
+		return Ok(AlbumCreateResultDto.From(album));
 	}
 
 	/// <summary>DELETE /api/albums/{id} - Delete album (creator only)</summary>
 	[HttpDelete("{id}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> DeleteAlbum(int id)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -400,7 +349,7 @@ public class AlbumsController : ApiControllerBase
 		var album = await _context.Albums.Include(a => a.AlbumFaces).FirstOrDefaultAsync(a => a.Id == id);
 
 		if (album == null)
-			return NotFound(new { error = "Album not found" });
+			return NotFound(new ErrorResponseDto { Error = "Album not found" });
 
 		if (album.CreatorId != UserId)
 			return Forbid();
@@ -413,7 +362,7 @@ public class AlbumsController : ApiControllerBase
 
 		var scopeFace = _faceScope.ResolveDataFaceId(null);
 		if (!album.AlbumFaces.Any(af => af.FaceId == scopeFace))
-			return NotFound(new { error = "Album not found" });
+			return NotFound(new ErrorResponseDto { Error = "Album not found" });
 
 		_context.Albums.Remove(album);
 		await _context.SaveChangesAsync();

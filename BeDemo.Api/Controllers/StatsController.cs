@@ -38,6 +38,7 @@ public sealed class StatsController : ControllerBase
 	/// </summary>
 	[HttpGet]
 	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
+	[ProducesResponseType(typeof(AdminDashboardSummaryDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<AdminDashboardSummaryDto>> GetStats(CancellationToken cancellationToken)
 	{
 		return Ok(await _statsQuery.GetOperatorDashboardSummaryAsync(cancellationToken));
@@ -49,6 +50,7 @@ public sealed class StatsController : ControllerBase
 	/// </summary>
 	[HttpGet("public")]
 	[AllowAnonymous]
+	[ProducesResponseType(typeof(PublicStatsSnapshotDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<PublicStatsSnapshotDto>> GetPublicStats(CancellationToken cancellationToken)
 	{
 		Response.Headers.CacheControl = "public, max-age=60";
@@ -60,6 +62,7 @@ public sealed class StatsController : ControllerBase
 	/// </summary>
 	[HttpGet("timeseries")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
+	[ProducesResponseType(typeof(StatsTimeseriesResponseDto), StatusCodes.Status200OK)]
 	public async Task<ActionResult<StatsTimeseriesResponseDto>> GetTimeseries(
 		[FromQuery] StatsTimeseriesQuery query,
 		CancellationToken cancellationToken = default)

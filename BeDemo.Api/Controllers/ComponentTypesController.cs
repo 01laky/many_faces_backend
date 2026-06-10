@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -23,16 +24,17 @@ public class ComponentTypesController : ControllerBase
 
 	/// <summary>GET /api/componenttypes - Get all component types</summary>
 	[HttpGet]
+	[ProducesResponseType(typeof(IEnumerable<ComponentTypeDetailDto>), StatusCodes.Status200OK)]
 	public async Task<IActionResult> GetComponentTypes()
 	{
 		var componentTypes = await _context.ComponentTypes
 			.OrderBy(ct => ct.Id)
-			.Select(ct => new
+			.Select(ct => new ComponentTypeDetailDto
 			{
-				id = ct.Id,
-				index = ct.Index,
-				name = ct.Name,
-				createdAt = ct.CreatedAt,
+				Id = ct.Id,
+				Index = ct.Index,
+				Name = ct.Name,
+				CreatedAt = ct.CreatedAt,
 			})
 			.ToListAsync();
 
@@ -42,18 +44,20 @@ public class ComponentTypesController : ControllerBase
 
 	/// <summary>GET /api/componenttypes/{id} - Get component type by ID</summary>
 	[HttpGet("{id:int}")]
+	[ProducesResponseType(typeof(ComponentTypeDetailDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> GetComponentType(int id)
 	{
 		var ct = await _context.ComponentTypes.FindAsync(id);
 		if (ct == null)
-			return NotFound(new { error = "Component type not found" });
+			return NotFound(new ErrorResponseDto { Error = "Component type not found" });
 
-		return Ok(new
+		return Ok(new ComponentTypeDetailDto
 		{
-			id = ct.Id,
-			index = ct.Index,
-			name = ct.Name,
-			createdAt = ct.CreatedAt,
+			Id = ct.Id,
+			Index = ct.Index,
+			Name = ct.Name,
+			CreatedAt = ct.CreatedAt,
 		});
 	}
 }

@@ -10,6 +10,7 @@ using BeDemo.Api.Services;
 using BeDemo.Api.Models.Requests.Faces;
 using BeDemo.Api.Utils;
 using BeDemo.Api.Validation.Rules;
+using BeDemo.Api.Models.DTOs;
 
 namespace BeDemo.Api.Controllers;
 
@@ -75,6 +76,7 @@ public class FaceChatRoomsController : ApiControllerBase
 
 	/// <summary>List chat rooms for face (paginated envelope).</summary>
 	[HttpGet]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> List(
 		int faceId,
 		[FromQuery] FaceChatRoomListQuery listQuery,
@@ -85,7 +87,7 @@ public class FaceChatRoomsController : ApiControllerBase
 
 		var face = await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Id == faceId, cancellationToken);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var page = listQuery.Page;
 		var pageSize = listQuery.PageSize;
@@ -146,6 +148,8 @@ public class FaceChatRoomsController : ApiControllerBase
 	}
 
 	[HttpGet("{roomId:int}")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ErrorResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<IActionResult> Get(int faceId, int roomId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -172,6 +176,7 @@ public class FaceChatRoomsController : ApiControllerBase
 
 	/// <summary>User-created room (requires face.ChatRoomsCreate, non-host).</summary>
 	[HttpPost]
+	[ProducesResponseType(typeof(CreatedEntityDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> CreateUserRoom(int faceId, [FromBody] CreateFaceChatRoomDto dto, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -179,7 +184,7 @@ public class FaceChatRoomsController : ApiControllerBase
 
 		var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == faceId, cancellationToken);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		if (!face.ChatRoomsCreate)
 			return Forbid();
@@ -209,11 +214,12 @@ public class FaceChatRoomsController : ApiControllerBase
 		await _lifecycle.ScheduleIdleCheckAsync(room.Id, cancellationToken);
 		_logger.LogInformation("User {UserId} created chat room {RoomId} in face {FaceId}", UserId, room.Id, faceId);
 
-		return CreatedAtAction(nameof(Get), new { faceId, roomId = room.Id }, new { room.Id });
+		return CreatedAtAction(nameof(Get), new { faceId, roomId = room.Id }, new CreatedEntityDto { Id = room.Id });
 	}
 
 	/// <summary>System-managed room (global admin only). Always public.</summary>
 	[HttpPost("system")]
+	[ProducesResponseType(typeof(CreatedEntityDto), StatusCodes.Status201Created)]
 	public async Task<IActionResult> CreateSystemRoom(int faceId, [FromBody] CreateSystemFaceChatRoomDto dto, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -225,7 +231,7 @@ public class FaceChatRoomsController : ApiControllerBase
 
 		var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == faceId, cancellationToken);
 		if (face == null)
-			return NotFound(new { error = "Face not found" });
+			return NotFound(new ErrorResponseDto { Error = "Face not found" });
 
 		var room = new FaceChatRoom
 		{
@@ -240,10 +246,11 @@ public class FaceChatRoomsController : ApiControllerBase
 		await _context.SaveChangesAsync(cancellationToken);
 
 		await _lifecycle.ScheduleIdleCheckAsync(room.Id, cancellationToken);
-		return CreatedAtAction(nameof(Get), new { faceId, roomId = room.Id }, new { room.Id });
+		return CreatedAtAction(nameof(Get), new { faceId, roomId = room.Id }, new CreatedEntityDto { Id = room.Id });
 	}
 
 	[HttpPut("{roomId:int}")]
+	[ProducesResponseType(typeof(CreatedEntityDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> Update(int faceId, int roomId, [FromBody] UpdateFaceChatRoomDto dto, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -277,10 +284,11 @@ public class FaceChatRoomsController : ApiControllerBase
 
 		room.UpdatedAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync(cancellationToken);
-		return Ok(new { room.Id });
+		return Ok(new CreatedEntityDto { Id = room.Id });
 	}
 
 	[HttpDelete("{roomId:int}")]
+	[ProducesResponseType(StatusCodes.Status204NoContent)]
 	public async Task<IActionResult> Delete(int faceId, int roomId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -310,6 +318,7 @@ public class FaceChatRoomsController : ApiControllerBase
 	}
 
 	[HttpPost("{roomId:int}/join")]
+	[ProducesResponseType(typeof(JoinResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> JoinPublic(int faceId, int roomId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -322,17 +331,18 @@ public class FaceChatRoomsController : ApiControllerBase
 		if (room == null)
 			return NotFound();
 		if (!room.IsPublic)
-			return BadRequest(new { error = "Room is private; use join request" });
+			return BadRequest(new ErrorResponseDto { Error = "Room is private; use join request" });
 
 		if (await _context.FaceChatRoomMembers.AnyAsync(m => m.FaceChatRoomId == roomId && m.UserId == UserId, cancellationToken))
-			return Ok(new { alreadyMember = true });
+			return Ok(new JoinResultDto { AlreadyMember = true });
 
 		_context.FaceChatRoomMembers.Add(new FaceChatRoomMember { FaceChatRoomId = roomId, UserId = UserId });
 		await _context.SaveChangesAsync(cancellationToken);
-		return Ok(new { joined = true });
+		return Ok(new JoinResultDto { Joined = true });
 	}
 
 	[HttpPost("{roomId:int}/join-requests")]
+	[ProducesResponseType(typeof(JoinRequestResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> RequestJoin(int faceId, int roomId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -345,15 +355,15 @@ public class FaceChatRoomsController : ApiControllerBase
 		if (room == null)
 			return NotFound();
 		if (room.IsPublic)
-			return BadRequest(new { error = "Room is public; use join" });
+			return BadRequest(new ErrorResponseDto { Error = "Room is public; use join" });
 
 		if (await _context.FaceChatRoomMembers.AnyAsync(m => m.FaceChatRoomId == roomId && m.UserId == UserId, cancellationToken))
-			return BadRequest(new { error = "Already a member" });
+			return BadRequest(new ErrorResponseDto { Error = "Already a member" });
 
 		if (await _context.FaceChatRoomJoinRequests.AnyAsync(
 				j => j.FaceChatRoomId == roomId && j.UserId == UserId && j.Status == FaceChatRoomJoinRequestStatus.Pending,
 				cancellationToken))
-			return Ok(new { pending = true });
+			return Ok(new JoinRequestResultDto { Pending = true });
 
 		var req = new FaceChatRoomJoinRequest { FaceChatRoomId = roomId, UserId = UserId };
 		_context.FaceChatRoomJoinRequests.Add(req);
@@ -383,10 +393,11 @@ public class FaceChatRoomsController : ApiControllerBase
 				cancellationToken);
 		}
 
-		return Ok(new { requestId = req.Id });
+		return Ok(new JoinRequestResultDto { RequestId = req.Id });
 	}
 
 	[HttpPost("requests/{requestId:int}/approve")]
+	[ProducesResponseType(typeof(ApprovedResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> ApproveRequest(int faceId, int requestId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -402,7 +413,7 @@ public class FaceChatRoomsController : ApiControllerBase
 			return Forbid();
 
 		if (req.Status != FaceChatRoomJoinRequestStatus.Pending)
-			return BadRequest(new { error = "Request is not pending" });
+			return BadRequest(new ErrorResponseDto { Error = "Request is not pending" });
 
 		req.Status = FaceChatRoomJoinRequestStatus.Approved;
 		req.ResolvedAt = DateTime.UtcNow;
@@ -417,10 +428,11 @@ public class FaceChatRoomsController : ApiControllerBase
 		}
 
 		await _context.SaveChangesAsync(cancellationToken);
-		return Ok(new { approved = true });
+		return Ok(new ApprovedResultDto());
 	}
 
 	[HttpPost("requests/{requestId:int}/deny")]
+	[ProducesResponseType(typeof(DeniedResultDto), StatusCodes.Status200OK)]
 	public async Task<IActionResult> DenyRequest(int faceId, int requestId, CancellationToken cancellationToken)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -436,15 +448,16 @@ public class FaceChatRoomsController : ApiControllerBase
 			return Forbid();
 
 		if (req.Status != FaceChatRoomJoinRequestStatus.Pending)
-			return BadRequest(new { error = "Request is not pending" });
+			return BadRequest(new ErrorResponseDto { Error = "Request is not pending" });
 
 		req.Status = FaceChatRoomJoinRequestStatus.Denied;
 		req.ResolvedAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync(cancellationToken);
-		return Ok(new { denied = true });
+		return Ok(new DeniedResultDto());
 	}
 
 	[HttpGet("{roomId:int}/messages")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> Messages(int faceId, int roomId, [FromQuery] ChatMessagesQuery messagesQuery, CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrEmpty(UserId))
@@ -545,6 +558,7 @@ public class FaceChatRoomsController : ApiControllerBase
 
 	/// <summary>Operator inventory: paginated room members (joined users at query time).</summary>
 	[HttpGet("{roomId:int}/members")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> ListMembers(
 		int faceId,
 		int roomId,
@@ -615,11 +629,11 @@ public class FaceChatRoomsController : ApiControllerBase
 				: m.UserId;
 			if (string.IsNullOrWhiteSpace(displayName))
 				displayName = u?.Email ?? m.UserId;
-			return new
+			return new ChatRoomMemberDto
 			{
-				userId = m.UserId,
-				displayName,
-				joinedAt = m.JoinedAt,
+				UserId = m.UserId,
+				DisplayName = displayName,
+				JoinedAt = m.JoinedAt,
 			};
 		}).ToList();
 
@@ -628,6 +642,7 @@ public class FaceChatRoomsController : ApiControllerBase
 
 	/// <summary>Operator inventory: pending join requests for a private room.</summary>
 	[HttpGet("{roomId:int}/join-requests")]
+	[ProducesResponseType(StatusCodes.Status200OK)]
 	public async Task<IActionResult> ListJoinRequests(
 		int faceId,
 		int roomId,
@@ -674,13 +689,13 @@ public class FaceChatRoomsController : ApiControllerBase
 				: r.UserId;
 			if (string.IsNullOrWhiteSpace(displayName))
 				displayName = u?.Email ?? r.UserId;
-			return new
+			return new ChatRoomJoinRequestItemDto
 			{
-				requestId = r.Id,
-				userId = r.UserId,
-				displayName,
-				createdAt = r.CreatedAt,
-				status = r.Status.ToString(),
+				RequestId = r.Id,
+				UserId = r.UserId,
+				DisplayName = displayName,
+				CreatedAt = r.CreatedAt,
+				Status = r.Status.ToString(),
 			};
 		}).ToList();
 
