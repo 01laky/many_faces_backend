@@ -312,16 +312,9 @@ else
 		ServiceLifetime.Scoped);
 }
 
-// FaceService for RoutingMiddleware (face-based URL routing)
-builder.Services.AddScoped<IFaceService, FaceService>();
-builder.Services.AddScoped<IProfileDetailTemplatePagesService, ProfileDetailTemplatePagesService>();
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<IFaceScopeContext, FaceScopeContext>();
-builder.Services.AddScoped<IAccessEvaluator, AccessEvaluator>();
-builder.Services.AddScoped<IOAuthRefreshTokenStore, OAuthRefreshTokenStore>();
-builder.Services.AddSingleton<IChatHubAiRateLimiter, ChatHubAiRateLimiter>();
-builder.Services.AddScoped<IStoryLifecycleService, StoryLifecycleService>();
-builder.Services.AddScoped<IFaceWallTicketLifecycleService, FaceWallTicketLifecycleService>();
+// Core per-request domain services (face lookup/scope, access evaluator, OAuth refresh-token store, lifecycle
+// services) — extracted to AddManyFacesDomainServices (Phase 3 Program.cs modularisation).
+builder.Services.AddManyFacesDomainServices();
 
 // ============================================================================
 // ASP.NET CORE IDENTITY CONFIGURATION

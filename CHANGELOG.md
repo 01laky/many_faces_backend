@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.30](#1430) | Backend refactor Phase 3 Program.cs modularise (7)|
 | [1.4.29](#1429) | Backend refactor Phase 3 Program.cs modularise (6)|
 | [1.4.28](#1428) | Backend refactor Phase 3 Program.cs modularise (5)|
 | [1.4.27](#1427) | Backend refactor Phase 3 Program.cs modularise (4)|
@@ -60,6 +61,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.30]
+
+### Changed
+
+- **Backend refactor — Program.cs modularisation, slice 7 (Phase 3).** Extracted the core per-request domain service registrations — face lookup + profile-detail pages, the HTTP context accessor, the request face scope + access evaluator, the OAuth refresh-token store, the chat-hub AI rate limiter, and the story / face-wall-ticket lifecycle services — into `Configuration/DomainServiceCollectionExtensions.AddManyFacesDomainServices()`. Moved verbatim; behaviour-preserving (DI order-independence + boot tests), full backend suite 1942 passing. `Program.cs` drops to **863 lines**. `dotnet format` clean.
 
 ---
 
@@ -545,6 +554,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.30]: https://github.com/01laky/many_faces_backend/compare/v1.4.29...v1.4.30
 [1.4.29]: https://github.com/01laky/many_faces_backend/compare/v1.4.28...v1.4.29
 [1.4.28]: https://github.com/01laky/many_faces_backend/compare/v1.4.27...v1.4.28
 [1.4.27]: https://github.com/01laky/many_faces_backend/compare/v1.4.26...v1.4.27
