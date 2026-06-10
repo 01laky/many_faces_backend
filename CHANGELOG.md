@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.26](#1426) | Backend refactor Phase 3 Program.cs modularise (3)|
 | [1.4.25](#1425) | Backend refactor Phase 4 Postgres Testcontainers  |
 | [1.4.24](#1424) | Backend refactor Phase 3 Program.cs modularise (2)|
 | [1.4.23](#1423) | Backend refactor Phase 3 Program.cs modularise (1)|
@@ -56,6 +57,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.26]
+
+### Changed
+
+- **Backend refactor — Program.cs modularisation, slice 3 (Phase 3).** Extracted the entire operator-AI registration block — `OperatorAiOptions` (validated, X3), the conversation / live-stats / decision services, the RAG retrieval singletons (knowledge client, status cache, planner fallback, retriever, indexer), the four routed skills + registry + router, and the three startup hosted services — out of `Program.cs` into `Configuration/OperatorAiServiceCollectionExtensions.AddManyFacesOperatorAi()`. The block uses only `services` (no `builder.Configuration`), so it moved verbatim. DI resolves registrations order-independently and the integration tests boot the real app (resolving the whole operator-AI graph), so behaviour is unchanged — full backend suite 1942 passing. `Program.cs` drops to **935 lines** (from ~1150 at the start of Phase 3). `dotnet format` clean.
 
 ---
 
@@ -509,6 +518,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.26]: https://github.com/01laky/many_faces_backend/compare/v1.4.25...v1.4.26
 [1.4.25]: https://github.com/01laky/many_faces_backend/compare/v1.4.24...v1.4.25
 [1.4.24]: https://github.com/01laky/many_faces_backend/compare/v1.4.23...v1.4.24
 [1.4.23]: https://github.com/01laky/many_faces_backend/compare/v1.4.22...v1.4.23
