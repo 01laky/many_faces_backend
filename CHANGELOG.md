@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.21](#1421) | Backend refactor Phase 2 secret-protector base   |
 | [1.4.20](#1420) | Backend refactor X6 ApiControllerBase (complete) |
 | [1.4.19](#1419) | Backend refactor X6 ApiControllerBase (UserId)   |
 | [1.4.18](#1418) | Backend refactor Phase 0 AI test fake (complete) |
@@ -51,6 +52,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.21]
+
+### Changed
+
+- **Backend refactor — shared `OperatorSecretProtectorBase` (Phase 2 dedup).** Extracted the byte-identical Data-Protection wrapper that `OperatorMailSecretProtector` and `OperatorPushSecretProtector` each duplicated into a new `Services/OperatorSecretProtectorBase` (holds the `IDataProtector` and the `Protect`/`Unprotect` round-trip); the two concrete protectors now derive from it and only supply their own subsystem `purpose` string via the base constructor. **The purpose strings (`BeDemo.Api.OperatorMailSystemSettings.v1` / `…OperatorPushSystemSettings.v1`) are preserved verbatim** — they are cryptographic key-derivation inputs, so changing them would make previously stored ciphertext undecryptable. Behaviour-preserving; the `OperatorSecretProtectorTests` characterization guard (protect↔unprotect round-trip + cross-purpose-decrypt-throws) and the full backend suite (1939 passing) stay green.
 
 ---
 
@@ -455,6 +464,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.21]: https://github.com/01laky/many_faces_backend/compare/v1.4.20...v1.4.21
 [1.4.20]: https://github.com/01laky/many_faces_backend/compare/v1.4.19...v1.4.20
 [1.4.19]: https://github.com/01laky/many_faces_backend/compare/v1.4.18...v1.4.19
 [1.4.18]: https://github.com/01laky/many_faces_backend/compare/v1.4.17...v1.4.18
