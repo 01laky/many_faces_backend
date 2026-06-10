@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.32](#1432) | Backend refactor Phase 3 Program.cs modularise (9)|
 | [1.4.31](#1431) | Backend refactor Phase 3 Program.cs modularise (8)|
 | [1.4.30](#1430) | Backend refactor Phase 3 Program.cs modularise (7)|
 | [1.4.29](#1429) | Backend refactor Phase 3 Program.cs modularise (6)|
@@ -62,6 +63,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.32]
+
+### Changed
+
+- **Backend refactor — Program.cs modularisation, slice 9 (Phase 3).** Extracted the CORS setup — the dev-default + LAN + configured-origin combination logic and the `AddCors` default policy — into `Configuration/CorsServiceCollectionExtensions.AddManyFacesCors(configuration, useTransportHardening)`. Moved verbatim (the transport-hardening branch and the `DevLanCorsOriginBuilder` LAN origins behave identically). Behaviour-preserving; full backend suite 1942 passing. `Program.cs` drops to **790 lines** — **nine slices have now lifted ~360 lines (~31%) of registration/config out of the composition root** into focused `AddManyFaces*` extensions, leaving the genuinely pipeline-entangled auth/JWT bearer + Identity + the request pipeline in place. `dotnet format` clean.
 
 ---
 
@@ -563,6 +572,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.32]: https://github.com/01laky/many_faces_backend/compare/v1.4.31...v1.4.32
 [1.4.31]: https://github.com/01laky/many_faces_backend/compare/v1.4.30...v1.4.31
 [1.4.30]: https://github.com/01laky/many_faces_backend/compare/v1.4.29...v1.4.30
 [1.4.29]: https://github.com/01laky/many_faces_backend/compare/v1.4.28...v1.4.29

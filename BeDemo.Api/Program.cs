@@ -237,38 +237,8 @@ builder.Services.AddSingleton<BeDemo.Api.Services.ILocalizationBundleService, Be
 // CORS CONFIGURATION
 // ============================================================================
 
-// CORS: default dev origins + optional Cors:Origins[] from configuration (production).
-var defaultCorsOrigins = new[]
-{
-	"http://localhost:8081", "http://localhost:8082", "http://localhost:8080", "http://localhost:9080",
-	"http://localhost:9081", "https://localhost:8081", "https://localhost:8082", "https://localhost:8080",
-	"https://localhost:9080", "https://localhost:9081",
-};
-var extraOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? Array.Empty<string>();
-var devLanHost = builder.Configuration["DEV_LAN_HOST"]?.Trim();
-if (string.IsNullOrEmpty(devLanHost))
-	devLanHost = Environment.GetEnvironmentVariable("DEV_LAN_HOST")?.Trim();
-var lanOrigins = BeDemo.Api.Dev.DevLanCorsOriginBuilder.Build(devLanHost);
-var corsOriginSource = useTransportHardening
-	? extraOrigins
-	: defaultCorsOrigins.Concat(lanOrigins).Concat(extraOrigins);
-var corsOrigins = corsOriginSource
-	.Where(o => !string.IsNullOrWhiteSpace(o))
-	.Distinct(StringComparer.OrdinalIgnoreCase)
-	.ToArray();
-
-builder.Services.AddCors(options =>
-{
-	options.AddDefaultPolicy(policy =>
-	{
-		policy
-			.WithOrigins(corsOrigins)
-			.AllowAnyMethod()
-			.AllowAnyHeader()
-			.AllowCredentials()
-			.SetPreflightMaxAge(TimeSpan.FromHours(1));
-	});
-});
+// Extracted to AddManyFacesCors (Phase 3 Program.cs modularisation).
+builder.Services.AddManyFacesCors(builder.Configuration, useTransportHardening);
 
 // ============================================================================
 // DATABASE CONFIGURATION (Entity Framework Core)
