@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.33](#1433) | Backend refactor Phase 4 request-log observability|
 | [1.4.32](#1432) | Backend refactor Phase 3 Program.cs modularise (9)|
 | [1.4.31](#1431) | Backend refactor Phase 3 Program.cs modularise (8)|
 | [1.4.30](#1430) | Backend refactor Phase 3 Program.cs modularise (7)|
@@ -63,6 +64,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.33]
+
+### Added
+
+- **Backend refactor — structured request-completion logging with correlation id (Phase 4 observability).** The pipeline now calls `UseSerilogRequestLogging` right after the X13 correlation-id middleware, emitting one structured Serilog event per request (`HTTP {Method} {Path} responded {StatusCode} in {Elapsed} ms`) enriched via `EnrichDiagnosticContext` with `CorrelationId` (read from `TraceIdentifier`, which the correlation middleware has just set). Request events in Seq now join up with the scoped per-request log lines on the same `CorrelationId`. Purely additive logging — no status codes, headers or routing change (full backend suite 1943 passing). Covered by a new integration test that swaps in a capturing Serilog sink, drives a request with a known inbound `X-Correlation-Id` through the real pipeline, and asserts the completion event (RequestPath + StatusCode) carries that id.
 
 ---
 
@@ -572,6 +581,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.33]: https://github.com/01laky/many_faces_backend/compare/v1.4.32...v1.4.33
 [1.4.32]: https://github.com/01laky/many_faces_backend/compare/v1.4.31...v1.4.32
 [1.4.31]: https://github.com/01laky/many_faces_backend/compare/v1.4.30...v1.4.31
 [1.4.30]: https://github.com/01laky/many_faces_backend/compare/v1.4.29...v1.4.30

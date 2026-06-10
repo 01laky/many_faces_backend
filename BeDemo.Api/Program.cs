@@ -673,6 +673,16 @@ if (useTransportHardening)
 // (after forwarded-headers so a trusted proxy's client info is already applied).
 app.UseMiddleware<CorrelationIdMiddleware>();
 
+// Backend-refactor Phase 4 (observability): one structured Serilog completion event per request
+// ("HTTP {Method} {Path} responded {StatusCode} in {Elapsed} ms"), enriched with the X13 correlation id (read from
+// TraceIdentifier, which CorrelationIdMiddleware has just set) so request events in Seq join up with the scoped
+// per-request log lines. Placed right after the correlation-id middleware; purely additive logging.
+app.UseSerilogRequestLogging(options =>
+{
+	options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+		diagnosticContext.Set("CorrelationId", httpContext.TraceIdentifier);
+});
+
 // X4: global ProblemDetails exception handler (flag-gated). Placed right after the correlation-id middleware so a
 // handled exception's response carries the request's traceId, and before everything that might throw downstream.
 if (useProblemDetails)
