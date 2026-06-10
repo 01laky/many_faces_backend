@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.12](#1412) | Backend refactor X5/X6 auth-policy migration (4)  |
 | [1.4.11](#1411) | Backend refactor X5/X6 auth-policy migration (3)  |
 | [1.4.10](#1410) | Backend refactor X5/X6 auth-policy migration (2)  |
 | [1.4.9](#149)  | Backend refactor X5/X6 auth-policy migration (1)   |
@@ -42,6 +43,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.12]
+
+### Changed
+
+- **Backend refactor — authorization-policy migration, batch 4 (X5/X6).** Migrated the large `OperatorAiConversationsController` from a per-action `RequireOperator()` (= `CanManageAllFaces`) gate — repeated on all **15** endpoints (the operator AI inbox CRUD plus the `~/api/operator-ai/*` system-settings / model-status / worker-host / live-stats-cache / public-stats-settings surfaces) — to the declarative `ManageAllFaces` policy. The controller now carries `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]`; all 15 `if (!RequireOperator()) return Forbid();` blocks, the `RequireOperator()` helper, and the now-unused `IAccessEvaluator` dependency were removed. Authorization matrix unchanged (anonymous → 401, global ADMIN → 403, SUPER_ADMIN in admin scope → allowed); the controller's integration suite, `OperatorAiSystemSettingsIntegrationTests`, and `PlatformSuperAdminAccessEdge` (incl. `OperatorAiConversations_ReturnsForbidden_ForGlobalAdmin`) stay green.
 
 ---
 
@@ -368,6 +377,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.12]: https://github.com/01laky/many_faces_backend/compare/v1.4.11...v1.4.12
 [1.4.11]: https://github.com/01laky/many_faces_backend/compare/v1.4.10...v1.4.11
 [1.4.10]: https://github.com/01laky/many_faces_backend/compare/v1.4.9...v1.4.10
 [1.4.9]: https://github.com/01laky/many_faces_backend/compare/v1.4.8...v1.4.9

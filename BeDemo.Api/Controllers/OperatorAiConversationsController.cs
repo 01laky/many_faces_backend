@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.SignalR;
 using BeDemo.Api.Hubs;
 using BeDemo.Api.Models.DTOs.OperatorAi;
 using BeDemo.Api.Models.Requests.OperatorAi;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Validation.OperatorAi;
@@ -13,10 +14,13 @@ namespace BeDemo.Api.Controllers;
 /// <summary>Shared operator AI support inbox — CRUD threads and paginated messages (admin face scope).</summary>
 [ApiController]
 [Route("api/operator-ai/conversations")]
-[Authorize]
+// Backend-refactor X5/X6: the SUPER_ADMIN operator gate (admin face scope + global SUPER_ADMIN) is enforced
+// declaratively by the ManageAllFaces policy instead of the per-action RequireOperator() check repeated on every
+// endpoint. Same matrix (anonymous → 401, insufficient → 403, super-admin-in-admin-scope → allowed); pinned by
+// OperatorAiConversationsController integration tests + PlatformSuperAdminAccessEdge.
+[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 public sealed class OperatorAiConversationsController : ControllerBase
 {
-	private readonly IAccessEvaluator _access;
 	private readonly IOperatorAiConversationService _operatorAi;
 	private readonly IAiGrpcService _aiGrpc;
 	private readonly IAiWorkerHostProfileService _workerHost;
@@ -28,7 +32,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	private readonly ILogger<OperatorAiConversationsController> _logger;
 
 	public OperatorAiConversationsController(
-		IAccessEvaluator access,
 		IOperatorAiConversationService operatorAi,
 		IAiGrpcService aiGrpc,
 		IAiWorkerHostProfileService workerHost,
@@ -39,7 +42,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 		IHubContext<ChatHub> hub,
 		ILogger<OperatorAiConversationsController> logger)
 	{
-		_access = access;
 		_operatorAi = operatorAi;
 		_aiGrpc = aiGrpc;
 		_workerHost = workerHost;
@@ -54,9 +56,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	[HttpGet("~/api/operator-ai/system-settings")]
 	public async Task<ActionResult<OperatorAiSystemSettingsDto>> GetSystemSettings(CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		var values = await _systemSettings.GetAsync(cancellationToken);
 		return Ok(_systemSettings.ToDto(values));
 	}
@@ -66,9 +65,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 		[FromBody] UpdateOperatorAiSystemSettingsRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		var validation = new UpdateOperatorAiSystemSettingsValidator().Validate(request);
 		if (!validation.IsValid)
 			return BadRequest(validation.Errors.Select(e => e.ErrorMessage));
@@ -94,9 +90,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	[HttpGet("~/api/operator-ai/model-status")]
 	public async Task<ActionResult<OperatorAiModelStatusDto>> GetModelStatus(CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		var status = await _aiGrpc.GetModelStatusAsync(cancellationToken);
 		return Ok(new OperatorAiModelStatusDto
 		{
@@ -110,18 +103,12 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	[HttpGet("~/api/operator-ai/worker-host")]
 	public async Task<ActionResult<OperatorAiWorkerHostDto>> GetWorkerHost(CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		return Ok(await _workerHost.GetOperatorViewAsync(cancellationToken));
 	}
 
 	[HttpPost("~/api/operator-ai/worker-host/refresh")]
 	public async Task<ActionResult<OperatorAiWorkerHostDto>> RefreshWorkerHost(CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
 			return Conflict(new { error = "Enable AI support in Settings before refreshing the worker host." });
 
@@ -133,9 +120,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	public async Task<ActionResult<OperatorAiLiveStatsCacheSettingsDto>> GetLiveStatsCacheSettings(
 		CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		var ttlMs = await _liveStatsCacheSettings.GetTtlMillisecondsAsync(cancellationToken);
 		return Ok(_liveStatsCacheSettings.ToDto(ttlMs));
 	}
@@ -145,9 +129,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 		[FromBody] UpdateOperatorAiLiveStatsCacheSettingsRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
 			return Conflict(new { error = "Enable AI support in Settings before changing live stats cache TTL." });
 
@@ -167,9 +148,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	public async Task<ActionResult<OperatorAiPublicStatsSettingsDto>> GetPublicStatsSettings(
 		CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		var values = await _publicStatsSettings.GetAsync(cancellationToken);
 		return Ok(_publicStatsSettings.ToDto(values));
 	}
@@ -179,9 +157,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 		[FromBody] UpdateOperatorAiPublicStatsSettingsRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
 			return Conflict(new { error = "Enable AI support in Settings before changing public stats mode." });
 
@@ -204,18 +179,12 @@ public sealed class OperatorAiConversationsController : ControllerBase
 		[FromQuery] OperatorAiConversationsListQuery query,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		return Ok(await _operatorAi.ListConversationsAsync(query.Limit, cancellationToken));
 	}
 
 	[HttpGet("{id:int}")]
 	public async Task<ActionResult<OperatorAiConversationListItemDto>> Get(int id, CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		var item = await _operatorAi.GetConversationAsync(id, cancellationToken);
 		return item == null ? NotFound() : Ok(item);
 	}
@@ -225,9 +194,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 		[FromBody] CreateOperatorAiConversationRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
 			return Conflict(new { error = "Enable AI support in Settings before creating operator AI conversations." });
 
@@ -245,9 +211,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 		[FromBody] UpdateOperatorAiConversationRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		var updated = await _operatorAi.UpdateConversationAsync(id, request, cancellationToken);
 		return updated == null ? NotFound() : Ok(updated);
 	}
@@ -255,9 +218,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 	[HttpDelete("{id:int}")]
 	public async Task<IActionResult> Delete(int id, CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		if (!await _operatorAi.DeleteConversationAsync(id, cancellationToken))
 			return NotFound();
 
@@ -277,9 +237,6 @@ public sealed class OperatorAiConversationsController : ControllerBase
 		[FromQuery] OperatorAiMessagesQuery query,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
 		var conv = await _operatorAi.GetConversationAsync(id, cancellationToken);
 		if (conv == null)
 			return NotFound();
@@ -287,12 +244,4 @@ public sealed class OperatorAiConversationsController : ControllerBase
 		return Ok(await _operatorAi.GetMessagesPageAsync(id, query, cancellationToken));
 	}
 
-	private bool RequireOperator()
-	{
-		if (_access.CanManageAllFaces(User))
-			return true;
-
-		_logger.LogDebug("Operator AI denied: user lacks CanManageAllFaces.");
-		return false;
-	}
 }
