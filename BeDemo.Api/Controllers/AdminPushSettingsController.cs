@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using BeDemo.Api.Models.DTOs.Admin;
 using BeDemo.Api.Models.Requests.Admin;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorPush;
 using FluentValidation;
@@ -13,10 +14,12 @@ namespace BeDemo.Api.Controllers;
 /// <summary>Operator push configuration (platform + Firebase FCM) for admin Settings.</summary>
 [ApiController]
 [Route("api/admin/push")]
-[Authorize]
+// Backend-refactor X5/X6: operator gate (admin face scope + global SUPER_ADMIN) enforced declaratively by the
+// ManageAllFaces policy instead of a per-action CanManageAllFaces check. Same matrix (anonymous → 401, insufficient
+// → 403, super-admin-in-admin-scope → allowed); pinned by AdminPushSettingsController + PlatformSuperAdminAccessEdge.
+[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 public sealed class AdminPushSettingsController : ControllerBase
 {
-	private readonly IAccessEvaluator _access;
 	private readonly IOperatorPushSettingsProvider _settings;
 	private readonly AdminPushSettingsApplyService _apply;
 	private readonly IPushWorkerClient _pushWorker;
@@ -25,7 +28,6 @@ public sealed class AdminPushSettingsController : ControllerBase
 	private readonly ILogger<AdminPushSettingsController> _logger;
 
 	public AdminPushSettingsController(
-		IAccessEvaluator access,
 		IOperatorPushSettingsProvider settings,
 		AdminPushSettingsApplyService apply,
 		IPushWorkerClient pushWorker,
@@ -33,7 +35,6 @@ public sealed class AdminPushSettingsController : ControllerBase
 		IValidator<UpdateAdminPushSettingsRequest> validator,
 		ILogger<AdminPushSettingsController> logger)
 	{
-		_access = access;
 		_settings = settings;
 		_apply = apply;
 		_pushWorker = pushWorker;
@@ -48,9 +49,6 @@ public sealed class AdminPushSettingsController : ControllerBase
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	public async Task<ActionResult<AdminPushSettingsDto>> GetSettings(CancellationToken cancellationToken)
 	{
-		if (!_access.CanManageAllFaces(User))
-			return Forbid();
-
 		var values = await _settings.GetAsync(cancellationToken);
 		return Ok(_settings.ToDto(values, _envPushOptions.Value));
 	}
@@ -64,9 +62,6 @@ public sealed class AdminPushSettingsController : ControllerBase
 		[FromBody] UpdateAdminPushSettingsRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!_access.CanManageAllFaces(User))
-			return Forbid();
-
 		var validation = await _validator.ValidateAsync(request, cancellationToken);
 		if (!validation.IsValid)
 			return BadRequest(validation.Errors.Select(e => e.ErrorMessage));
@@ -99,9 +94,6 @@ public sealed class AdminPushSettingsController : ControllerBase
 		[FromBody] TestAdminPushFcmRequest? request,
 		CancellationToken cancellationToken)
 	{
-		if (!_access.CanManageAllFaces(User))
-			return Forbid();
-
 		var values = await _settings.GetAsync(cancellationToken);
 		var previewJson = request?.Firebase?.ServiceAccountJson;
 		var jsonToProbe = !string.IsNullOrWhiteSpace(previewJson)

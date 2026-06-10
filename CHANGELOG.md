@@ -6,9 +6,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 ### Release index
 
-| Version       | Theme                                              |
-| ------------- | -------------------------------------------------- |
-| [1.4.9](#149) | Backend refactor X5/X6 auth-policy migration (1)   |
+| Version        | Theme                                              |
+| -------------- | -------------------------------------------------- |
+| [1.4.10](#1410) | Backend refactor X5/X6 auth-policy migration (2)  |
+| [1.4.9](#149)  | Backend refactor X5/X6 auth-policy migration (1)   |
 | [1.4.8](#148) | Backend refactor X4 ProblemDetails errors (flag)   |
 | [1.4.7](#147) | Backend refactor X14 health/readiness probes       |
 | [1.4.6](#146) | Backend refactor X13 correlation-id middleware     |
@@ -40,6 +41,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.10]
+
+### Changed
+
+- **Backend refactor — authorization-policy migration, batch 2 (X5/X6).** Migrated three more blanket-gate operator controllers from the in-body `if (!_access.CanManageAllFaces(User)) return Forbid();` check to the declarative `ManageAllFaces` policy: `AdminPushSettingsController` (`/api/admin/push/settings*`, 3 actions), `AdminMailSettingsController` (`/api/admin/mail/settings*`, 3 actions) and `AdminMailerTestController` (`POST /api/admin/mailer/test-self`). Each now carries `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]` at the class level and the per-action gate plus the now-unused `IAccessEvaluator` dependency were removed. `AdminMailerTestController`'s `GET /api/admin/mailer/pilot-link` keeps its `[AllowAnonymous]` (method-level wins over the class policy), so it stays publicly reachable as before. The policy reproduces `PlatformAccessRules.CanManageAllFaces` exactly, so each controller's authorization matrix is unchanged (anonymous → 401, global ADMIN → 403, SUPER_ADMIN in admin scope → allowed); the existing `AdminPushSettings` / `AdminMailSettings` / `AdminMailerTest` integration suites (incl. their `401WithoutJwt` + `403ForGlobalAdmin` negatives) and `PlatformSuperAdminAccessEdge` stay green.
 
 ---
 
@@ -349,6 +358,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.10]: https://github.com/01laky/many_faces_backend/compare/v1.4.9...v1.4.10
 [1.4.9]: https://github.com/01laky/many_faces_backend/compare/v1.4.8...v1.4.9
 [1.4.8]: https://github.com/01laky/many_faces_backend/compare/v1.4.7...v1.4.8
 [1.4.7]: https://github.com/01laky/many_faces_backend/compare/v1.4.6...v1.4.7

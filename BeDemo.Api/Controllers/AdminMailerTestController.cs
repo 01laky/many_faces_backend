@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 using ManyFaces.Mailer.V1;
 using Microsoft.AspNetCore.Identity;
@@ -15,21 +16,22 @@ namespace BeDemo.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/admin/mailer")]
-[Authorize]
+// Backend-refactor X5/X6: the test-self operator gate is enforced by the ManageAllFaces policy at the class level
+// instead of an in-body CanManageAllFaces check. The pilot-link action keeps its own [AllowAnonymous] (method-level
+// wins over the class policy), so it stays publicly reachable. Same matrix for test-self (anonymous → 401,
+// insufficient → 403, super-admin-in-admin-scope → allowed); pinned by AdminMailerTestController tests.
+[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 public sealed class AdminMailerTestController : ControllerBase
 {
-	private readonly IAccessEvaluator _access;
 	private readonly IMailerWorkerClient _mailerWorker;
 	private readonly UserManager<ApplicationUser> _userManager;
 	private readonly ILogger<AdminMailerTestController> _logger;
 
 	public AdminMailerTestController(
-		IAccessEvaluator access,
 		IMailerWorkerClient mailerWorker,
 		UserManager<ApplicationUser> userManager,
 		ILogger<AdminMailerTestController> logger)
 	{
-		_access = access;
 		_mailerWorker = mailerWorker;
 		_userManager = userManager;
 		_logger = logger;
@@ -46,11 +48,8 @@ public sealed class AdminMailerTestController : ControllerBase
 	[ProducesResponseType(StatusCodes.Status401Unauthorized)]
 	public async Task<IActionResult> TestSelf(CancellationToken cancellationToken)
 	{
-		if (!_access.CanManageAllFaces(User))
-		{
-			return Forbid();
-		}
-
+		// Authorization enforced by the ManageAllFaces policy on the controller. This guard only ensures a
+		// NameIdentifier claim exists for the operator-self email lookup below — it is not an authz gate.
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 		if (string.IsNullOrEmpty(userId))
 		{

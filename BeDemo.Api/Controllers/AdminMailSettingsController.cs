@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using BeDemo.Api.Models.DTOs.Admin;
 using BeDemo.Api.Models.Requests.Admin;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorMail;
 using Microsoft.AspNetCore.Authorization;
@@ -11,23 +12,23 @@ namespace BeDemo.Api.Controllers;
 /// <summary>Operator mail configuration (platform + SMTP) for admin Settings.</summary>
 [ApiController]
 [Route("api/admin/mail")]
-[Authorize]
+// Backend-refactor X5/X6: operator gate (admin face scope + global SUPER_ADMIN) enforced declaratively by the
+// ManageAllFaces policy instead of a per-action CanManageAllFaces check. Same matrix (anonymous → 401, insufficient
+// → 403, super-admin-in-admin-scope → allowed); pinned by AdminMailSettingsController + PlatformSuperAdminAccessEdge.
+[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 public sealed class AdminMailSettingsController : ControllerBase
 {
-	private readonly IAccessEvaluator _access;
 	private readonly IOperatorMailSettingsProvider _settings;
 	private readonly AdminMailSettingsApplyService _apply;
 	private readonly IMailerWorkerClient _mailerWorker;
 	private readonly ILogger<AdminMailSettingsController> _logger;
 
 	public AdminMailSettingsController(
-		IAccessEvaluator access,
 		IOperatorMailSettingsProvider settings,
 		AdminMailSettingsApplyService apply,
 		IMailerWorkerClient mailerWorker,
 		ILogger<AdminMailSettingsController> logger)
 	{
-		_access = access;
 		_settings = settings;
 		_apply = apply;
 		_mailerWorker = mailerWorker;
@@ -40,9 +41,6 @@ public sealed class AdminMailSettingsController : ControllerBase
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	public async Task<ActionResult<AdminMailSettingsDto>> GetSettings(CancellationToken cancellationToken)
 	{
-		if (!_access.CanManageAllFaces(User))
-			return Forbid();
-
 		var values = await _settings.GetAsync(cancellationToken);
 		return Ok(_settings.ToDto(values));
 	}
@@ -56,9 +54,6 @@ public sealed class AdminMailSettingsController : ControllerBase
 		[FromBody] UpdateAdminMailSettingsRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!_access.CanManageAllFaces(User))
-			return Forbid();
-
 		var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 		var current = await _settings.GetAsync(cancellationToken);
 		var merged = _apply.Merge(current, request, userId);
@@ -79,9 +74,6 @@ public sealed class AdminMailSettingsController : ControllerBase
 	[ProducesResponseType(StatusCodes.Status403Forbidden)]
 	public async Task<ActionResult<AdminMailTestSmtpResultDto>> TestSmtp(CancellationToken cancellationToken)
 	{
-		if (!_access.CanManageAllFaces(User))
-			return Forbid();
-
 		var values = await _settings.GetAsync(cancellationToken);
 		if (!values.IsSmtpComplete)
 		{
