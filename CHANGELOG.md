@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.20](#1420) | Backend refactor X6 ApiControllerBase (complete) |
 | [1.4.19](#1419) | Backend refactor X6 ApiControllerBase (UserId)   |
 | [1.4.18](#1418) | Backend refactor Phase 0 AI test fake (complete) |
 | [1.4.17](#1417) | Backend refactor Phase 0 shared AI test fake     |
@@ -50,6 +51,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.20]
+
+### Changed
+
+- **Backend refactor — finish `ApiControllerBase` adoption (X6).** Migrated the remaining five controllers that used a differently-named current-user accessor onto `ApiControllerBase`: `OperatorUsersController`, `OperatorContentController`, `OperatorUserChatController` (`OperatorUserId`), `FaceProfilesController` + its `FaceProfilesController.Operator.cs` partial (`CurrentUserId`), and `AdminMeProfileController` (`CallerUserId`). Each local accessor was removed and its call sites renamed to the inherited `UserId` (verified collision-free first). With this, **all 30 controllers that need the caller's id share the single `ApiControllerBase.UserId`** — no per-controller accessor remains. Behaviour-preserving (the renamed members resolve to the same `NameIdentifier` lookup); full backend suite 1939 passing, `dotnet format` clean.
 
 ---
 
@@ -446,6 +455,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.20]: https://github.com/01laky/many_faces_backend/compare/v1.4.19...v1.4.20
 [1.4.19]: https://github.com/01laky/many_faces_backend/compare/v1.4.18...v1.4.19
 [1.4.18]: https://github.com/01laky/many_faces_backend/compare/v1.4.17...v1.4.18
 [1.4.17]: https://github.com/01laky/many_faces_backend/compare/v1.4.16...v1.4.17

@@ -15,7 +15,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/admin/me")]
 [Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
-public sealed class AdminMeProfileController : ControllerBase
+public sealed class AdminMeProfileController : ApiControllerBase
 {
 	private readonly IAdminMeProfileService _profiles;
 
@@ -24,16 +24,14 @@ public sealed class AdminMeProfileController : ControllerBase
 		_profiles = profiles;
 	}
 
-	private string? CallerUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-
 	[HttpGet("profile")]
 	public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(CallerUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var dto = await _profiles.GetProfileAsync(
-			CallerUserId,
+			UserId,
 			Request.Scheme,
 			Request.Host.Value!,
 			cancellationToken);
@@ -47,12 +45,12 @@ public sealed class AdminMeProfileController : ControllerBase
 		[FromBody] UpdateAdminMeProfileRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(CallerUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var locale = System.Globalization.CultureInfo.CurrentUICulture.Name;
 		var result = await _profiles.UpdateProfileAsync(
-			CallerUserId,
+			UserId,
 			request,
 			Request.Scheme,
 			Request.Host.Value!,
@@ -71,10 +69,10 @@ public sealed class AdminMeProfileController : ControllerBase
 		[FromBody] UpdateAdminMePasswordRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(CallerUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		var result = await _profiles.UpdatePasswordAsync(CallerUserId, request, cancellationToken);
+		var result = await _profiles.UpdatePasswordAsync(UserId, request, cancellationToken);
 		if (result.Error != null)
 			return StatusCode(result.StatusCode, new { error = result.Error });
 		return NoContent();
@@ -86,11 +84,11 @@ public sealed class AdminMeProfileController : ControllerBase
 		[FromBody] OperatorSetFaceRoleRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(CallerUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var result = await _profiles.SetSelfFaceRoleAsync(
-			CallerUserId,
+			UserId,
 			faceId,
 			request.UserRoleId,
 			HttpContext.TraceIdentifier,
@@ -103,12 +101,12 @@ public sealed class AdminMeProfileController : ControllerBase
 	[HttpPost("resend-email-confirmation")]
 	public async Task<IActionResult> ResendEmailConfirmation(CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(CallerUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var locale = System.Globalization.CultureInfo.CurrentUICulture.Name;
 		var result = await _profiles.ResendEmailConfirmationAsync(
-			CallerUserId,
+			UserId,
 			Request.Scheme,
 			Request.Host.Value!,
 			locale,

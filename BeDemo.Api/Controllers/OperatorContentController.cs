@@ -20,7 +20,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/operator-content")]
 [Authorize]
-public sealed class OperatorContentController : ControllerBase
+public sealed class OperatorContentController : ApiControllerBase
 {
 	private readonly IOperatorAlbumManagementService _albums;
 	private readonly IOperatorReelManagementService _reels;
@@ -57,8 +57,6 @@ public sealed class OperatorContentController : ControllerBase
 		_videoLoungeHub = videoLoungeHub;
 	}
 
-	private string? OperatorUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-
 	/// <summary>Hard-delete album (toolbar Remove and Delete album both use this).</summary>
 	[HttpPost("albums/{id:int}/delete")]
 	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
@@ -67,11 +65,11 @@ public sealed class OperatorContentController : ControllerBase
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		await _albums.HardDeleteAlbumAsync(
-			OperatorUserId,
+			UserId,
 			id,
 			request.FaceId,
 			request.Reason,
@@ -90,11 +88,11 @@ public sealed class OperatorContentController : ControllerBase
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var ok = await _albums.DeleteAlbumMediaAsync(
-			OperatorUserId,
+			UserId,
 			albumId,
 			mediaId,
 			request.FaceId,
@@ -113,11 +111,11 @@ public sealed class OperatorContentController : ControllerBase
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		await _reels.HardDeleteReelAsync(
-			OperatorUserId,
+			UserId,
 			id,
 			request.FaceId,
 			request.Reason,
@@ -135,11 +133,11 @@ public sealed class OperatorContentController : ControllerBase
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		await _blogs.HardDeleteBlogAsync(
-			OperatorUserId,
+			UserId,
 			id,
 			request.FaceId,
 			request.Reason,
@@ -158,11 +156,11 @@ public sealed class OperatorContentController : ControllerBase
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var ok = await _blogs.DeleteBlogImageAsync(
-			OperatorUserId,
+			UserId,
 			blogId,
 			imageId,
 			request.FaceId,
@@ -181,11 +179,11 @@ public sealed class OperatorContentController : ControllerBase
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		await _chatRooms.HardDeleteRoomAsync(
-			OperatorUserId,
+			UserId,
 			roomId,
 			request.FaceId,
 			request.Reason,
@@ -203,7 +201,7 @@ public sealed class OperatorContentController : ControllerBase
 	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 	public async Task<IActionResult> StealthJoinVideoLounge(int loungeId, CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var lounge = await _context.FaceVideoLounges.AsNoTracking().FirstOrDefaultAsync(l => l.Id == loungeId, cancellationToken);
@@ -216,13 +214,13 @@ public sealed class OperatorContentController : ControllerBase
 			return Conflict(new { error = "No active live session" });
 
 		var existing = await _context.FaceVideoLoungeSessionParticipants
-			.FirstOrDefaultAsync(p => p.FaceVideoLoungeSessionId == session.Id && p.UserId == OperatorUserId && p.LeftAt == null, cancellationToken);
+			.FirstOrDefaultAsync(p => p.FaceVideoLoungeSessionId == session.Id && p.UserId == UserId && p.LeftAt == null, cancellationToken);
 		if (existing == null)
 		{
 			existing = new FaceVideoLoungeSessionParticipant
 			{
 				FaceVideoLoungeSessionId = session.Id,
-				UserId = OperatorUserId,
+				UserId = UserId,
 				JoinMode = VideoLoungeJoinMode.AdminStealth,
 				AudioEnabled = false,
 				VideoEnabled = false,
@@ -241,9 +239,9 @@ public sealed class OperatorContentController : ControllerBase
 		existing.LastSeenAt = DateTime.UtcNow;
 		await _context.SaveChangesAsync(cancellationToken);
 
-		var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == OperatorUserId, cancellationToken);
-		var displayName = user != null ? $"{user.FirstName} {user.LastName}".Trim() : OperatorUserId;
-		var tokenResult = _videoLoungeTokens.CreateToken(session.Id, OperatorUserId, displayName, VideoLoungeJoinMode.AdminStealth);
+		var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == UserId, cancellationToken);
+		var displayName = user != null ? $"{user.FirstName} {user.LastName}".Trim() : UserId;
+		var tokenResult = _videoLoungeTokens.CreateToken(session.Id, UserId, displayName, VideoLoungeJoinMode.AdminStealth);
 
 		return Ok(new
 		{
@@ -325,11 +323,11 @@ public sealed class OperatorContentController : ControllerBase
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var ok = await _profiles.DeleteCommentAsync(
-			OperatorUserId,
+			UserId,
 			commentId,
 			request.FaceId,
 			request.Reason,
@@ -346,11 +344,11 @@ public sealed class OperatorContentController : ControllerBase
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		var ok = await _profiles.DeleteReviewAsync(
-			OperatorUserId,
+			UserId,
 			reviewId,
 			request.FaceId,
 			request.Reason,
@@ -367,11 +365,11 @@ public sealed class OperatorContentController : ControllerBase
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		await _stories.HardDeleteStoryAsync(
-			OperatorUserId,
+			UserId,
 			id,
 			request.FaceId,
 			request.Reason,
@@ -390,13 +388,13 @@ public sealed class OperatorContentController : ControllerBase
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
 		try
 		{
 			var ok = await _stories.DeleteStoryImageAsync(
-				OperatorUserId,
+				UserId,
 				storyId,
 				imageId,
 				request.FaceId,

@@ -23,7 +23,7 @@ public partial class FaceProfilesController
 
 		var operatorInventory = CanManageAllFaces();
 		if (!operatorInventory &&
-			!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
+			!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, UserId, ct))
 			return VisibilityDenied();
 
 		var hostName = UserRole.FaceRoleNames.FaceHost;

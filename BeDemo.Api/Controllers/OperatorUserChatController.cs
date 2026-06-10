@@ -14,7 +14,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/operator-user-chat")]
 [Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
-public sealed class OperatorUserChatController : ControllerBase
+public sealed class OperatorUserChatController : ApiControllerBase
 {
 	private readonly IOperatorUserChatService _chat;
 
@@ -23,17 +23,15 @@ public sealed class OperatorUserChatController : ControllerBase
 		_chat = chat;
 	}
 
-	private string? OperatorUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-
 	/// <summary>Sidebar list for the logged-in super-admin (per-operator threads).</summary>
 	[HttpGet("conversations")]
 	public async Task<ActionResult<IReadOnlyList<OperatorUserChatConversationDto>>> ListConversations(
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		var list = await _chat.ListConversationsAsync(OperatorUserId, cancellationToken);
+		var list = await _chat.ListConversationsAsync(UserId, cancellationToken);
 		return Ok(list);
 	}
 
@@ -44,10 +42,10 @@ public sealed class OperatorUserChatController : ControllerBase
 		[FromQuery] OperatorUserChatHistoryQuery query,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		var page = await _chat.GetHistoryAsync(OperatorUserId, targetUserId, query, cancellationToken);
+		var page = await _chat.GetHistoryAsync(UserId, targetUserId, query, cancellationToken);
 		if (page == null)
 			return NotFound(new { error = "User not found or invalid target" });
 		return Ok(page);
@@ -58,20 +56,20 @@ public sealed class OperatorUserChatController : ControllerBase
 		string targetUserId,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		var dto = await _chat.GetThreadExistsAsync(OperatorUserId, targetUserId, cancellationToken);
+		var dto = await _chat.GetThreadExistsAsync(UserId, targetUserId, cancellationToken);
 		return Ok(dto);
 	}
 
 	[HttpPost("with/{targetUserId}/read")]
 	public async Task<IActionResult> MarkRead(string targetUserId, CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 
-		var count = await _chat.MarkReadAsync(OperatorUserId, targetUserId, cancellationToken);
+		var count = await _chat.MarkReadAsync(UserId, targetUserId, cancellationToken);
 		return Ok(new { count });
 	}
 }

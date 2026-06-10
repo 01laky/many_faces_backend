@@ -15,7 +15,7 @@ namespace BeDemo.Api.Controllers;
 [ApiController]
 [Route("api/operator-users")]
 [Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
-public sealed class OperatorUsersController : ControllerBase
+public sealed class OperatorUsersController : ApiControllerBase
 {
 	private readonly IOperatorUserModerationService _moderation;
 
@@ -23,8 +23,6 @@ public sealed class OperatorUsersController : ControllerBase
 	{
 		_moderation = moderation;
 	}
-
-	private string? OperatorUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
 	[HttpGet("users/{id}/detail")]
 	public async Task<ActionResult<OperatorUserDetailDto>> GetDetail(string id, CancellationToken cancellationToken)
@@ -42,10 +40,10 @@ public sealed class OperatorUsersController : ControllerBase
 		[FromBody] OperatorSetFaceRoleRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 		var result = await _moderation.SetFaceRoleAsync(
-			OperatorUserId, id, faceId, request.UserRoleId, HttpContext.TraceIdentifier, cancellationToken);
+			UserId, id, faceId, request.UserRoleId, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
 			return StatusCode(result.StatusCode, new { error = result.Error });
 		return Ok(new { userRoleId = request.UserRoleId });
@@ -57,10 +55,10 @@ public sealed class OperatorUsersController : ControllerBase
 		[FromBody] OperatorBanReasonRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 		var result = await _moderation.GlobalBanAsync(
-			OperatorUserId, id, request.Reason, HttpContext.TraceIdentifier, cancellationToken);
+			UserId, id, request.Reason, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
 			return StatusCode(result.StatusCode, new { error = result.Error });
 		return Ok(new { banned = true, alreadyBanned = result.AlreadyBanned });
@@ -69,10 +67,10 @@ public sealed class OperatorUsersController : ControllerBase
 	[HttpDelete("users/{id}/global-ban")]
 	public async Task<IActionResult> GlobalUnban(string id, CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 		var result = await _moderation.GlobalUnbanAsync(
-			OperatorUserId, id, HttpContext.TraceIdentifier, cancellationToken);
+			UserId, id, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
 			return StatusCode(result.StatusCode, new { error = result.Error });
 		return result.StatusCode == StatusCodes.Status204NoContent ? NoContent() : Ok(new { banned = false });
@@ -85,10 +83,10 @@ public sealed class OperatorUsersController : ControllerBase
 		[FromBody] OperatorBanReasonRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 		var result = await _moderation.FaceBanAsync(
-			OperatorUserId, id, faceId, request.Reason, HttpContext.TraceIdentifier, cancellationToken);
+			UserId, id, faceId, request.Reason, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
 			return StatusCode(result.StatusCode, new { error = result.Error });
 		return Ok(new { faceBanned = true, alreadyBanned = result.AlreadyBanned });
@@ -97,10 +95,10 @@ public sealed class OperatorUsersController : ControllerBase
 	[HttpDelete("users/{id}/faces/{faceId}/ban")]
 	public async Task<IActionResult> FaceUnban(string id, int faceId, CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 		var result = await _moderation.FaceUnbanAsync(
-			OperatorUserId, id, faceId, HttpContext.TraceIdentifier, cancellationToken);
+			UserId, id, faceId, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
 			return StatusCode(result.StatusCode, new { error = result.Error });
 		return result.StatusCode == StatusCodes.Status204NoContent ? NoContent() : Ok(new { faceBanned = false });
@@ -112,10 +110,10 @@ public sealed class OperatorUsersController : ControllerBase
 		[FromBody] OperatorPlatformMessageRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (string.IsNullOrEmpty(OperatorUserId))
+		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 		var result = await _moderation.SendPlatformMessageAsync(
-			OperatorUserId, id, request.Content, HttpContext.TraceIdentifier, cancellationToken);
+			UserId, id, request.Content, HttpContext.TraceIdentifier, cancellationToken);
 		if (!result.Success)
 			return StatusCode(result.StatusCode, new { error = result.Error });
 		return Ok(new { messageId = result.MessageId });

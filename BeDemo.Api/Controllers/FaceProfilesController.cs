@@ -17,7 +17,7 @@ namespace BeDemo.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/faces/{faceId:int}/profiles")]
-public partial class FaceProfilesController : ControllerBase
+public partial class FaceProfilesController : ApiControllerBase
 {
 	private readonly ApplicationDbContext _context;
 	private readonly ILogger<FaceProfilesController> _logger;
@@ -36,13 +36,11 @@ public partial class FaceProfilesController : ControllerBase
 		_access = access;
 	}
 
-	private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
-
 	// Operator inventory reads (admin profile detail) use CanManageAllFaces, not ApprovalStatus.
 	private bool CanManageAllFaces() => _access.CanManageAllFaces(User);
 
 	private IActionResult VisibilityDenied() =>
-		string.IsNullOrEmpty(CurrentUserId) ? Unauthorized() : Forbid();
+		string.IsNullOrEmpty(UserId) ? Unauthorized() : Forbid();
 
 	private async Task<Face?> GetFaceAsync(int faceId, CancellationToken ct) =>
 		await _context.Faces.AsNoTracking().FirstOrDefaultAsync(f => f.Id == faceId, ct);
@@ -77,7 +75,7 @@ public partial class FaceProfilesController : ControllerBase
 
 		var operatorInventory = CanManageAllFaces();
 		if (!operatorInventory &&
-			!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
+			!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, UserId, ct))
 			return VisibilityDenied();
 
 		var up = await _context.UserProfiles.AsNoTracking()
@@ -93,7 +91,7 @@ public partial class FaceProfilesController : ControllerBase
 
 		var display = !string.IsNullOrWhiteSpace(ufp.DisplayName) ? ufp.DisplayName : up.Nickname;
 		var avatar = !string.IsNullOrWhiteSpace(ufp.AvatarUrl) ? ufp.AvatarUrl : up.AvatarUrl;
-		var viewerId = CurrentUserId;
+		var viewerId = UserId;
 		var liked = false;
 		if (!string.IsNullOrEmpty(viewerId))
 		{
@@ -151,7 +149,7 @@ public partial class FaceProfilesController : ControllerBase
 	[Authorize]
 	public async Task<IActionResult> LikeProfile(int faceId, string userId, CancellationToken ct = default)
 	{
-		var viewerId = CurrentUserId!;
+		var viewerId = UserId!;
 		var face = await GetFaceAsync(faceId, ct);
 		if (face == null)
 			return NotFound(new { error = "Face not found" });
@@ -191,7 +189,7 @@ public partial class FaceProfilesController : ControllerBase
 	[Authorize]
 	public async Task<IActionResult> UnlikeProfile(int faceId, string userId, CancellationToken ct = default)
 	{
-		var viewerId = CurrentUserId!;
+		var viewerId = UserId!;
 		var ufp = await ResolveTargetProfileAsync(faceId, userId, ct);
 		if (ufp == null)
 			return NotFound(new { error = "Face profile not found" });
@@ -217,7 +215,7 @@ public partial class FaceProfilesController : ControllerBase
 		var face = await GetFaceAsync(faceId, ct);
 		if (face == null)
 			return NotFound(new { error = "Face not found" });
-		if (!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
+		if (!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, UserId, ct))
 			return VisibilityDenied();
 
 		var ufp = await ResolveTargetProfileAsync(faceId, userId, ct);
@@ -248,7 +246,7 @@ public partial class FaceProfilesController : ControllerBase
 
 		var operatorInventory = CanManageAllFaces();
 		if (!operatorInventory &&
-			!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
+			!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, UserId, ct))
 			return VisibilityDenied();
 
 		var ufp = await ResolveTargetProfileAsync(faceId, userId, ct);
@@ -319,7 +317,7 @@ public partial class FaceProfilesController : ControllerBase
 	[Authorize]
 	public async Task<IActionResult> AddComment(int faceId, string userId, [FromBody] FaceProfileCommentDto dto, CancellationToken ct = default)
 	{
-		var viewerId = CurrentUserId!;
+		var viewerId = UserId!;
 		var face = await GetFaceAsync(faceId, ct);
 		if (face == null)
 			return NotFound(new { error = "Face not found" });
@@ -350,7 +348,7 @@ public partial class FaceProfilesController : ControllerBase
 	[Authorize]
 	public async Task<IActionResult> DeleteComment(int faceId, int commentId, CancellationToken ct = default)
 	{
-		var viewerId = CurrentUserId!;
+		var viewerId = UserId!;
 		var c = await _context.UserFaceProfileComments
 			.FirstOrDefaultAsync(x => x.Id == commentId, ct);
 		if (c == null)
@@ -384,7 +382,7 @@ public partial class FaceProfilesController : ControllerBase
 
 		var operatorInventory = CanManageAllFaces();
 		if (!operatorInventory &&
-			!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, CurrentUserId, ct))
+			!await FaceVisibilityAccess.CanViewFaceProfileContentAsync(_context, face, UserId, ct))
 			return VisibilityDenied();
 
 		if (!face.AllowRecensions)
@@ -470,7 +468,7 @@ public partial class FaceProfilesController : ControllerBase
 		if (dto.Stars is < 1 or > 6)
 			return BadRequest(new { error = "Stars must be 1–6" });
 
-		var authorId = CurrentUserId!;
+		var authorId = UserId!;
 		var face = await _context.Faces.FirstOrDefaultAsync(f => f.Id == faceId, ct);
 		if (face == null)
 			return NotFound(new { error = "Face not found" });
@@ -519,7 +517,7 @@ public partial class FaceProfilesController : ControllerBase
 	[Authorize]
 	public async Task<IActionResult> DeleteReview(int faceId, int reviewId, CancellationToken ct = default)
 	{
-		var authorId = CurrentUserId!;
+		var authorId = UserId!;
 		var r = await _context.UserFaceProfileReviews.FirstOrDefaultAsync(x => x.Id == reviewId, ct);
 		if (r == null)
 			return NotFound(new { error = "Review not found" });
