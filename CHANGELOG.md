@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.16](#1416) | Backend refactor X5/X6 dual-policy migration (8)  |
 | [1.4.15](#1415) | Backend refactor X5/X6 SuperAdmin policy (7)      |
 | [1.4.14](#1414) | Backend refactor X5/X6 SuperAdmin policy (6)      |
 | [1.4.13](#1413) | Backend refactor X5/X6 auth-policy migration (5)  |
@@ -46,6 +47,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.16]
+
+### Changed
+
+- **Backend refactor — authorization-policy migration, batch 8 (X5/X6, dual-policy method-level).** Migrated `OperatorContentController` (`/api/operator-content`), which mixes **two** different gates, to per-action policies: the 10 hard-delete actions (album, album-media, reel, blog, blog-image, chat-room, profile-comment, profile-review, story, story-image) carried `RequireSuperAdmin()` → `[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]`, while the 3 live video-lounge moderation actions (stealth-join, kick, kick-all) carried `RequireManageAllFaces()` → `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]`. All 13 in-body `if (!Require…()) return Forbid();` gates, both helper methods, and the now-unused `IAccessEvaluator` dependency were removed; the `NameIdentifier`-claim `Unauthorized()` guards are kept (they protect the per-operator actor id, not authorization). No action had model validation before its gate, so nothing is reordered and each action's matrix is unchanged (anonymous → 401, insufficient → 403, authorized → allowed) — with the delete actions requiring global SUPER_ADMIN and the video-lounge actions requiring admin-face-scope operator rights, exactly as before. Verified by the Admin{Album,Blog,Reel,ChatRoom,Story,Profile}Management + FaceVideoLounges + OperatorContent validator suites (65 tests).
+  - **This completes the mechanical per-controller auth-policy migration cluster.** Every controller whose actions had a uniform/separable imperative platform gate now uses `[Authorize(Policy = …)]`. The remaining imperative `CanManageAllFaces` usages are either *branching* per-item logic (Pages/Stories/Reels list-scoping, Users list/get visibility) or *validation-ordered* gates (Users create/update, where a method-level attribute would reorder authorization ahead of `ModelState` validation) — both intentionally left, as migrating them would change client-visible behaviour.
 
 ---
 
@@ -405,6 +415,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.16]: https://github.com/01laky/many_faces_backend/compare/v1.4.15...v1.4.16
 [1.4.15]: https://github.com/01laky/many_faces_backend/compare/v1.4.14...v1.4.15
 [1.4.14]: https://github.com/01laky/many_faces_backend/compare/v1.4.13...v1.4.14
 [1.4.13]: https://github.com/01laky/many_faces_backend/compare/v1.4.12...v1.4.13

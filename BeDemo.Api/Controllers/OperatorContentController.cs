@@ -3,6 +3,7 @@ using BeDemo.Api.Data;
 using BeDemo.Api.Hubs;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.OperatorContent;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,12 +13,15 @@ using Microsoft.EntityFrameworkCore;
 namespace BeDemo.Api.Controllers;
 
 /// <summary>Super-admin operator content actions (album/reel/blog hard-delete shared by Remove + detail delete UI).</summary>
+// Backend-refactor X5/X6: DUAL-POLICY method-level migration. The hard-delete actions are global-SUPER_ADMIN-only
+// (SuperAdmin policy); the live video-lounge moderation actions require admin-face-scope operator rights
+// (ManageAllFaces policy). Each action carries its own [Authorize(Policy = …)] instead of an in-body Require* check,
+// so the per-action matrix is unchanged (anonymous → 401, insufficient → 403, authorized → allowed).
 [ApiController]
 [Route("api/operator-content")]
 [Authorize]
 public sealed class OperatorContentController : ControllerBase
 {
-	private readonly IAccessEvaluator _access;
 	private readonly IOperatorAlbumManagementService _albums;
 	private readonly IOperatorReelManagementService _reels;
 	private readonly IOperatorBlogManagementService _blogs;
@@ -30,7 +34,6 @@ public sealed class OperatorContentController : ControllerBase
 	private readonly IHubContext<VideoLoungeHub> _videoLoungeHub;
 
 	public OperatorContentController(
-		IAccessEvaluator access,
 		IOperatorAlbumManagementService albums,
 		IOperatorReelManagementService reels,
 		IOperatorBlogManagementService blogs,
@@ -42,7 +45,6 @@ public sealed class OperatorContentController : ControllerBase
 		IVideoLoungeLifecycleService videoLoungeLifecycle,
 		IHubContext<VideoLoungeHub> videoLoungeHub)
 	{
-		_access = access;
 		_albums = albums;
 		_reels = reels;
 		_blogs = blogs;
@@ -57,19 +59,14 @@ public sealed class OperatorContentController : ControllerBase
 
 	private string? OperatorUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-	private bool RequireSuperAdmin() => _access.IsGlobalSuperAdmin(User);
-
-	private bool RequireManageAllFaces() => _access.CanManageAllFaces(User);
-
 	/// <summary>Hard-delete album (toolbar Remove and Delete album both use this).</summary>
 	[HttpPost("albums/{id:int}/delete")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 	public async Task<IActionResult> HardDeleteAlbum(
 		int id,
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -86,14 +83,13 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Delete one album media item; album row remains.</summary>
 	[HttpPost("albums/{albumId:int}/media/{mediaId:int}/delete")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 	public async Task<IActionResult> DeleteAlbumMedia(
 		int albumId,
 		int mediaId,
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -111,13 +107,12 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Hard-delete reel (toolbar Remove and Delete reel both use this).</summary>
 	[HttpPost("reels/{id:int}/delete")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 	public async Task<IActionResult> HardDeleteReel(
 		int id,
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -134,13 +129,12 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Hard-delete blog (toolbar Remove and Delete blog both use this).</summary>
 	[HttpPost("blogs/{id:int}/delete")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 	public async Task<IActionResult> HardDeleteBlog(
 		int id,
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -157,14 +151,13 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Delete one blog image; blog row remains.</summary>
 	[HttpPost("blogs/{blogId:int}/images/{imageId:int}/delete")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 	public async Task<IActionResult> DeleteBlogImage(
 		int blogId,
 		int imageId,
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -182,13 +175,12 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Hard-delete face chat room (operator detail Delete room).</summary>
 	[HttpPost("chat-rooms/{roomId:int}/delete")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 	public async Task<IActionResult> HardDeleteChatRoom(
 		int roomId,
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -208,10 +200,9 @@ public sealed class OperatorContentController : ControllerBase
 	/// Requires <see cref="IAccessEvaluator.CanManageAllFaces"/> — not super-admin-only.
 	/// </summary>
 	[HttpPost("video-lounges/{loungeId:int}/live/stealth-join")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 	public async Task<IActionResult> StealthJoinVideoLounge(int loungeId, CancellationToken cancellationToken)
 	{
-		if (!RequireManageAllFaces())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -268,11 +259,9 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Force one participant to leave live session and notify session group.</summary>
 	[HttpPost("video-lounges/{loungeId:int}/live/kick/{userId}")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 	public async Task<IActionResult> KickVideoLoungeParticipant(int loungeId, string userId, CancellationToken cancellationToken)
 	{
-		if (!RequireManageAllFaces())
-			return Forbid();
-
 		var session = await _context.FaceVideoLoungeSessions
 			.FirstOrDefaultAsync(s => s.FaceVideoLoungeId == loungeId && s.EndedAt == null, cancellationToken);
 		if (session == null)
@@ -296,14 +285,12 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Kick all non-stealth participants; optional endSession query ends the live session.</summary>
 	[HttpPost("video-lounges/{loungeId:int}/live/kick-all")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 	public async Task<IActionResult> KickAllVideoLoungeParticipants(
 		int loungeId,
 		[FromQuery] bool endSession = false,
 		CancellationToken cancellationToken = default)
 	{
-		if (!RequireManageAllFaces())
-			return Forbid();
-
 		var session = await _context.FaceVideoLoungeSessions
 			.Include(s => s.Participants)
 			.FirstOrDefaultAsync(s => s.FaceVideoLoungeId == loungeId && s.EndedAt == null, cancellationToken);
@@ -332,13 +319,12 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Remove one profile comment (operator profile detail row delete).</summary>
 	[HttpPost("profile-comments/{commentId:int}/delete")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 	public async Task<IActionResult> DeleteProfileComment(
 		int commentId,
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -354,13 +340,12 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Remove one profile review (operator profile detail row delete).</summary>
 	[HttpPost("profile-reviews/{reviewId:int}/delete")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 	public async Task<IActionResult> DeleteProfileReview(
 		int reviewId,
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -376,13 +361,12 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Hard-delete story (operator detail Delete story).</summary>
 	[HttpPost("stories/{id:int}/delete")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 	public async Task<IActionResult> HardDeleteStory(
 		int id,
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -399,14 +383,13 @@ public sealed class OperatorContentController : ControllerBase
 
 	/// <summary>Delete one story image; story row remains (no platform DM).</summary>
 	[HttpPost("stories/{storyId:int}/images/{imageId:int}/delete")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 	public async Task<IActionResult> DeleteStoryImage(
 		int storyId,
 		int imageId,
 		[FromBody] OperatorAlbumDeleteRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
