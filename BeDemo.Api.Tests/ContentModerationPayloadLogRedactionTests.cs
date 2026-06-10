@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Services;
+using BeDemo.Api.Tests.TestDoubles;
 using BeDemo.Api.Tests.Testing;
 
 namespace BeDemo.Api.Tests;
@@ -75,7 +76,7 @@ public class ContentModerationPayloadLogRedactionTests
 		var logger = new CollectingLogger<ContentAiReviewService>();
 		var service = new ContentAiReviewService(
 			context,
-			new NoOpAiGrpcService(),
+			new FakeAiGrpcService(),
 			new NoOpRedisJobQueue(),
 			logger,
 			new NullContentModerationNotifier(),
@@ -133,7 +134,7 @@ public class ContentModerationPayloadLogRedactionTests
 
 		var service = new ContentAiReviewService(
 			context,
-			new NoOpAiGrpcService(),
+			new FakeAiGrpcService(),
 			new NoOpRedisJobQueue(),
 			logger,
 			new NullContentModerationNotifier(),
@@ -183,82 +184,5 @@ public class ContentModerationPayloadLogRedactionTests
 			DateTime runAtUtc,
 			CancellationToken cancellationToken = default) =>
 			Task.CompletedTask;
-	}
-
-	private sealed class NoOpAiGrpcService : IAiGrpcService
-	{
-		public Task<AiEmbedTextResult> EmbedTextAsync(string text, string? model = null, CancellationToken cancellationToken = default) =>
-			Task.FromResult(new AiEmbedTextResult(null, null, "test fake"));
-
-		public Task<AiGenerateReportResult> GenerateReportAsync(string reportType, string inputJson, int maxNewTokens, CancellationToken cancellationToken = default) =>
-			Task.FromResult(new AiGenerateReportResult(null, null, null, "test fake"));
-
-		public Task<string> GenerateAsync(
-			string prompt,
-			int maxNewTokens = 50,
-			string? statsContextJson = null,
-			string? responseLocale = null,
-			double? temperature = null,
-			IReadOnlyList<string>? stopSequences = null,
-			string? model = null,
-			CancellationToken cancellationToken = default) =>
-			Task.FromResult(string.Empty);
-
-		public async System.Collections.Generic.IAsyncEnumerable<AiGenerateDelta> GenerateStreamAsync(
-
-			string prompt,
-
-			int maxNewTokens = 50,
-
-			string? statsContextJson = null,
-
-			string? responseLocale = null,
-
-			double? temperature = null,
-
-			IReadOnlyList<string>? stopSequences = null,
-
-			string? model = null,
-
-			[System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
-
-		{
-
-			var text = await GenerateAsync(prompt, maxNewTokens, statsContextJson, responseLocale, temperature, stopSequences, model, cancellationToken);
-
-			yield return new AiGenerateDelta(text, true, "stop", null, null);
-
-		}
-
-
-		public Task<string> OperatorStatsChatAsync(
-			string userMessage,
-			string historyText,
-			bool fetchLivePublicSnapshot,
-			string publicStatsAbsoluteUrl,
-			int maxNewTokens = 150,
-			CancellationToken cancellationToken = default) =>
-			Task.FromResult(string.Empty);
-
-		public Task<AiContentReviewResult> ReviewContentAsync(
-			AiContentReviewRequest request,
-			CancellationToken cancellationToken = default) =>
-			Task.FromResult(new AiContentReviewResult(
-				new AiReviewRecommendation(
-					AiReviewDecision.Approve,
-					0.9,
-					AiReviewRiskLevel.Low,
-					Array.Empty<string>(),
-					"ok",
-					"msg",
-					"m",
-					"t"),
-				null));
-
-		public Task<AiModelStatus> GetModelStatusAsync(CancellationToken cancellationToken = default) =>
-			Task.FromResult(new AiModelStatus(true, false, false, "test-model"));
-
-		public Task<AiHostProfileFetchResult> GetHostProfileAsync(CancellationToken cancellationToken = default) =>
-			Task.FromResult(new AiHostProfileFetchResult(null, null));
 	}
 }

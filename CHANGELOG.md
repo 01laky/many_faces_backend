@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.17](#1417) | Backend refactor Phase 0 shared AI test fake     |
 | [1.4.16](#1416) | Backend refactor X5/X6 dual-policy migration (8)  |
 | [1.4.15](#1415) | Backend refactor X5/X6 SuperAdmin policy (7)      |
 | [1.4.14](#1414) | Backend refactor X5/X6 SuperAdmin policy (6)      |
@@ -47,6 +48,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.17]
+
+### Changed
+
+- **Backend refactor — shared canonical AI test double (Phase 0).** Added `BeDemo.Api.Tests/TestDoubles/FakeAiGrpcService.cs` — one configurable `IAiGrpcService` (+ `IAiModelStatusClient`) fake with a sensible no-op default for every RPC, single obvious configuration knobs (`ReviewResult`, `GenerateHandler`, `ModelStatusHandler`, `HostProfileResult`, …), input capture (`LastReviewRequest`, `LastPrompt`, `LastResponseLocale`, `ModelStatusPollCount`) and convenience constructors (`(AiReviewRecommendation)`, `(string error)`). Migrated the four near-identical hand-rolled moderation fakes onto it — `ContentModerationTests` (`FakeAiGrpcService` ×2-ctor), `ContentModerationProductionPathTests` (`CapturingAiGrpcService`), `ContentModerationSecurityEdgeTests` (`FakeAiGrpcService`) and `ContentModerationPayloadLogRedactionTests` (`NoOpAiGrpcService`) — removing ~300 lines of duplicated stub boilerplate. Test-only change, no production code touched; the full `ContentModeration` suite (221 tests) and the whole backend suite (1939) stay green. (The remaining two bespoke fakes — the OperatorAI capturing mock with its `Func<string?,string>` generate hook and the host-profile fake with its own property names — have incompatible hook signatures and are left for a follow-up migration.)
 
 ---
 
@@ -415,6 +424,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.17]: https://github.com/01laky/many_faces_backend/compare/v1.4.16...v1.4.17
 [1.4.16]: https://github.com/01laky/many_faces_backend/compare/v1.4.15...v1.4.16
 [1.4.15]: https://github.com/01laky/many_faces_backend/compare/v1.4.14...v1.4.15
 [1.4.14]: https://github.com/01laky/many_faces_backend/compare/v1.4.13...v1.4.14
