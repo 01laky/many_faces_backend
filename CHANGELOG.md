@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.11](#1411) | Backend refactor X5/X6 auth-policy migration (3)  |
 | [1.4.10](#1410) | Backend refactor X5/X6 auth-policy migration (2)  |
 | [1.4.9](#149)  | Backend refactor X5/X6 auth-policy migration (1)   |
 | [1.4.8](#148) | Backend refactor X4 ProblemDetails errors (flag)   |
@@ -41,6 +42,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.11]
+
+### Changed
+
+- **Backend refactor — authorization-policy migration, batch 3 (X5/X6).** Migrated `OperatorAiKnowledgeController` (`POST /api/operator-ai/knowledge/reindex`, `GET /api/operator-ai/knowledge/status`) from its in-body `RequireOperator()` (= `CanManageAllFaces`) gate to the declarative `ManageAllFaces` policy: the controller now carries `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]`, and the `RequireOperator()` helper + the now-unused `IAccessEvaluator` dependency were removed. Authorization matrix unchanged (anonymous → 401, global ADMIN → 403, SUPER_ADMIN in admin scope → allowed).
+  - Because the controller's unit tests constructed it directly and asserted `ForbidResult` from the in-body gate, the two `*_denies_non_operator` unit tests were removed (the controller no longer gates in-body) and replaced by an integration negative `PlatformSuperAdminAccessEdgeTests.OperatorAiKnowledge_ReturnsForbidden_ForGlobalAdmin` that exercises the policy on both endpoints. The remaining unit tests (409/503/ok/skip behaviour) were updated to the slimmer constructor. Full suite stays green.
 
 ---
 
@@ -358,6 +368,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.11]: https://github.com/01laky/many_faces_backend/compare/v1.4.10...v1.4.11
 [1.4.10]: https://github.com/01laky/many_faces_backend/compare/v1.4.9...v1.4.10
 [1.4.9]: https://github.com/01laky/many_faces_backend/compare/v1.4.8...v1.4.9
 [1.4.8]: https://github.com/01laky/many_faces_backend/compare/v1.4.7...v1.4.8

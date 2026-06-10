@@ -93,6 +93,25 @@ public sealed class PlatformSuperAdminAccessEdgeTests
 		response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
 	}
 
+	/// <summary>
+	/// ACC-B8b — ADMIN on operator-ai knowledge endpoints → 403. Integration negative for the X5/X6 migration of
+	/// OperatorAiKnowledgeController from an in-body RequireOperator() gate to the ManageAllFaces policy (replaces the
+	/// removed *_denies_non_operator unit tests). Covers both the mutation (reindex) and the read (status).
+	/// </summary>
+	[Fact]
+	public async Task OperatorAiKnowledge_ReturnsForbidden_ForGlobalAdmin()
+	{
+		var client = _factory.CreateFaceClient("admin");
+		var token = await IntegrationTestSeed.GetAdminAccessTokenAsync(client);
+		client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+		var reindex = await client.PostAsync("/api/operator-ai/knowledge/reindex", null);
+		reindex.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+
+		var status = await client.GetAsync("/api/operator-ai/knowledge/status");
+		status.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+	}
+
 	/// <summary>ACC-B9 — ADMIN on faces list → 403.</summary>
 	[Fact]
 	public async Task FacesList_ReturnsForbidden_ForGlobalAdmin_OnAdminFace()

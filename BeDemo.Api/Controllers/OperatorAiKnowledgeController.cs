@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using BeDemo.Api.Services;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services.OperatorAi;
 
 namespace BeDemo.Api.Controllers;
@@ -20,23 +20,24 @@ namespace BeDemo.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/operator-ai/knowledge")]
-[Authorize]
+// Backend-refactor X5/X6: the SUPER_ADMIN operator gate (admin face scope + global SUPER_ADMIN) is enforced
+// declaratively by the ManageAllFaces policy instead of the in-body RequireOperator() check. Same matrix (anonymous
+// → 401, insufficient → 403, super-admin-in-admin-scope → allowed); pinned by the knowledge-controller integration
+// negative test + PlatformSuperAdminAccessEdge.
+[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 public sealed class OperatorAiKnowledgeController : ControllerBase
 {
-	private readonly IAccessEvaluator _access;
 	private readonly IOperatorAiKnowledgeIndexer _indexer;
 	private readonly IOperatorAiKnowledgeStatusCache _statusCache;
 	private readonly IOperatorAiSystemSettingsProvider _systemSettings;
 	private readonly ILogger<OperatorAiKnowledgeController> _logger;
 
 	public OperatorAiKnowledgeController(
-		IAccessEvaluator access,
 		IOperatorAiKnowledgeIndexer indexer,
 		IOperatorAiKnowledgeStatusCache statusCache,
 		IOperatorAiSystemSettingsProvider systemSettings,
 		ILogger<OperatorAiKnowledgeController> logger)
 	{
-		_access = access;
 		_indexer = indexer;
 		_statusCache = statusCache;
 		_systemSettings = systemSettings;
@@ -52,9 +53,7 @@ public sealed class OperatorAiKnowledgeController : ControllerBase
 	[HttpPost("reindex")]
 	public async Task<IActionResult> Reindex(CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
+		// Authorization enforced by the ManageAllFaces policy on the controller.
 		// Mirror the other operator-AI mutations: gate index work behind the global AI switch (RT-13).
 		if (!await _systemSettings.IsAiEnabledAsync(cancellationToken))
 			return Conflict(new { error = "Enable AI support in Settings before reindexing operator knowledge." });
@@ -91,9 +90,7 @@ public sealed class OperatorAiKnowledgeController : ControllerBase
 	[HttpGet("status")]
 	public async Task<IActionResult> Status(CancellationToken cancellationToken)
 	{
-		if (!RequireOperator())
-			return Forbid();
-
+		// Authorization enforced by the ManageAllFaces policy on the controller.
 		// forceRefresh: the admin panel wants the live worker status, not a possibly-stale readiness probe.
 		var status = await _statusCache.GetStatusAsync(forceRefresh: true, cancellationToken);
 		if (status is null)
@@ -121,15 +118,5 @@ public sealed class OperatorAiKnowledgeController : ControllerBase
 			rebuildInProgress = _indexer.IsRebuildInProgress,
 			errorMessage = string.IsNullOrEmpty(status.ErrorMessage) ? null : status.ErrorMessage,
 		});
-	}
-
-	/// <summary>SUPER_ADMIN gate — same convention as <c>OperatorAiConversationsController.RequireOperator</c>.</summary>
-	private bool RequireOperator()
-	{
-		if (_access.CanManageAllFaces(User))
-			return true;
-
-		_logger.LogDebug("Operator AI knowledge endpoint denied: user lacks CanManageAllFaces.");
-		return false;
 	}
 }
