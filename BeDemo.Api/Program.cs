@@ -164,39 +164,9 @@ builder.Services.AddManyFacesOperatorAi();
 // AddManyFacesContentAndModerationServices (Phase 3 Program.cs modularisation).
 builder.Services.AddManyFacesContentAndModerationServices();
 
-builder.Services.Configure<ContentModerationSecurityOptions>(
-	builder.Configuration.GetSection(ContentModerationSecurityOptions.SectionName));
-builder.Services.Configure<SearchOptions>(builder.Configuration.GetSection(SearchOptions.SectionName));
-builder.Services.Configure<PushOptions>(builder.Configuration.GetSection(PushOptions.SectionName));
-builder.Services.Configure<PushFirebaseBootstrapOptions>(
-	builder.Configuration.GetSection($"{PushOptions.SectionName}:Firebase"));
-builder.Services.Configure<MailOptions>(builder.Configuration.GetSection(MailOptions.SectionName));
-builder.Services.Configure<RegistrationInviteOptions>(builder.Configuration.GetSection(RegistrationInviteOptions.SectionName));
-builder.Services.Configure<MailRegistrationLinkOptions>(builder.Configuration.GetSection(MailRegistrationLinkOptions.SectionName));
-builder.Services.AddScoped<IRegistrationInviteService, RegistrationInviteService>();
-builder.Services.AddScoped<IUserRegistrationProvisioner, UserRegistrationProvisioner>();
-builder.Services.AddHostedService<RegistrationInviteCleanupHostedService>();
-builder.Services.AddHttpClient();
-builder.Services.AddSingleton<SearchOutboxSaveChangesInterceptor>();
-builder.Services.AddSingleton<ISearchWorkerProbe, SearchWorkerGrpcProbe>();
-builder.Services.AddSingleton<ISearchQueryGateway, SearchWorkerGrpcGateway>();
-builder.Services.AddScoped<ISearchOutboxService, SearchOutboxService>();
-builder.Services.AddScoped<SearchDocumentBuilder>();
-builder.Services.AddScoped<SearchHitAclFilter>();
-builder.Services.AddScoped<SearchHitBatchFilter>();
-builder.Services.AddScoped<IAdminSearchAutocompleteService, AdminSearchAutocompleteService>();
-builder.Services.AddScoped<SearchIndexReconciliationRunner>();
-
-var searchOptionsForHosted = builder.Configuration.GetSection(SearchOptions.SectionName).Get<SearchOptions>() ?? new SearchOptions();
-if (searchOptionsForHosted.IsEnabled)
-{
-	builder.Services.AddHostedService<SearchOutboxProcessorHostedService>();
-	if (searchOptionsForHosted.ReconciliationEnabled)
-		builder.Services.AddHostedService<SearchIndexReconciliationHostedService>();
-}
-
-builder.Services.AddSingleton<IPushWorkerClient, PushWorkerGrpcClient>();
-builder.Services.AddSingleton<IMailerWorkerClient, MailerWorkerGrpcClient>();
+// Platform options binding + registration-invite / search / push+mailer worker-client registrations — extracted to
+// AddManyFacesPlatformServices (Phase 3 Program.cs modularisation).
+builder.Services.AddManyFacesPlatformServices(builder.Configuration);
 
 // Configure Serilog for structured logging
 // Serilog provides better logging capabilities than default .NET logging

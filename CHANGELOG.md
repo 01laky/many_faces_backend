@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.28](#1428) | Backend refactor Phase 3 Program.cs modularise (5)|
 | [1.4.27](#1427) | Backend refactor Phase 3 Program.cs modularise (4)|
 | [1.4.26](#1426) | Backend refactor Phase 3 Program.cs modularise (3)|
 | [1.4.25](#1425) | Backend refactor Phase 4 Postgres Testcontainers  |
@@ -58,6 +59,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.28]
+
+### Changed
+
+- **Backend refactor — Program.cs modularisation, slice 5 (Phase 3).** Extracted platform-wide options binding (content-moderation security, search, push/Firebase, mail, registration-invite, mail-link) plus the registration-invite, search (outbox / gateway / ACL / reconciliation, with the config-gated hosted services) and push/mailer worker-client registrations into `Configuration/PlatformServiceCollectionExtensions.AddManyFacesPlatformServices(configuration)` (this slice reads config, so it takes `IConfiguration`). Moved verbatim; behaviour-preserving (DI order-independence + boot tests), full backend suite 1942 passing. `Program.cs` drops to **883 lines** (from ~1150 at the start of Phase 3). `dotnet format` clean.
 
 ---
 
@@ -527,6 +536,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.28]: https://github.com/01laky/many_faces_backend/compare/v1.4.27...v1.4.28
 [1.4.27]: https://github.com/01laky/many_faces_backend/compare/v1.4.26...v1.4.27
 [1.4.26]: https://github.com/01laky/many_faces_backend/compare/v1.4.25...v1.4.26
 [1.4.25]: https://github.com/01laky/many_faces_backend/compare/v1.4.24...v1.4.25
