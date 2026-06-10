@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.34](#1434) | Backend refactor Phase 4 social unique constraints|
 | [1.4.33](#1433) | Backend refactor Phase 4 request-log observability|
 | [1.4.32](#1432) | Backend refactor Phase 3 Program.cs modularise (9)|
 | [1.4.31](#1431) | Backend refactor Phase 3 Program.cs modularise (8)|
@@ -64,6 +65,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.34]
+
+### Added
+
+- **Backend refactor — Postgres-lane coverage for the profile-social unique indexes (Phase 4).** New `Postgres/ProfileSocialUniqueConstraintPostgresTests` verifies, against the real database, the two remaining composite unique indexes the InMemory provider silently ignores: a user cannot **double-like** a face profile (`UserFaceProfileLike (UserFaceProfileId, UserId)`) and an author cannot **double-review** one (`UserFaceProfileReview (UserFaceProfileId, AuthorUserId)`) — each duplicate insert is rejected with a unique-violation `DbUpdateException`. Uses the shared `PostgresFixture` with per-test isolated databases and a role → user → profile → face → user-face-profile seed helper. Full backend suite: **1945 passing, 0 skipped**.
 
 ---
 
@@ -581,6 +590,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.34]: https://github.com/01laky/many_faces_backend/compare/v1.4.33...v1.4.34
 [1.4.33]: https://github.com/01laky/many_faces_backend/compare/v1.4.32...v1.4.33
 [1.4.32]: https://github.com/01laky/many_faces_backend/compare/v1.4.31...v1.4.32
 [1.4.31]: https://github.com/01laky/many_faces_backend/compare/v1.4.30...v1.4.31
