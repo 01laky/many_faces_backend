@@ -160,32 +160,10 @@ builder.Services.AddScoped<IHubUserDisplayCache, HubUserDisplayCache>();
 // (Phase 3 Program.cs modularisation).
 builder.Services.AddManyFacesOperatorAi();
 
-builder.Services.AddScoped<IFaceModerationService, FaceModerationService>();
-builder.Services.AddScoped<IOperatorUserModerationService, OperatorUserModerationService>();
-builder.Services.AddScoped<IAdminMeProfileService, AdminMeProfileService>();
-builder.Services.AddScoped<IOperatorAlbumManagementService, OperatorAlbumManagementService>();
-builder.Services.AddScoped<IOperatorReelManagementService, OperatorReelManagementService>();
-builder.Services.AddScoped<IOperatorBlogManagementService, OperatorBlogManagementService>();
-builder.Services.AddScoped<IOperatorStoryManagementService, OperatorStoryManagementService>();
-builder.Services.AddScoped<IOperatorChatRoomManagementService, OperatorChatRoomManagementService>();
-builder.Services.AddScoped<IOperatorProfileSocialManagementService, OperatorProfileSocialManagementService>();
-builder.Services.AddScoped<IPlatformDirectMessageService, PlatformDirectMessageService>();
-builder.Services.AddScoped<IOperatorUserChatService, OperatorUserChatService>();
-builder.Services.AddSingleton<IPlatformChatRateLimiter, PlatformChatRateLimiter>();
-builder.Services.AddScoped<IChatRoomLifecycleService, ChatRoomLifecycleService>();
-builder.Services.AddOptions<BeDemo.Api.Configuration.VideoLoungeOptions>()
-	.BindConfiguration(BeDemo.Api.Configuration.VideoLoungeOptions.SectionName)
-	.ValidateOnStart(); // backend-refactor X3
-builder.Services.AddSingleton<Microsoft.Extensions.Options.IValidateOptions<BeDemo.Api.Configuration.VideoLoungeOptions>,
-	BeDemo.Api.Configuration.VideoLoungeOptionsValidator>();
-builder.Services.AddScoped<IVideoLoungeTokenService, VideoLoungeTokenService>();
-builder.Services.AddScoped<IVideoLoungeLifecycleService, VideoLoungeLifecycleService>();
-// User-generated content moderation: AI job worker, dashboard metrics, in-app notifications, and optional retention cleanup.
-builder.Services.AddScoped<IContentAiReviewService, ContentAiReviewService>();
-builder.Services.AddScoped<IContentModerationMetrics, ContentModerationMetrics>();
-builder.Services.AddScoped<IContentModerationNotifier, ContentModerationNotifier>();
-builder.Services.AddScoped<IContentRetentionCleanupService, ContentRetentionCleanupService>();
-builder.Services.AddHostedService<ContentRetentionHostedService>();
+// Operator content / moderation / messaging / video-lounge / retention services — extracted to
+// AddManyFacesContentAndModerationServices (Phase 3 Program.cs modularisation).
+builder.Services.AddManyFacesContentAndModerationServices();
+
 builder.Services.Configure<ContentModerationSecurityOptions>(
 	builder.Configuration.GetSection(ContentModerationSecurityOptions.SectionName));
 builder.Services.Configure<SearchOptions>(builder.Configuration.GetSection(SearchOptions.SectionName));

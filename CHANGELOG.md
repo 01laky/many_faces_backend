@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.27](#1427) | Backend refactor Phase 3 Program.cs modularise (4)|
 | [1.4.26](#1426) | Backend refactor Phase 3 Program.cs modularise (3)|
 | [1.4.25](#1425) | Backend refactor Phase 4 Postgres Testcontainers  |
 | [1.4.24](#1424) | Backend refactor Phase 3 Program.cs modularise (2)|
@@ -57,6 +58,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.27]
+
+### Changed
+
+- **Backend refactor — Program.cs modularisation, slice 4 (Phase 3).** Extracted the operator content / moderation / messaging / video-lounge / content-retention service registrations (incl. the validated `VideoLoungeOptions` (X3) and the content-retention hosted service) out of `Program.cs` into `Configuration/ContentServiceCollectionExtensions.AddManyFacesContentAndModerationServices()`. The block uses only `services`, so it moved verbatim; DI order-independence + the boot tests keep it behaviour-preserving (full backend suite 1942 passing). `Program.cs` drops to **913 lines**. `dotnet format` clean.
 
 ---
 
@@ -518,6 +527,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.27]: https://github.com/01laky/many_faces_backend/compare/v1.4.26...v1.4.27
 [1.4.26]: https://github.com/01laky/many_faces_backend/compare/v1.4.25...v1.4.26
 [1.4.25]: https://github.com/01laky/many_faces_backend/compare/v1.4.24...v1.4.25
 [1.4.24]: https://github.com/01laky/many_faces_backend/compare/v1.4.23...v1.4.24
