@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.25](#1425) | Backend refactor Phase 4 Postgres Testcontainers  |
 | [1.4.24](#1424) | Backend refactor Phase 3 Program.cs modularise (2)|
 | [1.4.23](#1423) | Backend refactor Phase 3 Program.cs modularise (1)|
 | [1.4.22](#1422) | Backend refactor X5/X6 Users auth (migration done)|
@@ -55,6 +56,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.25]
+
+### Added
+
+- **Backend refactor — Postgres Testcontainers lane (Phase 4).** Added a real-PostgreSQL test lane backed by Testcontainers (`Testcontainers.PostgreSql`), so constraint/migration semantics that the EF InMemory provider silently ignores can finally be verified against `postgres:16-alpine` (matching production). New `BeDemo.Api.Tests/Postgres/`:
+  - `PostgresFixture` — an `xUnit` collection fixture that starts one container and hands out `ApplicationDbContext`s (incl. `CreateContextInNewDatabaseAsync` for per-test isolated databases). All Postgres-lane tests are tagged `[Trait("Category", "Postgres")]` so a CI lane can opt in (they need Docker).
+  - `SchemaMigrationDriftTests` — applies the full 95-migration history to a fresh database and asserts `HasPendingModelChanges()` is `false`: the EF model and the committed migrations agree (no missing migration). This confirms the production `Ignore(PendingModelChangesWarning)` is defensive, not masking real drift.
+  - `UserFaceProfileUniqueConstraintPostgresTests` — replaces the long-skipped `UserFaceProfileTests.UserFaceProfile_ShouldHaveUniqueConstraint_OnUserProfileIdAndFaceId` (`[Fact(Skip = …)]`): seeds a user/profile/face and asserts the real database rejects a duplicate `(UserProfileId, FaceId)` `UserFaceProfile` with a unique-violation `DbUpdateException`.
+  - `PostgresSchemaSmokeTests` — `EnsureCreated` builds the whole model schema on real Postgres and round-trips a query.
+  - The InMemory suite's `[Fact(Skip)]` placeholder was removed (the check is now real). Full backend suite: **1942 passing, 0 skipped** (was 1939 + 1 skipped).
 
 ---
 
@@ -495,6 +509,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.25]: https://github.com/01laky/many_faces_backend/compare/v1.4.24...v1.4.25
 [1.4.24]: https://github.com/01laky/many_faces_backend/compare/v1.4.23...v1.4.24
 [1.4.23]: https://github.com/01laky/many_faces_backend/compare/v1.4.22...v1.4.23
 [1.4.22]: https://github.com/01laky/many_faces_backend/compare/v1.4.21...v1.4.22

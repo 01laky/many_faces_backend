@@ -137,33 +137,8 @@ public class UserFaceProfileTests : IClassFixture<CustomWebApplicationFactory<Pr
 		userFaceProfileForThisFace.UserProfile.Id.Should().Be(profileId);
 	}
 
-	[Fact(Skip = "InMemory provider does not enforce unique constraints; use PostgreSQL to verify.")]
-	public async Task UserFaceProfile_ShouldHaveUniqueConstraint_OnUserProfileIdAndFaceId()
-	{
-		var profileId = await RegisterAndGetProfileIdAsync();
-
-		using var scope = _factory.Services.CreateScope();
-		var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
-		var face = await context.Faces.FirstOrDefaultAsync();
-		face.Should().NotBeNull();
-
-		var duplicateProfile = new UserFaceProfile
-		{
-			UserProfileId = profileId,
-			FaceId = face!.Id,
-			IsActive = true,
-			CreatedAt = DateTime.UtcNow
-		};
-
-		context.UserFaceProfiles.Add(duplicateProfile);
-
-		var action = async () => await context.SaveChangesAsync();
-		await action.Should().ThrowAsync<DbUpdateException>()
-			.Where(ex => (ex.InnerException != null && (ex.InnerException.Message.Contains("duplicate") || ex.InnerException.Message.Contains("unique"))) ||
-						 ex.Message.Contains("duplicate") ||
-						 ex.Message.Contains("unique"));
-	}
+	// The (UserProfileId, FaceId) unique-constraint check moved to the real-Postgres lane — the InMemory provider
+	// cannot enforce it. See BeDemo.Api.Tests/Postgres/UserFaceProfileUniqueConstraintPostgresTests.
 
 	[Fact]
 	public async Task UserFaceProfile_ShouldBeCreatedWithDefaultValues()
