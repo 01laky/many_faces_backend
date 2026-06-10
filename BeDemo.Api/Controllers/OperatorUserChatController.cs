@@ -2,22 +2,24 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BeDemo.Api.Models.DTOs.OperatorUserChat;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Controllers;
 
 /// <summary>Super-admin 1:1 user chat (per-operator threads).</summary>
+// Backend-refactor X5/X6: the global SUPER_ADMIN gate (role-only, IsGlobalSuperAdmin) is enforced declaratively by
+// the SuperAdmin policy instead of the per-action RequireSuperAdmin() check. Same matrix (anonymous → 401,
+// non-super-admin → 403, super-admin → allowed); pinned by OperatorUserChatController tests.
 [ApiController]
 [Route("api/operator-user-chat")]
-[Authorize]
+[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 public sealed class OperatorUserChatController : ControllerBase
 {
-	private readonly IAccessEvaluator _access;
 	private readonly IOperatorUserChatService _chat;
 
-	public OperatorUserChatController(IAccessEvaluator access, IOperatorUserChatService chat)
+	public OperatorUserChatController(IOperatorUserChatService chat)
 	{
-		_access = access;
 		_chat = chat;
 	}
 
@@ -28,8 +30,6 @@ public sealed class OperatorUserChatController : ControllerBase
 	public async Task<ActionResult<IReadOnlyList<OperatorUserChatConversationDto>>> ListConversations(
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -44,8 +44,6 @@ public sealed class OperatorUserChatController : ControllerBase
 		[FromQuery] OperatorUserChatHistoryQuery query,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -60,8 +58,6 @@ public sealed class OperatorUserChatController : ControllerBase
 		string targetUserId,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
@@ -72,14 +68,10 @@ public sealed class OperatorUserChatController : ControllerBase
 	[HttpPost("with/{targetUserId}/read")]
 	public async Task<IActionResult> MarkRead(string targetUserId, CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(OperatorUserId))
 			return Unauthorized();
 
 		var count = await _chat.MarkReadAsync(OperatorUserId, targetUserId, cancellationToken);
 		return Ok(new { count });
 	}
-
-	private bool RequireSuperAdmin() => _access.IsGlobalSuperAdmin(User);
 }

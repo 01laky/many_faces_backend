@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.14](#1414) | Backend refactor X5/X6 SuperAdmin policy (6)      |
 | [1.4.13](#1413) | Backend refactor X5/X6 auth-policy migration (5)  |
 | [1.4.12](#1412) | Backend refactor X5/X6 auth-policy migration (4)  |
 | [1.4.11](#1411) | Backend refactor X5/X6 auth-policy migration (3)  |
@@ -44,6 +45,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.14]
+
+### Changed
+
+- **Backend refactor — authorization-policy migration, batch 6 (X5/X6, SuperAdmin policy).** First use of the role-only `SuperAdmin` policy (declared in 1.4.5 but not yet applied). Migrated three clean blanket-gate super-admin controllers from a per-action `RequireSuperAdmin()` (= `IsGlobalSuperAdmin`) check to a class-level `[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]`: `OperatorUsersController` (`/api/operator-users`, 7 actions — user moderation/bans/face-roles), `AdminMeProfileController` (`/api/admin/me`, 5 actions — super-admin self-service profile) and `OperatorUserChatController` (`/api/operator-user-chat`, 4 actions — 1:1 user chat). The `RequireSuperAdmin()` helpers, all in-body `if (!RequireSuperAdmin()) return Forbid();` gates, and the now-unused `IAccessEvaluator` dependency were removed; the secondary `NameIdentifier`-claim `Unauthorized()` guards are kept (they protect per-operator lookups, not authorization). Unlike `ManageAllFaces`, the `SuperAdmin` policy is purely role-based (no face-scope requirement), exactly matching the imperative `IsGlobalSuperAdmin(User)` it replaces, so the matrix is unchanged: anonymous → 401, authenticated non-super-admin (incl. global ADMIN) → 403, SUPER_ADMIN → allowed. Pinned by the controllers' existing integration negatives (`*_Should403_ForPlatformAdmin` / `SAP_B10_UnauthorizedAndForbidden`).
 
 ---
 
@@ -387,6 +396,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.14]: https://github.com/01laky/many_faces_backend/compare/v1.4.13...v1.4.14
 [1.4.13]: https://github.com/01laky/many_faces_backend/compare/v1.4.12...v1.4.13
 [1.4.12]: https://github.com/01laky/many_faces_backend/compare/v1.4.11...v1.4.12
 [1.4.11]: https://github.com/01laky/many_faces_backend/compare/v1.4.10...v1.4.11

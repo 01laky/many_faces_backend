@@ -3,34 +3,32 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using BeDemo.Api.Models.Requests.Admin;
 using BeDemo.Api.Models.Requests.OperatorUsers;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Controllers;
 
 /// <summary>Super-admin self-service profile on the admin face (identity, password, face roles).</summary>
+// Backend-refactor X5/X6: the global SUPER_ADMIN gate (role-only, IsGlobalSuperAdmin) is enforced declaratively by
+// the SuperAdmin policy instead of the per-action RequireSuperAdmin() check. Same matrix (anonymous → 401,
+// non-super-admin → 403, super-admin → allowed); pinned by AdminMeProfileController tests.
 [ApiController]
 [Route("api/admin/me")]
-[Authorize]
+[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 public sealed class AdminMeProfileController : ControllerBase
 {
-	private readonly IAccessEvaluator _access;
 	private readonly IAdminMeProfileService _profiles;
 
-	public AdminMeProfileController(IAccessEvaluator access, IAdminMeProfileService profiles)
+	public AdminMeProfileController(IAdminMeProfileService profiles)
 	{
-		_access = access;
 		_profiles = profiles;
 	}
 
 	private string? CallerUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-	private bool RequireSuperAdmin() => _access.IsGlobalSuperAdmin(User);
-
 	[HttpGet("profile")]
 	public async Task<IActionResult> GetProfile(CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(CallerUserId))
 			return Unauthorized();
 
@@ -49,8 +47,6 @@ public sealed class AdminMeProfileController : ControllerBase
 		[FromBody] UpdateAdminMeProfileRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(CallerUserId))
 			return Unauthorized();
 
@@ -75,8 +71,6 @@ public sealed class AdminMeProfileController : ControllerBase
 		[FromBody] UpdateAdminMePasswordRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(CallerUserId))
 			return Unauthorized();
 
@@ -92,8 +86,6 @@ public sealed class AdminMeProfileController : ControllerBase
 		[FromBody] OperatorSetFaceRoleRequest request,
 		CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(CallerUserId))
 			return Unauthorized();
 
@@ -111,8 +103,6 @@ public sealed class AdminMeProfileController : ControllerBase
 	[HttpPost("resend-email-confirmation")]
 	public async Task<IActionResult> ResendEmailConfirmation(CancellationToken cancellationToken)
 	{
-		if (!RequireSuperAdmin())
-			return Forbid();
 		if (string.IsNullOrEmpty(CallerUserId))
 			return Unauthorized();
 
