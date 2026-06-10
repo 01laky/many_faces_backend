@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.31](#1431) | Backend refactor Phase 3 Program.cs modularise (8)|
 | [1.4.30](#1430) | Backend refactor Phase 3 Program.cs modularise (7)|
 | [1.4.29](#1429) | Backend refactor Phase 3 Program.cs modularise (6)|
 | [1.4.28](#1428) | Backend refactor Phase 3 Program.cs modularise (5)|
@@ -61,6 +62,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.31]
+
+### Changed
+
+- **Backend refactor — Program.cs modularisation, slice 8 (Phase 3).** Extracted the OAuth / token-lifetime / uploads / hardened-security / AI-gRPC service registrations — password hasher, `IClock`, the validated `JwtTokenLifetimeOptions` / `UploadsOptions` / `HardenedSecurityOptions` / `AiServiceOptions`, the OAuth services, the signed-upload-URL service, and the AI gRPC client + host-profile services — into `Configuration/OAuthAndAiServiceCollectionExtensions.AddManyFacesOAuthAndAiServices()`. The genuinely entangled bits (the `ECDSAKeyService` instance + the `AddAuthentication`/`AddJwtBearer` setup that consume `signingKey`) are deliberately **left in Program.cs**. Behaviour-preserving — the OAuth/JWT integration tests boot the real app and authenticate; full backend suite 1942 passing. `Program.cs` drops to **820 lines** (~29% below the ~1150 it started Phase 3 at). `dotnet format` clean.
 
 ---
 
@@ -554,6 +563,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.31]: https://github.com/01laky/many_faces_backend/compare/v1.4.30...v1.4.31
 [1.4.30]: https://github.com/01laky/many_faces_backend/compare/v1.4.29...v1.4.30
 [1.4.29]: https://github.com/01laky/many_faces_backend/compare/v1.4.28...v1.4.29
 [1.4.28]: https://github.com/01laky/many_faces_backend/compare/v1.4.27...v1.4.28

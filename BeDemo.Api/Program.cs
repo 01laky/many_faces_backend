@@ -360,53 +360,10 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 var ecdsaKeyService = new ECDSAKeyService(builder.Configuration, builder.Environment);
 builder.Services.AddSingleton<IECDSAKeyService>(ecdsaKeyService);
 
-builder.Services.AddScoped<IPasswordHasher<OAuthClient>, PasswordHasher<OAuthClient>>();
-
-builder.Services.AddSingleton<IClock, SystemUtcClock>();
-
-// SHV2 BE-A2: cap remember-me access JWT at 7 days; reject legacy multi-year ExpiresInMinutesRememberMe at startup.
-builder.Services.AddOptions<BeDemo.Api.Configuration.JwtTokenLifetimeOptions>()
-	.BindConfiguration(BeDemo.Api.Configuration.JwtTokenLifetimeOptions.SectionName)
-	.Validate(
-		o => o.ExpiresInMinutes > 0 &&
-			 o.ExpiresInMinutesRememberMe > 0 &&
-			 o.ExpiresInMinutesRememberMe <= BeDemo.Api.Configuration.JwtTokenLifetimeOptions.MaxRememberMeAccessMinutes &&
-			 o.ExpiresInMinutesRememberMe >= o.ExpiresInMinutes,
-		$"Jwt:{nameof(BeDemo.Api.Configuration.JwtTokenLifetimeOptions.ExpiresInMinutesRememberMe)} must be " +
-		$"{BeDemo.Api.Configuration.JwtTokenLifetimeOptions.RecommendedRememberMeAccessMinutes} minutes (7 days) or less, " +
-		"and not less than Jwt:ExpiresInMinutes. Remove legacy values like " +
-		$"{BeDemo.Api.Configuration.JwtTokenLifetimeOptions.LegacyMisconfiguredRememberMeMinutes}.")
-	.ValidateOnStart();
-
-builder.Services.AddScoped<IOAuthClientValidator, OAuthClientValidator>();
-builder.Services.AddScoped<IOAuthTokenRequestSignatureVerifier, OAuthTokenRequestSignatureVerifier>();
-builder.Services.AddScoped<IOAuthAccessTokenFactory, OAuthAccessTokenFactory>();
-builder.Services.AddScoped<IOAuth2Service, OAuth2Service>();
-
-// SHV2 BE-U3 — HMAC-signed URLs for wwwroot/uploads (replaces public static /uploads/*).
-builder.Services.AddOptions<BeDemo.Api.Configuration.UploadsOptions>()
-	.BindConfiguration(BeDemo.Api.Configuration.UploadsOptions.SectionName)
-	.Validate(
-		o => !string.IsNullOrWhiteSpace(o.SigningSecret) && o.SigningSecret.Length >= 32,
-		$"Uploads:{nameof(BeDemo.Api.Configuration.UploadsOptions.SigningSecret)} must be at least 32 characters.")
-	.ValidateOnStart();
-builder.Services.AddSingleton<IUploadSignedUrlService, UploadSignedUrlService>();
-
-builder.Services.AddOptions<HardenedSecurityOptions>()
-	.BindConfiguration(HardenedSecurityOptions.SectionName)
-	.ValidateOnStart();
-builder.Services.AddSingleton<IValidateOptions<HardenedSecurityOptions>, HardenedSecurityValidateOptions>();
-
-// AI gRPC client - singleton to reuse the HTTP/2 channel across requests
-builder.Services.AddOptions<AiServiceOptions>()
-	.BindConfiguration(AiServiceOptions.SectionName)
-	.ValidateOnStart(); // backend-refactor X3
-builder.Services.AddSingleton<IValidateOptions<AiServiceOptions>, AiServiceOptionsValidator>();
-builder.Services.AddSingleton<AiGrpcService>();
-builder.Services.AddSingleton<IAiModelStatusClient>(sp => sp.GetRequiredService<AiGrpcService>());
-builder.Services.AddSingleton<IAiGrpcService, AiAvailabilityGuardGrpcService>();
-builder.Services.AddScoped<IAiWorkerHostProfileService, AiWorkerHostProfileService>();
-builder.Services.AddHostedService<AiWorkerHostProfileStartupRefresh>();
+// OAuth / token-lifetime / uploads / hardened-security / AI-gRPC service registrations — extracted to
+// AddManyFacesOAuthAndAiServices (Phase 3 Program.cs modularisation). The ECDSA key + JWT-bearer setup below stay
+// here (entangled with the request pipeline via signingKey).
+builder.Services.AddManyFacesOAuthAndAiServices();
 
 // Gets signing key from ECDSAKeyService - this key is used to sign JWT tokens
 var signingKey = ecdsaKeyService.GetSigningKey();
