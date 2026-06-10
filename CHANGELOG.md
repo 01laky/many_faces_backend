@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.24](#1424) | Backend refactor Phase 3 Program.cs modularise (2)|
 | [1.4.23](#1423) | Backend refactor Phase 3 Program.cs modularise (1)|
 | [1.4.22](#1422) | Backend refactor X5/X6 Users auth (migration done)|
 | [1.4.21](#1421) | Backend refactor Phase 2 secret-protector base   |
@@ -54,6 +55,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.24]
+
+### Changed
+
+- **Backend refactor — Program.cs modularisation, slice 2 (Phase 3).** Extracted the whole rate-limiter setup — the ~9 permit/window config reads (with the Testing bypass) plus the partitioned `AddRateLimiter` policy definitions (oauth-token, oauth-register, localization-read, auth-login, api global, upload, register-prefill, ai-availability, signalr-negotiate) — out of `Program.cs` into `Configuration/RateLimitingServiceCollectionExtensions.AddManyFacesRateLimiting(configuration, isTestingEnv)`. `Program.cs` now calls the one-liner (passing the already-computed `isTestingEnv`, which is still used elsewhere). Behaviour-preserving: the block was moved verbatim and the Testing bypass is driven by the same flag, confirmed by the rate-limit suites (`OAuthRateLimit429Tests`, `OAuthExemptPath…`) and the full backend suite (1939 passing). `Program.cs` drops from ~1150 to **985 lines**. `dotnet format` clean.
 
 ---
 
@@ -486,6 +495,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.24]: https://github.com/01laky/many_faces_backend/compare/v1.4.23...v1.4.24
 [1.4.23]: https://github.com/01laky/many_faces_backend/compare/v1.4.22...v1.4.23
 [1.4.22]: https://github.com/01laky/many_faces_backend/compare/v1.4.21...v1.4.22
 [1.4.21]: https://github.com/01laky/many_faces_backend/compare/v1.4.20...v1.4.21
