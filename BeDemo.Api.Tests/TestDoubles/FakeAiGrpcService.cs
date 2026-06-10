@@ -46,8 +46,8 @@ public sealed class FakeAiGrpcService : IAiGrpcService, IAiModelStatusClient
 
 	// ---- ModelStatus ----------------------------------------------------------------------------------------------
 
-	/// <summary>Returns the model status. Defaults to "ready".</summary>
-	public Func<AiModelStatus> ModelStatusHandler { get; set; } = static () => new AiModelStatus(true, false, false, "test-model");
+	/// <summary>Returns the model status. When null (the default), <see cref="GetModelStatusAsync"/> reports "ready".</summary>
+	public Func<AiModelStatus>? ModelStatusHandler { get; set; }
 
 	private int _modelStatusPollCount;
 	public int ModelStatusPollCount => _modelStatusPollCount;
@@ -55,7 +55,12 @@ public sealed class FakeAiGrpcService : IAiGrpcService, IAiModelStatusClient
 
 	// ---- Other RPCs (simple settable stubs) -----------------------------------------------------------------------
 
-	public AiHostProfileFetchResult HostProfileResult { get; set; } = new(null, "Unimplemented");
+	/// <summary>Raw host-profile JSON returned by <see cref="GetHostProfileAsync"/> (null ⇒ none). Mutable mid-test.</summary>
+	public string? HostProfileJson { get; set; }
+
+	/// <summary>Host-profile fetch error returned by <see cref="GetHostProfileAsync"/> (null ⇒ none). Mutable mid-test.</summary>
+	public string? HostProfileError { get; set; }
+
 	public AiEmbedTextResult EmbedResult { get; set; } = new(null, null, "test fake");
 	public AiGenerateReportResult ReportResult { get; set; } = new(null, null, null, "test fake");
 	public Func<string, string, bool, string, string> OperatorStatsChatHandler { get; set; } = static (_, _, _, _) => string.Empty;
@@ -120,11 +125,11 @@ public sealed class FakeAiGrpcService : IAiGrpcService, IAiModelStatusClient
 	public Task<AiModelStatus> GetModelStatusAsync(CancellationToken cancellationToken = default)
 	{
 		Interlocked.Increment(ref _modelStatusPollCount);
-		return Task.FromResult(ModelStatusHandler());
+		return Task.FromResult(ModelStatusHandler?.Invoke() ?? new AiModelStatus(true, false, false, "test-model"));
 	}
 
 	public Task<AiHostProfileFetchResult> GetHostProfileAsync(CancellationToken cancellationToken = default) =>
-		Task.FromResult(HostProfileResult);
+		Task.FromResult(new AiHostProfileFetchResult(HostProfileJson, HostProfileError));
 
 	public Task<AiEmbedTextResult> EmbedTextAsync(string text, string? model = null, CancellationToken cancellationToken = default) =>
 		Task.FromResult(EmbedResult);

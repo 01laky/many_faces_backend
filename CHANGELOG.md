@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.18](#1418) | Backend refactor Phase 0 AI test fake (complete) |
 | [1.4.17](#1417) | Backend refactor Phase 0 shared AI test fake     |
 | [1.4.16](#1416) | Backend refactor X5/X6 dual-policy migration (8)  |
 | [1.4.15](#1415) | Backend refactor X5/X6 SuperAdmin policy (7)      |
@@ -48,6 +49,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.18]
+
+### Changed
+
+- **Backend refactor — AI test-fake consolidation complete (Phase 0).** Migrated the final two bespoke `IAiGrpcService` fakes onto the shared `FakeAiGrpcService`: the operator-AI capturing mock (`CapturingOperatorAiGrpcService` behind `OperatorAiGrpcMockWebApplicationFactory`) and the host-profile fake in `AiWorkerHostProfileServiceTests`. To absorb their contracts the canonical fake's `ModelStatusHandler` became nullable (null ⇒ reports "ready", matching the old mock) and its host-profile knobs are now mutable `HostProfileJson` / `HostProfileError` properties (so a test can change them mid-run). `OperatorAiLocaleAcceptanceTests`' two `GenerateHandler` lambdas were updated to the canonical `(prompt, locale)` signature. **All six hand-rolled `IAiGrpcService` fakes are now gone** — every AI-seam test configures one documented double. Test-only; the full backend suite (1939 passing / 1 skipped) and the operator-AI + host-profile suites stay green.
 
 ---
 
@@ -424,6 +433,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.18]: https://github.com/01laky/many_faces_backend/compare/v1.4.17...v1.4.18
 [1.4.17]: https://github.com/01laky/many_faces_backend/compare/v1.4.16...v1.4.17
 [1.4.16]: https://github.com/01laky/many_faces_backend/compare/v1.4.15...v1.4.16
 [1.4.15]: https://github.com/01laky/many_faces_backend/compare/v1.4.14...v1.4.15

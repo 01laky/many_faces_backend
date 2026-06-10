@@ -22,7 +22,7 @@ public sealed class OperatorAiLocaleAcceptanceTests : IClassFixture<OperatorAiGr
 	[Fact]
 	public async Task GenerateAsync_receives_en_sk_cz_locales_from_mock()
 	{
-		_factory.Ai.GenerateHandler = locale => locale switch
+		_factory.Ai.GenerateHandler = (_, locale) => locale switch
 		{
 			"en" => "There are 33 registered users in the system.",
 			"sk" => "V systéme je registrovaných 33 používateľov.",
@@ -48,7 +48,7 @@ public sealed class OperatorAiLocaleAcceptanceTests : IClassFixture<OperatorAiGr
 	[Fact]
 	public async Task After_sk_history_new_en_exchange_persists_en_assistant_locale()
 	{
-		_factory.Ai.GenerateHandler = locale =>
+		_factory.Ai.GenerateHandler = (_, locale) =>
 			locale == "en"
 				? "There are 33 registered users in the system."
 				: "V systéme je registrovaných 33 používateľov.";
