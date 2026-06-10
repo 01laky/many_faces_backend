@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.15](#1415) | Backend refactor X5/X6 SuperAdmin policy (7)      |
 | [1.4.14](#1414) | Backend refactor X5/X6 SuperAdmin policy (6)      |
 | [1.4.13](#1413) | Backend refactor X5/X6 auth-policy migration (5)  |
 | [1.4.12](#1412) | Backend refactor X5/X6 auth-policy migration (4)  |
@@ -45,6 +46,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.15]
+
+### Changed
+
+- **Backend refactor — authorization-policy migration, batch 7 (X5/X6, SuperAdmin policy).** Migrated `ContentModerationController` (`/api/ContentModeration` — moderation queue, audit events, metrics, bulk actions, and single-item approve/reject/remove) to a class-level `[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]`. The four direct-action `if (!CanModerate()) return Forbid();` gates (queue / events / metrics / bulk) were removed in favour of the policy; the shared `ApplyDecisionCoreAsync` (the single decision path reached by approve/reject/remove **and** the bulk loop) **keeps** its own `CanModerate()` guard as defense-in-depth, so the `IAccessEvaluator` dependency is retained. Authorization runs before the action, and the kept internal guard sits before the in-method validation exactly as before, so the matrix is unchanged (anonymous → 401, non-super-admin → 403, super-admin → allowed). Verified by the full `ContentModeration` integration suite (221 tests) staying green.
 
 ---
 
@@ -396,6 +405,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.15]: https://github.com/01laky/many_faces_backend/compare/v1.4.14...v1.4.15
 [1.4.14]: https://github.com/01laky/many_faces_backend/compare/v1.4.13...v1.4.14
 [1.4.13]: https://github.com/01laky/many_faces_backend/compare/v1.4.12...v1.4.13
 [1.4.12]: https://github.com/01laky/many_faces_backend/compare/v1.4.11...v1.4.12

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.Requests.Moderation;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Models.DTOs.Moderation;
@@ -15,9 +16,13 @@ namespace BeDemo.Api.Controllers;
 /// Super-admin moderation API: unified queue across albums/blogs/reels, audit history, operational metrics with alerts,
 /// single-item decisions, and bulk actions (including AI requeue). All mutating endpoints require global super-admin.
 /// </summary>
+// Backend-refactor X5/X6: the global SUPER_ADMIN gate (role-only, IsGlobalSuperAdmin) is enforced declaratively by the
+// SuperAdmin policy instead of the per-action CanModerate() check. The shared ApplyDecisionCoreAsync keeps its own
+// CanModerate() guard as defense-in-depth (it is the single decision path reached by approve/reject/remove AND the
+// bulk loop). Same matrix (anonymous → 401, non-super-admin → 403, super-admin → allowed).
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]
 public sealed class ContentModerationController : ControllerBase
 {
 	private readonly ApplicationDbContext _context;
@@ -67,9 +72,6 @@ public sealed class ContentModerationController : ControllerBase
 	[HttpGet]
 	public async Task<IActionResult> GetQueue([FromQuery] GetModerationQueueQuery q)
 	{
-		if (!CanModerate())
-			return Forbid();
-
 		var items = new List<ModerationItemDto>();
 
 		if (q.ContentType is null or ModeratedContentType.Album)
@@ -175,9 +177,6 @@ public sealed class ContentModerationController : ControllerBase
 	[HttpGet("{contentType}/{contentId:int}/events")]
 	public async Task<IActionResult> GetEvents(ModeratedContentType contentType, int contentId)
 	{
-		if (!CanModerate())
-			return Forbid();
-
 		var events = await _context.ContentModerationEvents
 			.Where(e => e.ContentType == contentType && e.ContentId == contentId)
 			.OrderByDescending(e => e.CreatedAtUtc)
@@ -193,9 +192,6 @@ public sealed class ContentModerationController : ControllerBase
 	[HttpGet("metrics")]
 	public async Task<IActionResult> GetMetrics()
 	{
-		if (!CanModerate())
-			return Forbid();
-
 		var metrics = await _metrics.GetSnapshotAsync();
 		var alerts = ContentModerationAlertEvaluator.Evaluate(metrics, DateTime.UtcNow);
 		foreach (var alert in alerts)
@@ -216,8 +212,6 @@ public sealed class ContentModerationController : ControllerBase
 	[HttpPost("bulk")]
 	public async Task<IActionResult> BulkModerate([FromBody] BulkModerationRequest request)
 	{
-		if (!CanModerate())
-			return Forbid();
 		if (string.IsNullOrEmpty(UserId))
 			return Unauthorized();
 		var results = new List<BulkModerationResultDto>();
