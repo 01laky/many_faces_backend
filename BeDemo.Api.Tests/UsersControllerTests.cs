@@ -150,22 +150,20 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory<Pr
 	[Fact]
 	public async Task CreateUser_ShouldReturnBadRequest_WhenInvalidEmail()
 	{
-		// Arrange
-		var token = await GetAuthTokenAsync();
-		_client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+		// Validation is only reached by an authorized (super-admin) caller — the ManageAllFaces policy runs first, so an
+		// unauthorized caller would be 403'd before model binding. Use the admin client to exercise the 400 path.
+		using var admin = await CreateAdminApiClientAsync();
 
 		var createRequest = new
 		{
 			email = "invalid-email",
 			password = "Test1234!@##",
 			firstName = "Test",
-			lastName = "User"
+			lastName = "User",
 		};
 
-		// Act
-		var response = await _client.PostAsJsonAsync("/api/users", createRequest);
+		var response = await admin.PostAsJsonAsync("/api/users", createRequest);
 
-		// Assert
 		response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 	}
 

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Models;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models.Requests.Users;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 using BeDemo.Api.Utils;
 
@@ -208,16 +209,18 @@ public class UsersController : ControllerBase
 	/// POST /api/users
 	/// Create a new user
 	/// </summary>
+	// Backend-refactor X5/X6: operator-only mutation gated by the ManageAllFaces policy (method-level, since list/get
+	// keep a per-face visibility branch on CanManageAllFaces() that is NOT a blanket gate). Authorization now runs
+	// before model validation — the conventional, more-secure order: an unauthorized caller is refused (403) without
+	// learning whether the body was well-formed (previously a malformed body from an unauthorized caller returned 400).
 	[HttpPost]
+	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 	public async Task<IActionResult> CreateUser([FromBody] CreateUserModel model)
 	{
 		if (!ModelState.IsValid)
 		{
 			return BadRequest(ModelState);
 		}
-
-		if (!CanManageAllFaces())
-			return Forbid();
 
 		try
 		{
@@ -273,15 +276,13 @@ public class UsersController : ControllerBase
 	/// Update user by ID
 	/// </summary>
 	[HttpPut("{id}")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 	public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserModel model)
 	{
 		if (!ModelState.IsValid)
 		{
 			return BadRequest(ModelState);
 		}
-
-		if (!CanManageAllFaces())
-			return Forbid();
 
 		try
 		{

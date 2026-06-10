@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.22](#1422) | Backend refactor X5/X6 Users auth (migration done)|
 | [1.4.21](#1421) | Backend refactor Phase 2 secret-protector base   |
 | [1.4.20](#1420) | Backend refactor X6 ApiControllerBase (complete) |
 | [1.4.19](#1419) | Backend refactor X6 ApiControllerBase (UserId)   |
@@ -52,6 +53,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.22]
+
+### Changed
+
+- **Backend refactor — `UsersController` create/update on the ManageAllFaces policy (X5/X6, migration complete).** `POST /api/users` and `PUT /api/users/{id}` now carry a method-level `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]` instead of an in-body `if (!CanManageAllFaces()) return Forbid();`. The accessor is method-level (not class-level) because the list/get actions keep `CanManageAllFaces()` as a per-face *visibility branch*, not a gate. With this, **every blanket operator gate across the controllers is now declarative** — the per-controller auth-policy migration is finished.
+
+### Security
+
+- **Authorization now runs before model validation on `POST`/`PUT /api/users`.** Moving the gate to a method-level attribute means an unauthorized caller is refused with **403 before model binding**, whereas previously a malformed body from an unauthorized caller returned **400** (validation ran before the in-body gate). This is the conventional, more-secure order — it no longer reveals request-validation results to callers who are not allowed to use the endpoint. The authorized matrix is unchanged (super-admin in admin scope → create/update; global ADMIN → 403; anonymous → 401). The `UsersControllerTests.CreateUser_ShouldReturnBadRequest_WhenInvalidEmail` test was updated to drive the 400 path through an authorized (super-admin) client, since validation is now only reachable when authorized.
 
 ---
 
@@ -464,6 +477,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.22]: https://github.com/01laky/many_faces_backend/compare/v1.4.21...v1.4.22
 [1.4.21]: https://github.com/01laky/many_faces_backend/compare/v1.4.20...v1.4.21
 [1.4.20]: https://github.com/01laky/many_faces_backend/compare/v1.4.19...v1.4.20
 [1.4.19]: https://github.com/01laky/many_faces_backend/compare/v1.4.18...v1.4.19
