@@ -773,21 +773,9 @@ builder.Services.AddAuthentication(options =>
 	};
 });
 
-// BSH3-A1: default deny — explicit [AllowAnonymous] on OAuth, JWKS, localization, documented public routes.
-builder.Services.AddAuthorization(options =>
-{
-	options.FallbackPolicy = new AuthorizationPolicyBuilder()
-		.RequireAuthenticatedUser()
-		.Build();
-
-	// Backend-refactor X5: declarative platform policies (SuperAdmin/GlobalAdmin/ManageAllFaces) mirroring
-	// PlatformAccessRules. Additive only — no controller enforces them yet; the per-controller migration follows.
-	BeDemo.Api.Security.PlatformAuthorizationPolicies.Configure(options);
-});
-
-// X5: ManageAllFaces needs the request-scoped IFaceScopeContext, so it is a scoped handler (not a static assertion).
-builder.Services.AddScoped<Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
-	BeDemo.Api.Security.ManageAllFacesAuthorizationHandler>();
+// Platform authorization: default-deny fallback (BSH3-A1) + X5 declarative policies + the ManageAllFaces handler.
+// Extracted to AddManyFacesAuthorization (Phase 3 Program.cs modularisation).
+builder.Services.AddManyFacesAuthorization();
 
 // ============================================================================
 // SIGNALR CONFIGURATION
@@ -803,11 +791,8 @@ builder.Services.AddSignalR();
 // Two probe surfaces, mapped below as anonymous endpoints:
 //   /health/live  — liveness: the process is up and the pipeline responds (no dependency checks).
 //   /health/ready — readiness: dependencies that must be up to serve traffic (DB), tagged "ready".
-builder.Services.AddHealthChecks()
-	.AddCheck<BeDemo.Api.HealthChecks.DatabaseReadinessHealthCheck>(
-		"database",
-		failureStatus: Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy,
-		tags: new[] { "ready" });
+// Registration extracted to AddManyFacesHealthChecks (Phase 3 Program.cs modularisation).
+builder.Services.AddManyFacesHealthChecks();
 
 // ============================================================================
 // GLOBAL EXCEPTION HANDLING — RFC 7807 ProblemDetails (backend-refactor X4)

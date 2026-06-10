@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.23](#1423) | Backend refactor Phase 3 Program.cs modularise (1)|
 | [1.4.22](#1422) | Backend refactor X5/X6 Users auth (migration done)|
 | [1.4.21](#1421) | Backend refactor Phase 2 secret-protector base   |
 | [1.4.20](#1420) | Backend refactor X6 ApiControllerBase (complete) |
@@ -53,6 +54,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.23]
+
+### Changed
+
+- **Backend refactor — Program.cs modularisation, slice 1 (Phase 3).** Began extracting the ~1100-line composition root into cohesive `AddManyFaces*` service-collection extensions. This slice moves two self-contained, pipeline-independent registration blocks out of `Program.cs`: platform authorization (default-deny fallback + the X5 declarative policies + the scoped `ManageAllFaces` handler) → `Configuration/AuthorizationServiceCollectionExtensions.AddManyFacesAuthorization()`, and the X14 health checks → `Configuration/HealthCheckServiceCollectionExtensions.AddManyFacesHealthChecks()`. `Program.cs` now calls the two one-liners in the same place/order. Purely structural and behaviour-preserving — the integration tests boot the real app, so the auth-policy enforcement (`PlatformSuperAdminAccessEdge`, `GlobalAuthFallback`) and the health probes (`HealthCheck*`) tests confirm identical behaviour; full backend suite 1939 passing, `dotnet format` clean.
 
 ---
 
@@ -477,6 +486,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.23]: https://github.com/01laky/many_faces_backend/compare/v1.4.22...v1.4.23
 [1.4.22]: https://github.com/01laky/many_faces_backend/compare/v1.4.21...v1.4.22
 [1.4.21]: https://github.com/01laky/many_faces_backend/compare/v1.4.20...v1.4.21
 [1.4.20]: https://github.com/01laky/many_faces_backend/compare/v1.4.19...v1.4.20
