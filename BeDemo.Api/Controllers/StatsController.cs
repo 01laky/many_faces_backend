@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Models.Requests.Stats;
+using BeDemo.Api.Security;
 using BeDemo.Api.Services;
 
 namespace BeDemo.Api.Controllers;
@@ -13,25 +14,22 @@ namespace BeDemo.Api.Controllers;
 /// Platform dashboard statistics for the admin SPA: consolidated counts (<c>GET /api/Stats</c>), optional
 /// UTC histograms (<c>GET /api/Stats/timeseries</c>), and anonymous aggregate totals (<c>GET /api/Stats/public</c>).
 /// </summary>
+// Backend-refactor X5/X6: the two operator-only endpoints (GetStats, GetTimeseries) carry a method-level
+// [Authorize(Policy = ManageAllFaces)] instead of an in-body CanManageAllFaces check; the public aggregate endpoint
+// keeps its own [AllowAnonymous]. Class-level [Authorize] still applies the default authenticated fallback.
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
 public sealed class StatsController : ControllerBase
 {
 	private readonly ApplicationDbContext _context;
-	private readonly IAccessEvaluator _access;
-	private readonly ILogger<StatsController> _logger;
 	private readonly IPlatformStatsQueryService _statsQuery;
 
 	public StatsController(
 		ApplicationDbContext context,
-		IAccessEvaluator access,
-		ILogger<StatsController> logger,
 		IPlatformStatsQueryService statsQuery)
 	{
 		_context = context;
-		_access = access;
-		_logger = logger;
 		_statsQuery = statsQuery;
 	}
 
@@ -39,14 +37,9 @@ public sealed class StatsController : ControllerBase
 	/// Returns the full <see cref="AdminDashboardSummaryDto"/> for authorized platform operators.
 	/// </summary>
 	[HttpGet]
+	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 	public async Task<ActionResult<AdminDashboardSummaryDto>> GetStats(CancellationToken cancellationToken)
 	{
-		if (!_access.CanManageAllFaces(User))
-		{
-			_logger.LogDebug("Stats summary denied for user lacking CanManageAllFaces.");
-			return Forbid();
-		}
-
 		return Ok(await _statsQuery.GetOperatorDashboardSummaryAsync(cancellationToken));
 	}
 
@@ -66,16 +59,11 @@ public sealed class StatsController : ControllerBase
 	/// Histogram data for dashboard charts.
 	/// </summary>
 	[HttpGet("timeseries")]
+	[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]
 	public async Task<ActionResult<StatsTimeseriesResponseDto>> GetTimeseries(
 		[FromQuery] StatsTimeseriesQuery query,
 		CancellationToken cancellationToken = default)
 	{
-		if (!_access.CanManageAllFaces(User))
-		{
-			_logger.LogDebug("Stats timeseries denied for user lacking CanManageAllFaces.");
-			return Forbid();
-		}
-
 		var m = query.Metric.Trim().ToLowerInvariant();
 		var fromUtc = query.FromUtc;
 		var toUtc = query.ToUtc;

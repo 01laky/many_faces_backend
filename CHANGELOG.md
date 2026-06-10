@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version        | Theme                                              |
 | -------------- | -------------------------------------------------- |
+| [1.4.13](#1413) | Backend refactor X5/X6 auth-policy migration (5)  |
 | [1.4.12](#1412) | Backend refactor X5/X6 auth-policy migration (4)  |
 | [1.4.11](#1411) | Backend refactor X5/X6 auth-policy migration (3)  |
 | [1.4.10](#1410) | Backend refactor X5/X6 auth-policy migration (2)  |
@@ -43,6 +44,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.13]
+
+### Changed
+
+- **Backend refactor — authorization-policy migration, batch 5 (X5/X6, method-level).** Migrated `StatsController`'s two operator-only endpoints — `GET /api/Stats` (dashboard summary) and `GET /api/Stats/timeseries` (chart histograms) — from an in-body `CanManageAllFaces` check to a **method-level** `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]`. This is the first method-level (rather than class-level) migration: the controller also hosts `GET /api/Stats/public`, which keeps its `[AllowAnonymous]`, so the policy is applied per-action rather than to the whole class. The now-unused `IAccessEvaluator` and `ILogger` dependencies were removed. Authorization matrix unchanged (anonymous → 401, global ADMIN → 403, SUPER_ADMIN on a non-admin face → 403, SUPER_ADMIN in admin scope → allowed; the public endpoint stays anonymous); pinned by `StatsController` + `PlatformSuperAdminAccessEdge` (incl. the super-admin-on-public-face 403 and unauthenticated-401 cases).
+  - **`UsersController` create/update were evaluated and deliberately left imperative**: their `CanManageAllFaces` gate sits *after* `ModelState` validation, so a method-level attribute would reorder authorization ahead of validation (an unauthorized caller with a malformed body would get 403 instead of the current 400) — a client-visible change, which these behaviour-preserving batches avoid. Their list/get actions also use `CanManageAllFaces()` as per-face visibility *branching*, not a gate.
 
 ---
 
@@ -377,6 +387,7 @@ totalCount, totalPages }` (BE-RP3).
 [0.2.0]: https://github.com/01laky/many_faces_backend/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/01laky/many_faces_backend/releases/tag/v0.1.0
 [1.2.0]: https://github.com/01laky/many_faces_backend/compare/v1.1.0...v1.2.0
+[1.4.13]: https://github.com/01laky/many_faces_backend/compare/v1.4.12...v1.4.13
 [1.4.12]: https://github.com/01laky/many_faces_backend/compare/v1.4.11...v1.4.12
 [1.4.11]: https://github.com/01laky/many_faces_backend/compare/v1.4.10...v1.4.11
 [1.4.10]: https://github.com/01laky/many_faces_backend/compare/v1.4.9...v1.4.10
