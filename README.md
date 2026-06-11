@@ -15,154 +15,42 @@
 
 **Author:** Ladislav Kostolny · [01laky@gmail.com](mailto:01laky@gmail.com)
 
-**The trust boundary for Many Faces AI.** This ASP.NET Core API owns authentication, face-scoped routing, authorization, PostgreSQL persistence, SignalR hubs, worker gRPC clients, Redis-backed jobs/cache, OpenAPI contracts, and the operator AI orchestration path. Clients (portal, admin, mobile) use **HTTPS/REST/SignalR** here only — workers, Elasticsearch, and Ollama are reached through this API.
+> **The trust boundary for Many Faces AI.** This ASP.NET Core API owns authentication, face-scoped routing, authorization, PostgreSQL persistence, SignalR hubs, worker gRPC clients, Redis-backed jobs, OpenAPI contracts, and the operator AI orchestration path. Clients talk here — workers, Elasticsearch, and Ollama are reached through this API only.
 
-### Three pillars
+---
 
-| Pillar               | Highlights                                                                                                                                                                                                                                                                                                                                                                      |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Security (BSH3)**  | **ES512 JWT** + JWKS, **`atv`** session invalidation, face-scope middleware (anti-spoof), refresh rotation, rate limits, **HMAC signed upload URLs**, production **fallback deny**, gRPC **TLS + bearer** to workers. CI: `node ../scripts/verify-backend-security-tests.mjs`. Guide: [`../docs/guides/security-crypto-sockets.md`](../docs/guides/security-crypto-sockets.md). |
-| **AI orchestration** | **Operator chat** (`ChatHub` → `many_faces_ai`), **live stats map-reduce** (61 entity bundles, Redis stage-1 cache), **`ReviewContent`** moderation jobs (Redis queue, sanitization before gRPC). Runbook: [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md).                                                      |
-| **Configuration**    | **Faces** + pages + **`gridSchema`** in PostgreSQL; **operator settings in DB** — mail SMTP ([`admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md)), push FCM ([`admin-push-configuration.md`](../docs/guides/admin-push-configuration.md)), search/AI modes; env bootstrap until admin saves.                                                        |
-| **Performance**      | **BE-RP1…35** (v1.1.0) — faces config + capabilities cache, grid snapshot BFF (**BE-RP8**), JWT `atv` cache, upload cache headers. Docs: [`docs/runtime-performance-v1.md`](./docs/runtime-performance-v1.md) · [`../docs/guides/backend-performance.md`](../docs/guides/backend-performance.md).                                                                               |
+## Quick Start
 
-| Start here          | Link                                                                                                                                                    |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Security**        | BSH3 above · [`appsettings.Hardened.json`](./BeDemo.Api/appsettings.Hardened.json) · worker TLS env vars                                                |
-| Run in full stack   | `../scripts/start-all-dev.sh` from `many_faces_main`                                                                                                    |
-| Swagger             | `http://localhost:8000/swagger/index.html`                                                                                                              |
-| Local accounts      | [`../docs/guides/local-dev-accounts.md`](../docs/guides/local-dev-accounts.md)                                                                          |
-| Platform ACL        | [`../docs/guides/admin-superadmin-only-access.md`](../docs/guides/admin-superadmin-only-access.md)                                                      |
-| Operator AI runbook | [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md)                                          |
-| Runtime performance | [`docs/runtime-performance-v1.md`](./docs/runtime-performance-v1.md) · [`../docs/guides/backend-performance.md`](../docs/guides/backend-performance.md) |
-| Admin mail settings | [`../docs/guides/admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md)                                                          |
-| Admin push settings | [`../docs/guides/admin-push-configuration.md`](../docs/guides/admin-push-configuration.md)                                                              |
-| Infra smoke APIs    | [`../docs/guides/admin-settings-infrastructure-smoke-tests.md`](../docs/guides/admin-settings-infrastructure-smoke-tests.md)                            |
+```bash
+# Full stack (recommended)
+cd many_faces_main
+./scripts/start-all-dev.sh
+```
+
+| Endpoint  | URL                                        |
+| --------- | ------------------------------------------ |
+| API HTTP  | `http://localhost:8000`                    |
+| API HTTPS | `https://localhost:8001`                   |
+| Swagger   | `http://localhost:8000/swagger/index.html` |
+
+**Guides:** [Local dev accounts](../docs/guides/local-dev-accounts.md) · [Local HTTPS](../docs/guides/dev-https.md) · [Operator AI runbook](../docs/guides/backend-stats-and-admin-ai-runbook.md)
+
+---
+
+## Architecture
 
 ```mermaid
 flowchart LR
     clients["portal / admin / mobile"] --> api["many_faces_backend<br/>REST · JWT · SignalR"]
     api --> pg["PostgreSQL<br/>system of record"]
     api --> redis["Redis<br/>jobs + live stats cache"]
-    api --> ai["many_faces_ai<br/>Generate / ReviewContent"]
+    api --> ai["many_faces_ai<br/>Generate / EmbedText / ReviewContent"]
     api --> search["many_faces_elastic<br/>search-worker gRPC"]
     api --> push["many_faces_push<br/>FCM gRPC"]
     api --> mailer["many_faces_mailer<br/>SMTP gRPC"]
 ```
 
-### Encryption & trust boundary (BSH3)
-
-```mermaid
-flowchart TB
-  subgraph clients["Clients HTTPS/WSS"]
-    SPA["Portal / Admin / Mobile"]
-  end
-  subgraph be["many_faces_backend"]
-    API["ASP.NET Core API"]
-    JWT["ES512 JWT + atv session"]
-    UP["HMAC signed upload URLs"]
-  end
-  subgraph data["Data plane TLS in Hardened"]
-    PG["PostgreSQL SSL"]
-    RD["Redis TLS + AUTH"]
-  end
-  subgraph workers["Worker gRPC HTTPS + token"]
-    AI["many_faces_ai"]
-    SR["search-worker"]
-    PU["push-worker"]
-    ML["mailer"]
-  end
-  SPA --> API
-  API --> JWT
-  API --> UP
-  API --> PG
-  API --> RD
-  API --> AI
-  API --> SR
-  API --> PU
-  API --> ML
-```
-
-Dev compose uses cleartext **h2c** to workers on the Docker network; **`ASPNETCORE_ENVIRONMENT=Hardened`** (see `appsettings.Hardened.json`, `docker-compose.hardened.yml`) requires **https://** worker URLs and non-empty bearer tokens. Spec: [`docs/prompts/security-hardening-backend-v3-agent-prompt.md`](../docs/prompts/security-hardening-backend-v3-agent-prompt.md).
-
-## Overview
-
-The Backend API (**many_faces_backend**; monorepo path `many_faces_backend/`) provides a RESTful API for user authentication, authorization, and management. It uses ASP.NET Core Identity for user management, Entity Framework Core for access to PostgreSQL, and OAuth2-issued JWTs for bearer APIs.
-
-The backend is the trust boundary for the Many Faces AI demo. It owns authentication, token issuing, face-aware request routing, role and capability evaluation, persisted social data, page/grid schemas, real-time hubs, AI integration, Redis-backed background work, structured logs, and OpenAPI contracts consumed by the frontend and admin submodules.
-
-For users, this API is what keeps each face experience coherent: it returns the correct face configuration, page structure, social content, chat data, profile data, media modules, role state, and available actions. For admins, it stores the structural configuration that drives the user-facing frontend, especially pages and their `gridSchema` JSON layouts.
-
-For engineers, the backend is designed as a layered ASP.NET Core service: middleware resolves face scope, authentication validates ES512 JWTs, authorization and capability services evaluate roles, controllers expose typed HTTP resources, EF Core persists data in PostgreSQL, SignalR hubs provide real-time channels, Redis supports queue-style infrastructure, and generated OpenAPI clients keep the React apps typed.
-
-## What This Backend Provides
-
-- OAuth2/JWT authentication for frontend and admin clients.
-- Signed ES512 access tokens, public JWKS validation keys, refresh-token based sessions, and explicit token expiry handling.
-- Opaque refresh tokens stored server-side as SHA-256 hashes and rotated on every refresh grant.
-- Session invalidation through the `atv` access-token version claim and `ApplicationUser.AccessTokenVersion`.
-- Face-prefixed API and hub routing that resolves the active face from the URL and applies trusted server-side scope.
-- Backend-enforced checks for face-specific data access, admin operations, role selection, and private face behaviour.
-- **Platform operator bar:** `CanManageAllFaces` = **admin face URL prefix + global `SUPER_ADMIN` only** (global **`ADMIN`** is portal-only). **`IsGlobalSuperAdmin`** gates moderation, operator user detail, and super-admin user chat. See [`docs/guides/admin-superadmin-only-access.md`](../docs/guides/admin-superadmin-only-access.md).
-- Capability responses through `/api/me/capabilities` so clients can render role-aware UI without guessing.
-- CRUD and domain APIs for users, faces, pages, page types, route translations, profiles, albums, blogs, reels, stories, wall listings, chats, comments, likes, follows, blocks, and notifications.
-- Page `gridSchema` persistence used by **many_faces_admin** (`many_faces_admin/`) to configure layouts and by **many_faces_portal** (`many_faces_portal/`) to render them.
-- SignalR hubs for chat and real-time communication.
-- **Operator statistics APIs:** `GET /api/Stats`, `GET /api/Stats/timeseries` (JWT + **`CanManageAllFaces`** = **`SUPER_ADMIN` on admin face**), and **`GET /api/Stats/public`** (anonymous aggregate counts on the **`public`** face prefix only). Counts for the full dashboard are centralized in **`IPlatformStatsQueryService`**.
-- **Operator user moderation (`SUPER_ADMIN` only):** `OperatorUsersController` at `/api/operator-users/users/{id}/detail`, global/face ban (required `reason`), face `userRoleId` patch, and `platform-messages` — see [`docs/guides/admin-operator-user-detail.md`](../docs/guides/admin-operator-user-detail.md).
-- **Admin super-admin self profile:** `AdminMeProfileController` at `/api/admin/me/profile`, password, face role PATCH (all-faces grid + upsert), email confirm resend; anonymous `GET /api/auth/confirm-email` — see [`docs/guides/admin-superadmin-profile.md`](../docs/guides/admin-superadmin-profile.md). Tests: `dotnet test --filter FullyQualifiedName~AdminMeProfileControllerTests` (**SAP-B1…B20**).
-- **Super-admin user chat (`SUPER_ADMIN` only):** `OperatorUserChatController` at `/api/operator-user-chat/*`, `PlatformDirectMessageService`, and `MessengerHub.SendPlatformDirectMessage` — per-operator 1:1 threads over `Messages` — see [`docs/guides/admin-superadmin-user-chat.md`](../docs/guides/admin-superadmin-user-chat.md).
-- AI gRPC client integration (**`Generate`** with optional **`stats_context_json`**, **`OperatorStatsChat`**, **`ReviewContent`**) and Redis-backed queue infrastructure for asynchronous workflows.
-- **Optional Elasticsearch search projection:** gRPC **`SearchService`** client to the Go **search-worker** in **`many_faces_elastic`** (shipping path does not open Elasticsearch HTTP from the API process); see monorepo [`docs/guides/elasticsearch-search-features-overview.md`](../docs/guides/elasticsearch-search-features-overview.md), [`docs/guides/elasticsearch-local-dev.md`](../docs/guides/elasticsearch-local-dev.md), and [`docs/guides/elasticsearch-grpc-tls-mtls.md`](../docs/guides/elasticsearch-grpc-tls-mtls.md).
-- **Admin global search:** `AdminSearchController` — `GET /admin/api/search/autocomplete` (paginated, ACL + XSS sanitize); **`SearchOutbox`** processor; **`SearchIndexReconciliationHostedService`** (startup delay + every **6 h**). Config: `Search:Enabled`, `Search:WorkerGrpcUrl`, `Search:ReconciliationIntervalHours`, … — guide [`docs/guides/admin-global-search-autocomplete.md`](../docs/guides/admin-global-search-autocomplete.md). Tests: `dotnet test BeDemo.Api.Tests --filter "FullyQualifiedName~Search"`.
-- **Optional FCM push dispatch:** gRPC **`PushService`** client to the Go **push-worker** in **`many_faces_push`**; device registration via **`POST /{face}/api/me/push-token`** and removal via **`DELETE /{face}/api/me/push-token`**; operator smoke via **`POST /api/admin/push/test-self`**. See [`docs/guides/push-notifications-local-dev.md`](../docs/guides/push-notifications-local-dev.md) and admin Settings panel [`docs/guides/admin-settings-infrastructure-smoke-tests.md`](../docs/guides/admin-settings-infrastructure-smoke-tests.md).
-- **Operator infra smoke (admin):** read-only **`GET /api/admin/infra/worker-config`**; mail **`GET/PUT /api/admin/mail/settings`**, push **`GET/PUT /api/admin/push/settings`**, **`POST .../test-fcm`**; smoke **`POST /api/admin/mailer/test-self`**, **`POST /api/admin/push/test-self`** — [`admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md), [`admin-push-configuration.md`](../docs/guides/admin-push-configuration.md). CI: `verify-admin-mail-settings-tests.mjs`, `verify-admin-push-settings-tests.mjs`.
-- **Worker `.proto` source:** nested **`many_faces_proto`** submodule at **`many_faces_backend/many_faces_proto`** (`..\many_faces_proto\proto\...` from `BeDemo.Api/`), including **`health.proto`** for the AI **HealthService** client. Use **`git submodule update --init --recursive`** in this repo (and in **`many_faces_main`** so nested submodules initialize).
-- Structured Serilog/Seq logging, Swagger/OpenAPI documentation, migrations, seed data, and unit/integration tests.
-- **REST input validation:** FluentValidation (**~76** schemas), `ValidationProblemDetails` on most endpoints, `IFileValidator` for avatar/story uploads — [`docs/guides/api-request-validation.md`](../docs/guides/api-request-validation.md).
-- **Static UI localization:** embedded `.resx` per app (`BeDemo.Api/Localization/`), served as JSON via anonymous **`GET /api/localization/{app}`** (`portal` | `admin` | `mobile`); face-prefix exempt — [`docs/guides/static-localization-and-i18n.md`](../docs/guides/static-localization-and-i18n.md).
-
-## Technical Specification
-
-- **Runtime:** .NET 10 / ASP.NET Core Web API.
-- **Persistence:** EF Core 10 with PostgreSQL, code-first migrations, Identity tables, OAuth clients, refresh tokens, faces, page schemas, and social-module tables.
-- **Authentication:** ASP.NET Core JWT Bearer authentication with ES512 validation, issuer/audience checks, zero clock skew, and SignalR query-token support for hub connections.
-- **Token issuing:** `OAuth2Service` orchestrates password and refresh-token grants through `OAuthClientValidator`, `OAuthAccessTokenFactory`, `OAuthTokenRequestSignatureVerifier`, and `OAuthRefreshTokenStore`.
-- **Key management:** `ECDSAKeyService` supports stable P-521 signing keys through `Jwt:SigningPemPath` and `Jwt:KeyId`; development can use ephemeral keys.
-- **Authorization model:** global roles live on `ApplicationUser.UserRoleId`; face-specific roles live in `UserFaceRole`; capability keys are computed by `AccessCapabilitiesService`.
-- **Face scope:** `RoutingMiddleware` rewrites `/{face-prefix}/api/...` and `/{face-prefix}/hubs/...`, strips caller-supplied scope query parameters, and stores trusted face metadata in `HttpContext.Items`.
-- **Admin scope:** the admin face prefix can preserve an explicit `faceId` query for cross-face operations, but admin role/capability checks still gate privileged behaviour.
-- **Grid pages:** `PagesController` stores `Page.GridSchema`; admin edits serialize JSON and frontend rendering consumes it as read-only layout data.
-- **Realtime:** SignalR hubs are protected by `[Authorize]`; hub JWT validation uses the same access-token signature and session-version checks as REST APIs.
-- **Infrastructure:** Redis is optional at runtime; when configured, `RedisJobQueue` and `RedisJobWorkerService` are registered, otherwise a no-op queue is used.
-- **Observability:** Serilog writes structured logs to console/Seq; security-sensitive operations use audit-style logging where relevant.
-
-## Security Architecture And Solution Design
-
-Security is designed around explicit, layered checks rather than implicit client trust:
-
-- **Signed access tokens:** access JWTs are signed with ECDSA ES512 and validated with issuer, audience, lifetime, algorithm, and signing-key checks.
-- **Public verification keys:** `/api/oauth2/jwks` exposes public keys for access-token verification without exposing private signing material.
-- **Refresh-token rotation:** refresh tokens are high-entropy opaque strings; only SHA-256 hashes are stored; every refresh redemption revokes the old token and issues a replacement.
-- **Replay resistance:** PostgreSQL refresh redemption uses serializable transactions to reduce double-spend risk for the same refresh token under concurrency.
-- **Session revocation:** every access token carries `atv`; after token validation the backend compares it with `ApplicationUser.AccessTokenVersion` and rejects stale tokens.
-- **Password reset hardening:** admin password reset increments `AccessTokenVersion` and revokes active refresh tokens for that user.
-- **Face-scope hardening:** URL-derived face scope is resolved server-side; caller-supplied `faceId` / `requestFaceID` query parameters are stripped and re-applied from trusted routing state.
-- **Capability contract:** clients use `/api/me/capabilities` for UI decisions, but server controllers and services still enforce permissions.
-- **Protected admin operations:** page type mutations, cross-face operations, admin routes, and sensitive user operations require backend role/capability checks.
-- **SignalR security:** hubs require authentication, accept bearer tokens through the WebSocket query only for `/hubs`, and still run JWT/session-version validation.
-- **Operational safety:** Swagger is disabled in production unless explicitly enabled, stable signing keys are configurable, and emergency session invalidation is documented.
-
-The intended solution shape is:
-
-- Keep all durable security decisions in the backend.
-- Let frontend/admin read capabilities for better UX, but never make those capabilities the only enforcement layer.
-- Treat face scope as request context derived by middleware, not as a client-controlled query value.
-- Store grid layouts as data (`gridSchema`) while rendering remains the responsibility of clients.
-- Prefer typed OpenAPI clients and DTOs over hand-written request contracts.
-- Keep cryptographic and token-lifecycle decisions documented because they affect operations, incident response, and future hardening.
-
-## Backend Request Pipeline
+### Backend request pipeline
 
 ```mermaid
 flowchart TD
@@ -179,11 +67,97 @@ flowchart TD
     controller --> response["Typed DTO / OpenAPI response"]
 ```
 
-## Operator statistics and admin AI chat (optional)
+### Trust boundary (BSH3)
 
-The **admin dashboard** uses **`GET /api/Stats`** and **`GET /api/Stats/timeseries`** with a platform-operator JWT under the **admin** face prefix. **`GET /api/Stats/public`** returns **`PublicStatsSnapshotDto`** (counts only) and is **`[AllowAnonymous]`** when called under the **`public`** face prefix — used by the dashboard preview and legacy stats helpers. Operator AI chat settings are server-backed through **`GET/PUT /api/operator-ai/public-stats-settings`**; **live** mode uses the backend map-reduce pipeline and Redis stage-1 cache. Full write-up: monorepo [`docs/guides/admin-dashboard-metrics.md`](../docs/guides/admin-dashboard-metrics.md).
+```mermaid
+flowchart TB
+  subgraph clients["Clients HTTPS/WSS"]
+    SPA["Portal / Admin / Mobile"]
+  end
+  subgraph be["many_faces_backend"]
+    API["ASP.NET Core API"]
+    JWT["ES512 JWT + atv session"]
+    UP["HMAC signed upload URLs"]
+  end
+  subgraph data["Data plane — TLS in Hardened"]
+    PG["PostgreSQL SSL"]
+    RD["Redis TLS + AUTH"]
+  end
+  subgraph workers["Worker gRPC — HTTPS + token"]
+    AI["many_faces_ai"]
+    SR["search-worker"]
+    PU["push-worker"]
+    ML["mailer"]
+  end
+  SPA --> API
+  API --> JWT
+  API --> UP
+  API --> PG
+  API --> RD
+  API --> AI
+  API --> SR
+  API --> PU
+  API --> ML
+```
 
-## OAuth2, JWT, And Session Flow
+---
+
+## Three Pillars
+
+| Pillar               | Highlights                                                                                                                                                                                                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Security (BSH3)**  | **ES512 JWT** + JWKS, **`atv`** session invalidation, face-scope middleware (anti-spoof), refresh rotation, rate limits, **HMAC signed upload URLs**, production **fallback deny**, gRPC **TLS + bearer** to workers. CI: `node ../scripts/verify-backend-security-tests.mjs`. Guide: [`../docs/guides/security-crypto-sockets.md`](../docs/guides/security-crypto-sockets.md). |
+| **AI orchestration** | **Operator chat** (`ChatHub` → `many_faces_ai`), **RAG retrieval** (embed → ES kNN+BM25 → fresh-load → map+stitch), **`ReviewContent`** moderation jobs (Redis queue, sanitization before gRPC). Runbook: [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md).                                                       |
+| **Configuration**    | **Faces** + pages + **`gridSchema`** in PostgreSQL; **operator settings in DB** — mail SMTP, push FCM, search/AI modes; env bootstrap until admin saves. Optional workers toggled via `ENABLE_*=0`.                                                                                                                                                                             |
+
+---
+
+## What This Backend Provides
+
+| Domain                 | Capabilities                                                                                                                                               |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Authentication**     | OAuth2/JWT: password + refresh grants, ES512 access tokens, JWKS, session invalidation (`atv`), refresh rotation (SHA-256 opaque tokens)                   |
+| **Face scope**         | `RoutingMiddleware` resolves face prefix, strips caller-supplied `faceId`, stores trusted scope in `HttpContext.Items`                                     |
+| **Authorization**      | Global roles + per-face `UserFaceRole`; `/api/me/capabilities` for UI; capability checks in all controllers                                                |
+| **Social modules**     | Profiles, albums, blogs, reels, stories, wall listings, chats, comments, likes, follows, blocks, notifications                                             |
+| **Grid pages**         | `Page.GridSchema` JSON: admin saves, portal renders                                                                                                        |
+| **SignalR hubs**       | `ChatHub`, `MessengerHub`, `ChatRoomHub` — JWT + atv validated on connection                                                                               |
+| **Operator AI**        | RAG chat (`ChatHub` → embed → ES retrieval → map+stitch → `GenerateStream`); content moderation queue (Redis → `ContentAiReviewService` → `ReviewContent`) |
+| **Search**             | `AdminSearchController` autocomplete; `SearchOutbox` processor; `SearchIndexReconciliationHostedService`                                                   |
+| **Push**               | FCM device registration (`POST /{face}/api/me/push-token`); worker dispatch via gRPC                                                                       |
+| **Mail**               | Transactional templates via `many_faces_mailer` gRPC (registration code, password reset, email confirm)                                                    |
+| **Operator stats**     | `GET /api/Stats`, `/timeseries` (JWT); `GET /api/Stats/public` (anonymous, `public` prefix)                                                                |
+| **Admin self-profile** | `AdminMeProfileController` — identity, password, face roles, email confirm                                                                                 |
+| **Operator user ops**  | `OperatorUsersController` — detail, bans, `userRoleId` patch, platform DMs                                                                                 |
+| **Validation**         | FluentValidation (~76 schemas); `ValidationProblemDetails`; `IFileValidator` for uploads                                                                   |
+| **i18n**               | Embedded `.resx`; `GET /api/localization/{app}` — `portal`, `admin`, `mobile`                                                                              |
+| **Observability**      | Serilog + Seq; structured audit logs; Swagger (disabled in prod by default)                                                                                |
+
+---
+
+## Security Architecture (BSH3)
+
+| Mechanism                | Implementation                                                                             |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| **Signed access tokens** | ECDSA ES512, validated with issuer/audience/lifetime/algorithm/key checks                  |
+| **Public JWKS**          | `GET /api/oauth2/jwks` — public key only, no private material                              |
+| **Refresh rotation**     | Opaque high-entropy tokens; only SHA-256 hash stored; single-use, rotated on every grant   |
+| **Session revocation**   | `atv` claim in every JWT; validated against `AccessTokenVersion` after every request       |
+| **Face scope hardening** | URL-derived scope only; caller-supplied `faceId` / `requestFaceID` stripped and re-applied |
+| **Capability contract**  | `/api/me/capabilities` for UI; backend always re-enforces                                  |
+| **gRPC TLS**             | Optional TLS + bearer token to all workers; enforced in `Hardened` environment             |
+| **Fallback deny**        | `FallbackPolicy` = authenticated; all unauthenticated routes opt-in via `[AllowAnonymous]` |
+| **Swagger**              | Disabled in production unless `Swagger:EnableInProduction=true`                            |
+
+```bash
+# BSH3 hardened environment
+ASPNETCORE_ENVIRONMENT=Hardened
+# Requires https:// worker URLs + non-empty bearer tokens
+```
+
+---
+
+## OAuth2, JWT, and Session Flow
 
 ```mermaid
 sequenceDiagram
@@ -194,7 +168,7 @@ sequenceDiagram
     participant Store as OAuthRefreshTokenStore
     participant DB as PostgreSQL
 
-    Client->>OAuth: POST /api/oauth2/token password grant
+    Client->>OAuth: POST /api/oauth2/token  password grant
     OAuth->>Service: validate client + user credentials
     Service->>Factory: create ES512 access JWT
     Factory->>DB: read user role + AccessTokenVersion
@@ -202,7 +176,7 @@ sequenceDiagram
     Store->>DB: store SHA-256 refresh hash
     OAuth-->>Client: accessToken + refreshToken + expiresIn
 
-    Client->>OAuth: POST /api/oauth2/token refresh_token grant
+    Client->>OAuth: POST /api/oauth2/token  refresh_token grant
     OAuth->>Service: redeem refresh token
     Service->>Store: rotate refresh token
     Store->>DB: revoke old hash + insert new hash
@@ -210,12 +184,14 @@ sequenceDiagram
     OAuth-->>Client: new accessToken + rotated refreshToken
 ```
 
-## Face-Scoped Routing And Capabilities
+---
+
+## Face-Scoped Routing and Capabilities
 
 ```mermaid
 flowchart LR
     request["/public/api/faces/config<br/>/community/hubs/chat"] --> router["RoutingMiddleware"]
-    router --> lookup["Face lookup<br/>kebab prefix -> Face.Id"]
+    router --> lookup["Face lookup<br/>kebab prefix → Face.Id"]
     lookup --> sanitize["Strip client faceId/requestFaceID<br/>re-add trusted values"]
     sanitize --> context["IFaceScopeContext<br/>FaceId, FaceIndex, IsAdminFaceScope"]
 
@@ -227,6 +203,45 @@ flowchart LR
     controllers --> gates["Backend gates<br/>role, capability, face ownership"]
     gates --> data["Face-specific data"]
 ```
+
+---
+
+## AI-Assisted Content Approval
+
+New user-created content (albums, blogs, reels) is stored as `PendingApproval`, excluded from public views, and routed through an async AI review before a `SUPER_ADMIN` finalizes the decision.
+
+```mermaid
+flowchart TD
+    create["FE create album/blog/reel"] --> backend["Backend create endpoint"]
+    backend --> pending["ApprovalStatus = PendingApproval"]
+    pending --> filter["Public APIs return Approved only"]
+    pending --> notif["IContentModerationNotifier"]
+    pending --> job["Enqueue content.ai-review"]
+
+    job --> worker["RedisJobWorkerService"]
+    worker --> sanitize["Sanitize + cap untrusted fields"]
+    sanitize --> ai["many_faces_ai ReviewContent"]
+    ai --> policy["Normalize flags + validate policy"]
+
+    policy --> recApprove["RecommendedApprove"]
+    policy --> recReject["RecommendedReject"]
+    policy --> needsHuman["NeedsHumanReview / Failed"]
+
+    recApprove --> adminApi["ContentModerationController + bulk"]
+    recReject --> adminApi
+    needsHuman --> adminApi
+
+    adminApi --> approved["Approved → public lists"]
+    adminApi --> rejected["Rejected → safe user message"]
+    adminApi --> removed["Removed → audit retained"]
+    adminApi --> audit["ContentModerationEvents"]
+```
+
+**Safe decision rule:** AI recommends → backend policy validates → `SUPER_ADMIN` finalizes (AI never auto-publishes).
+
+**Guide:** [`../docs/guides/ai-assisted-content-approval.md`](../docs/guides/ai-assisted-content-approval.md)
+
+---
 
 ## Page Grid Schema Lifecycle
 
@@ -243,17 +258,19 @@ flowchart TD
     parse --> render["ComponentBlock renders<br/>album/blog/reel/story/chat/profile blocks"]
 ```
 
-## Realtime, AI, And Background Work
+---
+
+## Realtime, AI, and Background Work
 
 ```mermaid
 flowchart LR
     user["Authenticated user"] --> hub["SignalR hubs<br/>ChatHub / MessengerHub / ChatRoomHub"]
-    hub --> jwt["JWT validation<br/>including atv check"]
-    jwt --> groups["Face-scoped groups<br/>chat broadcasts"]
-    groups --> db["EF Core / PostgreSQL<br/>messages + social data"]
+    hub --> jwt["JWT + atv validation"]
+    jwt --> groups["Face-scoped groups + broadcasts"]
+    groups --> db["EF Core / PostgreSQL"]
 
     hub --> aiRate["AI rate limiter"]
-    aiRate --> aiGrpc["AiGrpcService<br/>Python gRPC AI service"]
+    aiRate --> aiGrpc["AiGrpcService<br/>Python gRPC — Generate / EmbedText / ReviewContent"]
 
     api["API controllers/services"] --> queue["RedisJobQueue"]
     queue --> redis["Redis"]
@@ -261,109 +278,96 @@ flowchart LR
     worker --> logs["Serilog / Seq"]
 ```
 
-## AI-Assisted Content Approval
+---
 
-The backend is the source of truth for the approval workflow for regular FE user-created albums, blogs, and reels. New user-created content is stored as `PendingApproval`, excluded from public grid/list/detail queries, and routed into a review process before it can become public. Full design: [`docs/guides/ai-assisted-content-approval.md`](../docs/guides/ai-assisted-content-approval.md).
+## Technical Specification
 
-Backend responsibilities:
+| Dimension           | Details                                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Runtime**         | .NET 10 / ASP.NET Core Web API                                                                                           |
+| **Persistence**     | EF Core 10, PostgreSQL, code-first migrations                                                                            |
+| **Auth**            | JWT Bearer ES512; issuer/audience/lifetime/algorithm/key checks; zero clock skew                                         |
+| **Token issuing**   | `OAuth2Service` → `OAuthClientValidator` + `OAuthAccessTokenFactory` + `OAuthRefreshTokenStore`                          |
+| **Key management**  | `ECDSAKeyService` — stable P-521 keys via `Jwt:SigningPemPath` / `Jwt:KeyId`; ephemeral in dev                           |
+| **Authorization**   | Global roles on `ApplicationUser.UserRoleId`; face roles in `UserFaceRole`; capabilities via `AccessCapabilitiesService` |
+| **Redis**           | Optional at runtime; `RedisJobQueue` + `RedisJobWorkerService` when configured, no-op otherwise                          |
+| **Observability**   | Serilog → console + Seq; security-sensitive operations at `SECURITY_AUDIT` level                                         |
+| **Validation**      | FluentValidation ~76 schemas; `ValidationProblemDetails`; `IFileValidator` for uploads                                   |
+| **Proto contracts** | Nested **`many_faces_proto`** submodule at `many_faces_backend/many_faces_proto/`                                        |
 
-- Persist approval status and moderation metadata for albums, blogs, and reels.
-- Default existing/admin-created content to `Approved` unless product changes that rule.
-- Default regular FE-created content to `PendingApproval`.
-- Keep public queries filtered to `Approved` content only.
-- Create AI review job records and enqueue review work instead of calling AI synchronously from create requests.
-- Store AI recommendation metadata separately from final approval status.
-- Apply backend policy before any AI recommendation changes public visibility.
-- Strip delimiter-smuggling characters from creator text before it reaches the AI process, and treat obvious instruction-like phrases as **human-review** when the model still returns **Approve** (configurable via `ContentModeration:InstructionHeuristicEnabled`).
-- Expose protected moderation APIs restricted to `SUPER_ADMIN` for approve/reject/remove in this phase.
-- Write moderation audit events for submit, queue, AI recommendation, approve, reject, remove, and override transitions.
+---
 
-Safe decision rule:
+## Security Operations
 
-- AI recommends.
-- Backend policy validates.
-- `SUPER_ADMIN` finalizes unless a future controlled auto-approval policy is explicitly enabled.
-
-Implemented backend pieces:
-
-- `ContentApprovalStatus`, `AiReviewStatus`, AI decision/risk enums, `AiReviewJob`, and `ContentModerationEvent`.
-- Moderation metadata fields on `Album`, `Blog`, and `Reel`.
-- `ContentModerationController` for filterable queue listing, `{ metrics, alerts }`, audit events, single-item approve/reject/remove/requeue, and **bulk** moderation with per-item results.
-- `MyContentSubmissionsController` (`GET /api/my/content-submissions`) for authenticated creators — unified pending items with safe fields and `canEdit` / `canDelete`.
-- `ContentAiReviewService` for `content.ai-review` job processing: **sanitized gRPC payloads**, optional **`instruction_like_text`** heuristic on stored content, structured `ReviewContent` calls, **normalized AI flags**, policy validation, retry scheduling, stale-version protection, and escalation to `NeedsHumanReview`.
-- `ContentModerationSecurityOptions` (`ContentModeration:` in configuration) toggles the instruction heuristic (default on).
-- `IContentModerationNotifier` for in-app notifications on submit and when AI exhausts retries.
-- Optional `ContentRetentionCleanupService` + hosted worker (see `Retention` configuration) for dry-run or executed redaction of internal AI trace fields after policy delay.
-- Migration defaults that preserve existing content as `Approved`.
-- Integration tests covering visibility, bulk moderation, metrics/alerts wiring, retention behaviour, audit writes, and **moderation security edge cases** (`ContentModerationTests`, `ContentModerationSecurityEdgeTests`, `ContentModerationUnicodeSpoofingTests` for SHV2 **PI-6** Unicode spoofing, `ContentModerationTrustBoundaryTests` for SHV2 **PI-9** untrusted vs operator AI boundary, `ContentModerationPayloadLogRedactionTests` for SHV2 **PI-7** invalid-payload log redaction, red-team corpus `BeDemo.Api.Tests/Fixtures/prompt_injection_corpus.txt`). Trust-boundary constants: `ContentModerationTrustBoundary.cs`. **CI gate (SHV2 PI-10):** monorepo `node scripts/verify-moderation-security-tests.mjs` runs xUnit `Category=ModerationSecurity` (`ContentModerationCiGate.cs`).
-
-```mermaid
-flowchart TD
-    create["FE create album/blog/reel"] --> backend["Backend create endpoint"]
-    backend --> pending["ApprovalStatus = PendingApproval"]
-    pending --> filter["Public APIs return<br/>Approved only for non-owners"]
-    pending --> notif["IContentModerationNotifier"]
-    pending --> job["Enqueue content.ai-review"]
-
-    job --> worker["RedisJobWorkerService"]
-    worker --> sanitize["Sanitize + cap untrusted fields"]
-    sanitize --> ai["many_faces_ai ReviewContent"]
-    ai --> policy["Normalize flags + validate policy"]
-
-    policy --> recApprove["RecommendedApprove"]
-    policy --> recReject["RecommendedReject"]
-    policy --> needsHuman["NeedsHumanReview / Failed"]
-
-    recApprove --> adminApi["ContentModerationController<br/>+ bulk endpoint"]
-    recReject --> adminApi
-    needsHuman --> adminApi
-
-    mysub["GET /api/my/content-submissions"] --> creator["Creator My submissions UI"]
-
-    adminApi --> approved["Approved"]
-    adminApi --> rejected["Rejected"]
-    adminApi --> removed["Removed"]
-    adminApi --> audit["ContentModerationEvents"]
-
-    retain["Optional Retention worker"] -.->|"Retention:Enabled"| audit
+```bash
+# BSH3 hardened env vars (examples)
+ConnectionStrings__DefaultConnection="...;SSL Mode=Require"
+Jwt__SigningPemPath=/run/secrets/jwt-signing.pem
+Uploads__SigningSecret=<strong-secret>
+AiService__WorkerAuthToken=<token>
+Search__WorkerAuthToken=<token>
+Push__WorkerAuthToken=<token>
+Mail__WorkerAuthToken=<token>
 ```
 
-## Security (operations)
+**Ops alerting:** Watch Seq/Dozzle for spikes of `authFailureReason=invalid_grant` or `invalid_client` on `/api/oauth2/token`, and HTTP **429** on OAuth/register/upload endpoints; audit lines prefixed `SECURITY_AUDIT` for password/role changes.
 
-- **BSH3 backend hardening (2026-05-21):** global auth **fallback deny** (`FallbackPolicy`); HTTPS + HSTS in Production/Hardened; demo secrets in `appsettings.Development.json` only; `AiService` gRPC TLS + `x-ai-worker-token` metadata; `HardenedSecurityValidateOptions` on startup; CI gate `node scripts/verify-backend-security-tests.mjs` (`Category=BackendSecurity`). Full spec: [`docs/prompts/security-hardening-backend-v3-agent-prompt.md`](../docs/prompts/security-hardening-backend-v3-agent-prompt.md).
-- **Hardened env vars (examples):** `ConnectionStrings__DefaultConnection` (include `SSL Mode=Require`), `Jwt__SigningPemPath`, `Uploads__SigningSecret`, `RegistrationInvite__HmacPepper`, `OAuth2__ClientSecret`, `AiService__WorkerAuthToken`, `Search__WorkerAuthToken`, `Push__WorkerAuthToken`, `Mail__WorkerAuthToken`, `Redis__Configuration` (`ssl=true`, password). AI worker server: `AI_WORKER_EXPECTED_TOKEN` (same value as `AiService__WorkerAuthToken`).
-- **Ops alerting (BSH3-L3):** watch Seq/Dozzle for spikes of `authFailureReason=invalid_grant` or `invalid_client` on `/api/oauth2/token`, and HTTP **429** on OAuth/register/upload endpoints; audit lines prefixed `SECURITY_AUDIT` for password/role changes.
-- **OAuth token code layout:** `OAuth2Service` orchestrates grants; `OAuthClientValidator` (DB clients), `OAuthAccessTokenFactory` (ES512 access JWT + misuse-as-refresh guard), `OAuthTokenRequestSignatureVerifier` (legacy body signature, `IClock` for tests), `OAuthRefreshTokenStore`. See monorepo [`docs/guides/authentication-and-sessions.md`](../docs/guides/authentication-and-sessions.md) (section 2). Unit tests: `OAuth*Tests` in `BeDemo.Api.Tests`.
-- **JWKS:** `GET /api/oauth2/jwks` — public key for ES512 JWT validation.
-- **Stable signing key:** set `Jwt:SigningPemPath` (path to EC private key PEM, P-521) and `Jwt:KeyId` in configuration; leave empty for ephemeral dev keys.
-- **Session invalidation (J6):** access tokens carry claim `atv` (matches `AspNetUsers.AccessTokenVersion`). Admin **password reset** via `PUT /api/users/{id}` increments the version and revokes refresh tokens for that user.
-- **Swagger in production:** disabled unless `Swagger:EnableInProduction` is `true`.
-- **Emergency:** bump `AccessTokenVersion` in the database and revoke `OAuthRefreshTokens` rows for a user to invalidate all sessions.
-- **Security backlog / deferred follow-ups:** in the monorepo root, see [`docs/guides/security-crypto-sockets.md`](../docs/guides/security-crypto-sockets.md) (baseline table, **Deferred follow-ups**, and **Security hardening engagement — completion record** with §16–§18 evidence).
+**Emergency session invalidation:** Bump `AccessTokenVersion` in the database and revoke `OAuthRefreshTokens` rows for a user.
 
-## Detailed reference (features, endpoints, migrations, diagram)
+**Full security backlog:** [`../docs/guides/security-crypto-sockets.md`](../docs/guides/security-crypto-sockets.md)
 
-Long tables (**Features**, **API Endpoints**, routing, **Configuration**, **Migrations**, **Testing**, **Troubleshooting**, and the **ER diagram**) live under **[`docs/reference/`](./docs/reference/)** with an index at **[`docs/DETAILED_README.md`](./docs/DETAILED_README.md)** so this README stays a shorter entry point.
+---
 
-**Stories HTTP API** (curl-oriented table): **[`STORIES_API.md`](./STORIES_API.md)** (see also [`docs/guides/api-oauth-stories-curl.md`](../docs/guides/api-oauth-stories-curl.md)).
+## Documentation
 
-## Additional Documentation
+| Topic                       | Link                                                                                                                                                             |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Security (BSH3)**         | [`appsettings.Hardened.json`](./BeDemo.Api/appsettings.Hardened.json) · [`../docs/guides/security-crypto-sockets.md`](../docs/guides/security-crypto-sockets.md) |
+| **Auth / JWT / sessions**   | [`../docs/guides/authentication-and-sessions.md`](../docs/guides/authentication-and-sessions.md)                                                                 |
+| **ACL / capabilities**      | [`../docs/guides/acl-and-capabilities.md`](../docs/guides/acl-and-capabilities.md)                                                                               |
+| **Operator AI runbook**     | [`../docs/guides/backend-stats-and-admin-ai-runbook.md`](../docs/guides/backend-stats-and-admin-ai-runbook.md)                                                   |
+| **Content approval**        | [`../docs/guides/ai-assisted-content-approval.md`](../docs/guides/ai-assisted-content-approval.md)                                                               |
+| **Admin operator user**     | [`../docs/guides/admin-operator-user-detail.md`](../docs/guides/admin-operator-user-detail.md)                                                                   |
+| **Admin profile**           | [`../docs/guides/admin-superadmin-profile.md`](../docs/guides/admin-superadmin-profile.md)                                                                       |
+| **User chat**               | [`../docs/guides/admin-superadmin-user-chat.md`](../docs/guides/admin-superadmin-user-chat.md)                                                                   |
+| **Dashboard + AI stats**    | [`../docs/guides/admin-dashboard-metrics.md`](../docs/guides/admin-dashboard-metrics.md)                                                                         |
+| **RAG retrieval**           | [`../docs/guides/operator-ai-rag-retrieval.md`](../docs/guides/operator-ai-rag-retrieval.md)                                                                     |
+| **Operator AI chat**        | [`../docs/guides/admin-operator-ai-chat-threads.md`](../docs/guides/admin-operator-ai-chat-threads.md)                                                           |
+| **Global search**           | [`../docs/guides/admin-global-search-autocomplete.md`](../docs/guides/admin-global-search-autocomplete.md)                                                       |
+| **Elasticsearch**           | [`../docs/guides/elasticsearch-search-features-overview.md`](../docs/guides/elasticsearch-search-features-overview.md)                                           |
+| **Push notifications**      | [`../docs/guides/push-notifications-local-dev.md`](../docs/guides/push-notifications-local-dev.md)                                                               |
+| **Mailer config**           | [`../docs/guides/admin-mailer-configuration.md`](../docs/guides/admin-mailer-configuration.md)                                                                   |
+| **Infra smoke tests**       | [`../docs/guides/admin-settings-infrastructure-smoke-tests.md`](../docs/guides/admin-settings-infrastructure-smoke-tests.md)                                     |
+| **Email registration**      | [`../docs/guides/email-code-registration.md`](../docs/guides/email-code-registration.md)                                                                         |
+| **API validation**          | [`../docs/guides/api-request-validation.md`](../docs/guides/api-request-validation.md)                                                                           |
+| **i18n**                    | [`../docs/guides/static-localization-and-i18n.md`](../docs/guides/static-localization-and-i18n.md)                                                               |
+| **Runtime performance**     | [`docs/runtime-performance-v1.md`](./docs/runtime-performance-v1.md) · [`../docs/guides/backend-performance.md`](../docs/guides/backend-performance.md)          |
+| **Observability**           | [`../docs/guides/observability-seq-and-logs.md`](../docs/guides/observability-seq-and-logs.md)                                                                   |
+| **Local HTTPS**             | [`../docs/guides/dev-https.md`](../docs/guides/dev-https.md)                                                                                                     |
+| **Docker Compose**          | [`../docs/guides/docker-and-compose.md`](../docs/guides/docker-and-compose.md)                                                                                   |
+| **OAuth2 + Stories (curl)** | [`STORIES_API.md`](./STORIES_API.md) · [`../docs/guides/api-oauth-stories-curl.md`](../docs/guides/api-oauth-stories-curl.md)                                    |
+| **Detailed reference**      | [`docs/DETAILED_README.md`](./docs/DETAILED_README.md) (features, endpoints, ER diagram)                                                                         |
+| **Monorepo docs hub**       | [`../docs/README.md`](../docs/README.md)                                                                                                                         |
 
-- **Observability (Seq, logs):** [`docs/guides/observability-seq-and-logs.md`](../docs/guides/observability-seq-and-logs.md)
-- **Local HTTPS / certs / ports:** [`docs/guides/dev-https.md`](../docs/guides/dev-https.md)
-- **Docker Compose (monorepo):** root [`docker-compose.dev.yml`](../docker-compose.dev.yml) and [`docs/guides/docker-and-compose.md`](../docs/guides/docker-and-compose.md)
+---
 
-### Monorepo documentation hub (`many_faces_main`)
+## Monorepo Integration
 
-With the backend checked out as **`many_faces_main/many_faces_backend/`**, open the parent docs tree:
+This backend is the `many_faces_backend/` submodule of [`many_faces_main`](https://github.com/01laky/many_faces_main). Wire contracts are in **`many_faces_proto`** (nested submodule at `many_faces_backend/many_faces_proto/`).
 
-- [Documentation hub](../docs/README.md)
-- [AI-assisted content approval](../docs/guides/ai-assisted-content-approval.md)
-- [Git submodules](../docs/guides/git-submodules.md)
-- [Development and CI](../docs/guides/development.md)
+```bash
+# Initialize nested proto submodule
+git submodule update --init --recursive
+```
 
-If you use a **standalone clone** of only `many_faces_backend` (no sibling `docs/` folder), browse the same files in the **`many_faces_main`** repository on your host (fork-friendly paths above work only inside the monorepo layout).
+Full stack starts with `../scripts/start-all-dev.sh` from the monorepo root.
 
-### Git hooks (commitlint) in this submodule
+### Git hooks
 
-Husky + commitlint run via **Yarn** in this repo. After `git clone`, run **`yarn install`** once under `many_faces_backend/` so `.husky/commit-msg` can resolve `yarn exec commitlint` (see monorepo [`docs/guides/development.md`](../docs/guides/development.md) — _Git hooks_).
+Husky + commitlint run via Yarn in this repo. After cloning, run **`yarn install`** once so `.husky/commit-msg` can resolve `yarn exec commitlint`.
+
+---
+
+## Project Status
+
+Active core component of the **Many Faces AI** reference monorepo. v1.4.40 — all X7 controllers carry `[ProducesResponseType]` attributes and zero anonymous response bodies. Security hardening BSH3 shipped. Tracked in [`CHANGELOG.md`](./CHANGELOG.md).
