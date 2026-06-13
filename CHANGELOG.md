@@ -6,63 +6,64 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 ### Release index
 
-| Version        | Theme                                              |
-| -------------- | -------------------------------------------------- |
+| Version         | Theme                                                                                  |
+| --------------- | -------------------------------------------------------------------------------------- |
+| [1.4.41](#1441) | CHANGELOG release-index formatting normalization (docs)                                 |
 | [1.4.40](#1440) | Backend refactor Phase 3 X7 — `[ProducesResponseType]` complete + remaining anon fixes |
-| [1.4.39](#1439) | Backend refactor Phase 3 X7 DTO layer — zero anonymous returns |
-| [1.4.38](#1438) | Backend refactor Phase 3 X11 AsNoTracking + projections |
-| [1.4.37](#1437) | Backend refactor Phase 3 X10 parallel stats counts|
-| [1.4.36](#1436) | Backend refactor Phase 3 X11 EF query smells      |
-| [1.4.35](#1435) | Backend refactor Phase 2 gRPC worker-client base  |
-| [1.4.34](#1434) | Backend refactor Phase 4 social unique constraints|
-| [1.4.33](#1433) | Backend refactor Phase 4 request-log observability|
-| [1.4.32](#1432) | Backend refactor Phase 3 Program.cs modularise (9)|
-| [1.4.31](#1431) | Backend refactor Phase 3 Program.cs modularise (8)|
-| [1.4.30](#1430) | Backend refactor Phase 3 Program.cs modularise (7)|
-| [1.4.29](#1429) | Backend refactor Phase 3 Program.cs modularise (6)|
-| [1.4.28](#1428) | Backend refactor Phase 3 Program.cs modularise (5)|
-| [1.4.27](#1427) | Backend refactor Phase 3 Program.cs modularise (4)|
-| [1.4.26](#1426) | Backend refactor Phase 3 Program.cs modularise (3)|
-| [1.4.25](#1425) | Backend refactor Phase 4 Postgres Testcontainers  |
-| [1.4.24](#1424) | Backend refactor Phase 3 Program.cs modularise (2)|
-| [1.4.23](#1423) | Backend refactor Phase 3 Program.cs modularise (1)|
-| [1.4.22](#1422) | Backend refactor X5/X6 Users auth (migration done)|
-| [1.4.21](#1421) | Backend refactor Phase 2 secret-protector base   |
-| [1.4.20](#1420) | Backend refactor X6 ApiControllerBase (complete) |
-| [1.4.19](#1419) | Backend refactor X6 ApiControllerBase (UserId)   |
-| [1.4.18](#1418) | Backend refactor Phase 0 AI test fake (complete) |
-| [1.4.17](#1417) | Backend refactor Phase 0 shared AI test fake     |
-| [1.4.16](#1416) | Backend refactor X5/X6 dual-policy migration (8)  |
-| [1.4.15](#1415) | Backend refactor X5/X6 SuperAdmin policy (7)      |
-| [1.4.14](#1414) | Backend refactor X5/X6 SuperAdmin policy (6)      |
-| [1.4.13](#1413) | Backend refactor X5/X6 auth-policy migration (5)  |
-| [1.4.12](#1412) | Backend refactor X5/X6 auth-policy migration (4)  |
-| [1.4.11](#1411) | Backend refactor X5/X6 auth-policy migration (3)  |
-| [1.4.10](#1410) | Backend refactor X5/X6 auth-policy migration (2)  |
-| [1.4.9](#149)  | Backend refactor X5/X6 auth-policy migration (1)   |
-| [1.4.8](#148) | Backend refactor X4 ProblemDetails errors (flag)   |
-| [1.4.7](#147) | Backend refactor X14 health/readiness probes       |
-| [1.4.6](#146) | Backend refactor X13 correlation-id middleware     |
-| [1.4.5](#145) | Backend refactor X5 declarative auth policies      |
-| [1.4.4](#144) | Backend refactor PII redaction + dead-code cleanup |
-| [1.4.3](#143) | Backend refactor Phase 1 options validation        |
-| [1.4.2](#142) | Backend refactor Phase 1 security hardening        |
-| [1.4.1](#141) | Backend refactor Phase 0a (test safety nets)       |
-| [1.4.0](#140) | Operator AI 7B performance (fast-paths, streaming) |
-| [1.3.0](#130) | Operator AI skills (router + 4 skills)             |
-| [1.2.0](#120) | Operator AI RAG retrieval (Elasticsearch kNN+BM25) |
-| [1.1.0](#110) | Backend runtime performance v1 (BE-RP1…35)         |
-| [1.0.2](#102) | README shield badges                               |
-| [1.0.0](#100) | Operator infra settings, global search, live stats |
-| [0.9.0](#090) | Operator consoles, VideoLounge, moderation APIs    |
-| [0.8.0](#080) | SHV2 security, FluentValidation, signed uploads    |
-| [0.7.0](#070) | Email-code registration, static i18n bundles       |
-| [0.6.0](#060) | Workers gRPC, content moderation, many_faces_proto |
-| [0.5.0](#050) | ACL, refresh tokens, remember-me, demo seeds       |
-| [0.4.0](#040) | Social modules, grid, stories, chat, wall          |
-| [0.3.0](#030) | Face-based multi-tenant routing                    |
-| [0.2.0](#020) | UserProfile, RBAC, integration tests               |
-| [0.1.0](#010) | .NET API foundation, PostgreSQL, Docker dev        |
+| [1.4.39](#1439) | Backend refactor Phase 3 X7 DTO layer — zero anonymous returns                         |
+| [1.4.38](#1438) | Backend refactor Phase 3 X11 AsNoTracking + projections                                |
+| [1.4.37](#1437) | Backend refactor Phase 3 X10 parallel stats counts                                     |
+| [1.4.36](#1436) | Backend refactor Phase 3 X11 EF query smells                                           |
+| [1.4.35](#1435) | Backend refactor Phase 2 gRPC worker-client base                                       |
+| [1.4.34](#1434) | Backend refactor Phase 4 social unique constraints                                     |
+| [1.4.33](#1433) | Backend refactor Phase 4 request-log observability                                     |
+| [1.4.32](#1432) | Backend refactor Phase 3 Program.cs modularise (9)                                     |
+| [1.4.31](#1431) | Backend refactor Phase 3 Program.cs modularise (8)                                     |
+| [1.4.30](#1430) | Backend refactor Phase 3 Program.cs modularise (7)                                     |
+| [1.4.29](#1429) | Backend refactor Phase 3 Program.cs modularise (6)                                     |
+| [1.4.28](#1428) | Backend refactor Phase 3 Program.cs modularise (5)                                     |
+| [1.4.27](#1427) | Backend refactor Phase 3 Program.cs modularise (4)                                     |
+| [1.4.26](#1426) | Backend refactor Phase 3 Program.cs modularise (3)                                     |
+| [1.4.25](#1425) | Backend refactor Phase 4 Postgres Testcontainers                                       |
+| [1.4.24](#1424) | Backend refactor Phase 3 Program.cs modularise (2)                                     |
+| [1.4.23](#1423) | Backend refactor Phase 3 Program.cs modularise (1)                                     |
+| [1.4.22](#1422) | Backend refactor X5/X6 Users auth (migration done)                                     |
+| [1.4.21](#1421) | Backend refactor Phase 2 secret-protector base                                         |
+| [1.4.20](#1420) | Backend refactor X6 ApiControllerBase (complete)                                       |
+| [1.4.19](#1419) | Backend refactor X6 ApiControllerBase (UserId)                                         |
+| [1.4.18](#1418) | Backend refactor Phase 0 AI test fake (complete)                                       |
+| [1.4.17](#1417) | Backend refactor Phase 0 shared AI test fake                                           |
+| [1.4.16](#1416) | Backend refactor X5/X6 dual-policy migration (8)                                       |
+| [1.4.15](#1415) | Backend refactor X5/X6 SuperAdmin policy (7)                                           |
+| [1.4.14](#1414) | Backend refactor X5/X6 SuperAdmin policy (6)                                           |
+| [1.4.13](#1413) | Backend refactor X5/X6 auth-policy migration (5)                                       |
+| [1.4.12](#1412) | Backend refactor X5/X6 auth-policy migration (4)                                       |
+| [1.4.11](#1411) | Backend refactor X5/X6 auth-policy migration (3)                                       |
+| [1.4.10](#1410) | Backend refactor X5/X6 auth-policy migration (2)                                       |
+| [1.4.9](#149)   | Backend refactor X5/X6 auth-policy migration (1)                                       |
+| [1.4.8](#148)   | Backend refactor X4 ProblemDetails errors (flag)                                       |
+| [1.4.7](#147)   | Backend refactor X14 health/readiness probes                                           |
+| [1.4.6](#146)   | Backend refactor X13 correlation-id middleware                                         |
+| [1.4.5](#145)   | Backend refactor X5 declarative auth policies                                          |
+| [1.4.4](#144)   | Backend refactor PII redaction + dead-code cleanup                                     |
+| [1.4.3](#143)   | Backend refactor Phase 1 options validation                                            |
+| [1.4.2](#142)   | Backend refactor Phase 1 security hardening                                            |
+| [1.4.1](#141)   | Backend refactor Phase 0a (test safety nets)                                           |
+| [1.4.0](#140)   | Operator AI 7B performance (fast-paths, streaming)                                     |
+| [1.3.0](#130)   | Operator AI skills (router + 4 skills)                                                 |
+| [1.2.0](#120)   | Operator AI RAG retrieval (Elasticsearch kNN+BM25)                                     |
+| [1.1.0](#110)   | Backend runtime performance v1 (BE-RP1…35)                                             |
+| [1.0.2](#102)   | README shield badges                                                                   |
+| [1.0.0](#100)   | Operator infra settings, global search, live stats                                     |
+| [0.9.0](#090)   | Operator consoles, VideoLounge, moderation APIs                                        |
+| [0.8.0](#080)   | SHV2 security, FluentValidation, signed uploads                                        |
+| [0.7.0](#070)   | Email-code registration, static i18n bundles                                           |
+| [0.6.0](#060)   | Workers gRPC, content moderation, many_faces_proto                                     |
+| [0.5.0](#050)   | ACL, refresh tokens, remember-me, demo seeds                                           |
+| [0.4.0](#040)   | Social modules, grid, stories, chat, wall                                              |
+| [0.3.0](#030)   | Face-based multi-tenant routing                                                        |
+| [0.2.0](#020)   | UserProfile, RBAC, integration tests                                                   |
+| [0.1.0](#010)   | .NET API foundation, PostgreSQL, Docker dev                                            |
 
 ## [Unreleased]
 
@@ -74,11 +75,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 ---
 
+## [1.4.41]
+
+### Changed
+
+- Normalize the CHANGELOG release-index table formatting (Prettier markdown — column widths only). Documentation-only; no API, EF, or runtime change.
+
+---
+
 ## [1.4.40]
 
 ### Changed
 
-- **Backend refactor — Phase 3 X7 completion: `[ProducesResponseType]` on every controller action + elimination of all remaining anonymous response bodies.**  This is the final increment of X7: the first session added named DTOs for the bulk of anonymous returns; this session audits every controller and closes all remaining gaps.
+- **Backend refactor — Phase 3 X7 completion: `[ProducesResponseType]` on every controller action + elimination of all remaining anonymous response bodies.** This is the final increment of X7: the first session added named DTOs for the bulk of anonymous returns; this session audits every controller and closes all remaining gaps.
 
   **`[ProducesResponseType]` attributes — added to all remaining controllers (previously 0 attributes):**
   - `OperatorAiConversationsController` (15 actions): typed `OperatorAiSystemSettingsDto`, `OperatorAiModelStatusDto`, `OperatorAiWorkerHostDto`, `OperatorAiLiveStatsCacheSettingsDto`, `OperatorAiPublicStatsSettingsDto`, `IReadOnlyList<OperatorAiConversationListItemDto>`, `OperatorAiMessagesPageDto`; 201/204/404 as appropriate.
@@ -139,7 +148,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 ### Changed
 
-- **Backend refactor — Phase 3 X7 DTO layer: projection-expression DTOs + `[ProducesResponseType]` — zero anonymous-object returns from controller actions.**  All 385 `new { … }` anonymous bodies in controller action returns replaced by named DTO types with `init`-property factories; global JSON camelCase serialisation policy applied. Measurable exit criterion: `grep -rn "return.*new {" Controllers/` now returns 0 results (route-value objects in `CreatedAtAction` route parameter are exempt, being MVC routing infrastructure not HTTP response bodies).
+- **Backend refactor — Phase 3 X7 DTO layer: projection-expression DTOs + `[ProducesResponseType]` — zero anonymous-object returns from controller actions.** All 385 `new { … }` anonymous bodies in controller action returns replaced by named DTO types with `init`-property factories; global JSON camelCase serialisation policy applied. Measurable exit criterion: `grep -rn "return.*new {" Controllers/` now returns 0 results (route-value objects in `CreatedAtAction` route parameter are exempt, being MVC routing infrastructure not HTTP response bodies).
 
   **Global JSON camelCase policy (Program.cs):**
   - `PropertyNamingPolicy = JsonNamingPolicy.CamelCase` added to `AddJsonOptions`. Named DTOs now serialise identically to the prior anonymous types — all tests and frontend contracts preserved.
@@ -175,7 +184,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 ### Changed
 
-- **Backend refactor — Phase 3 X11 EF query smells: `AsNoTracking` on all read-only entity loads, Blog queue projection removes 2 redundant `Include` calls, `UserService.GetUsersAsync` fixed to async.**  Continuation of X11 (EF query anti-patterns). Changes are purely additive-performance — no HTTP API surface altered.
+- **Backend refactor — Phase 3 X11 EF query smells: `AsNoTracking` on all read-only entity loads, Blog queue projection removes 2 redundant `Include` calls, `UserService.GetUsersAsync` fixed to async.** Continuation of X11 (EF query anti-patterns). Changes are purely additive-performance — no HTTP API surface altered.
 
   **`AsNoTracking` additions (7 query sites):**
   - `ContentModerationController.GetQueue`: all three queries (Albums, Blogs, Reels) — these are admin read-only views; no entity is modified after loading.
@@ -211,7 +220,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 ### Changed
 
-- **Backend refactor — Phase 3 X10 parallel stats counts: `PlatformStatsQueryService` and `ContentModerationMetrics` rewritten to fan-out all `CountAsync` calls concurrently.**  Both services previously accumulated their aggregate counts through long chains of sequential `await …CountAsync(…)` calls on a single shared `ApplicationDbContext` — a textbook X10 (N sequential round-trips) pattern. Each call acquired the same DB connection and waited for the previous one to finish, so the total latency was the _sum_ of all individual query times.
+- **Backend refactor — Phase 3 X10 parallel stats counts: `PlatformStatsQueryService` and `ContentModerationMetrics` rewritten to fan-out all `CountAsync` calls concurrently.** Both services previously accumulated their aggregate counts through long chains of sequential `await …CountAsync(…)` calls on a single shared `ApplicationDbContext` — a textbook X10 (N sequential round-trips) pattern. Each call acquired the same DB connection and waited for the previous one to finish, so the total latency was the _sum_ of all individual query times.
 
   **`PlatformStatsQueryService`** — two methods fixed (X10: 15 + ~35 sequential round-trips):
   - Constructor extended: `ApplicationDbContext context` retained for `GetOperatorAiTimeseriesHintsAsync` (3 sequential queries — acceptable); `IDbContextFactory<ApplicationDbContext> dbContextFactory` injected for the parallel methods. `AddDbContextFactory<ApplicationDbContext>` was already registered in Program.cs (lines 255, 276) so no DI registration change was needed.
@@ -362,7 +371,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 ### Changed
 
-- **Backend refactor — `UsersController` create/update on the ManageAllFaces policy (X5/X6, migration complete).** `POST /api/users` and `PUT /api/users/{id}` now carry a method-level `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]` instead of an in-body `if (!CanManageAllFaces()) return Forbid();`. The accessor is method-level (not class-level) because the list/get actions keep `CanManageAllFaces()` as a per-face *visibility branch*, not a gate. With this, **every blanket operator gate across the controllers is now declarative** — the per-controller auth-policy migration is finished.
+- **Backend refactor — `UsersController` create/update on the ManageAllFaces policy (X5/X6, migration complete).** `POST /api/users` and `PUT /api/users/{id}` now carry a method-level `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]` instead of an in-body `if (!CanManageAllFaces()) return Forbid();`. The accessor is method-level (not class-level) because the list/get actions keep `CanManageAllFaces()` as a per-face _visibility branch_, not a gate. With this, **every blanket operator gate across the controllers is now declarative** — the per-controller auth-policy migration is finished.
 
 ### Security
 
@@ -419,7 +428,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 - **Backend refactor — authorization-policy migration, batch 8 (X5/X6, dual-policy method-level).** Migrated `OperatorContentController` (`/api/operator-content`), which mixes **two** different gates, to per-action policies: the 10 hard-delete actions (album, album-media, reel, blog, blog-image, chat-room, profile-comment, profile-review, story, story-image) carried `RequireSuperAdmin()` → `[Authorize(Policy = PlatformAuthorizationPolicies.SuperAdmin)]`, while the 3 live video-lounge moderation actions (stealth-join, kick, kick-all) carried `RequireManageAllFaces()` → `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]`. All 13 in-body `if (!Require…()) return Forbid();` gates, both helper methods, and the now-unused `IAccessEvaluator` dependency were removed; the `NameIdentifier`-claim `Unauthorized()` guards are kept (they protect the per-operator actor id, not authorization). No action had model validation before its gate, so nothing is reordered and each action's matrix is unchanged (anonymous → 401, insufficient → 403, authorized → allowed) — with the delete actions requiring global SUPER_ADMIN and the video-lounge actions requiring admin-face-scope operator rights, exactly as before. Verified by the Admin{Album,Blog,Reel,ChatRoom,Story,Profile}Management + FaceVideoLounges + OperatorContent validator suites (65 tests).
-  - **This completes the mechanical per-controller auth-policy migration cluster.** Every controller whose actions had a uniform/separable imperative platform gate now uses `[Authorize(Policy = …)]`. The remaining imperative `CanManageAllFaces` usages are either *branching* per-item logic (Pages/Stories/Reels list-scoping, Users list/get visibility) or *validation-ordered* gates (Users create/update, where a method-level attribute would reorder authorization ahead of `ModelState` validation) — both intentionally left, as migrating them would change client-visible behaviour.
+  - **This completes the mechanical per-controller auth-policy migration cluster.** Every controller whose actions had a uniform/separable imperative platform gate now uses `[Authorize(Policy = …)]`. The remaining imperative `CanManageAllFaces` usages are either _branching_ per-item logic (Pages/Stories/Reels list-scoping, Users list/get visibility) or _validation-ordered_ gates (Users create/update, where a method-level attribute would reorder authorization ahead of `ModelState` validation) — both intentionally left, as migrating them would change client-visible behaviour.
 
 ---
 
@@ -444,7 +453,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 - **Backend refactor — authorization-policy migration, batch 5 (X5/X6, method-level).** Migrated `StatsController`'s two operator-only endpoints — `GET /api/Stats` (dashboard summary) and `GET /api/Stats/timeseries` (chart histograms) — from an in-body `CanManageAllFaces` check to a **method-level** `[Authorize(Policy = PlatformAuthorizationPolicies.ManageAllFaces)]`. This is the first method-level (rather than class-level) migration: the controller also hosts `GET /api/Stats/public`, which keeps its `[AllowAnonymous]`, so the policy is applied per-action rather than to the whole class. The now-unused `IAccessEvaluator` and `ILogger` dependencies were removed. Authorization matrix unchanged (anonymous → 401, global ADMIN → 403, SUPER_ADMIN on a non-admin face → 403, SUPER_ADMIN in admin scope → allowed; the public endpoint stays anonymous); pinned by `StatsController` + `PlatformSuperAdminAccessEdge` (incl. the super-admin-on-public-face 403 and unauthenticated-401 cases).
-  - **`UsersController` create/update were evaluated and deliberately left imperative**: their `CanManageAllFaces` gate sits *after* `ModelState` validation, so a method-level attribute would reorder authorization ahead of validation (an unauthorized caller with a malformed body would get 403 instead of the current 400) — a client-visible change, which these behaviour-preserving batches avoid. Their list/get actions also use `CanManageAllFaces()` as per-face visibility *branching*, not a gate.
+  - **`UsersController` create/update were evaluated and deliberately left imperative**: their `CanManageAllFaces` gate sits _after_ `ModelState` validation, so a method-level attribute would reorder authorization ahead of validation (an unauthorized caller with a malformed body would get 403 instead of the current 400) — a client-visible change, which these behaviour-preserving batches avoid. Their list/get actions also use `CanManageAllFaces()` as per-face visibility _branching_, not a gate.
 
 ---
 
@@ -765,7 +774,8 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.4...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.41...HEAD
+[1.4.41]: https://github.com/01laky/many_faces_backend/compare/v1.4.40...v1.4.41
 [1.0.2]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/01laky/many_faces_backend/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/01laky/many_faces_backend/compare/v0.9.0...v1.0.0
