@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.4.43](#1443) | Untested pure-helper edge tests (test-gap fill)                                        |
 | [1.4.42](#1442) | Edge-case fixes: grid pagination, gRPC timeout, SSRF dot, AI cache flush + tests       |
 | [1.4.41](#1441) | CHANGELOG release-index formatting normalization (docs)                                |
 | [1.4.40](#1440) | Backend refactor Phase 3 X7 — `[ProducesResponseType]` complete + remaining anon fixes |
@@ -73,6 +74,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.43]
+
+### Added
+
+- Edge-case tests for five previously-untested pure helpers (unit-test-gap-fill): `VideoLoungeJoinModeParser` (only the three member modes parse; operator-stealth and nullish/garbage are rejected), `StatsTimeseriesBucketing` (day/week histogram gap-fills the range, counts per bucket, aligns week buckets to ISO Mondays), `ProfileGridSettingsJson` (tolerant parse, a null patch value removes a key, the 16 KB size guard), `RateLimitingPartitionKey` (user-id vs IP partitioning, per-test-host scope prefix, null-context guard), and `ModerationQueueSorter` (default `submittedAtUtc`-desc with `CreatedAt` fallback, ascending/`desc` field sorts, unknown-field fallback). 29 tests, all green. No source changes.
 
 ---
 
@@ -776,7 +785,8 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.42...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.43...HEAD
+[1.4.43]: https://github.com/01laky/many_faces_backend/compare/v1.4.42...v1.4.43
 [1.4.42]: https://github.com/01laky/many_faces_backend/compare/v1.4.41...v1.4.42
 [1.4.41]: https://github.com/01laky/many_faces_backend/compare/v1.4.40...v1.4.41
 [1.0.2]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...v1.0.2
