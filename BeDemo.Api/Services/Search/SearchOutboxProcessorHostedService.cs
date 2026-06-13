@@ -154,7 +154,9 @@ public sealed class SearchOutboxProcessorHostedService : BackgroundService
 			return;
 		}
 
-		using var semaphore = new SemaphoreSlim(maxParallel);
+		// Group into bulk-index chunks of maxParallel size and process them sequentially: the SearchOutboxEntry
+		// instances are EF-tracked and mutated by MarkProcessed/RecordFailure, so concurrent chunks would be
+		// unsafe. (A previously-allocated SemaphoreSlim here was never awaited — dead code — and is removed.)
 		var chunks = indexes
 			.Select((item, i) => (item, i))
 			.GroupBy(x => x.i / maxParallel, x => x.item)

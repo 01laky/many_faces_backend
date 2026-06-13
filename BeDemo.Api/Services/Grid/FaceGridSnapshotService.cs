@@ -457,6 +457,10 @@ public sealed class FaceGridSnapshotService : IFaceGridSnapshotService
 			.Where(t => t.FaceId == faceId);
 
 		var total = await query.CountAsync(cancellationToken);
+		// Clamp like every sibling block: keeps an out-of-range page in bounds and avoids
+		// Math.Ceiling(total / 0.0) → int.MinValue garbage when pageSize is 0.
+		var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, total);
+		page = clampedPage;
 
 		var items = await query
 			.OrderByDescending(t => t.CreatedAt)
@@ -489,7 +493,7 @@ public sealed class FaceGridSnapshotService : IFaceGridSnapshotService
 				page,
 				pageSize,
 				totalCount = total,
-				totalPages = (int)Math.Ceiling(total / (double)pageSize),
+				totalPages,
 			});
 	}
 

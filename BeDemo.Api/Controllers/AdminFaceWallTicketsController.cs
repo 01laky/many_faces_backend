@@ -14,6 +14,9 @@ namespace BeDemo.Api.Controllers;
 
 [ApiController]
 [Route("api/admin/faces/{faceId:int}/wall-tickets")]
+// Face wall-ticket moderation is a global-ADMIN capability (not a super-admin-only operator endpoint):
+// it is reached with a plain client and the per-action RequireGlobalAdminAsync gate admits ADMIN or
+// SUPER_ADMIN by design (see FaceWallTicketsControllerTests, which promote to global ADMIN and expect 200).
 [Authorize]
 public class AdminFaceWallTicketsController : ApiControllerBase
 {

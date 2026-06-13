@@ -40,7 +40,9 @@ public sealed class AlbumGridListService : IAlbumGridListService
 
 		IQueryable<Album> query = _context.Albums.AsNoTracking()
 			.TagIfEnabled(_perfOptions, EfQueryTags.GridSnapshot);
-		query = OperatorContentListFilters.ApplyAlbumPortalVisibility(query, operatorInventory, userId);
+		// Empty (never a real CreatorId) when unauthenticated, so the own-private-album rule matches nothing
+		// and an anonymous viewer sees only public approved albums (also clears the CS8604 nullable warning).
+		query = OperatorContentListFilters.ApplyAlbumPortalVisibility(query, operatorInventory, userId ?? string.Empty);
 
 		if (!string.IsNullOrWhiteSpace(listQuery.CreatorId))
 		{

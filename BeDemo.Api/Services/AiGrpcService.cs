@@ -68,14 +68,16 @@ public class AiGrpcService : IAiGrpcService, IAiModelStatusClient, IDisposable
 	private CallOptions CreateCallOptions(CancellationToken cancellationToken, TimeSpan? deadline = null)
 	{
 		var effectiveDeadline = deadline ?? _deadline;
-		using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-		cts.CancelAfter(effectiveDeadline);
 
 		var headers = new Metadata();
 		if (!string.IsNullOrWhiteSpace(_options.WorkerAuthToken))
 			headers.Add(AiServiceOptions.WorkerAuthMetadataKey, _options.WorkerAuthToken.Trim());
 
-		return new CallOptions(headers, DateTime.UtcNow.Add(effectiveDeadline), cts.Token);
+		// The gRPC deadline (enforced client-side by Grpc.Net) is the timeout; pass the caller's token for
+		// cancellation. The previous linked CancellationTokenSource was created with `using` and disposed
+		// before the call ran, so its CancelAfter timer never fired and its token could even throw
+		// ObjectDisposedException — a dead, broken cancellation half.
+		return new CallOptions(headers, DateTime.UtcNow.Add(effectiveDeadline), cancellationToken);
 	}
 
 	private void InvalidateChannel()

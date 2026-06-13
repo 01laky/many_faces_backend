@@ -99,6 +99,50 @@ public sealed class BeRp8GridSnapshotQueryEdgeTests : IClassFixture<CustomWebApp
 		snapshot!.EnumerateObject().Select(p => p.Name).Should().BeEquivalentTo([GridBlockKeys.Profiles]);
 	}
 
+	/// <summary>
+	/// The wall-tickets snapshot block must clamp like every sibling: an out-of-range page and pageSize=0
+	/// must not produce a negative/garbage totalPages (regression: it divided by pageSize with no clamp).
+	/// </summary>
+	[Fact]
+	public async Task WallTicketsBlock_OutOfRangePageAndZeroPageSize_ReturnsSaneEnvelope()
+	{
+		await using var scope = _factory.Services.CreateAsyncScope();
+		var sp = scope.ServiceProvider;
+		var db = sp.GetRequiredService<ApplicationDbContext>();
+		var faceId = await db.Faces.AsNoTracking()
+			.Where(f => f.Index == "public").Select(f => f.Id).FirstAsync();
+
+		var perf = sp.GetRequiredService<IOptions<PerformanceOptions>>();
+		var faceScope = new BeDemo.Api.Tests.Performance.PerformanceTestFaceScope();
+		var access = sp.GetRequiredService<IAccessEvaluator>();
+		var uploadUrls = sp.GetRequiredService<IUploadSignedUrlService>();
+		var snapshot = new FaceGridSnapshotService(
+			db, faceScope, access, uploadUrls,
+			new AlbumGridListService(db, faceScope, access, perf),
+			new BlogGridListService(db, faceScope, access, perf),
+			new ReelGridListService(db, faceScope, access, perf),
+			new StoryGridListService(db, faceScope, access, perf),
+			perf);
+
+		var result = await snapshot.GetSnapshotAsync(
+			faceId,
+			new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity()),
+			"test-user",
+			[GridBlockKeys.WallTickets],
+			page: 999,
+			pageSize: 0,
+			"http",
+			"localhost",
+			CancellationToken.None);
+
+		result.Status.Should().Be(FaceGridSnapshotStatus.Success);
+		var block = System.Text.Json.JsonSerializer.SerializeToElement(result.Blocks![GridBlockKeys.WallTickets]);
+		var totalPages = block.GetProperty("totalPages").GetInt32();
+		var page = block.GetProperty("page").GetInt32();
+		totalPages.Should().BeGreaterThanOrEqualTo(1, "totalPages must never be 0/negative garbage");
+		page.Should().BeInRange(1, totalPages, "the page must be clamped back into range, not left at 999");
+	}
+
 	private static async Task<int> GetPublicFaceIdAsync(HttpClient client)
 	{
 		var cfg = await client.GetFromJsonAsync<System.Text.Json.JsonElement[]>("/api/faces/config");

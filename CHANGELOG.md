@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.4.42](#1442) | Edge-case fixes: grid pagination, gRPC timeout, SSRF dot, AI cache flush + tests       |
 | [1.4.41](#1441) | CHANGELOG release-index formatting normalization (docs)                                |
 | [1.4.40](#1440) | Backend refactor Phase 3 X7 — `[ProducesResponseType]` complete + remaining anon fixes |
 | [1.4.39](#1439) | Backend refactor Phase 3 X7 DTO layer — zero anonymous returns                         |
@@ -72,6 +73,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.42]
+
+### Changed
+
+- Removed a dead `SemaphoreSlim` in the search-outbox bulk-index path (allocated but never awaited; chunking stays intentionally sequential because the `SearchOutboxEntry` instances are EF-tracked).
+- Added extensive edge-case test coverage (+47 cases) for the fixes below: `ClampPage` boundaries / `pageSize ≤ 0`, the operator-AI answer cache (normalization, skill isolation, `Clear()`), the album visibility filter (operator / own / anonymous), the outbound-URL allow-list trailing-dot cases, the reindex answer-cache flush across rebuild outcomes, and the `AiGrpcService` call-options.
+
+### Fixed
+
+- Grid-snapshot **wall-tickets block** now clamps the page and no longer divides by `pageSize` (a `pageSize=0` produced `int.MinValue` garbage `totalPages`); it mirrors every sibling block via `ListPaginationHelper.ClampPage`.
+- **`AiGrpcService` gRPC timeout/cancellation**: `CreateCallOptions` built a linked `CancellationTokenSource` with `using` and disposed it before the call ran, so its `CancelAfter` timer never fired and the token came from a disposed source (could throw `ObjectDisposedException`). It now passes the caller's token straight through and relies on the gRPC deadline for the timeout.
+- **Operator-AI answer cache** is now flushed on a successful/partial knowledge reindex — `OperatorAiAnswerCache.Clear()` had zero call sites despite the documented invariant, so a re-asked question could be served a stale count within the TTL after a reindex.
+- **`OutboundUrlAllowlist`**: a trailing FQDN root dot (e.g. `localhost.`) no longer bypasses the exact-match `localhost` block (SSRF defense-in-depth; suffix checks for `.local`/`.internal` were already safe).
+- **`AlbumGridListService`**: an unauthenticated viewer now uses an empty (never-matching) creator id, so the own-private-album rule matches nothing and an anonymous viewer sees only public approved albums (also clears a `CS8604` nullable warning).
 
 ---
 
@@ -758,7 +776,8 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.41...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.42...HEAD
+[1.4.42]: https://github.com/01laky/many_faces_backend/compare/v1.4.41...v1.4.42
 [1.4.41]: https://github.com/01laky/many_faces_backend/compare/v1.4.40...v1.4.41
 [1.0.2]: https://github.com/01laky/many_faces_backend/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/01laky/many_faces_backend/compare/v1.0.0...v1.0.1

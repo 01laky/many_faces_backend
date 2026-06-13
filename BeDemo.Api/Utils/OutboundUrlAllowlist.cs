@@ -49,6 +49,10 @@ public static class OutboundUrlAllowlist
 
 	private static bool IsBlockedHost(string host)
 	{
+		// Strip a trailing FQDN root dot so "localhost." cannot bypass the exact-match block
+		// (Uri.Host preserves the dot). The suffix checks below use EndsWith and are unaffected.
+		host = host.TrimEnd('.');
+
 		if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
 			return true;
 

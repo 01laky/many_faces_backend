@@ -42,6 +42,7 @@ public sealed class OperatorAiKnowledgeIndexer : IOperatorAiKnowledgeIndexer
 	private readonly AiServiceOptions _aiOptions;
 	private readonly OperatorAiOptions _operatorOptions;
 	private readonly ILogger<OperatorAiKnowledgeIndexer> _logger;
+	private readonly IOperatorAiAnswerCache _answerCache;
 
 	private volatile bool _inProgress;
 
@@ -51,6 +52,7 @@ public sealed class OperatorAiKnowledgeIndexer : IOperatorAiKnowledgeIndexer
 		IOptions<AiServiceOptions> aiOptions,
 		IOptions<OperatorAiOptions> operatorOptions,
 		ILogger<OperatorAiKnowledgeIndexer> logger,
+		IOperatorAiAnswerCache answerCache,
 		IOperatorAiRedisStringStore? redis = null)
 	{
 		_ai = ai;
@@ -59,6 +61,7 @@ public sealed class OperatorAiKnowledgeIndexer : IOperatorAiKnowledgeIndexer
 		_aiOptions = aiOptions.Value;
 		_operatorOptions = operatorOptions.Value;
 		_logger = logger;
+		_answerCache = answerCache;
 	}
 
 	/// <inheritdoc />
@@ -135,6 +138,10 @@ public sealed class OperatorAiKnowledgeIndexer : IOperatorAiKnowledgeIndexer
 				response.IndexedCount,
 				response.FailedCount,
 				embedModelVersion);
+
+			// Flush cached operator-AI answers so a stale count/answer can't be served after the knowledge
+			// index changed (the cache key is the message text only, with no data-freshness component).
+			_answerCache.Clear();
 
 			// Persist the marker only when the upsert fully succeeded — partial failures should retry next boot.
 			if (_redis is not null && response.FailedCount == 0 && documents.Count == OperatorAiEntityBundleCatalog.BundleCount)

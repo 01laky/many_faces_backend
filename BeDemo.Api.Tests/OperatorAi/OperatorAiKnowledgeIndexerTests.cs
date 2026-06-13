@@ -3,6 +3,7 @@ using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
 using FluentAssertions;
 using ManyFaces.Search.V1;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -44,12 +45,19 @@ public sealed class OperatorAiKnowledgeIndexerTests
 	}
 
 	private static OperatorAiKnowledgeIndexer Build(
-		Mock<IAiGrpcService> ai, Mock<ISearchWorkerKnowledgeClient> knowledge, IOperatorAiRedisStringStore? redis = null)
+		Mock<IAiGrpcService> ai,
+		Mock<ISearchWorkerKnowledgeClient> knowledge,
+		IOperatorAiRedisStringStore? redis = null,
+		IOperatorAiAnswerCache? answerCache = null)
 		=> new(
 			ai.Object, knowledge.Object,
 			Options.Create(new AiServiceOptions { EmbeddingModel = "nomic-embed-text", EmbeddingDim = 768 }),
 			Options.Create(new OperatorAiOptions()),
 			NullLogger<OperatorAiKnowledgeIndexer>.Instance,
+			answerCache
+				?? new OperatorAiAnswerCache(
+					new MemoryCache(new MemoryCacheOptions()),
+					Options.Create(new OperatorAiOptions())),
 			redis);
 
 	private static Mock<IAiGrpcService> EmbedAlwaysOk()
@@ -109,6 +117,80 @@ public sealed class OperatorAiKnowledgeIndexerTests
 		result.FailedCount.Should().Be(0);
 		result.Error.Should().BeNull();
 		redis.Contains(OperatorAiKnowledgeIndexer.ContentHashMarkerKey).Should().BeTrue("a fully-successful upsert persists the content-hash marker");
+	}
+
+	[Fact]
+	public async Task Successful_rebuild_flushes_the_operator_ai_answer_cache()
+	{
+		// A reindex changes the underlying bundle data; cached answers (keyed on message text only) must be
+		// dropped so a re-asked question can't be served a stale count.
+		var answerCache = new OperatorAiAnswerCache(
+			new MemoryCache(new MemoryCacheOptions()),
+			Options.Create(new OperatorAiOptions { AnswerCacheEnabled = true }));
+		answerCache.Set("stats", "how many users", "cached-stale-answer");
+		answerCache.TryGet("stats", "how many users", out _).Should().BeTrue();
+
+		var ai = EmbedAlwaysOk();
+		var k = new Mock<ISearchWorkerKnowledgeClient>();
+		k.SetupGet(x => x.IsAvailable).Returns(true);
+		k.Setup(x => x.IndexKnowledgeAsync(It.IsAny<IndexKnowledgeRequest>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((IndexKnowledgeRequest req, CancellationToken _) =>
+				new IndexKnowledgeResponse { IndexedCount = req.Documents.Count, FailedCount = 0 });
+
+		await Build(ai, k, new FakeRedis(), answerCache).RebuildAsync(force: true);
+
+		answerCache
+			.TryGet("stats", "how many users", out _)
+			.Should()
+			.BeFalse("a successful reindex flushes cached operator-AI answers");
+	}
+
+	[Fact]
+	public async Task Partial_failure_rebuild_still_flushes_the_answer_cache()
+	{
+		// Even a partial upsert changed the index, so stale cached answers must still be dropped.
+		var answerCache = new OperatorAiAnswerCache(
+			new MemoryCache(new MemoryCacheOptions()),
+			Options.Create(new OperatorAiOptions { AnswerCacheEnabled = true }));
+		answerCache.Set("stats", "how many users", "cached-stale-answer");
+
+		var ai = EmbedAlwaysOk();
+		var k = new Mock<ISearchWorkerKnowledgeClient>();
+		k.SetupGet(x => x.IsAvailable).Returns(true);
+		k.Setup(x => x.IndexKnowledgeAsync(It.IsAny<IndexKnowledgeRequest>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((IndexKnowledgeRequest req, CancellationToken _) =>
+				new IndexKnowledgeResponse { IndexedCount = req.Documents.Count - 1, FailedCount = 1 });
+
+		var result = await Build(ai, k, new FakeRedis(), answerCache).RebuildAsync(force: true);
+
+		result.FailedCount.Should().BeGreaterThan(0);
+		answerCache
+			.TryGet("stats", "how many users", out _)
+			.Should()
+			.BeFalse("a partial reindex still changed the index, so cached answers are flushed");
+	}
+
+	[Fact]
+	public async Task Search_worker_unavailable_does_not_flush_the_answer_cache()
+	{
+		// The reindex never ran (worker down), so nothing changed — cached answers must be left intact.
+		var answerCache = new OperatorAiAnswerCache(
+			new MemoryCache(new MemoryCacheOptions()),
+			Options.Create(new OperatorAiOptions { AnswerCacheEnabled = true }));
+		answerCache.Set("stats", "how many users", "cached-answer");
+
+		var ai = EmbedAlwaysOk();
+		var k = new Mock<ISearchWorkerKnowledgeClient>();
+		k.SetupGet(x => x.IsAvailable).Returns(false);
+
+		var result = await Build(ai, k, new FakeRedis(), answerCache).RebuildAsync(force: true);
+
+		result.Skipped.Should().BeTrue();
+		answerCache
+			.TryGet("stats", "how many users", out var hit)
+			.Should()
+			.BeTrue("a no-op rebuild must not flush the cache");
+		hit.Should().Be("cached-answer");
 	}
 
 	[Fact]

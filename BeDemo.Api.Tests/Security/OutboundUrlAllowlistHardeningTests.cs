@@ -21,6 +21,13 @@ public sealed class OutboundUrlAllowlistHardeningTests
 	[InlineData("https://100.64.0.1/x")]            // CGNAT
 	[InlineData("https://10.0.0.5/x")]              // existing private (still blocked)
 	[InlineData("https://localhost/x")]
+	[InlineData("https://localhost./x")] // trailing FQDN root dot must not bypass the exact-match block
+	[InlineData("https://LOCALHOST./x")] // case-insensitive + trailing dot
+	[InlineData("https://localhost../x")] // multiple trailing dots
+	[InlineData("https://127.0.0.1./x")] // loopback IP with trailing dot
+	[InlineData("https://10.0.0.5./x")] // private IP with trailing dot
+	[InlineData("https://service.local./x")] // mDNS .local with trailing dot
+	[InlineData("https://api.internal./x")] // .internal with trailing dot
 	public void Private_or_special_addresses_are_rejected(string url)
 	{
 		OutboundUrlAllowlist.TryValidatePublicHttpsUrl(url, out var reason).Should().BeFalse();
@@ -29,6 +36,7 @@ public sealed class OutboundUrlAllowlistHardeningTests
 
 	[Theory]
 	[InlineData("https://example.com/path")]
+	[InlineData("https://example.com./path")] // a public host with a trailing FQDN dot is still public → allowed
 	[InlineData("https://8.8.8.8/x")]               // public IPv4 literal
 	[InlineData("https://[2606:4700:4700::1111]/x")] // public IPv6 (Cloudflare)
 	public void Genuine_public_https_urls_are_allowed(string url)
