@@ -8,7 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
-| [1.4.41](#1441) | CHANGELOG release-index formatting normalization (docs)                                 |
+| [1.4.41](#1441) | CHANGELOG release-index formatting normalization (docs)                                |
 | [1.4.40](#1440) | Backend refactor Phase 3 X7 — `[ProducesResponseType]` complete + remaining anon fixes |
 | [1.4.39](#1439) | Backend refactor Phase 3 X7 DTO layer — zero anonymous returns                         |
 | [1.4.38](#1438) | Backend refactor Phase 3 X11 AsNoTracking + projections                                |
@@ -648,14 +648,6 @@ totalCount, totalPages }` (BE-RP3).
 
 - Add README shield badges (version, CI, stack tech) via sync-readme-badges.py.
 
-### Added
-
-- Add README shield badges (version, CI, stack tech) via sync-readme-badges.py.
-
-### Changed
-
-### Fixed
-
 ---
 
 ## [1.0.1]
@@ -663,14 +655,6 @@ totalCount, totalPages }` (BE-RP3).
 ### Changed
 
 - Document project author (Ladislav Kostolny, 01laky@gmail.com) in README and standard manifests.
-
-### Added
-
-### Changed
-
-- Document project author (Ladislav Kostolny, 01laky@gmail.com) in README and standard manifests.
-
-### Fixed
 
 ---
 
