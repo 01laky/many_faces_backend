@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.4.45](#1445) | Fix operator AI chat: SignalR 2-arg hub contract (drop optional param)                  |
 | [1.4.44](#1444) | Wall-tickets pagination parity fix + pure-helper edge tests                            |
 | [1.4.43](#1443) | Untested pure-helper edge tests (test-gap fill)                                        |
 | [1.4.42](#1442) | Edge-case fixes: grid pagination, gRPC timeout, SSRF dot, AI cache flush + tests       |
@@ -75,6 +76,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.45]
+
+### Fixed
+
+- **Operator AI chat was completely broken — every turn failed with "Could not get an AI response".**
+  The SignalR hub method `ChatHub.SendToAiWithOperatorStats` declared three parameters
+  (`conversationId`, `message`, `int? maxParallelBundleAiCalls = null`), but the admin SPA invokes it
+  with two (`conversationId`, `message`). ASP.NET Core SignalR does **not** support optional / defaulted
+  hub-method parameters: a 2-argument client invoke against the 3-parameter method failed argument
+  binding on the server ("Failed to invoke 'SendToAiWithOperatorStats' due to an error on the server")
+  **before the method body ran**, so not a single operator AI turn ever executed (confirmed: zero
+  method-entry log lines, and a live SignalR client reproduced 2-arg REJECT vs 3-arg OK). Removed the
+  unused `maxParallelBundleAiCalls` wire parameter — no client ever supplied an override — and the
+  per-turn bundle-parallelism cap is now read directly from `OperatorAiOptions.MaxParallelBundleAiCalls`
+  (default 1, so behaviour is unchanged). The `OperatorAiChatHubContractTests` contract test, which had
+  asserted the buggy 3-parameter shape, now pins the method to exactly `(int conversationId, string
+  message)` with no optional parameters as a regression guard.
 
 ---
 
@@ -798,7 +819,8 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...HEAD
+[1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
 [1.4.44]: https://github.com/01laky/many_faces_backend/compare/v1.4.43...v1.4.44
 [1.4.43]: https://github.com/01laky/many_faces_backend/compare/v1.4.42...v1.4.43
 [1.4.42]: https://github.com/01laky/many_faces_backend/compare/v1.4.41...v1.4.42

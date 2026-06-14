@@ -1,7 +1,7 @@
 /*
  * ChatHub.cs - SignalR Hub for real-time chat communication
  *
- * Operator AI: shared support inbox via SendToAiWithOperatorStats(conversationId, message, maxParallelBundleAiCalls?)
+ * Operator AI: shared support inbox via SendToAiWithOperatorStats(conversationId, message)
  * with DB persistence and operator_ai_operators group broadcasts.
  *
  * RAG retrieval refactor v1 (operator-ai-rag-retrieval-refactor-v1):
@@ -231,11 +231,18 @@ public class ChatHub : Hub
 	/// </summary>
 	/// <param name="conversationId">Target shared-inbox thread.</param>
 	/// <param name="message">Operator question.</param>
-	/// <param name="maxParallelBundleAiCalls">Optional per-turn cap on concurrent bundle Generates (clamped to options).</param>
+	/// <remarks>
+	/// The wire contract is exactly <c>(conversationId, message)</c>. There is no optional per-turn
+	/// parallelism argument: ASP.NET Core SignalR does NOT support optional / defaulted hub-method
+	/// parameters — a 2-argument client invoke against a 3-parameter method fails argument binding on
+	/// the server ("Failed to invoke 'SendToAiWithOperatorStats' due to an error on the server") BEFORE
+	/// the method body runs, which silently broke every operator AI chat turn. The bundle-parallelism
+	/// cap is read from <see cref="OperatorAiOptions.MaxParallelBundleAiCalls"/> instead (no client ever
+	/// sent an override).
+	/// </remarks>
 	public async Task SendToAiWithOperatorStats(
 		int conversationId,
-		string message,
-		int? maxParallelBundleAiCalls = null)
+		string message)
 	{
 		var userId = Context.UserIdentifier ?? Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 		_logger.LogInformation(
@@ -301,10 +308,10 @@ public class ChatHub : Hub
 			return;
 		}
 
-		var effectiveParallel = Math.Clamp(
-			maxParallelBundleAiCalls ?? 1,
-			1,
-			_operatorAiOptions.MaxParallelBundleAiCalls);
+		// Per-turn bundle parallelism is the configured cap (≥ 1). This was previously an optional hub
+		// argument, but SignalR cannot carry optional parameters (see the method remarks), and no client
+		// ever supplied an override, so the configured ceiling is used directly.
+		var effectiveParallel = Math.Max(1, _operatorAiOptions.MaxParallelBundleAiCalls);
 
 		// 7B-perf O17 — single-active-generation guard: the local GPU is serial, so reject a second concurrent turn
 		// for this conversation (rather than thrashing both). Released in the finally below.
