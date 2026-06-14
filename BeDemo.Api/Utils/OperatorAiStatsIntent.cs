@@ -23,8 +23,14 @@ public static class OperatorAiStatsIntent
 	[
 		"all information", "all informations", "all data", "all stats", "all statistics",
 		"everything in", "whole system", "entire system", "full overview", "complete overview",
+		// Operator phrasings that previously slipped through (full-stats broad-overview fix): "give me full
+		// statistics", "all entities results", "complete stats", … plus their Slovak variants.
+		"full statistics", "full stats", "all entities", "all entity", "all the stats",
+		"complete statistics", "complete stats", "every entity",
 		"všetky inform", "vsetky inform", "všetko v systéme", "vsetko v systeme",
 		"celý systém", "cely system", "platform overview", "system overview",
+		"úplné štatistiky", "uplne statistiky", "kompletné štatistiky", "kompletne statistiky",
+		"všetky entity", "vsetky entity", "celé štatistiky", "cele statistiky",
 	];
 
 	private static readonly string[] NonMetricsKeywords =

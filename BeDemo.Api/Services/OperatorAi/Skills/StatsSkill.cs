@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using BeDemo.Api.Utils;
@@ -58,16 +59,31 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 		// SELECTION (§6/§17): RAG-first; planner fallback + zero-hit escalation handled inside the retriever.
 		var retrieval = await _retriever.RetrieveBundleIndicesAsync(request.UserMessage, cancellationToken);
 
-		if (retrieval.IsZeroHit || retrieval.BundleIndices.Count == 0)
-			return new OperatorAiSkillResult(ZeroHitRefusal, Trace: ZeroHitTrace(sw));
+		var isBroad = OperatorAiStatsIntent.IsBroadOverviewQuestion(request.UserMessage);
+		IReadOnlyList<int> indices;
+		if (isBroad)
+		{
+			// Full-stats broad-overview (§3.2): map ALL 61 bundles — RAG-ranked first, then the rest in catalog
+			// order — so the deterministic stitch covers every entity. No zero-hit refusal here (all 61 exist).
+			var ranked = retrieval.BundleIndices;
+			indices = ranked
+				.Concat(Enumerable.Range(0, OperatorAiEntityBundleCatalog.BundleCount).Where(i => !ranked.Contains(i)))
+				.ToList();
+		}
+		else
+		{
+			if (retrieval.IsZeroHit || retrieval.BundleIndices.Count == 0)
+				return new OperatorAiSkillResult(ZeroHitRefusal, Trace: ZeroHitTrace(sw));
+			indices = retrieval.BundleIndices;
+		}
 
 		// Build the terminal plan (load + fast-paths + maps + stitch), then run the terminal generation inline.
-		var appendCoverageNote = OperatorAiStatsIntent.IsBroadOverviewQuestion(request.UserMessage);
 		var plan = await _orchestrator.PrepareSelectedAsync(
 			request.UserMessage,
-			retrieval.BundleIndices,
+			indices,
 			request.MaxParallelBundleAiCalls ?? 1,
-			appendCoverageNote,
+			appendCoverageNote: isBroad,
+			broadOverview: isBroad,
 			cancellationToken);
 
 		string answer;
@@ -96,18 +112,34 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 		var sw = Stopwatch.StartNew();
 
 		var retrieval = await _retriever.RetrieveBundleIndicesAsync(request.UserMessage, cancellationToken);
-		if (retrieval.IsZeroHit || retrieval.BundleIndices.Count == 0)
+
+		var isBroad = OperatorAiStatsIntent.IsBroadOverviewQuestion(request.UserMessage);
+		IReadOnlyList<int> indices;
+		if (isBroad)
+		{
+			// Full-stats broad-overview (§3.2): map ALL 61 bundles — RAG-ranked first, then the rest in catalog
+			// order. With the deterministic stitch this plan is IsComplete, so it streams as one block below.
+			var ranked = retrieval.BundleIndices;
+			indices = ranked
+				.Concat(Enumerable.Range(0, OperatorAiEntityBundleCatalog.BundleCount).Where(i => !ranked.Contains(i)))
+				.ToList();
+		}
+		else if (retrieval.IsZeroHit || retrieval.BundleIndices.Count == 0)
 		{
 			yield return new OperatorAiStreamChunk(ZeroHitRefusal, IsFinal: true, FinalAnswer: ZeroHitRefusal, Trace: ZeroHitTrace(sw));
 			yield break;
 		}
+		else
+		{
+			indices = retrieval.BundleIndices;
+		}
 
-		var appendCoverageNote = OperatorAiStatsIntent.IsBroadOverviewQuestion(request.UserMessage);
 		var plan = await _orchestrator.PrepareSelectedAsync(
 			request.UserMessage,
-			retrieval.BundleIndices,
+			indices,
 			request.MaxParallelBundleAiCalls ?? 1,
-			appendCoverageNote,
+			appendCoverageNote: isBroad,
+			broadOverview: isBroad,
 			cancellationToken);
 
 		// Count fast-path / synthesis-off: nothing to stream — emit the ready answer as one chunk.

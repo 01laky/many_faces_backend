@@ -21,6 +21,7 @@ public sealed class OperatorAiOptionsValidator : IValidateOptions<OperatorAiOpti
 
 		Require(o.MaxParallelBundleAiCalls >= 1, nameof(o.MaxParallelBundleAiCalls), "must be >= 1");
 		Require(o.MaxSelectedBundleIndices >= 1, nameof(o.MaxSelectedBundleIndices), "must be >= 1");
+		Require(o.BroadOverviewMaxParallel >= 1, nameof(o.BroadOverviewMaxParallel), "must be >= 1");
 		Require(o.LiveBundleMaxNewTokens >= 1, nameof(o.LiveBundleMaxNewTokens), "must be >= 1");
 		Require(o.LiveStitchMaxNewTokens >= 1, nameof(o.LiveStitchMaxNewTokens), "must be >= 1");
 		Require(o.MaxNewTokens >= 1, nameof(o.MaxNewTokens), "must be >= 1");

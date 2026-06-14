@@ -33,12 +33,16 @@ public interface IOperatorAiLiveStatsOrchestrator
 	/// and append a coverage note. Never hangs, never empty-errors.
 	/// </summary>
 	/// <param name="indices">Ordered, deduped, top-K-capped bundle indices from the retriever.</param>
-	/// <param name="appendCoverageNote">True for broad-overview answers — appends a "covers the top-K" note (§6).</param>
+	/// <param name="appendCoverageNote">True for broad-overview answers — appends a coverage note (§6).</param>
+	/// <param name="broadOverview">Full-stats fix: when true, all 61 bundles are mapped per-bundle on the CPU
+	/// helper at <see cref="OperatorAiOptions.BroadOverviewMaxParallel"/> and the answer is the DETERMINISTIC
+	/// stitch (no AI synthesis), so nothing can be truncated.</param>
 	Task<string> RunWithSelectedIndicesAsync(
 		string userMessage,
 		IReadOnlyList<int> indices,
 		int maxParallelBundleAiCalls,
 		bool appendCoverageNote,
+		bool broadOverview = false,
 		CancellationToken cancellationToken = default);
 
 	/// <summary>
@@ -54,6 +58,7 @@ public interface IOperatorAiLiveStatsOrchestrator
 		IReadOnlyList<int> indices,
 		int maxParallelBundleAiCalls,
 		bool appendCoverageNote,
+		bool broadOverview = false,
 		CancellationToken cancellationToken = default);
 }
 
@@ -121,6 +126,14 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		_options.HelperParallelMapEnabled && !string.IsNullOrWhiteSpace(_aiOptions.HelperModel) && (position % 2 == 1)
 			? _aiOptions.HelperModel
 			: null;
+
+	/// <summary>
+	/// Full-stats broad-overview map model: ALL 61 per-bundle maps run on the CPU helper (when configured) so the
+	/// GPU stays free and the maps parallelise on the CPU. Falls back to the worker default model (7B) when no
+	/// helper is set (correct, just slower and GPU-serial).
+	/// </summary>
+	private string? BroadMapModel() =>
+		!string.IsNullOrWhiteSpace(_aiOptions.HelperModel) ? _aiOptions.HelperModel : null;
 
 	/// <summary>Map-step sampling override (7B-perf O11): low temperature + stop sequences for the terse facts step.</summary>
 	private IReadOnlyList<string>? MapStops =>
@@ -243,10 +256,11 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		IReadOnlyList<int> indices,
 		int maxParallelBundleAiCalls,
 		bool appendCoverageNote,
+		bool broadOverview = false,
 		CancellationToken cancellationToken = default)
 	{
 		// Non-streaming entry point (back-compat): build the terminal plan, then run the terminal generation inline.
-		var plan = await PrepareSelectedAsync(userMessage, indices, maxParallelBundleAiCalls, appendCoverageNote, cancellationToken);
+		var plan = await PrepareSelectedAsync(userMessage, indices, maxParallelBundleAiCalls, appendCoverageNote, broadOverview, cancellationToken);
 		if (plan.IsComplete)
 			return plan.CompleteAnswer!;
 
@@ -273,6 +287,7 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		IReadOnlyList<int> indices,
 		int maxParallelBundleAiCalls,
 		bool appendCoverageNote,
+		bool broadOverview = false,
 		CancellationToken cancellationToken = default)
 	{
 		// Always-English (D10): the AI is never sent a language; the locale arg downstream is fixed "en".
@@ -289,7 +304,11 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		using var budgetCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 		budgetCts.CancelAfter(TimeSpan.FromMilliseconds(Math.Max(1_000, _options.OverallTurnBudgetMs)));
 
-		var parallel = Math.Clamp(maxParallelBundleAiCalls, 1, _options.MaxParallelBundleAiCalls);
+		// Full-stats broad-overview (§3.3): the broad path maps all 61 bundles per-bundle on the CPU helper, so it
+		// uses its own parallelism (BroadOverviewMaxParallel) and is NOT pinned to MaxParallelBundleAiCalls = 1.
+		var parallel = broadOverview
+			? Math.Max(1, _options.BroadOverviewMaxParallel)
+			: Math.Clamp(maxParallelBundleAiCalls, 1, _options.MaxParallelBundleAiCalls);
 
 		// Stage 1 — fresh-load ONLY the K selected bundles (drop the always-all-61 prefetch, §3.3 / RT-6).
 		var loadSw = Stopwatch.StartNew();
@@ -340,7 +359,7 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		var mapSw = Stopwatch.StartNew();
 		var partTasks = indices.Select((index, position) => RunBundleAiWithTimeoutAsync(
 			index,
-			MapModelFor(position),
+			broadOverview ? BroadMapModel() : MapModelFor(position),
 			userMessage,
 			responseLocale,
 			cache,
@@ -366,12 +385,26 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		// Stage 5 — deterministic stitch.
 		var draft = OperatorAiLiveStatsStitch.Stitch(parts);
 
-		// Broad-overview coverage note (§6): tell the operator the answer is limited to the top-K bundles.
-		if (appendCoverageNote && indices.Count > 0)
+		// Coverage note (§3.5): broad-overview covers ALL 61 bundles → a "full snapshot" (partial only when a bundle
+		// genuinely failed); the focused path keeps the "top-K most relevant" note.
+		if (broadOverview)
+		{
+			var failedCount = parts.Count(p => p.Failed);
+			draft += failedCount == 0
+				? "\n\n_(Full platform snapshot — all data areas.)_"
+				: $"\n\n_(Full platform snapshot — {failedCount} data area(s) were temporarily unavailable.)_";
+		}
+		else if (appendCoverageNote && indices.Count > 0)
+		{
 			draft += $"\n\n_(This answer covers the {indices.Count} most relevant data areas for your question.)_";
+		}
+
+		// Full-stats broad-overview (§3.3): force the DETERMINISTIC stitch (skip AI synthesis) — the concatenation of
+		// all 61 per-bundle map outputs is complete by construction, so there is no final Generate to truncate it.
+		var useSynthesis = _options.LiveUseAiSynthesisStitch && !broadOverview;
 
 		// When synthesis is off (or there is nothing to synthesize), the stitched draft IS the answer (0 extra gen).
-		if (!_options.LiveUseAiSynthesisStitch || string.IsNullOrWhiteSpace(draft))
+		if (!useSynthesis || string.IsNullOrWhiteSpace(draft))
 		{
 			return new OperatorAiTerminalPlan(
 				draft,

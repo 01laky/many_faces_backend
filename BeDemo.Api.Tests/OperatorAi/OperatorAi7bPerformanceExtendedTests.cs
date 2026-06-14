@@ -346,7 +346,7 @@ public sealed class OperatorAi7bPerformanceExtendedTests
 	{
 		var retriever = Retriever(new[] { 0 });
 		var orch = new Mock<IOperatorAiLiveStatsOrchestrator>();
-		orch.Setup(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+		orch.Setup(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new OperatorAiTerminalPlan("Users: 5 total.", null, 0, new OperatorAiLiveTurnTrace("count", 0, 1, 0, 1)));
 		var ai = new Mock<IAiGrpcService>();
 
@@ -364,7 +364,7 @@ public sealed class OperatorAi7bPerformanceExtendedTests
 	{
 		var retriever = Retriever(new[] { 0 });
 		var orch = new Mock<IOperatorAiLiveStatsOrchestrator>();
-		orch.Setup(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+		orch.Setup(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new OperatorAiTerminalPlan(null, "PROMPT", 512, new OperatorAiLiveTurnTrace("single-bundle", 0, 1, 0, 1)));
 		var ai = new Mock<IAiGrpcService>();
 		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(),
@@ -384,7 +384,7 @@ public sealed class OperatorAi7bPerformanceExtendedTests
 	{
 		var retriever = Retriever(new[] { 0 });
 		var orch = new Mock<IOperatorAiLiveStatsOrchestrator>();
-		orch.Setup(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+		orch.Setup(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new OperatorAiTerminalPlan(null, "PROMPT", 512, new OperatorAiLiveTurnTrace("synthesis", 2, 1, 1, 2), FallbackAnswer: "Deterministic facts."));
 		var ai = new Mock<IAiGrpcService>();
 		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(),

@@ -23,6 +23,25 @@ public sealed class OperatorAiStatsIntentTests
 	[InlineData("give me results about all informations in system", true)]
 	[InlineData("full platform overview", true)]
 	[InlineData("how many users?", false)]
+	// Full-stats fix: the operator phrasings that previously slipped through must now be detected as broad.
+	[InlineData("give me full statistics", true)]
+	[InlineData("Give me full stats", true)]
+	[InlineData("but i need stats about all entities not just users", true)]
+	[InlineData("all entities results", true)]
+	[InlineData("give me all the stats", true)]
+	[InlineData("I need complete statistics please", true)] // embedded mid-sentence
+	[InlineData("FULL STATISTICS", true)] // case-insensitive
+	[InlineData("úplné štatistiky prosím", true)] // SK with diacritics
+	[InlineData("uplne statistiky", true)] // SK without diacritics
+	[InlineData("kompletné štatistiky", true)]
+	[InlineData("všetky entity v systéme", true)]
+	[InlineData("celé štatistiky", true)]
+	// Focused near-misses must stay false (no broad keyword present).
+	[InlineData("how many albums are pending approval?", false)]
+	[InlineData("show me the reel counts", false)]
+	[InlineData("user signups this week", false)]
+	[InlineData("", false)]
+	[InlineData("   ", false)]
 	public void IsBroadOverviewQuestion_classifies_messages(string message, bool expected)
 	{
 		Assert.Equal(expected, OperatorAiStatsIntent.IsBroadOverviewQuestion(message));

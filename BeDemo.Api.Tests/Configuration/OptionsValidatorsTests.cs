@@ -37,6 +37,7 @@ public sealed class OptionsValidatorsTests
 		var v = new OperatorAiOptionsValidator();
 		v.Validate(null, new OperatorAiOptions { MaxParallelBundleAiCalls = 0 }).Failed.Should().BeTrue();
 		v.Validate(null, new OperatorAiOptions { MaxSelectedBundleIndices = 0 }).Failed.Should().BeTrue();
+		v.Validate(null, new OperatorAiOptions { BroadOverviewMaxParallel = 0 }).Failed.Should().BeTrue();
 		v.Validate(null, new OperatorAiOptions { OverallTurnBudgetMs = 0 }).Failed.Should().BeTrue();
 		v.Validate(null, new OperatorAiOptions { LiveBundleMaxNewTokens = -1 }).Failed.Should().BeTrue();
 	}

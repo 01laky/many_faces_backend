@@ -31,6 +31,14 @@ public sealed class OperatorAiOptions
 	/// <summary>Planner may select at most this many bundle indices per message.</summary>
 	public int MaxSelectedBundleIndices { get; set; } = 4;
 
+	/// <summary>
+	/// Full-stats broad-overview fix: parallelism for the per-bundle maps on the broad-overview path (all 61
+	/// bundles). Used directly as the map gate size — deliberately NOT clamped by
+	/// <see cref="MaxParallelBundleAiCalls"/> (which pins the focused path to 1), since the broad path runs the
+	/// 61 tiny maps on the CPU helper and would otherwise be serial. Raise on a host with concurrent model slots.
+	/// </summary>
+	public int BroadOverviewMaxParallel { get; set; } = 4;
+
 	public int LiveBundleCatalogVersion { get; set; } = 2;
 
 	public int LivePrefetchTimeoutSeconds { get; set; } = 60;

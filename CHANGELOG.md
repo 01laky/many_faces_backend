@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.4.47](#1447) | Operator AI full/all-stats: all 61 bundles + deterministic stitch              |
 | [1.4.46](#1446) | Fix search outbox DbContext concurrency (RAG indexing)                                  |
 | [1.4.45](#1445) | Fix operator AI chat: SignalR 2-arg hub contract (drop optional param)                  |
 | [1.4.44](#1444) | Wall-tickets pagination parity fix + pure-helper edge tests                            |
@@ -77,6 +78,30 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.47]
+
+### Fixed
+
+- **Operator AI "full / all statistics" requests now cover every entity** instead of ~4 of 61. The RAG
+  refactor routed all stats questions through the retriever's top-K (≤ `MaxSelectedBundleIndices = 4`)
+  bundle selection, so "give me full statistics" / "all entities results" could only ever see a sliver —
+  the broad-overview intent was still detected but only used for a cosmetic coverage note. Now, when
+  `OperatorAiStatsIntent.IsBroadOverviewQuestion` is true, `StatsSkill` (both `RunAsync` and
+  `RunStreamingAsync`) selects **all 61 bundles** (RAG-ranked first, then the rest in catalog order) and
+  `OperatorAiLiveStatsOrchestrator.PrepareSelectedAsync(broadOverview: true)` maps them **per-bundle on
+  the CPU helper** (new `BroadOverviewMaxParallel`, not pinned to the focused path's
+  `MaxParallelBundleAiCalls = 1`) and returns the **deterministic stitch** (skips the AI-synthesis pass).
+  Because each entity is its own per-bundle map and the 61 parts are concatenated in code, the answer is
+  complete by construction — the small model is never asked to enumerate 61 entities in one (truncatable)
+  generation, so nothing is dropped; a genuinely failed bundle surfaces as an explicit "data unavailable"
+  line and a "partial" coverage note. Widened `BroadOverviewKeywords` to catch the operator phrasings that
+  previously slipped through ("full statistics", "full stats", "all entities", … + Slovak variants).
+  Focused questions are unchanged (top-K, synthesis as before). Extended edge-case tests added/updated
+  (intent detection, all-61 selection + RAG-ranked order, helper routing, deterministic-stitch-over-
+  synthesis, partial-on-failure, `BroadOverviewMaxParallel` validation).
 
 ---
 
@@ -837,7 +862,8 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.47...HEAD
+[1.4.47]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...v1.4.47
 [1.4.46]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...v1.4.46
 [1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
 [1.4.44]: https://github.com/01laky/many_faces_backend/compare/v1.4.43...v1.4.44

@@ -50,7 +50,7 @@ public sealed class OperatorAiSkillsTests
 		var result = await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>()).RunAsync(Req("what is the weather"), default);
 
 		result.AnswerMarkdown.Should().Be(StatsSkill.ZeroHitRefusal);
-		orch.Verify(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never());
+		orch.Verify(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never());
 	}
 
 	[Fact]
@@ -62,13 +62,38 @@ public sealed class OperatorAiSkillsTests
 				new[] { 0, 12 }, OperatorAiSelectionStrategy.Rag, Array.Empty<OperatorAiRetrievalHit>(), false, false, 5, 7));
 		var orch = new Mock<IOperatorAiLiveStatsOrchestrator>();
 		// The skill now drives the terminal plan; a ready CompleteAnswer (count fast-path style) is returned as-is.
-		orch.Setup(o => o.PrepareSelectedAsync("how many users?", It.Is<IReadOnlyList<int>>(i => i.SequenceEqual(new[] { 0, 12 })), 2, false, It.IsAny<CancellationToken>()))
+		orch.Setup(o => o.PrepareSelectedAsync("how many users?", It.Is<IReadOnlyList<int>>(i => i.SequenceEqual(new[] { 0, 12 })), 2, false, false, It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new OperatorAiTerminalPlan("There are 1,234 users.", null, 0, new OperatorAiLiveTurnTrace("count", 0, 0, 0, 2)));
 
 		var result = await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>()).RunAsync(Req("how many users?"), default);
 
 		result.AnswerMarkdown.Should().Be("There are 1,234 users.");
 		result.Trace!.SkillId.Should().Be("stats");
+	}
+
+	[Fact]
+	public async Task Stats_broad_overview_maps_all_61_bundles_rag_ranked_first_and_sets_broad_flag()
+	{
+		// Retriever returns only the top-K (here 2), RAG-ranked: {12, 0}.
+		var retriever = new Mock<IOperatorAiRetriever>();
+		retriever.Setup(r => r.RetrieveBundleIndicesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new OperatorAiRetrievalResult(
+				new[] { 12, 0 }, OperatorAiSelectionStrategy.Rag, Array.Empty<OperatorAiRetrievalHit>(), false, false, 5, 7));
+
+		IReadOnlyList<int>? captured = null;
+		var orch = new Mock<IOperatorAiLiveStatsOrchestrator>();
+		// Broad call: appendCoverageNote AND broadOverview are both true.
+		orch.Setup(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), 2, true, true, It.IsAny<CancellationToken>()))
+			.Callback((string _, IReadOnlyList<int> idx, int _, bool _, bool _, CancellationToken _) => captured = idx)
+			.ReturnsAsync(new OperatorAiTerminalPlan("Full platform snapshot.", null, 0, new OperatorAiLiveTurnTrace("stitch", 0, 0, 0, OperatorAiEntityBundleCatalog.BundleCount)));
+
+		await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>()).RunAsync(Req("give me full statistics"), default);
+
+		captured.Should().NotBeNull("broad-overview must reach the orchestrator (no zero-hit refusal)");
+		captured!.Should().HaveCount(OperatorAiEntityBundleCatalog.BundleCount, "broad-overview maps ALL 61 bundles");
+		captured.Should().OnlyHaveUniqueItems();
+		captured.Should().BeEquivalentTo(Enumerable.Range(0, OperatorAiEntityBundleCatalog.BundleCount), "every bundle index is present exactly once");
+		captured!.Take(2).Should().Equal(new[] { 12, 0 }, "the RAG-ranked indices lead, then the rest follow in catalog order");
 	}
 
 	// ── ReportsSkill ────────────────────────────────────────────────────────

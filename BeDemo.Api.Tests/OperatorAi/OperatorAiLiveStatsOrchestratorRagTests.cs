@@ -18,20 +18,23 @@ namespace BeDemo.Api.Tests.OperatorAi;
 /// </summary>
 public sealed class OperatorAiLiveStatsOrchestratorRagTests
 {
-	private static OperatorAiLiveStatsOrchestrator Build(Mock<IAiGrpcService> ai, Mock<IOperatorAiLiveStatsPrefetcher> prefetcher, int perBundleTimeoutMs = 1000, int overallBudgetMs = 10000)
+	private static OperatorAiLiveStatsOrchestrator Build(Mock<IAiGrpcService> ai, Mock<IOperatorAiLiveStatsPrefetcher> prefetcher, int perBundleTimeoutMs = 1000, int overallBudgetMs = 10000, bool synthesisStitch = false, string? helperModel = null)
 	{
 		var options = Options.Create(new OperatorAiOptions
 		{
 			MaxParallelBundleAiCalls = 2,
+			BroadOverviewMaxParallel = 4,
 			PerBundleGenerateTimeoutMs = perBundleTimeoutMs,
 			OverallTurnBudgetMs = overallBudgetMs,
-			LiveUseAiSynthesisStitch = false, // assert the deterministic stitch, not a synthesized rewrite
+			// Off by default so most tests assert the deterministic stitch; the broad tests turn it ON to prove the
+			// broad path forces the deterministic stitch even when synthesis is enabled.
+			LiveUseAiSynthesisStitch = synthesisStitch,
 		});
 		// 7B-perf: decision helper stubbed to "never a simple count" so these tests exercise the map/stitch path,
 		// not the deterministic count fast-path (covered by its own dedicated tests).
 		var decisions = new Mock<IOperatorAiDecisionHelper>();
 		decisions.Setup(d => d.IsSimpleCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
-		return new OperatorAiLiveStatsOrchestrator(prefetcher.Object, ai.Object, decisions.Object, options, Options.Create(new AiServiceOptions()), NullLogger<OperatorAiLiveStatsOrchestrator>.Instance);
+		return new OperatorAiLiveStatsOrchestrator(prefetcher.Object, ai.Object, decisions.Object, options, Options.Create(new AiServiceOptions { HelperModel = helperModel }), NullLogger<OperatorAiLiveStatsOrchestrator>.Instance);
 	}
 
 	private static OperatorAiBundleCacheEntry ReadyEntry(int index)
@@ -99,5 +102,81 @@ public sealed class OperatorAiLiveStatsOrchestratorRagTests
 		result.Should().NotBeNullOrEmpty("a per-bundle timeout must not fail the whole turn (RT-20)");
 		result.Should().Contain("FASTANSWER", "the bundle that answered in time survives");
 		sw.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(10), "the turn returns soon after the per-bundle timeout, not after the slow Generate");
+	}
+
+	// ── Full-stats broad-overview (per-bundle map → deterministic stitch) ─────────────────────────────────
+
+	[Fact]
+	public async Task Broad_overview_uses_deterministic_stitch_even_when_synthesis_is_enabled()
+	{
+		var ai = new Mock<IAiGrpcService>();
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync("Stat line.");
+
+		// Synthesis ON, but broadOverview must force the deterministic stitch: 3 per-bundle maps and NO synthesis
+		// Generate — so the model is never asked to enumerate all entities in one (truncatable) generation.
+		var result = await Build(ai, PrefetcherReturningReady(), synthesisStitch: true)
+			.RunWithSelectedIndicesAsync("give me full statistics", new[] { 0, 1, 2 }, 2, appendCoverageNote: true, broadOverview: true);
+
+		result.Should().Contain("Full platform snapshot", "broad-overview answers carry the full-snapshot note (§3.5)");
+		ai.Verify(
+			a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+			Times.Exactly(3),
+			"exactly the 3 per-bundle maps run — the deterministic stitch adds NO synthesis Generate");
+	}
+
+	[Fact]
+	public async Task Broad_overview_routes_all_maps_to_the_helper_model()
+	{
+		var models = new List<string?>();
+		var ai = new Mock<IAiGrpcService>();
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.Returns((string _, int _, string? _, string? _, double? _, IReadOnlyList<string>? _, string? model, CancellationToken _) =>
+			{
+				lock (models) models.Add(model);
+				return Task.FromResult("Stat line.");
+			});
+
+		await Build(ai, PrefetcherReturningReady(), helperModel: "qwen-helper")
+			.RunWithSelectedIndicesAsync("all statistics", new[] { 0, 1, 2 }, 2, appendCoverageNote: true, broadOverview: true);
+
+		models.Should().HaveCount(3).And.OnlyContain(m => m == "qwen-helper", "all broad maps run on the CPU helper");
+	}
+
+	[Fact]
+	public async Task Broad_overview_falls_back_to_default_model_when_no_helper_configured()
+	{
+		var models = new List<string?>();
+		var ai = new Mock<IAiGrpcService>();
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.Returns((string _, int _, string? _, string? _, double? _, IReadOnlyList<string>? _, string? model, CancellationToken _) =>
+			{
+				lock (models) models.Add(model);
+				return Task.FromResult("Stat line.");
+			});
+
+		await Build(ai, PrefetcherReturningReady(), helperModel: null)
+			.RunWithSelectedIndicesAsync("all statistics", new[] { 0, 1 }, 2, appendCoverageNote: true, broadOverview: true);
+
+		models.Should().OnlyContain(m => m == null, "with no helper configured the maps use the worker default model (7B)");
+	}
+
+	[Fact]
+	public async Task Broad_overview_reports_partial_when_a_bundle_fails()
+	{
+		var ai = new Mock<IAiGrpcService>();
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.Returns(async (string prompt, int _, string? statsCtx, string? _, double? _, IReadOnlyList<string>? _, string? _, CancellationToken ct) =>
+			{
+				if ((prompt + statsCtx).Contains("SLOWMARKER"))
+					await Task.Delay(3000, ct); // bundle 12 times out → one Failed part
+				return "Stat line.";
+			});
+
+		var result = await Build(ai, PrefetcherReturningReady(), perBundleTimeoutMs: 1000, overallBudgetMs: 15000)
+			.RunWithSelectedIndicesAsync("full statistics", new[] { 0, 12 }, 2, appendCoverageNote: true, broadOverview: true);
+
+		result.Should().Contain("Full platform snapshot", "the broad note still renders");
+		result.Should().Contain("temporarily unavailable", "a failed bundle is reported as partial coverage, not silently dropped");
 	}
 }
