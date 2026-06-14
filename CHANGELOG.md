@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.4.44](#1444) | Wall-tickets pagination parity fix + pure-helper edge tests                            |
 | [1.4.43](#1443) | Untested pure-helper edge tests (test-gap fill)                                        |
 | [1.4.42](#1442) | Edge-case fixes: grid pagination, gRPC timeout, SSRF dot, AI cache flush + tests       |
 | [1.4.41](#1441) | CHANGELOG release-index formatting normalization (docs)                                |
@@ -74,6 +75,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.44]
+
+### Added
+
+- Edge-case tests for four previously-untested pure helpers (unit-test-gap-fill): `StoryVisibility` (untargeted story → all faces, targeted → only listed faces, null viewer face never matches), `PlatformNotificationTitles` (sk/cz localized, everything else → English), `PortalSupportedUiLanguages` (the six UI codes accepted case-insensitively/trimmed; `cs`/unknown/nullish rejected), and `FaceGradientPresets` (seeded faces get their fixed palette, unknown indices get a deterministic hash-derived variant, output is always a valid gradient shape). 31 tests, all green.
+
+### Fixed
+
+- **Wall-tickets list pagination disagreed with the grid snapshot (BE-RP34 contract drift).** The standalone `GET /api/faces/{faceId}/wall-tickets` endpoint computed `totalPages` as a raw `Math.Ceiling(total / pageSize)` — returning **0** for an empty list (vs the snapshot block's **1**) and risking a `pageSize=0` divide-by-zero — and returned the raw (unclamped) page. It now uses `ListPaginationHelper.ClampPage` for exact parity with the grid-snapshot wall-tickets block (one empty page, out-of-range page clamped, pageSize-0 safe). This fixes the previously-failing `FaceGridSnapshotContractTests.BE_RP34_U1` contract test; the full suite is now green (2061/2061).
 
 ---
 
@@ -785,7 +798,8 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.43...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...HEAD
+[1.4.44]: https://github.com/01laky/many_faces_backend/compare/v1.4.43...v1.4.44
 [1.4.43]: https://github.com/01laky/many_faces_backend/compare/v1.4.42...v1.4.43
 [1.4.42]: https://github.com/01laky/many_faces_backend/compare/v1.4.41...v1.4.42
 [1.4.41]: https://github.com/01laky/many_faces_backend/compare/v1.4.40...v1.4.41

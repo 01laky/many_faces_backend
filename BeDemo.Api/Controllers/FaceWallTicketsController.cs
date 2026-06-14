@@ -65,6 +65,12 @@ public class FaceWallTicketsController : ApiControllerBase
 			.Where(t => t.FaceId == faceId);
 
 		var total = await query.CountAsync(cancellationToken);
+		// Clamp exactly like the grid-snapshot wall-tickets block (BE-RP34 contract parity): an
+		// out-of-range page is pulled back in bounds, an empty list reports one (empty) page rather than
+		// zero, and pageSize 0 cannot divide-by-zero. Previously this endpoint returned raw page +
+		// Math.Ceiling(total / pageSize), which disagreed with the snapshot for an empty list (0 vs 1).
+		var (clampedPage, totalPages) = ListPaginationHelper.ClampPage(page, pageSize, total);
+		page = clampedPage;
 		var rawItems = await query
 			.OrderByDescending(t => t.CreatedAt)
 			.Skip((page - 1) * pageSize)
@@ -110,7 +116,7 @@ public class FaceWallTicketsController : ApiControllerBase
 			Page = page,
 			PageSize = pageSize,
 			TotalCount = total,
-			TotalPages = (int)Math.Ceiling(total / (double)pageSize),
+			TotalPages = totalPages,
 		});
 	}
 
