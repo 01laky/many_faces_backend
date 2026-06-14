@@ -44,6 +44,9 @@ public sealed class GeneralAssistantSkill : IOperatorAiStreamingSkill
 			"thanks",
 		];
 
+	public string RouterHint =>
+		"general help, greetings, capabilities, or anything NOT about specific platform data/numbers";
+
 	public OperatorAiSkillTrust Trust => OperatorAiSkillTrust.Trusted;
 
 	public async Task<OperatorAiSkillResult> RunAsync(OperatorAiSkillRequest request, CancellationToken cancellationToken)

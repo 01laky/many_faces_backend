@@ -355,35 +355,67 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		}
 
 		// ── Multi-bundle path: per-bundle map → stitch → (optional) synthesis ─────
-		using var gate = new SemaphoreSlim(parallel, parallel);
 		var mapSw = Stopwatch.StartNew();
-		var partTasks = indices.Select((index, position) => RunBundleAiWithTimeoutAsync(
-			index,
-			broadOverview ? BroadMapModel() : MapModelFor(position),
-			userMessage,
-			responseLocale,
-			cache,
-			gate,
-			budgetCts.Token)).ToArray();
-
 		OperatorAiLiveStatsStitch.Part[] parts;
-		try
+		int generations;
+
+		if (broadOverview && _options.LiveBroadDeterministicCounts)
 		{
-			parts = await Task.WhenAll(partTasks);
+			// Full-stats broad-overview on real hardware: a whole-platform snapshot is a pure counts read-out, so we
+			// render each of the 61 bundles DETERMINISTICALLY from its already-loaded JSON (OperatorAiCountFastPath)
+			// with ZERO Generate calls. The previous design ran one per-bundle LLM map each — 61 maps on the CPU
+			// helper never fit OverallTurnBudgetMs (they all hit the per-bundle timeout and dropped → empty answer).
+			// A bundle whose JSON has no usable totalCount is the only "unavailable" section (feeds the coverage note).
+			parts = indices.Select(index =>
+			{
+				var meta = OperatorAiEntityBundleCatalog.GetByIndex(index);
+				cache.TryGetValue(index, out var entry);
+				var ready = entry is { State: OperatorAiBundleCacheState.Ready, JsonPayload: { Length: > 0 } };
+				var formatted = ready ? OperatorAiCountFastPath.TryFormat(meta, entry!.JsonPayload) : null;
+				return formatted is not null
+					? new OperatorAiLiveStatsStitch.Part(index, meta.Id, formatted, Failed: false)
+					: new OperatorAiLiveStatsStitch.Part(index, meta.Id, string.Empty, Failed: true);
+			}).ToArray();
+			generations = 0;
+			_logger.LogInformation("Operator AI broad-overview deterministic snapshot: {Ready}/{Total} bundles rendered, 0 generations.",
+				parts.Count(p => !p.Failed), parts.Length);
 		}
-		catch (OperationCanceledException)
+		else
 		{
-			// Overall budget exceeded mid-flight: salvage the sub-answers that already completed (§17.7).
-			parts = partTasks
-				.Where(t => t.IsCompletedSuccessfully)
-				.Select(t => t.Result)
-				.ToArray();
+			using var gate = new SemaphoreSlim(parallel, parallel);
+			var partTasks = indices.Select((index, position) => RunBundleAiWithTimeoutAsync(
+				index,
+				broadOverview ? BroadMapModel() : MapModelFor(position),
+				userMessage,
+				responseLocale,
+				cache,
+				gate,
+				budgetCts.Token)).ToArray();
+
+			try
+			{
+				parts = await Task.WhenAll(partTasks);
+			}
+			catch (OperationCanceledException)
+			{
+				// Overall budget exceeded mid-flight: salvage the sub-answers that already completed (§17.7).
+				parts = partTasks
+					.Where(t => t.IsCompletedSuccessfully)
+					.Select(t => t.Result)
+					.ToArray();
+			}
+			generations = parts.Count(p => !p.Failed);
 		}
 		mapSw.Stop();
-		var generations = parts.Count(p => !p.Failed);
 
-		// Stage 5 — deterministic stitch.
-		var draft = OperatorAiLiveStatsStitch.Stitch(parts);
+		// Stage 5 — deterministic stitch. The broad deterministic-counts path already produces a fully-labelled line
+		// per bundle ("**Users:** 33 total — …"), so it is joined directly: routing it through the stitch would prepend
+		// the raw bundle id as a second header ("**entity.users:**" above "**Users:** …"). Failed bundles carry no
+		// usable line and are summarised by the coverage note below, so they are simply omitted from the body.
+		var deterministicBroad = broadOverview && _options.LiveBroadDeterministicCounts;
+		var draft = deterministicBroad
+			? string.Join("\n", parts.Where(p => !p.Failed && !string.IsNullOrWhiteSpace(p.Text)).Select(p => p.Text.Trim()))
+			: OperatorAiLiveStatsStitch.Stitch(parts);
 
 		// Coverage note (§3.5): broad-overview covers ALL 61 bundles → a "full snapshot" (partial only when a bundle
 		// genuinely failed); the focused path keeps the "top-K most relevant" note.

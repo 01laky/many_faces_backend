@@ -243,7 +243,7 @@ public sealed class OperatorAi7bPerformanceTests
 		retriever.Setup(r => r.RetrieveBundleIndicesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new OperatorAiRetrievalResult(Array.Empty<int>(), OperatorAiSelectionStrategy.ZeroHit,
 				Array.Empty<OperatorAiRetrievalHit>(), false, false, 0, 0));
-		var skill = new StatsSkill(retriever.Object, Mock.Of<IOperatorAiLiveStatsOrchestrator>(), Mock.Of<IAiGrpcService>());
+		var skill = new StatsSkill(retriever.Object, Mock.Of<IOperatorAiLiveStatsOrchestrator>(), Mock.Of<IAiGrpcService>(), Mock.Of<IOperatorAiDecisionHelper>());
 
 		var chunks = new List<OperatorAiStreamChunk>();
 		await foreach (var c in skill.RunStreamingAsync(Req("weather?"), default))
@@ -319,8 +319,9 @@ public sealed class OperatorAi7bPerformanceTests
 				It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
 			.Returns(StreamAsync(streamDeltas, streamError));
 
-		var orchestrator = Build(ai, PrefetcherForMany(indices, json), DecisionsCount(isCount));
-		return (new StatsSkill(retriever.Object, orchestrator, ai.Object), ai);
+		var decisions = DecisionsCount(isCount);
+		var orchestrator = Build(ai, PrefetcherForMany(indices, json), decisions);
+		return (new StatsSkill(retriever.Object, orchestrator, ai.Object, decisions.Object), ai);
 	}
 
 	private static async IAsyncEnumerable<AiGenerateDelta> StreamAsync(string[] deltas, bool error)

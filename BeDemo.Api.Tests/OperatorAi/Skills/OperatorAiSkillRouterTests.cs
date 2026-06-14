@@ -1,6 +1,7 @@
 using BeDemo.Api.Configuration;
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Services;
+using BeDemo.Api.Services.OperatorAi;
 using BeDemo.Api.Services.OperatorAi.Skills;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,6 +28,7 @@ public sealed class OperatorAiSkillRouterTests
 		public string DisplayName => Id;
 		public string Description => _marker;
 		public IReadOnlyList<string> SampleRequests => Array.Empty<string>();
+		public string RouterHint => _marker;
 		public OperatorAiSkillTrust Trust => OperatorAiSkillTrust.Trusted;
 		public Task<OperatorAiSkillResult> RunAsync(OperatorAiSkillRequest request, CancellationToken cancellationToken) =>
 			Task.FromResult(new OperatorAiSkillResult($"ran:{Id}"));
@@ -41,6 +43,9 @@ public sealed class OperatorAiSkillRouterTests
 		if (text.Contains("Mgen")) return [0, 0, 0, 1];
 		return [1, 1, 1, 1];
 	}
+
+	/// <summary>Decision helper that abstains (DetectSkill → null, IsBroadOverview → false) so the COSINE path is exercised in isolation.</summary>
+	private static IOperatorAiDecisionHelper NoHelper() => Mock.Of<IOperatorAiDecisionHelper>();
 
 	private static (OperatorAiSkillRouter Router, Mock<IAiGrpcService> Ai) BuildRouter(
 		double threshold = 0.9, AiEmbedTextResult? forceEmbed = null)
@@ -60,7 +65,7 @@ public sealed class OperatorAiSkillRouterTests
 			.ReturnsAsync((string t, string? _, CancellationToken __) => forceEmbed ?? new AiEmbedTextResult(EmbedFor(t), "model-a", null));
 
 		var router = new OperatorAiSkillRouter(
-			registry, cache, ai.Object,
+			registry, cache, NoHelper(), ai.Object,
 			new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()),
 			Options.Create(new AiServiceOptions { EmbeddingModel = "model-a", EmbeddingDim = 4 }),
 			Options.Create(new OperatorAiOptions { SkillRoutingMinScore = threshold, EmbedTimeoutMs = 2000 }),
@@ -85,7 +90,7 @@ public sealed class OperatorAiSkillRouterTests
 			.ReturnsAsync((string t, string? _, CancellationToken __) => { embedCalls++; return new AiEmbedTextResult(EmbedFor(t), "model-a", null); });
 
 		var router = new OperatorAiSkillRouter(
-			new OperatorAiSkillRegistry(skills), new OperatorAiSkillVectorCache(), ai.Object, memoryCache,
+			new OperatorAiSkillRegistry(skills), new OperatorAiSkillVectorCache(), NoHelper(), ai.Object, memoryCache,
 			Options.Create(new AiServiceOptions { EmbeddingModel = "model-a", EmbeddingDim = 4 }),
 			Options.Create(new OperatorAiOptions { SkillRoutingMinScore = 0.5, QueryEmbeddingCacheTtlSeconds = 300 }),
 			NullLogger<OperatorAiSkillRouter>.Instance);

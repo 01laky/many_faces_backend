@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.5.0](#150)   | Operator AI LLM skill router: 3B helper classification + broad pre-route                 |
 | [1.4.47](#1447) | Operator AI full/all-stats: all 61 bundles + deterministic stitch              |
 | [1.4.46](#1446) | Fix search outbox DbContext concurrency (RAG indexing)                                  |
 | [1.4.45](#1445) | Fix operator AI chat: SignalR 2-arg hub contract (drop optional param)                  |
@@ -78,6 +79,75 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.5.0]
+
+### Changed
+
+- **Operator AI skill routing now leads with a 3B helper LLM classification instead of descriptor cosine.**
+  The old router embedded each skill's `Description` + `SampleRequests` and routed by cosine similarity, which
+  mis-fired on phrasings that share vocabulary across skills — most visibly **"Give me full entities
+  statistics" was routed to the _reports_ skill** (the reports descriptor mentions "the moderation queue" /
+  "report on …", so a stats-overview ask scored highest there). `OperatorAiSkillRouter.RouteAsync` now decides
+  in three ordered stages:
+  1. **Deterministic broad-overview keyword pre-route → stats** — a whole-platform overview
+     (`OperatorAiStatsIntent.IsBroadOverviewQuestion`) is unambiguously the stats skill, so it short-circuits
+     before any model call. This is the _only_ keyword pre-route kept: it never steals another skill's traffic.
+  2. **3B helper single-label classification** (`IOperatorAiDecisionHelper.DetectSkillAsync`) over the new terse
+     per-skill `RouterHint` lines (not the verbose descriptors, which bloat the classifier prompt). It runs
+     **before** the embedding early-returns, so routing still works when the embedding worker/model is down.
+     The helper answers one short label (`stats` / `reports` / `moderation` / `general`) which maps back to the
+     registry id; an unparseable / unknown / "none" reply, a disabled helper, or any transport error returns
+     null and falls through.
+  3. **Cosine fallback** — the original descriptor-vector cosine path, unchanged, including the
+     embed-once retriever cache seed and the below-threshold → general-assistant rule.
+  Crucially, the previous implicit "moderation queue / backlog → reports" report-type pre-route is **not**
+  reintroduced at the router level (it over-fired and stole moderation/stats counts); reports is selected only
+  when the helper or cosine actually picks it.
+
+### Added
+
+- **`IOperatorAiSkill.RouterHint`** — one terse line per skill describing what the 3B router should send it
+  (kept deliberately short for classifier accuracy). Implemented by all four v1 skills.
+- **`IOperatorAiDecisionHelper.DetectSkillAsync`** — the single-label skill classifier (terse label + hint
+  prompt, `HelperModel`, `temperature 0.0`, `stop "\n"`); returns the registry id or null. **`IsBroadOverviewAsync`**
+  — gated 3B _upgrade_ of the broad-overview decision: deterministic `IsBroadOverviewQuestion` baseline, and the
+  model is consulted **only** for a keyword-miss that is still metrics-like and not a simple count (a simple
+  count is never broad), so focused/broad/count cases stay off the helper. `StatsSkill` now uses
+  `IsBroadOverviewAsync` (so a keyword-miss overview like "full entities statistics" can still map all 61
+  bundles), with the deterministic keyword heuristic as the always-safe fallback.
+- Widened `OperatorAiStatsIntent.BroadOverviewKeywords` with the operator's actual phrasings
+  ("full entities", "entity statistics", "entities stats", …) so the broad pre-route catches them even with the
+  helper disabled.
+- Extended edge-case tests (`OperatorAiLlmSkillRouterTests`): broad pre-route precedence over a disagreeing
+  helper, helper-beats-cosine, helper-routes-when-embeddings-unavailable (D.1), general-label → fallback flag,
+  helper-null / unknown-id → cosine, the **moderation-queue-count-is-not-pre-routed-to-reports** regression
+  guard, `DetectSkillAsync` label→id parsing (incl. `general` → `general-assistant`, punctuation/case, disabled
+  / empty / unparseable / exception → null, helper-model + deterministic sampling), and `IsBroadOverviewAsync`
+  gating (keyword hit without the model, simple-count never upgraded, keyword-miss upgrade on YES, NO keeps
+  deterministic false). Existing router/skill tests updated for the new constructor + `RouterHint` member.
+- **Broad full-platform snapshot now renders deterministically (zero LLM calls).** New
+  `OperatorAiOptions.LiveBroadDeterministicCounts` (default **on**): the broad/full-overview path formats each of
+  the 61 entity bundles straight from its loaded counts (`OperatorAiCountFastPath`) instead of one per-bundle LLM
+  "map" each. A whole-platform overview is a pure counts read-out, so the model adds nothing — and the previous
+  design's 61 maps on the CPU helper never fit `OverallTurnBudgetMs` (they all hit the per-bundle timeout and were
+  dropped, so the operator got *"Could not process this request"* / an empty answer). The deterministic snapshot
+  returns instantly and completely; a bundle whose JSON lacks a usable `totalCount` is the only "unavailable"
+  section and is reported in the coverage note. Set the flag false to restore the per-bundle LLM map (only sensible
+  on a host that can run 61 maps in budget). Tests: 61/61-rendered-with-zero-generations and
+  no-`totalCount`-→-unavailable, plus the existing LLM-map broad tests pinned to the opt-out flag.
+
+### Fixed
+
+- **Broad snapshot labels were unreadable** — every entity rendered as **`**Entity:**`** under a duplicate raw
+  **`**entity.users:**`** header. `OperatorAiCountFastPath` took the first dot-segment of the bundle id
+  (`entity.users` → `entity` → "Entity"), and the stitch prepended the raw id as a second header. The label now
+  drops the `entity.` namespace and splits the camelCase core into words (`entity.faceChatRoomMessages` →
+  **"Face chat room messages"**, `entity.users` → **"Users"**), and the deterministic broad path joins the
+  already-labelled lines directly (no stitch id header). Regression-guard tests for the label and the
+  camelCase split.
 
 ---
 

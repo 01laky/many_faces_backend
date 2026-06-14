@@ -64,12 +64,23 @@ public sealed class OperatorAi7bPerformanceExtendedTests
 	[Fact]
 	public void Count_formatter_label_is_titlecased_from_compound_id()
 	{
-		// Bundle ids may look like "albums" or "albums.byStatus" — the label is the leading segment, title-cased.
-		var meta = OperatorAiEntityBundleCatalog.GetByIndex(0);
+		// Bundle ids look like "entity.users" — the label drops the "entity." namespace and title-cases the core.
+		var meta = OperatorAiEntityBundleCatalog.GetByIndex(0); // "entity.users"
 		var line = OperatorAiCountFastPath.TryFormat(meta, "{\"totalCount\":5}");
 		line.Should().NotBeNull();
-		line!.Should().StartWith("**");
-		line.Should().MatchRegex(@"^\*\*[A-Z]"); // capitalised label
+		line!.Should().StartWith("**Users:**", "the 'entity.' namespace is dropped — NOT rendered as the generic '**Entity:**'");
+		line.Should().NotContain("**Entity:**", "regression guard: every entity.* bundle previously collapsed to 'Entity'");
+	}
+
+	[Fact]
+	public void Count_formatter_label_splits_camelcase_entity_id()
+	{
+		// A compound entity id like "entity.faceChatRoomMessages" reads as words, not a run-on token.
+		var idx = Enumerable.Range(0, OperatorAiEntityBundleCatalog.BundleCount)
+			.First(i => OperatorAiEntityBundleCatalog.GetByIndex(i).Id == "entity.faceChatRoomMessages");
+		var line = OperatorAiCountFastPath.TryFormat(OperatorAiEntityBundleCatalog.GetByIndex(idx), "{\"totalCount\":512}");
+		line.Should().NotBeNull();
+		line!.Should().StartWith("**Face chat room messages:**").And.Contain("512 total");
 	}
 
 	// ── IsSimpleCountQuestion — Slovak + null/whitespace + extra disqualifiers ──
@@ -350,7 +361,7 @@ public sealed class OperatorAi7bPerformanceExtendedTests
 			.ReturnsAsync(new OperatorAiTerminalPlan("Users: 5 total.", null, 0, new OperatorAiLiveTurnTrace("count", 0, 1, 0, 1)));
 		var ai = new Mock<IAiGrpcService>();
 
-		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object).RunAsync(ReqS("how many users"), default);
+		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object, Mock.Of<IOperatorAiDecisionHelper>()).RunAsync(ReqS("how many users"), default);
 
 		result.AnswerMarkdown.Should().Be("Users: 5 total.");
 		result.Trace!.FastPath.Should().Be("count");
@@ -371,7 +382,7 @@ public sealed class OperatorAi7bPerformanceExtendedTests
 				It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync("Albums: 42 total.");
 
-		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object).RunAsync(ReqS("tell me about albums"), default);
+		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object, Mock.Of<IOperatorAiDecisionHelper>()).RunAsync(ReqS("tell me about albums"), default);
 
 		result.AnswerMarkdown.Should().Be("Albums: 42 total.");
 		result.Trace!.Generations.Should().Be(1, "the single-bundle terminal generation counts as one");
@@ -391,7 +402,7 @@ public sealed class OperatorAi7bPerformanceExtendedTests
 				It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync("Error: AI service unavailable (Unavailable)");
 
-		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object).RunAsync(ReqS("compare"), default);
+		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object, Mock.Of<IOperatorAiDecisionHelper>()).RunAsync(ReqS("compare"), default);
 
 		result.AnswerMarkdown.Should().Be("Deterministic facts.", "a transport error string degrades to the stitched fallback, not the error");
 	}
@@ -523,7 +534,7 @@ public sealed class OperatorAi7bPerformanceExtendedTests
 	}
 
 	private static OperatorAiSkillRouter Router(IOperatorAiSkill[] skills, Mock<IAiGrpcService> ai, IMemoryCache mc) =>
-		new(new OperatorAiSkillRegistry(skills), new OperatorAiSkillVectorCache(), ai.Object, mc,
+		new(new OperatorAiSkillRegistry(skills), new OperatorAiSkillVectorCache(), Mock.Of<IOperatorAiDecisionHelper>(), ai.Object, mc,
 			Options.Create(new AiServiceOptions { EmbeddingModel = "m", EmbeddingDim = 4 }),
 			Options.Create(new OperatorAiOptions { SkillRoutingMinScore = 0.1, EmbedTimeoutMs = 2000 }),
 			NullLogger<OperatorAiSkillRouter>.Instance);
@@ -536,6 +547,7 @@ public sealed class OperatorAi7bPerformanceExtendedTests
 		public string DisplayName => Id;
 		public string Description => _desc;
 		public IReadOnlyList<string> SampleRequests => Array.Empty<string>();
+		public string RouterHint => _desc;
 		public OperatorAiSkillTrust Trust => OperatorAiSkillTrust.Trusted;
 		public Task<OperatorAiSkillResult> RunAsync(OperatorAiSkillRequest request, CancellationToken cancellationToken) =>
 			Task.FromResult(new OperatorAiSkillResult($"ran:{Id}"));

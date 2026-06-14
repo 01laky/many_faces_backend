@@ -47,6 +47,7 @@ public sealed class OperatorAiSkillsExtendedTests
 		public string DisplayName => Id;
 		public string Description => _marker;
 		public IReadOnlyList<string> SampleRequests => Array.Empty<string>();
+		public string RouterHint => _marker;
 		public OperatorAiSkillTrust Trust => OperatorAiSkillTrust.Trusted;
 		public Task<OperatorAiSkillResult> RunAsync(OperatorAiSkillRequest request, CancellationToken cancellationToken) =>
 			Task.FromResult(new OperatorAiSkillResult($"ran:{Id}"));
@@ -176,7 +177,7 @@ public sealed class OperatorAiSkillsExtendedTests
 	[Fact]
 	public void All_v1_skills_are_trusted()
 	{
-		new StatsSkill(Mock.Of<IOperatorAiRetriever>(), Mock.Of<IOperatorAiLiveStatsOrchestrator>(), Mock.Of<IAiGrpcService>()).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
+		new StatsSkill(Mock.Of<IOperatorAiRetriever>(), Mock.Of<IOperatorAiLiveStatsOrchestrator>(), Mock.Of<IAiGrpcService>(), Decisions()).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
 		new ReportsSkill(Mock.Of<IAiGrpcService>(), Mock.Of<IContentModerationMetrics>(), Mock.Of<IDbContextFactory<ApplicationDbContext>>(), Decisions(), Options.Create(Opts())).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
 		new ModerationSkill(Mock.Of<IContentModerationMetrics>(), Mock.Of<IAiGrpcService>(), Options.Create(Opts())).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
 		new GeneralAssistantSkill(Mock.Of<IAiGrpcService>(), Options.Create(Opts())).Trust.Should().Be(OperatorAiSkillTrust.Trusted);
@@ -218,7 +219,7 @@ public sealed class OperatorAiSkillsExtendedTests
 				return new AiEmbedTextResult(v, "model-a", null);
 			});
 		var router = new OperatorAiSkillRouter(
-			new OperatorAiSkillRegistry(skills), new OperatorAiSkillVectorCache(), ai.Object,
+			new OperatorAiSkillRegistry(skills), new OperatorAiSkillVectorCache(), Decisions(), ai.Object,
 			new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions()),
 			Options.Create(new AiServiceOptions { EmbeddingModel = "model-a", EmbeddingDim = 4 }),
 			Options.Create(new OperatorAiOptions { SkillRoutingMinScore = threshold, EmbedTimeoutMs = 2000 }),

@@ -18,7 +18,7 @@ namespace BeDemo.Api.Tests.OperatorAi;
 /// </summary>
 public sealed class OperatorAiLiveStatsOrchestratorRagTests
 {
-	private static OperatorAiLiveStatsOrchestrator Build(Mock<IAiGrpcService> ai, Mock<IOperatorAiLiveStatsPrefetcher> prefetcher, int perBundleTimeoutMs = 1000, int overallBudgetMs = 10000, bool synthesisStitch = false, string? helperModel = null)
+	private static OperatorAiLiveStatsOrchestrator Build(Mock<IAiGrpcService> ai, Mock<IOperatorAiLiveStatsPrefetcher> prefetcher, int perBundleTimeoutMs = 1000, int overallBudgetMs = 10000, bool synthesisStitch = false, string? helperModel = null, bool broadDeterministicCounts = false)
 	{
 		var options = Options.Create(new OperatorAiOptions
 		{
@@ -29,6 +29,9 @@ public sealed class OperatorAiLiveStatsOrchestratorRagTests
 			// Off by default so most tests assert the deterministic stitch; the broad tests turn it ON to prove the
 			// broad path forces the deterministic stitch even when synthesis is enabled.
 			LiveUseAiSynthesisStitch = synthesisStitch,
+			// Default OFF in this harness so the existing broad tests still exercise the per-bundle LLM-map path; the
+			// dedicated deterministic-counts tests turn it ON (production default is ON — see OperatorAiOptions).
+			LiveBroadDeterministicCounts = broadDeterministicCounts,
 		});
 		// 7B-perf: decision helper stubbed to "never a simple count" so these tests exercise the map/stitch path,
 		// not the deterministic count fast-path (covered by its own dedicated tests).
@@ -178,5 +181,56 @@ public sealed class OperatorAiLiveStatsOrchestratorRagTests
 
 		result.Should().Contain("Full platform snapshot", "the broad note still renders");
 		result.Should().Contain("temporarily unavailable", "a failed bundle is reported as partial coverage, not silently dropped");
+	}
+
+	// ── Full-stats broad-overview — DETERMINISTIC counts (no LLM maps; production default) ──────────────────
+
+	private static OperatorAiBundleCacheEntry CountEntry(int index)
+	{
+		var id = OperatorAiEntityBundleCatalog.GetByIndex(index).Id;
+		// A real entity bundle: totalCount (+ a small breakdown) — exactly what OperatorAiCountFastPath renders.
+		var json = $"{{\"totalCount\":{100 + index},\"byStatus\":{{\"approved\":{index}}}}}";
+		return new OperatorAiBundleCacheEntry(index, id, OperatorAiBundleCacheState.Ready, json, null, DateTime.UtcNow, DateTime.UtcNow);
+	}
+
+	private static Mock<IOperatorAiLiveStatsPrefetcher> PrefetcherWithCounts()
+	{
+		var prefetcher = new Mock<IOperatorAiLiveStatsPrefetcher>();
+		prefetcher.Setup(p => p.PrefetchSelectedAsync(It.IsAny<IReadOnlyList<int>>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((IReadOnlyList<int> idx, CancellationToken _) =>
+				new OperatorAiLiveStatsPrefetchResult(idx.ToDictionary(i => i, CountEntry), idx.Count, 0, idx.Count, 0));
+		return prefetcher;
+	}
+
+	[Fact]
+	public async Task Broad_overview_deterministic_counts_renders_all_bundles_with_zero_generations()
+	{
+		var ai = new Mock<IAiGrpcService>(); // any Generate call here would be a bug — the whole point is 0 LLM calls
+
+		var result = await Build(ai, PrefetcherWithCounts(), synthesisStitch: true, broadDeterministicCounts: true)
+			.RunWithSelectedIndicesAsync("give me all entities statistics", new[] { 0, 1, 2 }, 2, appendCoverageNote: true, broadOverview: true);
+
+		result.Should().Contain("total", "each bundle's count is rendered deterministically from its JSON");
+		result.Should().Contain("Full platform snapshot", "the broad-overview note still renders");
+		result.Should().NotContain("temporarily unavailable", "every bundle had a totalCount, so none is unavailable");
+		ai.Verify(
+			a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+			Times.Never(),
+			"the deterministic broad snapshot makes ZERO LLM calls (61 CPU maps could never fit the turn budget)");
+	}
+
+	[Fact]
+	public async Task Broad_overview_deterministic_counts_marks_bundles_without_totalcount_as_unavailable()
+	{
+		var ai = new Mock<IAiGrpcService>();
+		// PrefetcherReturningReady() yields {"v":"FAST"} payloads — no totalCount → each bundle is "unavailable".
+		var result = await Build(ai, PrefetcherReturningReady(), broadDeterministicCounts: true)
+			.RunWithSelectedIndicesAsync("all statistics", new[] { 0, 1 }, 2, appendCoverageNote: true, broadOverview: true);
+
+		result.Should().Contain("temporarily unavailable", "a bundle whose JSON has no totalCount is honestly reported, not silently dropped");
+		ai.Verify(
+			a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+			Times.Never(),
+			"still zero LLM calls even when nothing renders — deterministic path never falls back to the model");
 	}
 }

@@ -27,6 +27,8 @@ public static class OperatorAiStatsIntent
 		// statistics", "all entities results", "complete stats", … plus their Slovak variants.
 		"full statistics", "full stats", "all entities", "all entity", "all the stats",
 		"complete statistics", "complete stats", "every entity",
+		// "Give me full entities statistics" / "entity statistics" phrasings the operator actually used.
+		"full entities", "full entity", "entities statistics", "entity statistics", "entities stats",
 		"všetky inform", "vsetky inform", "všetko v systéme", "vsetko v systeme",
 		"celý systém", "cely system", "platform overview", "system overview",
 		"úplné štatistiky", "uplne statistiky", "kompletné štatistiky", "kompletne statistiky",

@@ -26,12 +26,18 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 	private readonly IOperatorAiRetriever _retriever;
 	private readonly IOperatorAiLiveStatsOrchestrator _orchestrator;
 	private readonly IAiGrpcService _ai;
+	private readonly IOperatorAiDecisionHelper _decisions;
 
-	public StatsSkill(IOperatorAiRetriever retriever, IOperatorAiLiveStatsOrchestrator orchestrator, IAiGrpcService ai)
+	public StatsSkill(
+		IOperatorAiRetriever retriever,
+		IOperatorAiLiveStatsOrchestrator orchestrator,
+		IAiGrpcService ai,
+		IOperatorAiDecisionHelper decisions)
 	{
 		_retriever = retriever;
 		_orchestrator = orchestrator;
 		_ai = ai;
+		_decisions = decisions;
 	}
 
 	public string Id => "stats";
@@ -50,6 +56,10 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 			"total number of faces and pages",
 		];
 
+	public string RouterHint =>
+		"platform counts, totals, trends and breakdowns of any entity (users, albums, reels, stories, faces, "
+		+ "messages, the moderation-queue size, …) — the answer is a number";
+
 	public OperatorAiSkillTrust Trust => OperatorAiSkillTrust.Trusted;
 
 	public async Task<OperatorAiSkillResult> RunAsync(OperatorAiSkillRequest request, CancellationToken cancellationToken)
@@ -59,7 +69,9 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 		// SELECTION (§6/§17): RAG-first; planner fallback + zero-hit escalation handled inside the retriever.
 		var retrieval = await _retriever.RetrieveBundleIndicesAsync(request.UserMessage, cancellationToken);
 
-		var isBroad = OperatorAiStatsIntent.IsBroadOverviewQuestion(request.UserMessage);
+		// Broad = "map ALL 61 bundles" (full-platform overview). The helper upgrades a keyword-miss to broad when the
+		// question is metrics-like and not a simple count; deterministic keywords remain the fallback (O19, §3.2).
+		var isBroad = await _decisions.IsBroadOverviewAsync(request.UserMessage, cancellationToken);
 		IReadOnlyList<int> indices;
 		if (isBroad)
 		{
@@ -113,7 +125,7 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 
 		var retrieval = await _retriever.RetrieveBundleIndicesAsync(request.UserMessage, cancellationToken);
 
-		var isBroad = OperatorAiStatsIntent.IsBroadOverviewQuestion(request.UserMessage);
+		var isBroad = await _decisions.IsBroadOverviewAsync(request.UserMessage, cancellationToken);
 		IReadOnlyList<int> indices;
 		if (isBroad)
 		{

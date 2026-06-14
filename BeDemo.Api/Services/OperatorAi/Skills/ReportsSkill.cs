@@ -54,6 +54,10 @@ public sealed class ReportsSkill : IOperatorAiSkill
 			"give me an admin report on the moderation queue",
 		];
 
+	public string RouterHint =>
+		"GENERATE / produce a structured admin REPORT document (face health, moderation backlog, or grid "
+		+ "completeness) — only when the operator explicitly asks to generate/produce a report";
+
 	public OperatorAiSkillTrust Trust => OperatorAiSkillTrust.Trusted;
 
 	public async Task<OperatorAiSkillResult> RunAsync(OperatorAiSkillRequest request, CancellationToken cancellationToken)

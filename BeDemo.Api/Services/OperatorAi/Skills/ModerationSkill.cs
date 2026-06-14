@@ -48,6 +48,10 @@ public sealed class ModerationSkill : IOperatorAiStreamingSkill
 			"what are the top moderation flags?",
 		];
 
+	public string RouterHint =>
+		"the content-moderation backlog/queue specifically — pending count, oldest pending age, "
+		+ "approved/rejected/removed counts, AI-review job status, top moderation flags";
+
 	public OperatorAiSkillTrust Trust => OperatorAiSkillTrust.Trusted; // aggregate metrics only — no raw content (§6.3)
 
 	public async Task<OperatorAiSkillResult> RunAsync(OperatorAiSkillRequest request, CancellationToken cancellationToken)

@@ -39,6 +39,15 @@ public sealed class OperatorAiOptions
 	/// </summary>
 	public int BroadOverviewMaxParallel { get; set; } = 4;
 
+	/// <summary>
+	/// Full-stats broad-overview: when true (default), the whole-platform snapshot renders each of the 61 entity
+	/// bundles DETERMINISTICALLY from its loaded counts (<see cref="OperatorAiCountFastPath"/>) with ZERO Generate
+	/// calls, instead of one per-bundle LLM "map" each. A broad overview is a pure counts read-out, so the LLM adds
+	/// nothing while 61 maps on a CPU helper never fit the turn budget (they all time out → empty answer). Set false
+	/// to restore the per-bundle LLM map for the broad path (only sensible on a host that can run 61 maps in budget).
+	/// </summary>
+	public bool LiveBroadDeterministicCounts { get; set; } = true;
+
 	public int LiveBundleCatalogVersion { get; set; } = 2;
 
 	public int LivePrefetchTimeoutSeconds { get; set; } = 60;

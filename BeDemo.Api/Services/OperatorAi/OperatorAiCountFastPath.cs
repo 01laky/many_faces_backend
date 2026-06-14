@@ -55,11 +55,32 @@ public static class OperatorAiCountFastPath
 	private static string LabelFor(OperatorAiBundleCatalogEntryDto meta)
 	{
 		var id = meta.Id ?? "Data";
-		// Bundle ids look like "albums" / "albums.byStatus" — take the leading segment and title-case it.
-		var head = id.Split('.', '_', '-')[0].Trim();
-		if (head.Length == 0)
+		var segments = id.Split('.', StringSplitOptions.RemoveEmptyEntries);
+		// "entity.users" → "users"; a bare "albums" or "albums.byStatus" → "albums". (The old code took the first
+		// dot-segment, so EVERY "entity.*" bundle rendered as "Entity" — the broad snapshot showed "**Entity:**" 61×.)
+		var core = segments.Length > 1 && string.Equals(segments[0], "entity", StringComparison.Ordinal)
+			? segments[1]
+			: (segments.Length > 0 ? segments[0] : "Data");
+		core = core.Split('_', '-')[0].Trim();
+		if (core.Length == 0)
 			return "Data";
-		return char.ToUpperInvariant(head[0]) + head[1..];
+		return SplitCamelCase(core);
+	}
+
+	/// <summary>"faceChatRoomMessages" → "Face chat room messages"; "users" → "Users". Deterministic, presentation only.</summary>
+	private static string SplitCamelCase(string s)
+	{
+		var sb = new StringBuilder(s.Length + 8);
+		for (var i = 0; i < s.Length; i++)
+		{
+			var c = s[i];
+			if (i > 0 && char.IsUpper(c) && !char.IsUpper(s[i - 1]))
+				sb.Append(' ').Append(char.ToLowerInvariant(c));
+			else
+				sb.Append(c);
+		}
+		var spaced = sb.ToString();
+		return char.ToUpperInvariant(spaced[0]) + spaced[1..];
 	}
 
 	private static bool TryReadLong(JsonElement obj, string name, out long value)

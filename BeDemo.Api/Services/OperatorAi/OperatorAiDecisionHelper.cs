@@ -1,3 +1,4 @@
+using System.Text;
 using BeDemo.Api.Configuration;
 using BeDemo.Api.Utils;
 using Microsoft.Extensions.Logging;
@@ -20,6 +21,24 @@ public interface IOperatorAiDecisionHelper
 
 	/// <summary>Detect the report type (face_health / moderation_backlog / grid_completeness) or null when ambiguous.</summary>
 	Task<string?> DetectReportTypeAsync(string message, CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// LLM skill router (operator-ai LLM skill router): pick the registry id of the skill that should handle the
+	/// message from the given candidates, or null when the helper is unset/unavailable/unparseable (the router then
+	/// falls back to cosine). Candidates carry (Id, Label, Hint): the classifier sees the terse single-token Label +
+	/// Hint, and the returned label maps back to the registry Id (so "general" → "general-assistant").
+	/// </summary>
+	Task<string?> DetectSkillAsync(
+		string message,
+		IReadOnlyList<(string Id, string Label, string Hint)> candidates,
+		CancellationToken cancellationToken = default);
+
+	/// <summary>
+	/// True when the message asks for a FULL/whole-system statistics overview (every entity), not one metric.
+	/// Deterministic fallback = <see cref="OperatorAiStatsIntent.IsBroadOverviewQuestion"/>; the helper is consulted
+	/// only to UPGRADE a keyword-miss (and is skipped for simple counts, which are never broad).
+	/// </summary>
+	Task<bool> IsBroadOverviewAsync(string message, CancellationToken cancellationToken = default);
 
 	/// <summary>Whether a helper model is configured + enabled (so callers can record it in the trace).</summary>
 	bool HelperEnabled { get; }
@@ -107,6 +126,80 @@ public sealed class OperatorAiDecisionHelper : IOperatorAiDecisionHelper
 		}
 		// Helper said NONE / unparalleled ⇒ defer to the deterministic heuristic rather than forcing a guess.
 		return deterministic;
+	}
+
+	/// <inheritdoc />
+	public async Task<string?> DetectSkillAsync(
+		string message,
+		IReadOnlyList<(string Id, string Label, string Hint)> candidates,
+		CancellationToken cancellationToken = default)
+	{
+		// No deterministic baseline here: the caller (router) owns its own cosine fallback. Helper off ⇒ null.
+		if (!HelperEnabled || candidates is null || candidates.Count == 0)
+			return null;
+
+		// Terse single-label classifier. We feed the short per-skill Label + Hint (NOT the verbose descriptor) and
+		// ask for one bare label, so a weak 3B does not have to reproduce a hyphenated id like "general-assistant".
+		var sb = new StringBuilder();
+		sb.AppendLine("You are a strict router. Choose the ONE label whose area best fits the user's message.");
+		sb.Append("Labels: ").AppendLine(string.Join(" | ", candidates.Select(c => c.Label)));
+		foreach (var c in candidates)
+			sb.Append("- ").Append(c.Label).Append(": ").AppendLine(c.Hint);
+		sb.Append("User message: \"").Append((message ?? string.Empty).Trim()).AppendLine("\"");
+		sb.Append("Answer with exactly one label:");
+
+		string raw;
+		try
+		{
+			raw = await _ai.GenerateAsync(
+				sb.ToString(),
+				maxNewTokens: 6,
+				temperature: 0.0,
+				stopSequences: ["\n"],
+				model: _aiOptions.HelperModel,
+				cancellationToken: cancellationToken);
+		}
+		catch (Exception ex)
+		{
+			_logger.LogWarning(ex, "Decision helper skill routing failed; router will fall back to cosine.");
+			return null;
+		}
+
+		var normalized = (raw ?? string.Empty).Trim().ToLowerInvariant();
+		if (normalized.Length == 0)
+			return null;
+		// Map the returned label back to the registry id (e.g. "general" → "general-assistant"). Longest label first
+		// so a label that is a prefix of another cannot shadow it.
+		foreach (var c in candidates.OrderByDescending(c => c.Label.Length))
+		{
+			if (normalized.Contains(c.Label.ToLowerInvariant(), StringComparison.Ordinal))
+				return c.Id;
+		}
+		return null; // unparseable / "none" ⇒ defer to cosine.
+	}
+
+	/// <inheritdoc />
+	public async Task<bool> IsBroadOverviewAsync(string message, CancellationToken cancellationToken = default)
+	{
+		var deterministic = OperatorAiStatsIntent.IsBroadOverviewQuestion(message);
+
+		// Call the 3B ONLY when it can change the outcome: a keyword-miss that is still metrics-like and is NOT a
+		// simple count (a simple count is never broad — OperatorAiStatsIntent.IsSimpleCountQuestion already excludes
+		// broad). Everything else is decided for free, keeping the common focused/broad/count cases off the helper.
+		if (!HelperEnabled
+			|| deterministic
+			|| !OperatorAiStatsIntent.IsMetricsQuestion(message)
+			|| OperatorAiStatsIntent.IsSimpleCountQuestion(message))
+			return deterministic;
+
+		var prompt =
+			"You are a strict classifier. Answer with exactly one word: YES or NO.\n"
+			+ "Question: does the user's message ask for statistics about ALL entities / the WHOLE platform "
+			+ "(a full overview), rather than one specific metric?\n\n"
+			+ "User message: \"" + (message ?? string.Empty).Trim() + "\"\n\nAnswer (YES or NO):";
+
+		var verdict = await ClassifyAsync(prompt, cancellationToken);
+		return verdict ?? deterministic; // NO / null / error ⇒ keep the deterministic (false) result.
 	}
 
 	/// <summary>Run a YES/NO helper classification; null when the helper is unavailable or the reply is unparseable.</summary>

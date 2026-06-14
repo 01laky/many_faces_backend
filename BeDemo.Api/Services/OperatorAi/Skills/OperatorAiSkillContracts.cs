@@ -77,6 +77,13 @@ public interface IOperatorAiSkill
 	/// <summary>Example operator asks — concatenated into the routing embedding to improve recall.</summary>
 	IReadOnlyList<string> SampleRequests { get; }
 
+	/// <summary>
+	/// One terse line for the 3B LLM router's single-label classification (operator-ai LLM skill router). Kept short
+	/// on purpose — the verbose <see cref="Description"/> + <see cref="SampleRequests"/> bloat the classifier prompt
+	/// and hurt accuracy. Used only by the router's helper classification, not by the cosine fallback.
+	/// </summary>
+	string RouterHint { get; }
+
 	/// <summary>Governs prompt assembly (sanitize when <see cref="OperatorAiSkillTrust.Untrusted"/>).</summary>
 	OperatorAiSkillTrust Trust { get; }
 

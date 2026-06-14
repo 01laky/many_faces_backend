@@ -33,6 +33,8 @@ public sealed class OperatorAiSkillsTests
 			.ReturnsAsync((string m, CancellationToken _) => OperatorAiReportTypeHeuristic.Detect(m));
 		d.Setup(x => x.IsSimpleCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
 			.ReturnsAsync((string m, CancellationToken _) => OperatorAiStatsIntent.IsSimpleCountQuestion(m));
+		d.Setup(x => x.IsBroadOverviewAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync((string m, CancellationToken _) => OperatorAiStatsIntent.IsBroadOverviewQuestion(m));
 		return d.Object;
 	}
 
@@ -47,7 +49,7 @@ public sealed class OperatorAiSkillsTests
 				Array.Empty<int>(), OperatorAiSelectionStrategy.ZeroHit, Array.Empty<OperatorAiRetrievalHit>(), false, false, 0, 0));
 		var orch = new Mock<IOperatorAiLiveStatsOrchestrator>();
 
-		var result = await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>()).RunAsync(Req("what is the weather"), default);
+		var result = await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>(), Decisions()).RunAsync(Req("what is the weather"), default);
 
 		result.AnswerMarkdown.Should().Be(StatsSkill.ZeroHitRefusal);
 		orch.Verify(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), It.IsAny<bool>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()), Times.Never());
@@ -65,7 +67,7 @@ public sealed class OperatorAiSkillsTests
 		orch.Setup(o => o.PrepareSelectedAsync("how many users?", It.Is<IReadOnlyList<int>>(i => i.SequenceEqual(new[] { 0, 12 })), 2, false, false, It.IsAny<CancellationToken>()))
 			.ReturnsAsync(new OperatorAiTerminalPlan("There are 1,234 users.", null, 0, new OperatorAiLiveTurnTrace("count", 0, 0, 0, 2)));
 
-		var result = await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>()).RunAsync(Req("how many users?"), default);
+		var result = await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>(), Decisions()).RunAsync(Req("how many users?"), default);
 
 		result.AnswerMarkdown.Should().Be("There are 1,234 users.");
 		result.Trace!.SkillId.Should().Be("stats");
@@ -87,7 +89,7 @@ public sealed class OperatorAiSkillsTests
 			.Callback((string _, IReadOnlyList<int> idx, int _, bool _, bool _, CancellationToken _) => captured = idx)
 			.ReturnsAsync(new OperatorAiTerminalPlan("Full platform snapshot.", null, 0, new OperatorAiLiveTurnTrace("stitch", 0, 0, 0, OperatorAiEntityBundleCatalog.BundleCount)));
 
-		await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>()).RunAsync(Req("give me full statistics"), default);
+		await new StatsSkill(retriever.Object, orch.Object, Mock.Of<IAiGrpcService>(), Decisions()).RunAsync(Req("give me full statistics"), default);
 
 		captured.Should().NotBeNull("broad-overview must reach the orchestrator (no zero-hit refusal)");
 		captured!.Should().HaveCount(OperatorAiEntityBundleCatalog.BundleCount, "broad-overview maps ALL 61 bundles");
