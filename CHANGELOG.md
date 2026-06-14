@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.4.46](#1446) | Fix search outbox DbContext concurrency (RAG indexing)                                  |
 | [1.4.45](#1445) | Fix operator AI chat: SignalR 2-arg hub contract (drop optional param)                  |
 | [1.4.44](#1444) | Wall-tickets pagination parity fix + pure-helper edge tests                            |
 | [1.4.43](#1443) | Untested pure-helper edge tests (test-gap fill)                                        |
@@ -76,6 +77,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.4.46]
+
+### Fixed
+
+- **Search outbox processor stalled the moment search was enabled** (`A second operation was started on
+  this context instance …`). `SearchOutboxProcessorHostedService.PrepareBatchAsync` built the per-entry
+  search documents concurrently (`Select(async …)` + `Task.WhenAll`, fanned out by
+  `SearchOutboxMaxParallelGrpc`) over the **single per-tick `ApplicationDbContext`**, which is not
+  thread-safe — so every tick threw and the outbox never drained (370 docs stuck pending, the kNN
+  index never built). The document-build phase is now serial (one shared DbContext); the
+  `SearchOutboxMaxParallelGrpc` knob still governs the genuinely parallel gRPC push phases
+  (`ProcessDeletesAsync` / `ProcessIndexesAsync`). Verified live: pending drained 370 → 0 with no tick
+  failures and the operator-AI knowledge index built (61/61, nomic 768-dim), so the retriever now uses
+  Elasticsearch kNN instead of the planner fallback.
 
 ---
 
@@ -819,7 +837,8 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...HEAD
+[1.4.46]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...v1.4.46
 [1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
 [1.4.44]: https://github.com/01laky/many_faces_backend/compare/v1.4.43...v1.4.44
 [1.4.43]: https://github.com/01laky/many_faces_backend/compare/v1.4.42...v1.4.43

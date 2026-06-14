@@ -76,7 +76,8 @@ public sealed class SearchOutboxProcessorHostedService : BackgroundService
 			return;
 
 		var maxParallel = Math.Max(1, _performance.Value.SearchOutboxMaxParallelGrpc);
-		var prepared = await PrepareBatchAsync(db, builder, batch, maxParallel, cancellationToken);
+		// NOTE: document building is serial (shared DbContext); maxParallel only governs the gRPC push below.
+		var prepared = await PrepareBatchAsync(db, builder, batch, cancellationToken);
 
 		await ProcessDeletesAsync(gateway, prepared, maxParallel, cancellationToken);
 		await ProcessIndexesAsync(gateway, prepared, maxParallel, cancellationToken);
@@ -88,28 +89,27 @@ public sealed class SearchOutboxProcessorHostedService : BackgroundService
 		ApplicationDbContext db,
 		SearchDocumentBuilder builder,
 		IReadOnlyList<SearchOutboxEntry> batch,
-		int maxParallel,
 		CancellationToken cancellationToken)
 	{
-		using var semaphore = new SemaphoreSlim(maxParallel);
-		var tasks = batch.Select(async entry =>
+		// Document building reads from the single per-tick ApplicationDbContext, which is NOT thread-safe.
+		// The previous Select(async …) + Task.WhenAll fanned these reads out over the shared context (the
+		// SearchOutboxMaxParallelGrpc knob is for the gRPC PUSH, not the DB build), which threw
+		// "A second operation was started on this context instance …" and stalled the whole outbox once
+		// search was enabled. Build serially here; the gRPC push phases below still fan out via maxParallel.
+		var prepared = new List<PreparedOutboxEntry>(batch.Count);
+		foreach (var entry in batch)
 		{
-			await semaphore.WaitAsync(cancellationToken);
-			try
+			if (entry.Operation == SearchOutboxOperation.Delete)
 			{
-				if (entry.Operation == SearchOutboxOperation.Delete)
-					return new PreparedOutboxEntry(entry, null, MustDelete: true);
-
-				var document = await BuildDocumentForEntryAsync(db, builder, entry, cancellationToken);
-				return new PreparedOutboxEntry(entry, document, MustDelete: document is null);
+				prepared.Add(new PreparedOutboxEntry(entry, null, MustDelete: true));
+				continue;
 			}
-			finally
-			{
-				semaphore.Release();
-			}
-		});
 
-		return (await Task.WhenAll(tasks)).ToList();
+			var document = await BuildDocumentForEntryAsync(db, builder, entry, cancellationToken);
+			prepared.Add(new PreparedOutboxEntry(entry, document, MustDelete: document is null));
+		}
+
+		return prepared;
 	}
 
 	private async Task ProcessDeletesAsync(
