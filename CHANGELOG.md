@@ -82,6 +82,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 ---
 
+## [1.6.0]
+
+### Added
+
+- **Operator-AI message request duration.** Each persisted **assistant** message now records the server-measured request duration in milliseconds. `ChatHub.SendToAiWithOperatorStats` wraps routing + skill execution in a `Stopwatch` (stopped before persistence, so it reflects compute time, not the DB write + SignalR broadcast) and passes the elapsed ms to `OperatorAiConversationService.AppendExchangeAsync(..., assistantDurationMs)`, which stores it on the assistant row only (`OperatorAiMessage.DurationMs`, nullable `bigint`; user rows and legacy rows stay null — `0` is treated as unmeasured → null). Exposed as `OperatorAiMessageDto.DurationMs` through both the messages page and the `OperatorAiMessageAppended` SignalR event. EF migration `AddOperatorAiMessageDurationMs` (nullable column, no backfill). The admin formats and displays it; see `many_faces_admin`. Tests cover assistant-only persistence and the null/zero cases.
+
+---
+
 ## [1.5.0]
 
 ### Changed
@@ -932,7 +940,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.4.47...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.6.0...HEAD
 [1.4.47]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...v1.4.47
 [1.4.46]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...v1.4.46
 [1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
@@ -988,3 +996,4 @@ totalCount, totalPages }` (BE-RP3).
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0
+[1.6.0]: https://github.com/01laky/many_faces_backend/compare/v1.5.0...v1.6.0

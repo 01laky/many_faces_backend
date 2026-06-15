@@ -19,6 +19,10 @@ public sealed class OperatorAiMessageDto
 	public string? CreatedByUserId { get; set; }
 	public string? AuthorEmail { get; set; }
 	public string? ResponseLocale { get; set; }
+
+	/// <summary>Assistant rows only: server-measured request duration in milliseconds; null for user/legacy rows.</summary>
+	public long? DurationMs { get; set; }
+
 	public DateTime CreatedAt { get; set; }
 }
 

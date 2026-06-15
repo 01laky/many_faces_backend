@@ -11,6 +11,7 @@
  *   retained per-bundle map + stitch turns the fresh-loaded top-K bundles into one English reply.
  */
 
+using System.Diagnostics;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
@@ -325,6 +326,10 @@ public class ChatHub : Hub
 		{
 			string aiResponse;
 			string routedSkillId;
+			// Operator-AI message duration: measure the whole turn the operator waited for — routing + retrieval +
+			// generation. Stopped once the answer is finalized (before the response guard / persistence), so the
+			// stored value reflects compute time, not the DB write + SignalR broadcast.
+			var turnStopwatch = Stopwatch.StartNew();
 			try
 			{
 				// -- SKILL ROUTING (operator-ai-skills v1): route to one skill, then run it --
@@ -368,6 +373,9 @@ public class ChatHub : Hub
 				return;
 			}
 
+			// Answer finalized — freeze the duration before the guard / persistence.
+			turnStopwatch.Stop();
+
 			if (OperatorAiResponseGuard.ShouldNotPersist(aiResponse))
 			{
 				_logger.LogWarning(
@@ -393,6 +401,7 @@ public class ChatHub : Hub
 				trimmed,
 				aiResponse,
 				PersistedStatsMode,
+				turnStopwatch.ElapsedMilliseconds,
 				Context.ConnectionAborted);
 
 			var updatedConversation = await _operatorAi.GetConversationAsync(conversationId, Context.ConnectionAborted)

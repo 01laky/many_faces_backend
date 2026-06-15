@@ -37,6 +37,7 @@ public interface IOperatorAiConversationService
 		string userContent,
 		string assistantContent,
 		string? statsMode,
+		long? assistantDurationMs = null,
 		CancellationToken cancellationToken = default);
 
 	Task<IReadOnlyList<ChatHistoryEntry>> GetRecentHistoryPairsAsync(

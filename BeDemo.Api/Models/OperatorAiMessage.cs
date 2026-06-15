@@ -21,6 +21,13 @@ public class OperatorAiMessage
 	/// <summary>Admin UI locale at send time: en | sk | cz.</summary>
 	public string? ResponseLocale { get; set; }
 
+	/// <summary>
+	/// Assistant rows only: server-measured request duration in milliseconds (how long the operator waited for the
+	/// whole turn — routing + retrieval + generation, measured by a <c>Stopwatch</c> in <c>ChatHub</c>). Null for user
+	/// rows and for legacy assistant rows created before this column existed.
+	/// </summary>
+	public long? DurationMs { get; set; }
+
 	public DateTime CreatedAt { get; set; }
 
 	public OperatorAiConversation? Conversation { get; set; }

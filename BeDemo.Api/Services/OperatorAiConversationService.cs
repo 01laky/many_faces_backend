@@ -129,6 +129,7 @@ public sealed class OperatorAiConversationService : IOperatorAiConversationServi
 		string userContent,
 		string assistantContent,
 		string? statsMode,
+		long? assistantDurationMs = null,
 		CancellationToken cancellationToken = default)
 	{
 		if (string.IsNullOrWhiteSpace(operatorEmail))
@@ -158,6 +159,8 @@ public sealed class OperatorAiConversationService : IOperatorAiConversationServi
 			Role = OperatorAiMessage.RoleAssistant,
 			Content = assistantContent,
 			ResponseLocale = normalizedLocale,
+			// Assistant rows carry the server-measured turn duration (ms); user rows leave it null.
+			DurationMs = assistantDurationMs is > 0 ? assistantDurationMs : null,
 			CreatedAt = now.AddMilliseconds(1),
 		};
 
@@ -247,6 +250,7 @@ public sealed class OperatorAiConversationService : IOperatorAiConversationServi
 			CreatedByUserId = m.CreatedByUserId,
 			AuthorEmail = m.AuthorEmail,
 			ResponseLocale = m.ResponseLocale,
+			DurationMs = m.DurationMs,
 			CreatedAt = m.CreatedAt,
 		};
 }
