@@ -152,7 +152,7 @@
     <value>V tejto konverzácii zatiaľ nie sú správy. Napíšte prvú správu nižšie.</value>
   </data>
   <data name="pages.chat.waitingForAi" xml:space="preserve">
-    <value>Generujem odpoveď…</value>
+    <value>Premýšľam</value>
   </data>
   <data name="pages.chat.waitingForAiElapsed" xml:space="preserve">
     <value>Už {{seconds}} s — lokálny model na CPU, odpoveď môže trvať 1–5 min. RAM nemusí výrazne stúpať.</value>

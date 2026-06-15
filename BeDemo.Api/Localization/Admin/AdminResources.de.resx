@@ -152,7 +152,7 @@
     <value>Noch keine Nachrichten in diesem Thread. Senden Sie unten die erste Nachricht.</value>
   </data>
   <data name="pages.chat.waitingForAi" xml:space="preserve">
-    <value>Reaktion generieren…</value>
+    <value>Denke nach</value>
   </data>
   <data name="pages.chat.waitingForAiElapsed" xml:space="preserve">
     <value>{{seconds}} s verstrichen – lokales CPU-Modell; Eine Antwort kann 1–5 Minuten dauern. Der Arbeitsspeicher bleibt während der Datenverarbeitung möglicherweise leer.</value>

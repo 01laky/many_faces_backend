@@ -152,7 +152,7 @@
     <value>No messages in this thread yet. Send the first message below.</value>
   </data>
   <data name="pages.chat.waitingForAi" xml:space="preserve">
-    <value>Generating response…</value>
+    <value>Thinking</value>
   </data>
   <data name="pages.chat.waitingForAiElapsed" xml:space="preserve">
     <value>{{seconds}} s elapsed — local CPU model; a reply can take 1–5 min. RAM may stay flat while computing.</value>

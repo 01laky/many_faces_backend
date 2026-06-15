@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.6.2](#162)   | Admin AI-chat waiting label → "Thinking" (resx)                                          |
 | [1.6.1](#161)   | Fix seeder: backfill UserFaceRoles so private-face login redirect works                  |
 | [1.6.0](#160)   | Operator-AI message request duration                                                     |
 | [1.5.0](#150)   | Operator AI LLM skill router: 3B helper classification + broad pre-route                 |
@@ -81,6 +82,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.6.2]
+
+### Changed
+
+- Admin AI-chat waiting label `pages.chat.waitingForAi` reworded from "Generating response…" to **"Thinking"** (no trailing ellipsis) across all six locales (en/sk/cs/de/fr/it); the motion is now an animated dots indicator in the admin SPA. The elapsed-seconds hint (`pages.chat.waitingForAiElapsed`) is unchanged. Resx-only — no logic or schema change.
 
 ---
 
@@ -950,7 +959,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.6.1...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.6.2...HEAD
 [1.4.47]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...v1.4.47
 [1.4.46]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...v1.4.46
 [1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
@@ -1006,5 +1015,6 @@ totalCount, totalPages }` (BE-RP3).
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0
+[1.6.2]: https://github.com/01laky/many_faces_backend/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/01laky/many_faces_backend/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/01laky/many_faces_backend/compare/v1.5.0...v1.6.0

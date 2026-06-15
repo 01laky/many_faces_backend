@@ -152,7 +152,7 @@
     <value>Nessun messaggio ancora in questa discussione. Invia il primo messaggio qui sotto.</value>
   </data>
   <data name="pages.chat.waitingForAi" xml:space="preserve">
-    <value>Generazione della risposta…</value>
+    <value>Sto pensando</value>
   </data>
   <data name="pages.chat.waitingForAiElapsed" xml:space="preserve">
     <value>{{seconds}} s trascorsi: modello CPU locale; una risposta può richiedere da 1 a 5 minuti. La RAM potrebbe rimanere scarica durante l'elaborazione.</value>
