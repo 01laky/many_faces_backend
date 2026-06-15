@@ -155,7 +155,7 @@
     <value>Thinking</value>
   </data>
   <data name="pages.chat.waitingForAiElapsed" xml:space="preserve">
-    <value>{{seconds}} s elapsed — local CPU model; a reply can take 1–5 min. RAM may stay flat while computing.</value>
+    <value>{{seconds}} s elapsed</value>
   </data>
   <data name="pages.chat.modelStatusReady" xml:space="preserve">
     <value>Model ready · {{model}}</value>

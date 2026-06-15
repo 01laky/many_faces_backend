@@ -155,7 +155,7 @@
     <value>Réflexion</value>
   </data>
   <data name="pages.chat.waitingForAiElapsed" xml:space="preserve">
-    <value>{{seconds}} s écoulés — modèle de CPU local ; une réponse peut prendre 1 à 5 minutes. La RAM peut rester plate pendant le calcul.</value>
+    <value>{{seconds}} s écoulés</value>
   </data>
   <data name="pages.chat.modelStatusReady" xml:space="preserve">
     <value>Modèle prêt · {{model}}</value>
