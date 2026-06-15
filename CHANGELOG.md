@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.6.1](#161)   | Fix seeder: backfill UserFaceRoles so private-face login redirect works                  |
+| [1.6.0](#160)   | Operator-AI message request duration                                                     |
 | [1.5.0](#150)   | Operator AI LLM skill router: 3B helper classification + broad pre-route                 |
 | [1.4.47](#1447) | Operator AI full/all-stats: all 61 bundles + deterministic stitch              |
 | [1.4.46](#1446) | Fix search outbox DbContext concurrency (RAG indexing)                                  |
@@ -79,6 +81,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.6.1]
+
+### Fixed
+
+- **Seeded users could not reach private faces — post-login redirect stuck on `/public/home`.** `SeedUsersAsync` created `UserFaceProfile`/`UserFaceRole` rows only inside the create-new-user branch and `continue`d on already-existing users, so any user seeded by an earlier revision (before per-face provisioning existed) was left with **zero** `UserFaceRoles`. `FacesConfigService.LoadFacesAsync` then returned only the public face to that user, the SPA built no `/{private}/*` routes, and `resolvePostAuthHomePath` fell back to the public face — so login could never redirect to e.g. `/basic/home`. Extracted `EnsureUserFaceProvisioningAsync`: an idempotent find-or-create that now runs for new **and** pre-existing seed users and inserts only missing rows (respecting the unique `(UserProfileId, FaceId)` index and the `(UserId, FaceId)` composite key), so partially-seeded demo databases self-heal on the next startup. Covered by `DatabaseSeederFaceProvisioningTests` (backfill, idempotency on re-run, partial-existing-row, null-role).
 
 ---
 
@@ -940,7 +950,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.6.1...HEAD
 [1.4.47]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...v1.4.47
 [1.4.46]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...v1.4.46
 [1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
@@ -996,4 +1006,5 @@ totalCount, totalPages }` (BE-RP3).
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0
+[1.6.1]: https://github.com/01laky/many_faces_backend/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/01laky/many_faces_backend/compare/v1.5.0...v1.6.0

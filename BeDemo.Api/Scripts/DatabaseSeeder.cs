@@ -428,72 +428,49 @@ public static class DatabaseSeeder
 
 			foreach (var adminData in adminUsers)
 			{
-				var existingUser = await userManager.FindByEmailAsync(adminData.Email);
-				if (existingUser != null) continue;
-
-				var user = new ApplicationUser
+				// Find-or-create: an already-seeded user must still be provisioned. Older seeder versions
+				// created the user *before* per-face provisioning existed and then `continue`d on every
+				// subsequent run, so UserFaceProfiles/UserFaceRoles stayed empty. We now always run the
+				// idempotent ensure below regardless of whether the user is new or pre-existing.
+				var user = await userManager.FindByEmailAsync(adminData.Email);
+				if (user == null)
 				{
-					UserName = adminData.Email,
-					Email = adminData.Email,
-					EmailConfirmed = true,
-					FirstName = adminData.FirstName,
-					LastName = adminData.LastName,
-					CreatedAt = DateTime.UtcNow,
-					UserRoleId = adminRole.Id
-				};
-
-				var result = await userManager.CreateAsync(user, "admin");
-				if (!result.Succeeded)
-				{
-					Console.WriteLine($"❌ Failed to create admin {adminData.Email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
-					continue;
-				}
-
-				await context.SaveChangesAsync();
-
-				// Create UserProfile
-				var profile = new UserProfile
-				{
-					UserId = user.Id,
-					Nickname = adminData.Nickname,
-					Age = 35,
-					Rod = "M",
-					CreatedAt = DateTime.UtcNow
-				};
-				context.UserProfiles.Add(profile);
-				await context.SaveChangesAsync();
-
-				// Create UserFaceProfile and UserFaceRole for each face.
-				// Demo admins get FaceAdmin on the admin scope face, FaceHost elsewhere (so they can open admin UI and tenants).
-				foreach (var face in faces)
-				{
-					context.UserFaceProfiles.Add(new UserFaceProfile
+					user = new ApplicationUser
 					{
-						UserProfileId = profile.Id,
-						FaceId = face.Id,
-						DisplayName = $"{adminData.FirstName} {adminData.LastName}",
-						IsActive = false,
-						Visited = false,
-						FaceRoleIntroCompleted = false,
-						CreatedAt = DateTime.UtcNow
-					});
-					var useFaceAdmin = faceAdminRole != null &&
-						string.Equals(face.Index, Utils.FaceScopeConstants.AdminFaceIndex, StringComparison.OrdinalIgnoreCase);
-					var perFaceRoleId = useFaceAdmin ? faceAdminRole!.Id : faceHostRole?.Id;
-					if (perFaceRoleId != null)
+						UserName = adminData.Email,
+						Email = adminData.Email,
+						EmailConfirmed = true,
+						FirstName = adminData.FirstName,
+						LastName = adminData.LastName,
+						CreatedAt = DateTime.UtcNow,
+						UserRoleId = adminRole.Id
+					};
+
+					var result = await userManager.CreateAsync(user, "admin");
+					if (!result.Succeeded)
 					{
-						context.UserFaceRoles.Add(new UserFaceRole
-						{
-							UserId = user.Id,
-							FaceId = face.Id,
-							UserRoleId = perFaceRoleId.Value,
-							CreatedAt = DateTime.UtcNow
-						});
+						Console.WriteLine($"❌ Failed to create admin {adminData.Email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+						continue;
 					}
-				}
-				await context.SaveChangesAsync();
 
-				Console.WriteLine($"✅ Admin seeded: {adminData.Email}");
+					await context.SaveChangesAsync();
+				}
+
+				// Demo admins get FaceAdmin on the admin-scope face, FaceHost elsewhere (so they can open admin UI and tenants).
+				await EnsureUserFaceProvisioningAsync(
+					context,
+					user,
+					displayName: $"{adminData.FirstName} {adminData.LastName}",
+					nickname: adminData.Nickname,
+					age: 35,
+					rod: "M",
+					faces: faces,
+					resolveRoleId: face =>
+						(faceAdminRole != null && Utils.FaceScopeConstants.IsAdminFaceIndex(face.Index))
+							? faceAdminRole.Id
+							: faceHostRole?.Id);
+
+				Console.WriteLine($"✅ Admin ensured: {adminData.Email}");
 			}
 
 			// --- 30 Regular users ---
@@ -507,69 +484,44 @@ public static class DatabaseSeeder
 			for (int i = 0; i < 30; i++)
 			{
 				var email = $"user{i + 1:D2}@demo.com";
-				var existingUser = await userManager.FindByEmailAsync(email);
-				if (existingUser != null) continue;
-
 				var firstName = firstNames[i];
 				var lastName = lastNames[i];
 
-				var user = new ApplicationUser
+				// Find-or-create so pre-existing demo users get backfilled with face profiles/roles too.
+				var user = await userManager.FindByEmailAsync(email);
+				if (user == null)
 				{
-					UserName = email,
-					Email = email,
-					EmailConfirmed = true,
-					FirstName = firstName,
-					LastName = lastName,
-					CreatedAt = DateTime.UtcNow,
-					UserRoleId = userRole.Id
-				};
-
-				var result = await userManager.CreateAsync(user, "user123");
-				if (!result.Succeeded)
-				{
-					Console.WriteLine($"❌ Failed to create user {email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
-					continue;
-				}
-
-				await context.SaveChangesAsync();
-
-				// Create UserProfile
-				var profile = new UserProfile
-				{
-					UserId = user.Id,
-					Nickname = $"{firstName.ToLower()}.{lastName.ToLower()}",
-					Age = 20 + (i % 30),
-					Rod = i < 10 ? "M" : (i < 20 ? "F" : "M"),
-					CreatedAt = DateTime.UtcNow
-				};
-				context.UserProfiles.Add(profile);
-				await context.SaveChangesAsync();
-
-				// Create UserFaceProfile and face role (FACE_USER for directory grid; fallback FACE_HOST)
-				foreach (var face in faces)
-				{
-					context.UserFaceProfiles.Add(new UserFaceProfile
+					user = new ApplicationUser
 					{
-						UserProfileId = profile.Id,
-						FaceId = face.Id,
-						DisplayName = $"{firstName} {lastName}",
-						IsActive = false,
-						Visited = false,
-						FaceRoleIntroCompleted = false,
-						CreatedAt = DateTime.UtcNow
-					});
-					if (regularFaceRole != null)
+						UserName = email,
+						Email = email,
+						EmailConfirmed = true,
+						FirstName = firstName,
+						LastName = lastName,
+						CreatedAt = DateTime.UtcNow,
+						UserRoleId = userRole.Id
+					};
+
+					var result = await userManager.CreateAsync(user, "user123");
+					if (!result.Succeeded)
 					{
-						context.UserFaceRoles.Add(new UserFaceRole
-						{
-							UserId = user.Id,
-							FaceId = face.Id,
-							UserRoleId = regularFaceRole.Id,
-							CreatedAt = DateTime.UtcNow
-						});
+						Console.WriteLine($"❌ Failed to create user {email}: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+						continue;
 					}
+
+					await context.SaveChangesAsync();
 				}
-				await context.SaveChangesAsync();
+
+				// Regular users get one face role per face (FACE_USER for directory grid; fallback FACE_HOST).
+				await EnsureUserFaceProvisioningAsync(
+					context,
+					user,
+					displayName: $"{firstName} {lastName}",
+					nickname: $"{firstName.ToLower()}.{lastName.ToLower()}",
+					age: 20 + (i % 30),
+					rod: i < 10 ? "M" : (i < 20 ? "F" : "M"),
+					faces: faces,
+					resolveRoleId: _ => regularFaceRole?.Id);
 			}
 
 			Console.WriteLine($"✅ Seeded 2 admins and 30 users successfully");
@@ -582,6 +534,94 @@ public static class DatabaseSeeder
 				userManager.PasswordValidators.Add(validator);
 			}
 		}
+	}
+
+	/// <summary>
+	/// Idempotently provisions a seeded user's tenant presence: the one-to-one <see cref="UserProfile"/>,
+	/// plus a <see cref="UserFaceProfile"/> and <see cref="UserFaceRole"/> for each face in <paramref name="faces"/>.
+	///
+	/// <para><b>Why this is split out and existence-checked.</b> The backend only returns a private face from
+	/// <c>GET /{face}/api/faces/config</c> to an authenticated non-admin when that user owns a
+	/// <see cref="UserFaceRole"/> row for the face (see <c>FacesConfigService.LoadFacesAsync</c>). If those rows
+	/// are missing, the SPA never sees a private face, so <c>resolvePostAuthHomePath</c> falls back to the public
+	/// face and post-login redirect is stuck on <c>/public/home</c>. Because the seeded users may already exist
+	/// (created by an earlier seeder revision that predates per-face provisioning), this runs for new and
+	/// pre-existing users alike and only inserts rows that are missing — respecting the unique indexes on
+	/// <c>(UserProfileId, FaceId)</c> and the <c>(UserId, FaceId)</c> composite key — so it is safe to re-run.</para>
+	/// </summary>
+	/// <param name="resolveRoleId">
+	/// Returns the per-face <see cref="UserRole"/> id to assign (or <c>null</c> to skip the role for that face).
+	/// </param>
+	internal static async Task EnsureUserFaceProvisioningAsync(
+		ApplicationDbContext context,
+		ApplicationUser user,
+		string displayName,
+		string? nickname,
+		int age,
+		string rod,
+		IReadOnlyList<Face> faces,
+		Func<Face, int?> resolveRoleId)
+	{
+		// Ensure the one-to-one UserProfile (created at registration in production; backfilled here for seeds).
+		var profile = await context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == user.Id);
+		if (profile == null)
+		{
+			profile = new UserProfile
+			{
+				UserId = user.Id,
+				Nickname = nickname,
+				Age = age,
+				Rod = rod,
+				CreatedAt = DateTime.UtcNow
+			};
+			context.UserProfiles.Add(profile);
+			await context.SaveChangesAsync();
+		}
+
+		// Snapshot existing rows so re-runs never violate the unique constraints — we add only what is missing.
+		var existingFaceProfileIds = await context.UserFaceProfiles
+			.Where(ufp => ufp.UserProfileId == profile.Id)
+			.Select(ufp => ufp.FaceId)
+			.ToListAsync();
+		var existingFaceRoleIds = await context.UserFaceRoles
+			.Where(ufr => ufr.UserId == user.Id)
+			.Select(ufr => ufr.FaceId)
+			.ToListAsync();
+
+		var added = false;
+		foreach (var face in faces)
+		{
+			if (!existingFaceProfileIds.Contains(face.Id))
+			{
+				context.UserFaceProfiles.Add(new UserFaceProfile
+				{
+					UserProfileId = profile.Id,
+					FaceId = face.Id,
+					DisplayName = displayName,
+					IsActive = false,
+					Visited = false,
+					FaceRoleIntroCompleted = false,
+					CreatedAt = DateTime.UtcNow
+				});
+				added = true;
+			}
+
+			var roleId = resolveRoleId(face);
+			if (roleId != null && !existingFaceRoleIds.Contains(face.Id))
+			{
+				context.UserFaceRoles.Add(new UserFaceRole
+				{
+					UserId = user.Id,
+					FaceId = face.Id,
+					UserRoleId = roleId.Value,
+					CreatedAt = DateTime.UtcNow
+				});
+				added = true;
+			}
+		}
+
+		if (added)
+			await context.SaveChangesAsync();
 	}
 
 	private const int GridDemoItemsPerUserPerFace = 5;
