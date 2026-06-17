@@ -179,4 +179,14 @@ public sealed class OperatorAiOptions
 
 	/// <summary>O19 Role B — experimental heterogeneous parallel map (split bundles across the GPU 7B and the CPU helper). Off by default; enable only if the O9 benchmark shows a net win at acceptable quality.</summary>
 	public bool HelperParallelMapEnabled { get; set; }
+
+	// ── Conversational context (operator-ai-conversational-context + broad-overview fix) ─────────
+
+	/// <summary>
+	/// A1 — deterministic follow-up entity-carry. When true (default), <c>OperatorAiFollowUpResolver</c> remembers
+	/// the last entity the operator named per conversation and, on an anaphoric follow-up ("All active?"), prepends
+	/// that entity to the query string before routing/RAG so the bare anaphor resolves to a focused answer instead
+	/// of being mis-routed / zero-hitting. Fully deterministic (no model); set false to restore stateless turns.
+	/// </summary>
+	public bool FollowUpEntityCarryEnabled { get; set; } = true;
 }

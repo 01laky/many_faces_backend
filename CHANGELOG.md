@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.7.0](#170)   | AI worker-host overview: config fold (helper/embed) + embedding-dim health               |
 | [1.6.3](#163)   | Trim AI-chat elapsed hint to seconds-only (resx)                                         |
 | [1.6.2](#162)   | Admin AI-chat waiting label → "Thinking" (resx)                                          |
 | [1.6.1](#161)   | Fix seeder: backfill UserFaceRoles so private-face login redirect works                  |
@@ -83,6 +84,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.7.0]
+
+### Added
+
+- **AI worker-host overview — backend config fold.** `OperatorAiWorkerHostDto` gains a `Config` section so the admin AI overview is complete even when the worker is unreachable: decision-helper model name + `HelperEnabled` (`HelperForDecisions` && a `HelperModel` is set), embedding model + `EmbeddingDim`, and the **embedding-dim ↔ ES** health (`EmbeddingDimOk` / `EmbeddingDimActual`). The startup probe `OperatorAiEmbeddingDimStartupAssertion` now records its result into a new singleton `OperatorAiEmbeddingDimStatus` (was log-only), which the worker-host service reads. The per-model worker JSON (`aiRuntime.configuredModels[]` from `many_faces_ai` 0.12.0) flows through unchanged via the existing `Profile` `JsonElement` — no DTO mapping needed for it.
 
 ---
 
@@ -968,7 +977,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.6.3...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.7.0...HEAD
 [1.4.47]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...v1.4.47
 [1.4.46]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...v1.4.46
 [1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
@@ -1024,6 +1033,7 @@ totalCount, totalPages }` (BE-RP3).
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0
+[1.7.0]: https://github.com/01laky/many_faces_backend/compare/v1.6.3...v1.7.0
 [1.6.3]: https://github.com/01laky/many_faces_backend/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/01laky/many_faces_backend/compare/v1.6.1...v1.6.2
 [1.6.1]: https://github.com/01laky/many_faces_backend/compare/v1.6.0...v1.6.1

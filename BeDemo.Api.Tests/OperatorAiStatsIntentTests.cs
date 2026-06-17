@@ -40,10 +40,51 @@ public sealed class OperatorAiStatsIntentTests
 	[InlineData("how many albums are pending approval?", false)]
 	[InlineData("show me the reel counts", false)]
 	[InlineData("user signups this week", false)]
+	// operator-ai conversational-context + broad-overview fix (B1) — the deleted free "all "+(system|platform)
+	// rule must no longer fire on focused follow-ups that merely contain both words.
+	[InlineData("if our reels in system are all active now", false)] // headline reproduction
+	[InlineData("all active?", false)]
+	[InlineData("are all the reels in the platform active", false)]
 	[InlineData("", false)]
 	[InlineData("   ", false)]
 	public void IsBroadOverviewQuestion_classifies_messages(string message, bool expected)
 	{
 		Assert.Equal(expected, OperatorAiStatsIntent.IsBroadOverviewQuestion(message));
+	}
+
+	// operator-ai conversational-context + broad-overview fix — B1 ripple: IsBroadOverviewQuestion feeds
+	// IsMetricsQuestion (returns true on broad) and IsSimpleCountQuestion (returns false on broad), so deleting the
+	// free rule changes those for borderline phrases. "all active?" used to be metrics-like ONLY via the broad
+	// false-positive; after B1 it is not. An explicit broad keyword still pulls IsMetricsQuestion true.
+	[Theory]
+	[InlineData("all active?", false)] // the key ripple: metrics-like ONLY via the old broad false-positive ⇒ now false
+	[InlineData("if our reels in system are all active now", true)] // still metrics, but via the "reel" keyword (NOT broad)
+	[InlineData("all stats", true)]   // explicit broad keyword ⇒ still metrics
+	[InlineData("how many reels?", true)] // ordinary metrics keyword path unaffected
+	public void IsMetricsQuestion_after_b1_ripple(string message, bool expected)
+	{
+		Assert.Equal(expected, OperatorAiStatsIntent.IsMetricsQuestion(message));
+	}
+
+	[Theory]
+	[InlineData("all active?", false)]  // not metrics after B1 ⇒ not a simple count either
+	[InlineData("all stats", false)]    // broad is never a simple count
+	[InlineData("how many reels?", true)]
+	public void IsSimpleCountQuestion_after_b1_ripple(string message, bool expected)
+	{
+		Assert.Equal(expected, OperatorAiStatsIntent.IsSimpleCountQuestion(message));
+	}
+
+	[Theory]
+	[InlineData("what time is it now?", true)]
+	[InlineData("can you explain SignalR in our project?", true)]
+	[InlineData("write code for me", true)]
+	[InlineData("ako funguje kód", true)]
+	[InlineData("all active?", false)]
+	[InlineData("how many reels?", false)]
+	[InlineData("", false)]
+	public void ContainsNonMetricsKeyword_classifies_messages(string message, bool expected)
+	{
+		Assert.Equal(expected, OperatorAiStatsIntent.ContainsNonMetricsKeyword(message));
 	}
 }

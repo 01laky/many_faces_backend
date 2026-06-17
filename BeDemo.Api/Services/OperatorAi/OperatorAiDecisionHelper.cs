@@ -36,7 +36,9 @@ public interface IOperatorAiDecisionHelper
 	/// <summary>
 	/// True when the message asks for a FULL/whole-system statistics overview (every entity), not one metric.
 	/// Deterministic fallback = <see cref="OperatorAiStatsIntent.IsBroadOverviewQuestion"/>; the helper is consulted
-	/// only to UPGRADE a keyword-miss (and is skipped for simple counts, which are never broad).
+	/// only to UPGRADE a keyword-miss (never to downgrade an explicit keyword), and is skipped for simple counts
+	/// (never broad) and for single-entity questions (a question naming exactly one entity is never a whole-platform
+	/// overview — the flagless single-entity broad-suppress, shared with <see cref="OperatorAiEntityDetection"/>).
 	/// </summary>
 	Task<bool> IsBroadOverviewAsync(string message, CancellationToken cancellationToken = default);
 
@@ -183,11 +185,24 @@ public sealed class OperatorAiDecisionHelper : IOperatorAiDecisionHelper
 	{
 		var deterministic = OperatorAiStatsIntent.IsBroadOverviewQuestion(message);
 
-		// Call the 3B ONLY when it can change the outcome: a keyword-miss that is still metrics-like and is NOT a
+		// operator-ai conversational-context + broad-overview fix — FLAGLESS single-entity broad-suppress.
+		// When the message names exactly ONE entity (word-boundary), a 3B "upgrade" to broad would be wrong: a
+		// single-entity question is never a whole-platform overview. This also stops a carried/prepended follow-up
+		// like "reels all active?" (metrics-positive via the "reel" keyword) from being flipped into the 61-bundle
+		// dump. Because the `|| deterministic` short-circuit below runs first, this can ONLY apply when there is no
+		// explicit broad keyword (deterministic == false here), so it NEVER overrides an explicit broad match — it
+		// is a suppression of an unreliable upgrade, not the forbidden downgrade (§5). A flag is deliberately NOT
+		// used: this method takes only a string, so a flag would force a signature change; a pure-string rule keeps
+		// the public surface unchanged.
+		var singleEntity = OperatorAiEntityDetection.DetectEntityBundleIndices(message).Count == 1;
+
+		// Call the 3B ONLY when it can change the outcome: a keyword-miss that is still metrics-like, is NOT a
 		// simple count (a simple count is never broad — OperatorAiStatsIntent.IsSimpleCountQuestion already excludes
-		// broad). Everything else is decided for free, keeping the common focused/broad/count cases off the helper.
+		// broad), and does NOT name exactly one entity. Everything else is decided for free, keeping the common
+		// focused/broad/count/single-entity cases off the helper.
 		if (!HelperEnabled
 			|| deterministic
+			|| singleEntity
 			|| !OperatorAiStatsIntent.IsMetricsQuestion(message)
 			|| OperatorAiStatsIntent.IsSimpleCountQuestion(message))
 			return deterministic;

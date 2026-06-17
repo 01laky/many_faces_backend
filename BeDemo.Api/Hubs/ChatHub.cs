@@ -57,6 +57,7 @@ public class ChatHub : Hub
 	private readonly IOperatorAiSystemSettingsProvider _systemSettings;
 	private readonly IOperatorAiActiveGenerationGuard _activeGenerationGuard;
 	private readonly IOperatorAiAnswerCache _answerCache;
+	private readonly IOperatorAiFollowUpResolver _followUpResolver;
 	private readonly OperatorAiOptions _operatorAiOptions;
 
 	public ChatHub(
@@ -71,6 +72,7 @@ public class ChatHub : Hub
 		IOperatorAiSystemSettingsProvider systemSettings,
 		IOperatorAiActiveGenerationGuard activeGenerationGuard,
 		IOperatorAiAnswerCache answerCache,
+		IOperatorAiFollowUpResolver followUpResolver,
 		IOptions<OperatorAiOptions> operatorAiOptions)
 	{
 		_logger = logger;
@@ -84,6 +86,7 @@ public class ChatHub : Hub
 		_systemSettings = systemSettings;
 		_activeGenerationGuard = activeGenerationGuard;
 		_answerCache = answerCache;
+		_followUpResolver = followUpResolver;
 		_operatorAiOptions = operatorAiOptions.Value;
 	}
 
@@ -326,14 +329,22 @@ public class ChatHub : Hub
 		{
 			string aiResponse;
 			string routedSkillId;
+			string resolvedMessage;
 			// Operator-AI message duration: measure the whole turn the operator waited for — routing + retrieval +
 			// generation. Stopped once the answer is finalized (before the response guard / persistence), so the
 			// stored value reflects compute time, not the DB write + SignalR broadcast.
 			var turnStopwatch = Stopwatch.StartNew();
 			try
 			{
+				// -- CONVERSATIONAL CONTEXT (A1): resolve an anaphoric follow-up before routing --
+				// The deterministic resolver carries the last named entity (e.g. "All active?" → "reels All active?")
+				// so the bare anaphor routes + retrieves correctly. Routing / RAG / broad / answer-cache all see the
+				// RESOLVED query; the ORIGINAL `trimmed` is what we persist and display (below). When no carry fires
+				// the resolver returns `trimmed` unchanged, so this is a no-op on a self-contained turn.
+				resolvedMessage = _followUpResolver.Resolve(trimmed, conversationId);
+
 				// -- SKILL ROUTING (operator-ai-skills v1): route to one skill, then run it --
-				var route = await _skillRouter.RouteAsync(trimmed, Context.ConnectionAborted);
+				var route = await _skillRouter.RouteAsync(resolvedMessage, Context.ConnectionAborted);
 				routedSkillId = route.Skill.Id;
 				if (_operatorAiOptions.RetrievalTraceEnabled)
 				{
@@ -345,10 +356,12 @@ public class ChatHub : Hub
 				}
 
 				var skillRequest = new OperatorAiSkillRequest(
-					trimmed, conversationId, Array.Empty<ChatHistoryEntry>(), effectiveParallel, route.Score);
+					resolvedMessage, conversationId, Array.Empty<ChatHistoryEntry>(), effectiveParallel, route.Score);
 
-				// 7B-perf O18 — exact-repeat answer cache: an identical (skill, message) within TTL skips the turn.
-				if (_answerCache.TryGet(routedSkillId, trimmed, out var cachedAnswer))
+				// 7B-perf O18 — exact-repeat answer cache: an identical (skill, resolved message) within TTL skips the
+				// turn. Keyed on the RESOLVED query so two phrasings that resolve to the same question share an entry
+				// and a bare anaphor ("all active?") is never cached on its own (§6).
+				if (_answerCache.TryGet(routedSkillId, resolvedMessage, out var cachedAnswer))
 				{
 					aiResponse = cachedAnswer;
 				}
@@ -387,8 +400,9 @@ public class ChatHub : Hub
 
 			aiResponse = OperatorAiResponseGuard.ToUserFacingMessage(aiResponse);
 
-			// 7B-perf O18 — remember this answer for identical repeats (no-op when the cache is disabled).
-			_answerCache.Set(routedSkillId, trimmed, aiResponse);
+			// 7B-perf O18 — remember this answer for identical repeats (no-op when the cache is disabled). Keyed on the
+			// RESOLVED query (A1, §6) to mirror the lookup above — never on the bare anaphor.
+			_answerCache.Set(routedSkillId, resolvedMessage, aiResponse);
 
 			// Persist ONE assistant message + the user turn. The chat is always grounded/English now, so the locale
 			// and stats-mode columns are pinned to "en" / "live" (no off/inline, D11) — preserving the persistence

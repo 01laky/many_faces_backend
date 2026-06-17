@@ -146,10 +146,32 @@ public static class OperatorAiStatsIntent
 				return true;
 		}
 
-		// "all ... in system" / "all ... in the platform"
-		if (m.Contains("all ", StringComparison.Ordinal)
-			&& (m.Contains("system", StringComparison.Ordinal) || m.Contains("platform", StringComparison.Ordinal)))
-			return true;
+		// operator-ai conversational-context + broad-overview fix (B1): the free `"all " + (system|platform)`
+		// fallback was DELETED. It mis-fired on focused follow-ups that merely happen to contain both words —
+		// e.g. "…if our reels in system are all active now" ("all " + "system") — and dumped all 61 bundles.
+		// Legitimate whole-platform phrasings are already covered explicitly by BroadOverviewKeywords above;
+		// novel phrasings the list misses are PROMOTED by the 3B upgrade (OperatorAiDecisionHelper.IsBroadOverviewAsync),
+		// and when the helper is off they degrade to a FOCUSED answer (a narrower answer, never a dump) — acceptable.
+		return false;
+	}
+
+	/// <summary>
+	/// operator-ai conversational-context fix — true when the message hits the deterministic NON-metrics list
+	/// ("what time", "explain signalr", "write code", "ako funguje kód", …). The follow-up resolver's rung-3
+	/// anaphora gate consults this to turn entity-carry OFF for how-to / code / time questions, so a stale entity
+	/// is never prepended onto a non-statistical turn.
+	/// </summary>
+	public static bool ContainsNonMetricsKeyword(string? message)
+	{
+		if (string.IsNullOrWhiteSpace(message))
+			return false;
+
+		var m = message.Trim().ToLowerInvariant();
+		foreach (var phrase in NonMetricsKeywords)
+		{
+			if (m.Contains(phrase, StringComparison.Ordinal))
+				return true;
+		}
 
 		return false;
 	}

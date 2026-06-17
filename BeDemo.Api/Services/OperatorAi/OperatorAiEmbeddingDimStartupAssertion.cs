@@ -24,15 +24,18 @@ public sealed class OperatorAiEmbeddingDimStartupAssertion : BackgroundService
 
 	private readonly IServiceScopeFactory _scopeFactory;
 	private readonly AiServiceOptions _options;
+	private readonly OperatorAiEmbeddingDimStatus _dimStatus;
 	private readonly ILogger<OperatorAiEmbeddingDimStartupAssertion> _logger;
 
 	public OperatorAiEmbeddingDimStartupAssertion(
 		IServiceScopeFactory scopeFactory,
 		IOptions<AiServiceOptions> options,
+		OperatorAiEmbeddingDimStatus dimStatus,
 		ILogger<OperatorAiEmbeddingDimStartupAssertion> logger)
 	{
 		_scopeFactory = scopeFactory;
 		_options = options.Value;
+		_dimStatus = dimStatus;
 		_logger = logger;
 	}
 
@@ -82,9 +85,11 @@ public sealed class OperatorAiEmbeddingDimStartupAssertion : BackgroundService
 					_options.EmbeddingModel,
 					result.ModelVersion,
 					actual);
+				_dimStatus.Record(ok: false, actual: actual);
 				return;
 			}
 
+			_dimStatus.Record(ok: true, actual: actual);
 			_logger.LogInformation(
 				"Embedding dim assertion OK: model '{Model}' returned {Dim}-dim vectors (== configured EmbeddingDim).",
 				_options.EmbeddingModel,

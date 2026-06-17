@@ -3,6 +3,7 @@ using BeDemo.Api.Configuration;
 using BeDemo.Api.Data;
 using BeDemo.Api.Models;
 using BeDemo.Api.Models.DTOs.OperatorAi;
+using BeDemo.Api.Services.OperatorAi;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -19,6 +20,8 @@ public sealed class AiWorkerHostProfileService : IAiWorkerHostProfileService
 	private readonly IAiGrpcService _aiGrpc;
 	private readonly IConfiguration _configuration;
 	private readonly IOptions<AiServiceOptions> _options;
+	private readonly IOptions<OperatorAiOptions> _operatorAiOptions;
+	private readonly OperatorAiEmbeddingDimStatus _embeddingDimStatus;
 	private readonly ILogger<AiWorkerHostProfileService> _logger;
 
 	public AiWorkerHostProfileService(
@@ -26,12 +29,16 @@ public sealed class AiWorkerHostProfileService : IAiWorkerHostProfileService
 		IAiGrpcService aiGrpc,
 		IConfiguration configuration,
 		IOptions<AiServiceOptions> options,
+		IOptions<OperatorAiOptions> operatorAiOptions,
+		OperatorAiEmbeddingDimStatus embeddingDimStatus,
 		ILogger<AiWorkerHostProfileService> logger)
 	{
 		_db = db;
 		_aiGrpc = aiGrpc;
 		_configuration = configuration;
 		_options = options;
+		_operatorAiOptions = operatorAiOptions;
+		_embeddingDimStatus = embeddingDimStatus;
 		_logger = logger;
 	}
 
@@ -145,6 +152,27 @@ public sealed class AiWorkerHostProfileService : IAiWorkerHostProfileService
 			LastRefreshError = meta?.LastRefreshError,
 			GrpcAddressConfigured = meta?.GrpcAddressConfigured ?? ResolveGrpcAddress(),
 			Profile = profile,
+			Config = BuildConfig(),
+		};
+	}
+
+	/// <summary>
+	/// Backend-side AI config the worker snapshot does not carry (helper/embed model + embedding-dim health), so the
+	/// admin overview is complete even when the worker is unreachable (config-only view).
+	/// </summary>
+	private OperatorAiConfigDto BuildConfig()
+	{
+		var ai = _options.Value;
+		var dim = _embeddingDimStatus.Current;
+		return new OperatorAiConfigDto
+		{
+			HelperModel = string.IsNullOrWhiteSpace(ai.HelperModel) ? null : ai.HelperModel,
+			HelperEnabled = _operatorAiOptions.Value.HelperForDecisions
+				&& !string.IsNullOrWhiteSpace(ai.HelperModel),
+			EmbeddingModel = ai.EmbeddingModel,
+			EmbeddingDim = ai.EmbeddingDim,
+			EmbeddingDimOk = dim.Ok,
+			EmbeddingDimActual = dim.Actual,
 		};
 	}
 

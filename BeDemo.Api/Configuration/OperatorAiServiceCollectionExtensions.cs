@@ -29,6 +29,9 @@ public static class OperatorAiServiceCollectionExtensions
 		services.AddScoped<IOperatorAiDecisionHelper, OperatorAiDecisionHelper>();
 		services.AddSingleton<IOperatorAiActiveGenerationGuard, OperatorAiActiveGenerationGuard>();
 		services.AddSingleton<IOperatorAiAnswerCache, OperatorAiAnswerCache>();
+		// operator-ai conversational-context + broad-overview fix (A1): the deterministic follow-up resolver holds a
+		// per-conversation entity memo, so it is a singleton (like the answer / vector caches above). No model dep.
+		services.AddSingleton<IOperatorAiFollowUpResolver, OperatorAiFollowUpResolver>();
 
 		// ── Operator AI RAG retrieval (operator-ai-rag-retrieval-refactor-v1, §8) ──────
 		// Embedding-based semantic retrieval replaces the LLM planner as the bundle
@@ -65,6 +68,9 @@ public static class OperatorAiServiceCollectionExtensions
 		// Startup hosted services (§5.5 dim assertion + §7.2 trigger 1 index refresh).
 		// Both are non-blocking BackgroundServices that degrade gracefully if the worker
 		// is not yet reachable; retrieval falls back to the planner until the index is ready.
+		// The dim-assertion records its outcome into this singleton so the admin AI overview can show
+		// the embedding-dim ↔ ES mapping health (drift = RAG indexing rejected).
+		services.AddSingleton<BeDemo.Api.Services.OperatorAi.OperatorAiEmbeddingDimStatus>();
 		services.AddHostedService<OperatorAiEmbeddingDimStartupAssertion>();
 		services.AddHostedService<OperatorAiKnowledgeIndexStartupRefresh>();
 		// 7B-perf O8/O10 — warm the 4 skill routing vectors + issue one tiny throwaway Generate at startup so the first
