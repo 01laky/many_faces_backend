@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.7.1](#171)   | Operator-AI broad-overview 3B recall: few-shot classifier                                |
 | [1.7.0](#170)   | AI worker-host overview: config fold (helper/embed) + embedding-dim health               |
 | [1.6.3](#163)   | Trim AI-chat elapsed hint to seconds-only (resx)                                         |
 | [1.6.2](#162)   | Admin AI-chat waiting label → "Thinking" (resx)                                          |
@@ -84,6 +85,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.7.1]
+
+### Fixed
+
+- **Operator-AI broad-overview: the 3B helper now reliably promotes clear whole-platform requests** (implemented from `docs/prompts/operator-ai-broad-overview-3b-recall-fix-agent-prompt.md`). A phrasing like "give me full system stats" returned a focused 4-bundle subset instead of the all-61-bundle snapshot. The deterministic keyword floor does not cover it ("system" sits between "full" and "stats", so the `"full stats"` substring is absent and the free `"all "+system` rule was removed in the prior conversational-context fix), so `OperatorAiDecisionHelper.IsBroadOverviewAsync` reached the 3B YES/NO classifier — whose zero-shot prompt, with a misleading "rather than one specific metric" clause, led the small model to read "stats" as one metric and answer NO. Replaced it with a few-shot, clearer-definition classifier (bilingual sk/en, balanced YES/NO examples covering the failure phrasing and the single-entity "are all reels active?" boundary), keeping `temperature:0`, the short `maxNewTokens`, the YES/NO parse and the `null ⇒ deterministic` fallback. Prompt-content change only: the short-circuit logic, the flagless single-entity suppress, the keyword floor and the `IsBroadOverviewAsync(string, …)` signature are unchanged.
 
 ---
 
@@ -978,7 +987,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.7.1...HEAD
 [1.4.47]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...v1.4.47
 [1.4.46]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...v1.4.46
 [1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
@@ -1034,6 +1043,7 @@ totalCount, totalPages }` (BE-RP3).
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0
+[1.7.1]: https://github.com/01laky/many_faces_backend/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/01laky/many_faces_backend/compare/v1.6.3...v1.7.0
 [1.6.3]: https://github.com/01laky/many_faces_backend/compare/v1.6.2...v1.6.3
 [1.6.2]: https://github.com/01laky/many_faces_backend/compare/v1.6.1...v1.6.2

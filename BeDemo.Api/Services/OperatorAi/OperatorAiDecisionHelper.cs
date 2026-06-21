@@ -207,11 +207,45 @@ public sealed class OperatorAiDecisionHelper : IOperatorAiDecisionHelper
 			|| OperatorAiStatsIntent.IsSimpleCountQuestion(message))
 			return deterministic;
 
+		// Few-shot classifier (operator-ai broad-overview recall fix). The previous zero-shot prompt — and its
+		// "rather than one specific metric" framing — led the small 3B to read "stats" in "give me full system
+		// stats" as ONE metric and answer NO, so a clear whole-platform request fell through to a focused 4-bundle
+		// answer. The labelled examples below (bilingual sk/en, balanced YES/NO, including the tricky single-entity
+		// "all …" boundary) make the small model reliably promote whole-platform requests while keeping focused /
+		// single-entity / single-count / non-analytics asks NO. Decode stays temperature 0 + YES/NO parse.
 		var prompt =
-			"You are a strict classifier. Answer with exactly one word: YES or NO.\n"
-			+ "Question: does the user's message ask for statistics about ALL entities / the WHOLE platform "
-			+ "(a full overview), rather than one specific metric?\n\n"
-			+ "User message: \"" + (message ?? string.Empty).Trim() + "\"\n\nAnswer (YES or NO):";
+			"You are a strict intent classifier for an admin analytics assistant.\n"
+			+ "Classify the user's message as one of:\n"
+			+ "  YES = a WHOLE-PLATFORM overview: counts/statistics across ALL or most data areas at once "
+			+ "(a full snapshot of everything).\n"
+			+ "  NO  = a FOCUSED ask: about ONE entity, ONE metric, a single count, or not analytics at all.\n"
+			+ "Reply with exactly one word: YES or NO.\n\n"
+			+ "Examples:\n"
+			+ "  \"give me full system stats\" -> YES\n"
+			+ "  \"give me everything\" -> YES\n"
+			+ "  \"full statistics\" -> YES\n"
+			+ "  \"all stats\" -> YES\n"
+			+ "  \"all the numbers\" -> YES\n"
+			+ "  \"all data about the platform\" -> YES\n"
+			+ "  \"overview of all entities\" -> YES\n"
+			+ "  \"system overview\" -> YES\n"
+			+ "  \"everything in the system\" -> YES\n"
+			+ "  \"a full snapshot of the whole platform\" -> YES\n"
+			+ "  \"daj mi všetky štatistiky\" -> YES\n"
+			+ "  \"celý prehľad systému\" -> YES\n"
+			+ "  \"daj mi všetko o platforme\" -> YES\n"
+			+ "  \"how many reels?\" -> NO\n"
+			+ "  \"are all reels active?\" -> NO\n"
+			+ "  \"reels pending vs approved\" -> NO\n"
+			+ "  \"how many users?\" -> NO\n"
+			+ "  \"blog stats\" -> NO\n"
+			+ "  \"active reels\" -> NO\n"
+			+ "  \"koľko máme reels?\" -> NO\n"
+			+ "  \"koľko používateľov?\" -> NO\n"
+			+ "  \"what time is it?\" -> NO\n"
+			+ "  \"explain signalr\" -> NO\n\n"
+			+ "User message: \"" + (message ?? string.Empty).Trim() + "\"\n"
+			+ "Answer (YES or NO):";
 
 		var verdict = await ClassifyAsync(prompt, cancellationToken);
 		return verdict ?? deterministic; // NO / null / error ⇒ keep the deterministic (false) result.
