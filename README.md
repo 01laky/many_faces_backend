@@ -2,7 +2,7 @@
 
 <!-- readme-badges:start -->
 
-[![version](https://img.shields.io/badge/version-1.7.0-blue)](./VERSION)
+[![version](https://img.shields.io/badge/version-1.7.1-blue)](./VERSION)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1)
 [![CI](https://github.com/01laky/many_faces_main/actions/workflows/ci.yml/badge.svg)](https://github.com/01laky/many_faces_main/actions/workflows/ci.yml)
@@ -11,7 +11,7 @@
 
 <!-- readme-badges:end -->
 
-**Version:** [`1.7.0`](./VERSION) · [Changelog](./CHANGELOG.md)
+**Version:** [`1.7.1`](./VERSION) · [Changelog](./CHANGELOG.md)
 
 **Author:** Ladislav Kostolny · [01laky@gmail.com](mailto:01laky@gmail.com)
 
