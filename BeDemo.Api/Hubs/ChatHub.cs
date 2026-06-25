@@ -391,10 +391,20 @@ public class ChatHub : Hub
 
 			if (OperatorAiResponseGuard.ShouldNotPersist(aiResponse))
 			{
+				// operator-ai degraded-handling D11/D12 — pick the honest, localized ephemeral code by failure kind
+				// instead of one generic "guard rejected": model still loading → ModelLoading; an infrastructure /
+				// AI-unavailable failure (incl. the all-failed stats sentinel) → AiUnavailable; otherwise the generic
+				// guard. The user-facing copy comes from the resx-localized code (en/sk/cs/de/fr/it).
+				var degradedCode = OperatorAiResponseGuard.IsTransientStatusMessage(aiResponse)
+					? OperatorAiHubErrorCodes.ModelLoading
+					: OperatorAiResponseGuard.IsInfrastructureFailure(aiResponse)
+						? OperatorAiHubErrorCodes.AiUnavailable
+						: OperatorAiHubErrorCodes.AiGuardRejected;
 				_logger.LogWarning(
-					"Non-chat AI status returned for conversation {ConversationId}, not persisting.",
-					conversationId);
-				await SendOperatorAiEphemeralAsync(trimmed, OperatorAiHubErrorCodes.AiGuardRejected);
+					"Operator AI degraded turn for conversation {ConversationId} (code {Code}); not persisting.",
+					conversationId,
+					degradedCode);
+				await SendOperatorAiEphemeralAsync(trimmed, degradedCode);
 				return;
 			}
 

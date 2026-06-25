@@ -189,7 +189,10 @@ public static class OperatorAiLiveStatsPlanner
 /// <summary>Stage 5 — deterministic stitch of per-bundle sub-answers (v1 manual glue).</summary>
 public static class OperatorAiLiveStatsStitch
 {
-	public sealed record Part(int Index, string BundleId, string Text, bool Failed);
+	// operator-ai degraded-handling — AiError distinguishes a MODEL failure (Generate returned an "Error:" string,
+	// timed out, or threw) from a DATA failure (the bundle's DB JSON was not ready). Only a model failure means
+	// "AI unavailable"; a not-ready bundle is a data gap that still renders a clean per-section "data unavailable" note.
+	public sealed record Part(int Index, string BundleId, string Text, bool Failed, bool AiError = false);
 
 	public static string Stitch(IReadOnlyList<Part> parts)
 	{

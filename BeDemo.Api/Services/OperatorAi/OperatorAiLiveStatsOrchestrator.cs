@@ -68,7 +68,11 @@ public sealed record OperatorAiLiveTurnTrace(
 	int Generations,
 	long LoadMs,
 	long MapMs,
-	int BundleCount);
+	int BundleCount,
+	// operator-ai degraded-handling D10 — PII-free degradation signal: the turn ran but ≥1 bundle section could not
+	// be produced (model down/timed out). Surfaced to the admin AI overview / logs without re-deriving it.
+	bool Degraded = false,
+	int FailedBundles = 0);
 
 /// <summary>
 /// 7B-perf O2/O3/O4 — the result of <see cref="IOperatorAiLiveStatsOrchestrator.PrepareSelectedAsync"/>. Exactly one
@@ -93,6 +97,15 @@ public sealed record OperatorAiTerminalPlan(
 /// <inheritdoc />
 public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrchestrator
 {
+	/// <summary>
+	/// operator-ai degraded-handling D3 — sentinel returned as the terminal plan's answer when EVERY bundle section
+	/// failed (model down mid-turn). It is an `"Error: …"` string, which <c>OperatorAiResponseGuard.ShouldNotPersist</c>
+	/// recognises as an infrastructure failure, so the hub turns it into a single honest "AI unavailable" ephemeral and
+	/// does not persist it. Kept here (not localized) on purpose: the user-facing copy comes from the localized hub
+	/// error code, this string only carries the failure classification.
+	/// </summary>
+	internal const string AllBundlesFailedSentinel = "Error: AI service unavailable (all bundle sections failed)";
+
 	private readonly IOperatorAiLiveStatsPrefetcher _prefetcher;
 	private readonly IAiGrpcService _ai;
 	private readonly IOperatorAiDecisionHelper _decisionHelper;
@@ -408,23 +421,48 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		}
 		mapSw.Stop();
 
+		// operator-ai degraded-handling D3/D10 — how many sections could not be produced this turn.
+		var failedBundles = parts.Count(p => p.Failed);
+		var producedBundles = parts.Length - failedBundles;
+		var degraded = failedBundles > 0;
+		var deterministicBroad = broadOverview && _options.LiveBroadDeterministicCounts;
+
+		// D3 — on the AI-generated path (not the deterministic broad counts read-out, which is sourced from already-loaded
+		// DB JSON), if EVERY section failed the model is effectively down. Return an infrastructure sentinel that the
+		// hub's ShouldNotPersist catches → one honest "AI unavailable" ephemeral, NOT a persisted wall of "data
+		// unavailable" lines and NOT a model-narrated apology.
+		if (!deterministicBroad && parts.Length > 0 && producedBundles == 0 && parts.Any(p => p.AiError))
+		{
+			_logger.LogWarning(
+				"Operator AI stats turn fully degraded: all {Count} bundle section(s) failed, model error present.",
+				parts.Length);
+			return new OperatorAiTerminalPlan(
+				AllBundlesFailedSentinel,
+				null,
+				0,
+				new OperatorAiLiveTurnTrace("all-failed", generations, loadSw.ElapsedMilliseconds, mapSw.ElapsedMilliseconds, indices.Count, Degraded: true, FailedBundles: failedBundles));
+		}
+
 		// Stage 5 — deterministic stitch. The broad deterministic-counts path already produces a fully-labelled line
 		// per bundle ("**Users:** 33 total — …"), so it is joined directly: routing it through the stitch would prepend
 		// the raw bundle id as a second header ("**entity.users:**" above "**Users:** …"). Failed bundles carry no
 		// usable line and are summarised by the coverage note below, so they are simply omitted from the body.
-		var deterministicBroad = broadOverview && _options.LiveBroadDeterministicCounts;
 		var draft = deterministicBroad
 			? string.Join("\n", parts.Where(p => !p.Failed && !string.IsNullOrWhiteSpace(p.Text)).Select(p => p.Text.Trim()))
 			: OperatorAiLiveStatsStitch.Stitch(parts);
 
 		// Coverage note (§3.5): broad-overview covers ALL 61 bundles → a "full snapshot" (partial only when a bundle
-		// genuinely failed); the focused path keeps the "top-K most relevant" note.
+		// genuinely failed); the focused path adds a deterministic note when SOME sections could not be loaded (D4) so
+		// the model never has to narrate *why* data is missing.
 		if (broadOverview)
 		{
-			var failedCount = parts.Count(p => p.Failed);
-			draft += failedCount == 0
+			draft += failedBundles == 0
 				? "\n\n_(Full platform snapshot — all data areas.)_"
-				: $"\n\n_(Full platform snapshot — {failedCount} data area(s) were temporarily unavailable.)_";
+				: $"\n\n_(Full platform snapshot — {failedBundles} data area(s) were temporarily unavailable.)_";
+		}
+		else if (failedBundles > 0)
+		{
+			draft += $"\n\n_(Note: {failedBundles} of {parts.Length} data area(s) could not be loaded right now.)_";
 		}
 		else if (appendCoverageNote && indices.Count > 0)
 		{
@@ -442,7 +480,7 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 				draft,
 				null,
 				0,
-				new OperatorAiLiveTurnTrace("stitch", generations, loadSw.ElapsedMilliseconds, mapSw.ElapsedMilliseconds, indices.Count));
+				new OperatorAiLiveTurnTrace("stitch", generations, loadSw.ElapsedMilliseconds, mapSw.ElapsedMilliseconds, indices.Count, Degraded: degraded, FailedBundles: failedBundles));
 		}
 
 		// Otherwise the operator-visible answer is the synthesis Generate — return it as a stream prompt so the caller
@@ -452,7 +490,7 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 			null,
 			synthesisPrompt,
 			_options.LiveStitchMaxNewTokens,
-			new OperatorAiLiveTurnTrace("synthesis", generations, loadSw.ElapsedMilliseconds, mapSw.ElapsedMilliseconds, indices.Count),
+			new OperatorAiLiveTurnTrace("synthesis", generations, loadSw.ElapsedMilliseconds, mapSw.ElapsedMilliseconds, indices.Count, Degraded: degraded, FailedBundles: failedBundles),
 			FallbackAnswer: draft);
 	}
 
@@ -482,7 +520,7 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		{
 			// Per-bundle timeout only — the turn budget is still alive; degrade this one section.
 			_logger.LogWarning("Per-bundle Generate timed out for index {Index} ({Id}); dropping section.", index, meta.Id);
-			return new OperatorAiLiveStatsStitch.Part(index, meta.Id, string.Empty, Failed: true);
+			return new OperatorAiLiveStatsStitch.Part(index, meta.Id, string.Empty, Failed: true, AiError: true);
 		}
 	}
 
@@ -548,20 +586,35 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 			var prompt = BuildBundlePrompt(userMessage, meta, entry.JsonPayload);
 			// 7B-perf O11 — terse facts: low temperature + stop sequences so the map stops early instead of padding
 			// to the token cap or drifting into a new turn (the operator-visible synthesis keeps fluent sampling).
-			var text = await _ai.GenerateAsync(
-				prompt,
-				_options.LiveBundleMaxNewTokens,
-				responseLocale: responseLocale,
-				temperature: _options.MapTemperature,
-				stopSequences: MapStops,
-				model: model,
-				cancellationToken: cancellationToken);
-			return new OperatorAiLiveStatsStitch.Part(index, meta.Id, text ?? string.Empty, Failed: false);
+			// operator-ai degraded-handling D13 — one bounded retry: GenerateAsync returns an "Error: …" STRING (not an
+			// exception) on a transient transport blip, and a single blip should not drop a whole section. The
+			// per-bundle timeout + overall budget still bound total work and we are inside the parallelism gate.
+			string? text = null;
+			for (var attempt = 0; attempt < 2; attempt++)
+			{
+				text = await _ai.GenerateAsync(
+					prompt,
+					_options.LiveBundleMaxNewTokens,
+					responseLocale: responseLocale,
+					temperature: _options.MapTemperature,
+					stopSequences: MapStops,
+					model: model,
+					cancellationToken: cancellationToken);
+				if (!OperatorAiGenerationErrors.IsUnusable(text))
+					break;
+			}
+
+			// operator-ai degraded-handling D1 — an "Error: …" string (or empty) is a FAILURE, not facts. Mark the
+			// section Failed so the stitch renders a clean "data unavailable" note and the error text NEVER reaches the
+			// synthesis prompt (where the model used to narrate it into the user-facing answer).
+			return OperatorAiGenerationErrors.IsUnusable(text)
+				? new OperatorAiLiveStatsStitch.Part(index, meta.Id, string.Empty, Failed: true, AiError: true)
+				: new OperatorAiLiveStatsStitch.Part(index, meta.Id, text!, Failed: false);
 		}
 		catch (Exception ex)
 		{
 			_logger.LogWarning(ex, "Bundle AI failed for index {Index}", index);
-			return new OperatorAiLiveStatsStitch.Part(index, meta.Id, string.Empty, Failed: true);
+			return new OperatorAiLiveStatsStitch.Part(index, meta.Id, string.Empty, Failed: true, AiError: true);
 		}
 		finally
 		{

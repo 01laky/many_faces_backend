@@ -37,4 +37,20 @@ public sealed class OperatorAiResponseGuardTests
 		msg.Should().NotContain("Connection refused");
 		msg.Should().NotContain("inline");
 	}
+
+	[Theory]
+	// operator-ai degraded-handling D5 — the demo-day hybrid (a real count + a model-narrated "AI unavailable"
+	// apology) must NOT be persisted; the markers above missed it because of the intervening "is currently".
+	[InlineData("The total number of system users in our application is 33. Unfortunately, the AI service is currently unavailable, so I cannot provide additional details or counts from other entities.")]
+	[InlineData("Error: AI service unavailable (all bundle sections failed)")]
+	public void ShouldNotPersist_catches_model_narrated_unavailability(string text)
+	{
+		OperatorAiResponseGuard.ShouldNotPersist(text).Should().BeTrue();
+	}
+
+	[Fact]
+	public void ShouldNotPersist_passes_a_normal_grounded_answer()
+	{
+		OperatorAiResponseGuard.ShouldNotPersist("There are 640 reels currently in the system.").Should().BeFalse();
+	}
 }

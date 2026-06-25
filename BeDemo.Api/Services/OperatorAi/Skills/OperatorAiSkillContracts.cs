@@ -44,7 +44,9 @@ public sealed record OperatorAiSkillTrace(
 	int Generations = 0,
 	long LoadMs = 0,
 	long MapMs = 0,
-	bool HelperUsed = false);
+	bool HelperUsed = false,
+	// operator-ai degraded-handling D10 — the turn ran but ≥1 data section could not be produced (model down/timed out).
+	bool Degraded = false);
 
 /// <summary>
 /// 7B-perf O4 — one chunk from a streaming skill run. During generation, <see cref="Delta"/> carries incremental

@@ -15,6 +15,13 @@ internal static class OperatorAiResponseGuard
 		"ai service timed out",
 		"error: ai service",
 		"public_stats_absolute_url",
+		// operator-ai degraded-handling D5 — catch a MODEL-NARRATED unavailability that the markers above miss because
+		// of intervening words ("the AI service IS CURRENTLY unavailable…"). That is the embarrassing hybrid where the
+		// 7B mixed a real count with an "AI unavailable" apology; high-recall here (a false positive only re-prompts).
+		"ai service is currently unavailable",
+		"ai service is unavailable",
+		"ai service is temporarily unavailable",
+		"cannot provide additional details or counts",
 		// Backend-refactor §5 fix: dropped the bare "grpc" marker — it false-positived any legitimate answer
 		// mentioning gRPC (e.g. an operator asking the AI about the gRPC workers). Real transport failures still
 		// surface via the "Error:" prefix and the "ai service unavailable/timed out" markers above.

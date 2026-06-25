@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.7.2](#172)   | Operator-AI honest degradation when the model is unavailable                             |
 | [1.7.1](#171)   | Operator-AI broad-overview 3B recall: few-shot classifier                                |
 | [1.7.0](#170)   | AI worker-host overview: config fold (helper/embed) + embedding-dim health               |
 | [1.6.3](#163)   | Trim AI-chat elapsed hint to seconds-only (resx)                                         |
@@ -85,6 +86,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.7.2]
+
+### Fixed
+
+- **Operator-AI: honest degradation when the model is unavailable** (Phase 1 of `docs/prompts/operator-ai-degraded-failure-handling-and-startup-readiness-fix-agent-prompt.md`). When the local model was down, a multi-entity stats turn returned a confusing hybrid — a real DB count followed by a model-narrated "the AI service is currently unavailable" apology. Root cause: `IAiGrpcService.GenerateAsync` returns an `"Error: …"` STRING (not an exception) on failure, and the per-bundle map (`OperatorAiLiveStatsOrchestrator.RunBundleAiAsync`) recorded that string as a SUCCESSFUL section, so it leaked through the stitch into the synthesis prompt and the 7B narrated it. Fixes: (D1) an error/empty generation is now a Failed section (shared `OperatorAiGenerationErrors.IsErrorText`), so the error text never reaches the stitch/synthesis; (D3) when every section fails on a model error, the turn returns one honest infrastructure sentinel that `OperatorAiResponseGuard.ShouldNotPersist` catches → a single ephemeral "AI unavailable" message, not a persisted half-answer (an AI failure is distinguished from a data-not-ready bundle via `Part.AiError`); (D4) a partial failure adds a deterministic "N of M data areas could not be loaded" note instead of letting the model improvise; (D5) `ShouldNotPersist` now also catches the model-narrated unavailability phrasing; (D11/D12) the hub maps the degraded turn to the localized `ModelLoading` / `AiUnavailable` / `AiGuardRejected` codes by failure kind; (D13) one bounded retry absorbs a transient per-bundle blip; (D10) the per-turn trace carries a PII-free `Degraded` + failed-bundle count. Touches `OperatorAiLiveStatsOrchestrator`, `OperatorAiLiveStatsStitch.Part`, `StatsSkill`, `OperatorAiSkillTrace`, `OperatorAiResponseGuard`, `ChatHub` (+ `OperatorAiDegradedDataHandlingTests`, `OperatorAiGenerationErrorsTests`, `OperatorAiResponseGuardTests`). Phase 2 (reliable startup/readiness across the AI worker + Ollama + admin banner) is tracked separately in the prompt.
 
 ---
 
@@ -987,7 +996,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.7.2...HEAD
 [1.4.47]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...v1.4.47
 [1.4.46]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...v1.4.46
 [1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
@@ -1043,6 +1052,7 @@ totalCount, totalPages }` (BE-RP3).
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0
+[1.7.2]: https://github.com/01laky/many_faces_backend/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/01laky/many_faces_backend/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/01laky/many_faces_backend/compare/v1.6.3...v1.7.0
 [1.6.3]: https://github.com/01laky/many_faces_backend/compare/v1.6.2...v1.6.3

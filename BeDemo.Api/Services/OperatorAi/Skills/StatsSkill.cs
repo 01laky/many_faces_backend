@@ -158,7 +158,11 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 		if (plan.IsComplete)
 		{
 			var complete = plan.CompleteAnswer!;
-			yield return new OperatorAiStreamChunk(complete, IsFinal: false);
+			// operator-ai degraded-handling D3 — when the plan is the all-failed sentinel ("Error: …"), do NOT stream it
+			// as a visible delta; emit only the final, which the hub's ShouldNotPersist turns into a clean ephemeral
+			// "AI unavailable" message (no raw error text flashes in the UI, nothing persisted).
+			if (!IsErrorText(complete))
+				yield return new OperatorAiStreamChunk(complete, IsFinal: false);
 			yield return new OperatorAiStreamChunk(null, IsFinal: true, FinalAnswer: complete, Trace: PlanTrace(sw, plan, retrieval.FallbackUsed, terminalGenerated: false));
 			yield break;
 		}
@@ -209,10 +213,10 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 			FastPath: plan.Trace.FastPath,
 			Generations: generations,
 			LoadMs: plan.Trace.LoadMs,
-			MapMs: plan.Trace.MapMs);
+			MapMs: plan.Trace.MapMs,
+			Degraded: plan.Trace.Degraded);
 	}
 
-	/// <summary>The gRPC service returns an "Error: ..." string for transport failures; treat that as a failed generation.</summary>
-	private static bool IsErrorText(string text) =>
-		text.StartsWith("Error:", StringComparison.Ordinal) || text.StartsWith("AI support is currently disabled", StringComparison.Ordinal);
+	/// <summary>The gRPC service returns an "Error: ..." string for transport failures; treat that as a failed generation. Shared with the per-bundle map path (single source of truth).</summary>
+	private static bool IsErrorText(string text) => OperatorAiGenerationErrors.IsErrorText(text);
 }
