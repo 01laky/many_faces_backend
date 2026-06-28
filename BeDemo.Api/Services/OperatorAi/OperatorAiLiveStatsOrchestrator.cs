@@ -106,6 +106,16 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 	/// </summary>
 	internal const string AllBundlesFailedSentinel = "Error: AI service unavailable (all bundle sections failed)";
 
+	/// <summary>
+	/// operator-ai degraded-handling D15 — sentinel returned by a skill when the readiness re-check immediately before
+	/// the terminal/synthesis generation finds the model is still LOADING (not yet ready, but reachable). It carries the
+	/// <c>MODEL_LOAD</c> marker that <c>OperatorAiResponseGuard.IsTransientStatusMessage</c> recognises, so the hub maps
+	/// it to the localized <c>ModelLoading</c> ephemeral (distinct from the <see cref="AllBundlesFailedSentinel"/>
+	/// "unavailable" case) and does not persist it. Like the all-failed sentinel this is a classification token, not
+	/// user copy — the operator-facing text comes from the resx-localized hub error code.
+	/// </summary>
+	internal const string ModelLoadingSentinel = "MODEL_LOADING (model warming up, not yet ready)";
+
 	private readonly IOperatorAiLiveStatsPrefetcher _prefetcher;
 	private readonly IAiGrpcService _ai;
 	private readonly IOperatorAiDecisionHelper _decisionHelper;
@@ -396,6 +406,11 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		else
 		{
 			using var gate = new SemaphoreSlim(parallel, parallel);
+			// operator-ai degraded-handling D14 — early-abort source, linked to the overall turn budget. The FIRST bundle
+			// that hits a hard model "Error:" (the worker/model is down, confirmed after the bounded D13 retry) cancels
+			// this source; the remaining queued maps then stop at their semaphore wait / mid-Generate instead of every
+			// one of K hammering the same down model, and the turn goes straight to the honest all-failed message.
+			using var hardErrorCts = CancellationTokenSource.CreateLinkedTokenSource(budgetCts.Token);
 			var partTasks = indices.Select((index, position) => RunBundleAiWithTimeoutAsync(
 				index,
 				broadOverview ? BroadMapModel() : MapModelFor(position),
@@ -403,7 +418,8 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 				responseLocale,
 				cache,
 				gate,
-				budgetCts.Token)).ToArray();
+				hardErrorCts.Token,
+				onHardModelError: hardErrorCts.Cancel)).ToArray();
 
 			try
 			{
@@ -411,7 +427,8 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 			}
 			catch (OperationCanceledException)
 			{
-				// Overall budget exceeded mid-flight: salvage the sub-answers that already completed (§17.7).
+				// Overall budget exceeded OR a D14 early-abort fired mid-flight: salvage the sub-answers that already
+				// completed (§17.7). Task.WhenAll only completes once every task is terminal, so reading them here is safe.
 				parts = partTasks
 					.Where(t => t.IsCompletedSuccessfully)
 					.Select(t => t.Result)
@@ -506,7 +523,8 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		string responseLocale,
 		IReadOnlyDictionary<int, OperatorAiBundleCacheEntry> cache,
 		SemaphoreSlim gate,
-		CancellationToken turnToken)
+		CancellationToken turnToken,
+		Action? onHardModelError = null)
 	{
 		var meta = OperatorAiEntityBundleCatalog.GetByIndex(index);
 		using var perBundleCts = CancellationTokenSource.CreateLinkedTokenSource(turnToken);
@@ -514,7 +532,7 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 
 		try
 		{
-			return await RunBundleAiAsync(index, model, userMessage, responseLocale, cache, gate, perBundleCts.Token);
+			return await RunBundleAiAsync(index, model, userMessage, responseLocale, cache, gate, perBundleCts.Token, onHardModelError);
 		}
 		catch (OperationCanceledException) when (!turnToken.IsCancellationRequested)
 		{
@@ -560,7 +578,8 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		string responseLocale,
 		IReadOnlyDictionary<int, OperatorAiBundleCacheEntry> cache,
 		SemaphoreSlim gate,
-		CancellationToken cancellationToken)
+		CancellationToken cancellationToken,
+		Action? onHardModelError = null)
 	{
 		var meta = OperatorAiEntityBundleCatalog.GetByIndex(index);
 		if (!cache.TryGetValue(index, out var entry))
@@ -607,7 +626,17 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 			// operator-ai degraded-handling D1 — an "Error: …" string (or empty) is a FAILURE, not facts. Mark the
 			// section Failed so the stitch renders a clean "data unavailable" note and the error text NEVER reaches the
 			// synthesis prompt (where the model used to narrate it into the user-facing answer).
-			return OperatorAiGenerationErrors.IsUnusable(text)
+			if (OperatorAiGenerationErrors.IsErrorText(text))
+			{
+				// D14 — a HARD model error ("Error: …" that survived the bounded D13 retry) means the worker/model is
+				// down, not a one-off empty section. Signal the map to early-abort so the remaining queued bundle
+				// Generates do not fire; the all-failed detection in PrepareSelectedAsync then surfaces one honest
+				// "AI unavailable" message instead of mapping every bundle only to discover the same down model.
+				onHardModelError?.Invoke();
+				return new OperatorAiLiveStatsStitch.Part(index, meta.Id, string.Empty, Failed: true, AiError: true);
+			}
+
+			return string.IsNullOrWhiteSpace(text)
 				? new OperatorAiLiveStatsStitch.Part(index, meta.Id, string.Empty, Failed: true, AiError: true)
 				: new OperatorAiLiveStatsStitch.Part(index, meta.Id, text!, Failed: false);
 		}

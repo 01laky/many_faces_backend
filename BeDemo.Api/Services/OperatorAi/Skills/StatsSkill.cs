@@ -99,12 +99,21 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 			cancellationToken);
 
 		string answer;
+		var terminalGenerated = false;
 		if (plan.IsComplete)
 		{
+			// Deterministic answer (count fast-path, broad snapshot, or the all-failed sentinel) — no model needed,
+			// so it is returned as-is WITHOUT the D15 readiness re-check below.
 			answer = plan.CompleteAnswer!;
+		}
+		else if (await TerminalReadinessSentinelAsync(cancellationToken) is { } notReady)
+		{
+			// D15 — short-circuit: the model went not-ready between the hub guard and here, return the honest sentinel.
+			answer = notReady;
 		}
 		else
 		{
+			terminalGenerated = true;
 			var generated = await _ai.GenerateAsync(
 				plan.StreamPrompt!,
 				plan.StreamMaxNewTokens,
@@ -113,7 +122,7 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 			answer = string.IsNullOrWhiteSpace(generated) || IsErrorText(generated) ? plan.FallbackText : generated.Trim();
 		}
 
-		return new OperatorAiSkillResult(answer, Trace: PlanTrace(sw, plan, retrieval.FallbackUsed, terminalGenerated: !plan.IsComplete));
+		return new OperatorAiSkillResult(answer, Trace: PlanTrace(sw, plan, retrieval.FallbackUsed, terminalGenerated));
 	}
 
 	/// <inheritdoc />
@@ -167,6 +176,15 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 			yield break;
 		}
 
+		// D15 — re-check readiness immediately before streaming the terminal generation. If the model dropped to
+		// loading/unavailable in the guard→generate window, emit ONLY the final sentinel (never streamed as a visible
+		// delta, mirroring the D3 sentinel handling) so the hub turns it into a clean localized ephemeral.
+		if (await TerminalReadinessSentinelAsync(cancellationToken) is { } notReady)
+		{
+			yield return new OperatorAiStreamChunk(null, IsFinal: true, FinalAnswer: notReady, Trace: PlanTrace(sw, plan, retrieval.FallbackUsed, terminalGenerated: false));
+			yield break;
+		}
+
 		// Stream the terminal generation (single-bundle answer or synthesis), accumulating the full text to persist.
 		var acc = new StringBuilder();
 		var sawError = false;
@@ -215,6 +233,37 @@ public sealed class StatsSkill : IOperatorAiStreamingSkill
 			LoadMs: plan.Trace.LoadMs,
 			MapMs: plan.Trace.MapMs,
 			Degraded: plan.Trace.Degraded);
+	}
+
+	/// <summary>
+	/// operator-ai degraded-handling D15 — re-probe model readiness immediately before the terminal/synthesis
+	/// generation. The hub gates the turn on readiness at the top, but load + per-bundle map run in between, so the
+	/// model can drop to loading/unavailable in that window (the guard→generate race that let a degraded turn through).
+	/// Returns the matching honest sentinel — <see cref="OperatorAiLiveStatsOrchestrator.ModelLoadingSentinel"/> when
+	/// still warming up, <see cref="OperatorAiLiveStatsOrchestrator.AllBundlesFailedSentinel"/> when unavailable — which
+	/// the hub maps to a localized ModelLoading / AiUnavailable ephemeral (not persisted). Returns null when ready, so
+	/// the terminal generation proceeds normally. Only the count fast-path / deterministic snapshot (plan.IsComplete)
+	/// skips this — those answers are sourced from already-loaded DB JSON and need no model.
+	/// </summary>
+	private async Task<string?> TerminalReadinessSentinelAsync(CancellationToken cancellationToken)
+	{
+		AiModelStatus status;
+		try
+		{
+			status = await _ai.GetModelStatusAsync(cancellationToken);
+		}
+		catch
+		{
+			// Fail-open: a flaky readiness probe must not block an otherwise-working turn. The terminal generation
+			// has its own "Error:" handling (and D3 all-failed catches a truly-down model), so proceed on probe error.
+			return null;
+		}
+
+		if (status is null || status.Ready)
+			return null;
+		return status.Unavailable
+			? OperatorAiLiveStatsOrchestrator.AllBundlesFailedSentinel
+			: OperatorAiLiveStatsOrchestrator.ModelLoadingSentinel;
 	}
 
 	/// <summary>The gRPC service returns an "Error: ..." string for transport failures; treat that as a failed generation. Shared with the per-bundle map path (single source of truth).</summary>

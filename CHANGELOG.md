@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.7.3](#173)   | Operator-AI degradation Phase 1 closeout: early-abort + readiness re-check + hub test     |
 | [1.7.2](#172)   | Operator-AI honest degradation when the model is unavailable                             |
 | [1.7.1](#171)   | Operator-AI broad-overview 3B recall: few-shot classifier                                |
 | [1.7.0](#170)   | AI worker-host overview: config fold (helper/embed) + embedding-dim health               |
@@ -86,6 +87,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.7.3]
+
+### Fixed
+
+- **Operator-AI degradation Phase 1 closeout — early-abort, terminal readiness re-check, hub integration test** (D14/D15/D16 of `docs/prompts/operator-ai-degraded-failure-handling-and-startup-readiness-fix-agent-prompt.md`; completes the 1.7.2 fix). **(D14)** when a per-bundle map hits a hard `"Error:"` that survives the bounded D13 retry (the worker/model is down), `OperatorAiLiveStatsOrchestrator` now early-aborts the remaining queued maps via a linked cancellation source — instead of mapping all K bundles only to discover the same outage — and goes straight to the honest all-failed message; already-produced sections survive (a partial success is never forced to the all-failed sentinel), and an empty (non-`"Error:"`) generation does NOT early-abort. **(D15)** `StatsSkill` re-checks model readiness immediately before the terminal/synthesis generation (the guard→generate race window that let a degraded turn through), short-circuiting to the localized `ModelLoading` / `AiUnavailable` ephemeral when the model dropped to loading/unavailable; the count fast-path / deterministic snapshot is exempt (no model needed) and a flaky/throwing probe fails open so it never blocks an otherwise-working turn. New `OperatorAiLiveStatsOrchestrator.ModelLoadingSentinel` classifies via `OperatorAiResponseGuard.IsTransientStatusMessage`. **(D16)** a real end-to-end `ChatHub.SendToAiWithOperatorStats` integration test (`OperatorAiDegradedChatHubIntegrationTests`, mock SignalR `Context`/`Clients`) asserts the infra/loading sentinels AND the exact demo-day hybrid are mapped to the right ephemeral code and NOT persisted, with a healthy answer as the positive control. Exhaustive deterministic edge-case coverage added across the degraded surface — the data-not-ready-vs-model-error distinction, empty-vs-error, bounded-retry recovery, error-string-never-in-synthesis-prompt, broad-overview coverage wording, all guard markers, and `IsErrorText` prefix boundaries — taking the backend suite 2181 → 2235. Touches `OperatorAiLiveStatsOrchestrator`, `StatsSkill` (+ `OperatorAiDegradedDataHandlingTests`, `OperatorAiSkillsTests`, `OperatorAiGenerationErrorsTests`, `OperatorAiResponseGuardTests`, new `OperatorAiDegradedChatHubIntegrationTests`). Phase 2 (reliable startup/readiness across the AI worker + Ollama + admin banner) remains tracked in the prompt.
 
 ---
 
@@ -996,7 +1005,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.7.2...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.7.3...HEAD
 [1.4.47]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...v1.4.47
 [1.4.46]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...v1.4.46
 [1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
@@ -1052,6 +1061,7 @@ totalCount, totalPages }` (BE-RP3).
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0
+[1.7.3]: https://github.com/01laky/many_faces_backend/compare/v1.7.2...v1.7.3
 [1.7.2]: https://github.com/01laky/many_faces_backend/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/01laky/many_faces_backend/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/01laky/many_faces_backend/compare/v1.6.3...v1.7.0

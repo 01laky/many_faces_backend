@@ -1,5 +1,6 @@
 using BeDemo.Api.Configuration;
 using BeDemo.Api.Data;
+using BeDemo.Api.Hubs;
 using BeDemo.Api.Models.DTOs;
 using BeDemo.Api.Services;
 using BeDemo.Api.Services.OperatorAi;
@@ -96,6 +97,145 @@ public sealed class OperatorAiSkillsTests
 		captured.Should().OnlyHaveUniqueItems();
 		captured.Should().BeEquivalentTo(Enumerable.Range(0, OperatorAiEntityBundleCatalog.BundleCount), "every bundle index is present exactly once");
 		captured!.Take(2).Should().Equal(new[] { 12, 0 }, "the RAG-ranked indices lead, then the rest follow in catalog order");
+	}
+
+	// D15 — readiness re-check immediately before the terminal generation. A non-complete plan (StreamPrompt set) WOULD
+	// fire a Generate; if the model dropped to loading/unavailable since the hub guard, the skill must short-circuit to
+	// the matching honest sentinel (mapped by the hub to a localized ModelLoading / AiUnavailable ephemeral) and NOT
+	// call the model. The count fast-path (plan.IsComplete) is covered by Stats_happy_path above — it must NOT re-check.
+
+	private static (Mock<IOperatorAiRetriever>, Mock<IOperatorAiLiveStatsOrchestrator>) StatsWithTerminalPlan()
+	{
+		var retriever = new Mock<IOperatorAiRetriever>();
+		retriever.Setup(r => r.RetrieveBundleIndicesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new OperatorAiRetrievalResult(
+				new[] { 0, 12 }, OperatorAiSelectionStrategy.Rag, Array.Empty<OperatorAiRetrievalHit>(), false, false, 5, 7));
+		var orch = new Mock<IOperatorAiLiveStatsOrchestrator>();
+		// Non-complete plan → a terminal synthesis generation WOULD run (StreamPrompt set, CompleteAnswer null).
+		orch.Setup(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), false, false, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new OperatorAiTerminalPlan(null, "SYNTH PROMPT", 256, new OperatorAiLiveTurnTrace("synthesis", 2, 0, 0, 2), FallbackAnswer: "stitched facts"));
+		return (retriever, orch);
+	}
+
+	private static void VerifyNoGeneration(Mock<IAiGrpcService> ai) =>
+		ai.Verify(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(),
+			It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never());
+
+	[Fact]
+	public async Task Stats_terminal_readiness_recheck_loading_short_circuits_to_loading_sentinel_D15()
+	{
+		var (retriever, orch) = StatsWithTerminalPlan();
+		var ai = new Mock<IAiGrpcService>();
+		ai.Setup(a => a.GetModelStatusAsync(It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new AiModelStatus(Ready: false, Loading: true, Unavailable: false, ModelName: "qwen"));
+
+		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object, Decisions()).RunAsync(Req("how many users and profiles?"), default);
+
+		result.AnswerMarkdown.Should().Be(OperatorAiLiveStatsOrchestrator.ModelLoadingSentinel);
+		OperatorAiResponseGuard.IsTransientStatusMessage(result.AnswerMarkdown).Should().BeTrue("loading maps to the ModelLoading ephemeral");
+		OperatorAiResponseGuard.ShouldNotPersist(result.AnswerMarkdown).Should().BeTrue("the loading sentinel must not be persisted");
+		VerifyNoGeneration(ai);
+	}
+
+	[Fact]
+	public async Task Stats_terminal_readiness_recheck_unavailable_short_circuits_to_unavailable_sentinel_D15()
+	{
+		var (retriever, orch) = StatsWithTerminalPlan();
+		var ai = new Mock<IAiGrpcService>();
+		ai.Setup(a => a.GetModelStatusAsync(It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new AiModelStatus(Ready: false, Loading: false, Unavailable: true, ModelName: null));
+
+		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object, Decisions()).RunAsync(Req("how many users and profiles?"), default);
+
+		result.AnswerMarkdown.Should().Be(OperatorAiLiveStatsOrchestrator.AllBundlesFailedSentinel);
+		OperatorAiResponseGuard.IsInfrastructureFailure(result.AnswerMarkdown).Should().BeTrue("unavailable maps to the AiUnavailable ephemeral");
+		OperatorAiResponseGuard.ShouldNotPersist(result.AnswerMarkdown).Should().BeTrue("the unavailable sentinel must not be persisted");
+		VerifyNoGeneration(ai);
+	}
+
+	[Fact]
+	public async Task Stats_terminal_readiness_recheck_ready_proceeds_to_generation_D15()
+	{
+		var (retriever, orch) = StatsWithTerminalPlan();
+		var ai = new Mock<IAiGrpcService>();
+		ai.Setup(a => a.GetModelStatusAsync(It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new AiModelStatus(Ready: true, Loading: false, Unavailable: false, ModelName: "qwen"));
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(),
+				It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync("There are 1,234 users across the platform.");
+
+		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object, Decisions()).RunAsync(Req("how many users and profiles?"), default);
+
+		result.AnswerMarkdown.Should().Be("There are 1,234 users across the platform.");
+		ai.Verify(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(),
+			It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once());
+	}
+
+	[Fact]
+	public async Task Stats_count_fast_path_does_not_re_check_readiness_D15()
+	{
+		// A complete plan (count fast-path / deterministic snapshot) is sourced from already-loaded DB JSON and needs
+		// no model — it must be returned even if the model is down, so the readiness re-check is NEVER consulted.
+		var retriever = new Mock<IOperatorAiRetriever>();
+		retriever.Setup(r => r.RetrieveBundleIndicesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new OperatorAiRetrievalResult(
+				new[] { 0, 12 }, OperatorAiSelectionStrategy.Rag, Array.Empty<OperatorAiRetrievalHit>(), false, false, 5, 7));
+		var orch = new Mock<IOperatorAiLiveStatsOrchestrator>();
+		orch.Setup(o => o.PrepareSelectedAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<int>>(), It.IsAny<int>(), false, false, It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new OperatorAiTerminalPlan("There are 1,234 users.", null, 0, new OperatorAiLiveTurnTrace("count", 0, 0, 0, 2)));
+		var ai = new Mock<IAiGrpcService>();
+
+		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object, Decisions()).RunAsync(Req("how many users?"), default);
+
+		result.AnswerMarkdown.Should().Be("There are 1,234 users.");
+		ai.Verify(a => a.GetModelStatusAsync(It.IsAny<CancellationToken>()), Times.Never(), "a deterministic answer never probes readiness");
+	}
+
+	[Fact]
+	public async Task Stats_terminal_readiness_recheck_fails_open_when_probe_throws_D15()
+	{
+		// A throwing readiness probe must not block an otherwise-working turn (the terminal generation has its own
+		// error handling) — the skill proceeds to generate normally.
+		var (retriever, orch) = StatsWithTerminalPlan();
+		var ai = new Mock<IAiGrpcService>();
+		ai.Setup(a => a.GetModelStatusAsync(It.IsAny<CancellationToken>()))
+			.ThrowsAsync(new InvalidOperationException("health probe transport blip"));
+		ai.Setup(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(),
+				It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+			.ReturnsAsync("Recovered answer with facts.");
+
+		var result = await new StatsSkill(retriever.Object, orch.Object, ai.Object, Decisions()).RunAsync(Req("how many users and profiles?"), default);
+
+		result.AnswerMarkdown.Should().Be("Recovered answer with facts.", "fail-open — a probe error does not abort the turn");
+		ai.Verify(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(),
+			It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Once());
+	}
+
+	[Fact]
+	public async Task Stats_streaming_terminal_readiness_recheck_loading_emits_only_final_sentinel_D15()
+	{
+		// Streaming path: a not-ready re-check must emit ONLY the final sentinel (no visible delta flashed, mirroring
+		// the D3 sentinel handling) and never start the terminal stream generation.
+		var (retriever, orch) = StatsWithTerminalPlan();
+		var ai = new Mock<IAiGrpcService>();
+		ai.Setup(a => a.GetModelStatusAsync(It.IsAny<CancellationToken>()))
+			.ReturnsAsync(new AiModelStatus(Ready: false, Loading: true, Unavailable: false, ModelName: "qwen"));
+
+		var chunks = await Collect(new StatsSkill(retriever.Object, orch.Object, ai.Object, Decisions())
+			.RunStreamingAsync(Req("how many users and profiles?"), default));
+
+		chunks.Should().ContainSingle(c => c.IsFinal).Which.FinalAnswer.Should().Be(OperatorAiLiveStatsOrchestrator.ModelLoadingSentinel);
+		chunks.Count(c => !c.IsFinal).Should().Be(0, "the loading sentinel must not flash as a visible delta");
+		ai.Verify(a => a.GenerateStreamAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(),
+			It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never());
+	}
+
+	private static async Task<List<OperatorAiStreamChunk>> Collect(IAsyncEnumerable<OperatorAiStreamChunk> stream)
+	{
+		var chunks = new List<OperatorAiStreamChunk>();
+		await foreach (var c in stream)
+			chunks.Add(c);
+		return chunks;
 	}
 
 	// ── ReportsSkill ────────────────────────────────────────────────────────

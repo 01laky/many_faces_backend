@@ -1,10 +1,81 @@
 using BeDemo.Api.Hubs;
+using BeDemo.Api.Services.OperatorAi;
 using FluentAssertions;
 
 namespace BeDemo.Api.Tests;
 
 public sealed class OperatorAiResponseGuardTests
 {
+	// ── IsInfrastructureFailure — every D5 marker + the "Error:" prefix (the hub maps these to AiUnavailable) ──
+	[Theory]
+	[InlineData("Error: AI service unavailable (Unavailable)")]
+	[InlineData("error: ai service is down")] // case-insensitive prefix
+	[InlineData("<urlopen error [Errno 111] Connection refused>")]
+	[InlineData("the worker reported errno 111")]
+	[InlineData("ai service unavailable")]
+	[InlineData("ai service timed out")]
+	[InlineData("the AI service is currently unavailable")] // D5: model-narrated, intervening words
+	[InlineData("the AI service is unavailable right now")]
+	[InlineData("the AI service is temporarily unavailable")]
+	[InlineData("I cannot provide additional details or counts from other entities")] // D5 hybrid tail
+	[InlineData("public_stats_absolute_url is not set")]
+	public void IsInfrastructureFailure_true_for_all_markers(string text) =>
+		OperatorAiResponseGuard.IsInfrastructureFailure(text).Should().BeTrue();
+
+	[Theory]
+	[InlineData("There are 640 reels currently in the system.")]
+	[InlineData("The platform talks to its workers over gRPC.")] // bare "grpc" must NOT trip (backend-refactor §5)
+	[InlineData("")]
+	[InlineData("   ")]
+	[InlineData(null)]
+	public void IsInfrastructureFailure_false_for_normal_or_empty(string? text) =>
+		OperatorAiResponseGuard.IsInfrastructureFailure(text).Should().BeFalse();
+
+	// ── IsTransientStatusMessage — loading placeholders (the hub maps these to ModelLoading) ──
+	[Theory]
+	[InlineData("⏳ AI model sa práve načítava do pamäte.")] // sk with diacritics
+	[InlineData("model sa nacitava")] // sk without diacritics
+	[InlineData("worker says MODEL_LOADING right now")] // the D15 loading sentinel marker
+	[InlineData("AI služba nie je dostupná")]
+	public void IsTransientStatusMessage_true_for_loading_markers(string text) =>
+		OperatorAiResponseGuard.IsTransientStatusMessage(text).Should().BeTrue();
+
+	[Theory]
+	[InlineData("There are 640 reels currently in the system.")]
+	[InlineData("")]
+	[InlineData(null)]
+	public void IsTransientStatusMessage_false_for_normal_or_empty(string? text) =>
+		OperatorAiResponseGuard.IsTransientStatusMessage(text).Should().BeFalse();
+
+	// ── The two orchestrator sentinels classify to the right hub bucket ──
+	[Fact]
+	public void ModelLoadingSentinel_classifies_as_transient_not_infrastructure()
+	{
+		// D15 — the hub checks IsTransientStatusMessage FIRST, so the loading sentinel becomes ModelLoading.
+		OperatorAiResponseGuard.IsTransientStatusMessage(OperatorAiLiveStatsOrchestrator.ModelLoadingSentinel).Should().BeTrue();
+		OperatorAiResponseGuard.ShouldNotPersist(OperatorAiLiveStatsOrchestrator.ModelLoadingSentinel).Should().BeTrue();
+	}
+
+	[Fact]
+	public void AllBundlesFailedSentinel_classifies_as_infrastructure()
+	{
+		OperatorAiResponseGuard.IsInfrastructureFailure(OperatorAiLiveStatsOrchestrator.AllBundlesFailedSentinel).Should().BeTrue();
+		OperatorAiResponseGuard.ShouldNotPersist(OperatorAiLiveStatsOrchestrator.AllBundlesFailedSentinel).Should().BeTrue();
+	}
+
+	[Fact]
+	public void ToUserFacingMessage_null_or_empty_becomes_placeholder()
+	{
+		OperatorAiResponseGuard.ToUserFacingMessage(null).Should().Be("...");
+		OperatorAiResponseGuard.ToUserFacingMessage("   ").Should().Be("...");
+	}
+
+	[Fact]
+	public void ToUserFacingMessage_transient_passes_through_trimmed()
+	{
+		OperatorAiResponseGuard.ToUserFacingMessage("  ⏳ AI model sa načítava  ").Should().Be("⏳ AI model sa načítava");
+	}
+
 	[Fact]
 	public void IsInfrastructureFailure_detects_urlopen_errors()
 	{
