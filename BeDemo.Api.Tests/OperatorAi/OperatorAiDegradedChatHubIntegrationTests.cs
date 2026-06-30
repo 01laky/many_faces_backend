@@ -50,7 +50,7 @@ public sealed class OperatorAiDegradedChatHubIntegrationTests
 		Mock<IOperatorAiConversationService> Conversation,
 		Func<(string? Method, object?[]? Args)> LastCallerSend);
 
-	private static HubHarness BuildHub(string skillAnswer)
+	private static HubHarness BuildHub(string skillAnswer, string? staleAnswer = null)
 	{
 		// SignalR caller proxy — capture the single ephemeral SendAsync("ReceiveAiMessage", user, "", code) call.
 		string? method = null;
@@ -108,12 +108,15 @@ public sealed class OperatorAiDegradedChatHubIntegrationTests
 		var answerCache = new Mock<IOperatorAiAnswerCache>();
 		var cachedNull = string.Empty;
 		answerCache.Setup(a => a.TryGet(It.IsAny<string>(), It.IsAny<string>(), out cachedNull)).Returns(false);
+		// Optional stale fallback: when a stale answer is provided, the cache returns it from TryGetStale.
+		var stale = staleAnswer ?? string.Empty;
+		answerCache.Setup(a => a.TryGetStale(It.IsAny<string>(), It.IsAny<string>(), out stale)).Returns(staleAnswer is not null);
 
 		var followUp = new Mock<IOperatorAiFollowUpResolver>();
 		followUp.Setup(f => f.Resolve(It.IsAny<string>(), It.IsAny<int>())).Returns((string m, int _) => m);
 
 		// Streaming OFF so the non-streaming FixedAnswerSkill.RunAsync is used (no IOperatorAiStreamingSkill branch).
-		var options = Options.Create(new OperatorAiOptions { StreamingEnabled = false });
+		var options = Options.Create(new OperatorAiOptions { StreamingEnabled = false, StaleAnswerFallbackEnabled = staleAnswer is not null });
 
 		var hub = new ChatHub(
 			NullLogger<ChatHub>.Instance,
@@ -197,5 +200,23 @@ public sealed class OperatorAiDegradedChatHubIntegrationTests
 		h.Conversation.Verify(c => c.AppendExchangeAsync(
 			ConversationId, UserId, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
 			It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<long?>(), It.IsAny<CancellationToken>()), Times.Once());
+	}
+
+	[Fact]
+	public async Task Optional_stale_fallback_serves_the_last_answer_with_a_note_and_does_not_persist()
+	{
+		// With the stale fallback enabled and a retained answer, a degraded (AI-down) turn serves the last successful
+		// answer + a "may be stale" note as a caller-only reply (code ai_stale), instead of the bare unavailable
+		// ephemeral — and still does not persist it.
+		var h = BuildHub(OperatorAiLiveStatsOrchestrator.AllBundlesFailedSentinel, staleAnswer: "There are 33 users on the platform.");
+
+		await h.Hub.SendToAiWithOperatorStats(ConversationId, "how many users");
+
+		var (sendMethod, sendArgs) = h.LastCallerSend();
+		sendMethod.Should().Be("ReceiveAiMessage");
+		((string?)sendArgs![1]).Should().Contain("There are 33 users on the platform.", "the retained answer is served");
+		((string?)sendArgs![1]).Should().Contain("may be stale", "with an honest staleness note");
+		sendArgs[2].Should().Be(OperatorAiHubErrorCodes.AiStale);
+		AssertNotPersisted(h.Conversation);
 	}
 }

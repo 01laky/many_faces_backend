@@ -304,4 +304,23 @@ public sealed class OperatorAiDegradedDataHandlingTests
 		ai.Verify(a => a.GenerateAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string?>(), It.IsAny<string?>(),
 			It.IsAny<double?>(), It.IsAny<IReadOnlyList<string>?>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()), Times.Never());
 	}
+
+	// ── Optional — all-or-nothing partial-failure policy (config-gated, default off) ───────────────────────────
+	[Fact]
+	public async Task Partial_failure_returns_the_sentinel_when_all_or_nothing_policy_is_enabled()
+	{
+		// Default (flag off) keeps the partial facts + coverage note — pinned by
+		// Per_bundle_error_string_is_dropped_and_never_leaks_into_the_answer. With the all-or-nothing flag ON, the
+		// same partial AI failure is treated as a whole-turn outage and returns the honest unavailable sentinel.
+		var ai = new Mock<IAiGrpcService>();
+		Generates(ai, prompt => prompt.Contains("entity.userProfiles") ? "Error: AI service unavailable (Unavailable)" : "Users: 5 total.");
+		var options = DefaultOptions();
+		options.LivePartialFailureAllOrNothing = true;
+
+		var result = await Build(ai, options)
+			.RunWithSelectedIndicesAsync("how many users and profiles?", new[] { 0, 1 }, 1, appendCoverageNote: false);
+
+		result.Should().Be(OperatorAiLiveStatsOrchestrator.AllBundlesFailedSentinel);
+		result.Should().NotContain("Users: 5 total.", "all-or-nothing must not leak partial facts");
+	}
 }

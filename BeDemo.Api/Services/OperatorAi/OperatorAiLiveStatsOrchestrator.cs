@@ -444,6 +444,12 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		var degraded = failedBundles > 0;
 		var deterministicBroad = broadOverview && _options.LiveBroadDeterministicCounts;
 
+		// operator-ai degraded-handling D19 — record per-bundle map outcomes (produced vs failed) for the per-bundle
+		// failure rate, but only on the AI-generated map path: the deterministic broad read-out's "failures" are
+		// data-not-ready bundles, not AI failures, so they would distort the AI failure-rate signal.
+		if (!deterministicBroad)
+			OperatorAiMetrics.RecordBundleOutcomes(producedBundles, failedBundles);
+
 		// D3 — on the AI-generated path (not the deterministic broad counts read-out, which is sourced from already-loaded
 		// DB JSON), if EVERY section failed the model is effectively down. Return an infrastructure sentinel that the
 		// hub's ShouldNotPersist catches → one honest "AI unavailable" ephemeral, NOT a persisted wall of "data
@@ -452,6 +458,22 @@ public sealed class OperatorAiLiveStatsOrchestrator : IOperatorAiLiveStatsOrches
 		{
 			_logger.LogWarning(
 				"Operator AI stats turn fully degraded: all {Count} bundle section(s) failed, model error present.",
+				parts.Length);
+			return new OperatorAiTerminalPlan(
+				AllBundlesFailedSentinel,
+				null,
+				0,
+				new OperatorAiLiveTurnTrace("all-failed", generations, loadSw.ElapsedMilliseconds, mapSw.ElapsedMilliseconds, indices.Count, Degraded: true, FailedBundles: failedBundles));
+		}
+
+		// Optional (config-gated, default off) — all-or-nothing partial policy. When enabled, a partial AI failure
+		// (some sections produced, some failed) is treated as a whole-turn outage: return the same honest "AI
+		// unavailable" ephemeral instead of partial facts + a coverage note (the default D4 behaviour).
+		if (!deterministicBroad && _options.LivePartialFailureAllOrNothing && failedBundles > 0 && producedBundles > 0 && parts.Any(p => p.AiError))
+		{
+			_logger.LogWarning(
+				"Operator AI stats turn partially degraded ({Failed}/{Total} failed); all-or-nothing policy → unavailable.",
+				failedBundles,
 				parts.Length);
 			return new OperatorAiTerminalPlan(
 				AllBundlesFailedSentinel,

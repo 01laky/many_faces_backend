@@ -43,6 +43,13 @@ public interface IOperatorAiAnswerCache
 	/// <summary>True + the cached answer when enabled and a fresh identical (skill, message) entry exists.</summary>
 	bool TryGet(string skillId, string message, out string answer);
 
+	/// <summary>
+	/// Optional stale-answer fallback — True + the last successful answer for this (skill, message) when
+	/// <see cref="OperatorAiOptions.StaleAnswerFallbackEnabled"/> is on and a longer-lived stale copy is retained.
+	/// Served only by the hub when the AI is down, with a "may be stale" note. Off by default.
+	/// </summary>
+	bool TryGetStale(string skillId, string message, out string answer);
+
 	/// <summary>Cache the answer for a turn (no-op when disabled or the answer is empty).</summary>
 	void Set(string skillId, string message, string answer);
 
@@ -80,26 +87,61 @@ public sealed class OperatorAiAnswerCache : IOperatorAiAnswerCache
 		return false;
 	}
 
+	public bool TryGetStale(string skillId, string message, out string answer)
+	{
+		answer = string.Empty;
+		if (!_options.StaleAnswerFallbackEnabled)
+			return false;
+
+		if (_cache.TryGetValue<string>(StaleKey(skillId, message), out var cached) && !string.IsNullOrEmpty(cached))
+		{
+			answer = cached!;
+			return true;
+		}
+		return false;
+	}
+
 	public void Set(string skillId, string message, string answer)
 	{
-		if (!_options.AnswerCacheEnabled || string.IsNullOrWhiteSpace(answer))
+		if (string.IsNullOrWhiteSpace(answer))
 			return;
 
-		_cache.Set(
-			Key(skillId, message),
-			answer,
-			new MemoryCacheEntryOptions
-			{
-				AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(Math.Max(1, _options.AnswerCacheTtlSeconds)),
-				Size = 1,
-			});
+		if (_options.AnswerCacheEnabled)
+		{
+			_cache.Set(
+				Key(skillId, message),
+				answer,
+				new MemoryCacheEntryOptions
+				{
+					AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(Math.Max(1, _options.AnswerCacheTtlSeconds)),
+					Size = 1,
+				});
+		}
+
+		// Optional — retain a longer-lived stale copy for the AI-down fallback. Independent of the fresh
+		// answer cache so the fallback can be enabled without enabling exact-repeat caching.
+		if (_options.StaleAnswerFallbackEnabled)
+		{
+			_cache.Set(
+				StaleKey(skillId, message),
+				answer,
+				new MemoryCacheEntryOptions
+				{
+					AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(Math.Max(1, _options.StaleAnswerTtlSeconds)),
+					Size = 1,
+				});
+		}
 	}
 
 	public void Clear() => Interlocked.Increment(ref _generation);
 
-	private string Key(string skillId, string message)
+	private string Key(string skillId, string message) => BuildKey("answer", skillId, message);
+
+	private string StaleKey(string skillId, string message) => BuildKey("stale", skillId, message);
+
+	private string BuildKey(string kind, string skillId, string message)
 	{
 		var normalized = Whitespace.Replace((message ?? string.Empty).Trim().ToLowerInvariant(), " ");
-		return $"operator-ai:answer:{Interlocked.Read(ref _generation)}:{skillId}:{normalized}";
+		return $"operator-ai:{kind}:{Interlocked.Read(ref _generation)}:{skillId}:{normalized}";
 	}
 }

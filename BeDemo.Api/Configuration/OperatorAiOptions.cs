@@ -174,6 +174,25 @@ public sealed class OperatorAiOptions
 	/// <summary>O18 — bounded entry count for the answer cache.</summary>
 	public int AnswerCacheMaxEntries { get; set; } = 256;
 
+	/// <summary>
+	/// operator-ai degraded-handling (optional) — partial multi-bundle failure policy. Default (false) keeps the
+	/// successful facts + a deterministic coverage note (D4). When true, a partial failure is treated all-or-nothing:
+	/// if ANY mapped section failed, return the honest "AI unavailable" ephemeral instead of a partial answer. Off by
+	/// default (the prompt defers this unless a real need appears).
+	/// </summary>
+	public bool LivePartialFailureAllOrNothing { get; set; }
+
+	/// <summary>
+	/// operator-ai degraded-handling (optional) — stale-answer fallback. When true, a degraded turn (AI down) serves
+	/// the last successful answer for the SAME (skill, question) with a "may be stale" note instead of the ephemeral
+	/// error, if one is still retained. Off by default (the prompt defers it; serving stale data is opt-in). Requires
+	/// the answer cache to retain a longer-lived stale copy (<see cref="StaleAnswerTtlSeconds"/>).
+	/// </summary>
+	public bool StaleAnswerFallbackEnabled { get; set; }
+
+	/// <summary>Optional — TTL (seconds) for the retained stale-answer copy used by <see cref="StaleAnswerFallbackEnabled"/>. Longer than the fresh answer-cache TTL since it is only served when the AI is down. Default 1800 (30 min).</summary>
+	public int StaleAnswerTtlSeconds { get; set; } = 1800;
+
 	/// <summary>O19 Role A — let the CPU-resident helper model (when <see cref="AiServiceOptions.HelperModel"/> is set) make the small routing/gating decisions (simple-count gate, report-type). Falls back to the deterministic heuristic when the helper is unset/unavailable. Default true (no-op unless a helper model is configured).</summary>
 	public bool HelperForDecisions { get; set; } = true;
 

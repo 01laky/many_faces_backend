@@ -391,6 +391,21 @@ public class ChatHub : Hub
 
 			if (OperatorAiResponseGuard.ShouldNotPersist(aiResponse))
 			{
+				// Optional stale-answer fallback (off by default) — when the AI is down but a previous successful
+				// answer for the SAME (skill, question) is still retained, serve it with a "may be stale" note as a
+				// caller-only (non-persisted) reply instead of the bare ephemeral error. Mirrors the answer-cache key.
+				if (_operatorAiOptions.StaleAnswerFallbackEnabled
+					&& _answerCache.TryGetStale(routedSkillId, resolvedMessage, out var staleAnswer))
+				{
+					var staleWithNote = staleAnswer
+						+ "\n\n_(This answer may be stale — Many Faces AI was unavailable, so the last successful result is shown.)_";
+					_logger.LogWarning(
+						"Operator AI degraded turn for conversation {ConversationId}; serving a stale cached answer (not persisting).",
+						conversationId);
+					await Clients.Caller.SendAsync("ReceiveAiMessage", trimmed, staleWithNote, OperatorAiHubErrorCodes.AiStale);
+					return;
+				}
+
 				// operator-ai degraded-handling D11/D12 — pick the honest, localized ephemeral code by failure kind
 				// instead of one generic "guard rejected": model still loading → ModelLoading; an infrastructure /
 				// AI-unavailable failure (incl. the all-failed stats sentinel) → AiUnavailable; otherwise the generic
@@ -404,6 +419,9 @@ public class ChatHub : Hub
 					"Operator AI degraded turn for conversation {ConversationId} (code {Code}); not persisting.",
 					conversationId,
 					degradedCode);
+				// operator-ai degraded-handling D19 — count the degraded turn (PII-free, tagged by failure code) so
+				// monitoring catches a recurring degradation proactively instead of at the next demo.
+				OperatorAiMetrics.RecordDegradedTurn(degradedCode);
 				await SendOperatorAiEphemeralAsync(trimmed, degradedCode);
 				return;
 			}

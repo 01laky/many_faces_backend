@@ -16,4 +16,12 @@ public static class OperatorAiHubErrorCodes
 
 	/// <summary>7B-perf O17 — a turn is already generating for this conversation (single-active-generation guard).</summary>
 	public const string GenerationInProgress = "generation_in_progress";
+
+	/// <summary>
+	/// Optional stale-answer fallback (off by default) — the AI was down but a previous successful answer for the
+	/// same question is served (with a "may be stale" note baked into the content). Intentionally NOT a localized
+	/// admin error key: the admin maps unknown codes to an empty string and then shows the answer content, so the
+	/// stale answer itself is displayed as a caller-only (non-persisted) ephemeral.
+	/// </summary>
+	public const string AiStale = "ai_stale";
 }

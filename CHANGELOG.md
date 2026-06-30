@@ -8,6 +8,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 
 | Version         | Theme                                                                                  |
 | --------------- | -------------------------------------------------------------------------------------- |
+| [1.7.4](#174)   | Operator-AI degraded-turn + per-bundle failure metrics (Phase 2 D19)                      |
 | [1.7.3](#173)   | Operator-AI degradation Phase 1 closeout: early-abort + readiness re-check + hub test     |
 | [1.7.2](#172)   | Operator-AI honest degradation when the model is unavailable                             |
 | [1.7.1](#171)   | Operator-AI broad-overview 3B recall: few-shot classifier                                |
@@ -87,6 +88,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) — **version h
 ### Changed
 
 ### Fixed
+
+---
+
+## [1.7.4]
+
+### Added
+
+- **Operator-AI degradation metrics** (Phase 2 / D19 of `docs/prompts/operator-ai-degraded-failure-handling-and-startup-readiness-fix-agent-prompt.md`, PII-free). New `OperatorAiMetrics` exposes a standard `System.Diagnostics.Metrics` meter (`ManyFaces.OperatorAi`): `operator_ai.degraded_turns` (counted in the `ChatHub` degraded path, tagged by failure code) and `operator_ai.bundle_sections` (counted in `OperatorAiLiveStatsOrchestrator`, tagged `outcome=produced|failed`, on the AI map path only) so the per-bundle failure rate + degraded-turn rate are observable by monitoring instead of only at the next demo. Counters are no-ops until an exporter/listener subscribes; only aggregate counts + a low-cardinality code tag are recorded — never content. Tests: `OperatorAiMetricsTests` (via `MeterListener`).
+- **Operator-AI optional degradation policies** (both config-gated, **off by default** — the prompt defers them unless a real need appears). **(1)** `OperatorAiOptions.LivePartialFailureAllOrNothing`: when on, a partial multi-bundle AI failure (some sections produced, some failed) is treated all-or-nothing — return the honest "AI unavailable" ephemeral instead of partial facts + a coverage note (the default D4 behaviour is unchanged). **(2)** `StaleAnswerFallbackEnabled` (+ `StaleAnswerTtlSeconds`): when on, the answer cache retains a longer-lived stale copy and a degraded (AI-down) turn serves the last successful answer for the same question with a "may be stale" note (new `OperatorAiHubErrorCodes.AiStale`, caller-only, not persisted) instead of the bare error. Tests: `OperatorAiAnswerCacheStaleTests`, a new `OperatorAiDegradedDataHandlingTests` case, and a `OperatorAiDegradedChatHubIntegrationTests` case.
 
 ---
 
@@ -1005,7 +1015,7 @@ totalCount, totalPages }` (BE-RP3).
 
 - .NET WebAPI foundation with Identity, PostgreSQL, OAuth2/JWT, Docker compose, gRPC AI health probe.
 
-[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.7.3...HEAD
+[Unreleased]: https://github.com/01laky/many_faces_backend/compare/v1.7.4...HEAD
 [1.4.47]: https://github.com/01laky/many_faces_backend/compare/v1.4.46...v1.4.47
 [1.4.46]: https://github.com/01laky/many_faces_backend/compare/v1.4.45...v1.4.46
 [1.4.45]: https://github.com/01laky/many_faces_backend/compare/v1.4.44...v1.4.45
@@ -1061,6 +1071,7 @@ totalCount, totalPages }` (BE-RP3).
 [1.4.2]: https://github.com/01laky/many_faces_backend/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/01laky/many_faces_backend/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/01laky/many_faces_backend/compare/v1.3.0...v1.4.0
+[1.7.4]: https://github.com/01laky/many_faces_backend/compare/v1.7.3...v1.7.4
 [1.7.3]: https://github.com/01laky/many_faces_backend/compare/v1.7.2...v1.7.3
 [1.7.2]: https://github.com/01laky/many_faces_backend/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/01laky/many_faces_backend/compare/v1.7.0...v1.7.1
